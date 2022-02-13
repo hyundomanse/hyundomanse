@@ -15,4 +15,4 @@ Here are some ideas to get you started:
 - ⚡ Fun fact: ...
 -->
 
-- [] 전자정부 프레임워크 공부
+- 전자정부 프레임워크 공부
