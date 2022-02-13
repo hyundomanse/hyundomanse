@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchJaegoSaleStopCheck">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') AS startdt
+	  		FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT goods_code as sGoodsCode
+			FROM goods_master
+			WHERE tot_Stock <= 0 
+				and language = 'KO'
+				AND status in ('01','05') 
+				and STOCK_MGMT_YN = 'Y'
+				and DISP_YN = 'Y'
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT goods_code as sGoodsCode
+			FROM goods_master
+			WHERE EVRFRND_CERT_CNT <= 0 
+				and language = 'KO'
+				AND status in ('01','05') 
+				and certificate >= '10000000'
+				and DISP_YN = 'Y'
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT goods_code as sGoodsCode
+			FROM goods_master
+			WHERE tot_Stock > 0 
+				and language = 'KO'
+				AND status = '04'
+				and STOCK_MGMT_YN = 'Y'
+				and DISP_YN = 'Y'
+				and goods_Chg_Reasn_Cd = '01'
+				and to_char(sysdate, 'YYYYMMDD') between SUPPLY_S_DATE and SUPPLY_E_DATE
+				and to_char(sysdate,'YYYYMMDD') not between STOP_S_DATE and STOP_E_DATE
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER 
+			SET STATUS    = '04',
+					GOODS_CHG_REASN_CD = '01', 
+					STOCK_STOP_YMD = TO_CHAR(SYSDATE,'YYYYMMDD')		
+			WHERE GOODS_CODE = #sGoodsCode#
+				AND	STOCK_MGMT_YN = 'Y'
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER 
+			SET STATUS    = '04',
+					GOODS_CHG_REASN_CD = '01', 
+					STOCK_STOP_YMD = TO_CHAR(SYSDATE,'YYYYMMDD')		
+			WHERE GOODS_CODE = #sGoodsCode#
+				AND	STOCK_MGMT_YN = 'Y'
+		]]>	 
+	</update>
+	
+	<update id="update_ST_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER 
+			SET STATUS    = '04',
+					GOODS_CHG_REASN_CD = '01', 
+					STOCK_STOP_YMD = TO_CHAR(SYSDATE,'YYYYMMDD')		
+			WHERE GOODS_CODE = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER 
+			SET STATUS    = '04',
+					GOODS_CHG_REASN_CD = '01', 
+					STOCK_STOP_YMD = TO_CHAR(SYSDATE,'YYYYMMDD')		
+			WHERE GOODS_CODE = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<update id="update_ST_GOODS_MASTER_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER 
+			SET STATUS    = '01',
+					GOODS_CHG_REASN_CD = '00'
+			WHERE GOODS_CODE = #sGoodsCode#
+				AND	STOCK_MGMT_YN = 'Y'
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER 
+			SET STATUS    = '01',
+					GOODS_CHG_REASN_CD = '00'									
+			WHERE GOODS_CODE = #sGoodsCode#
+				AND	STOCK_MGMT_YN = 'Y'
+		]]>	 
+	</update>
+		
+</sqlMap>

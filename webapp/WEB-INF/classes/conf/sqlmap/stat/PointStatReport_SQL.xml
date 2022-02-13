@@ -1,0 +1,536 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.PointStatReport">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!--포인트 사용 현황    -->
+	<select id="spPointStatusList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+	    SELECT A.ORDER_ID AS ORDER_ID
+	            ,DECODE(A.SETL_MEAN_CD
+              		,'01','가상계좌'
+               		,'02', '신용카드'
+	               	,'03', '신용카드해외'
+	               	,'04', '신용카드창구'
+	               	,'05', '즉시이체우체국'
+	               	,'06', '즉시이체이니시스'   
+	               	,'07', 'PAYPAL'
+	               	,'08', '온누리상품권'
+	               	,'09', '우수고객포인트'
+	               	,'10', '전자지갑'
+	               	,'11', '특판'
+	               	,'12', '소액결제'   
+	               	,'13', '핸드폰결제'
+	               	,'14', '포인트'
+	               	,'15', '현금'
+	               	,'16', '복합결제'
+	               	,'17', '복합수납'
+	               	,'18', '복합결제취소'   
+	               	,'19', 'OK캐시백'
+	               	,'20', '카카오페'
+	               	,'21', 'POSTmPAY'
+	               	,'22', 'SyrupPay'
+	               	,'23', 'NAVAERPay'
+	               	,'24', 'PayNow'   
+	               	,'25', 'PAYCO'
+	               	,'26', '뱅크월넷카카오'
+	               	,'27', '알리페이'
+	               	,'28', '제휴몰'     
+	               	,'기타')
+	             SETL_MEAN_CD
+	           ,DECODE(A.ORDER_MDA_DIV_CD
+              		,'01','인터넷'
+               		,'02','전화'
+               		,'03','모바일웹(WEB)'
+               		,'04','콜센터'
+               		,'05','창구쇼핑'
+               		,'06','모바일앱(APP)')
+	             ORDER_MDA_DIV_CD
+	           ,MAX(B.SENDER_NM) NAME
+	           ,MAX(A.ACCESS_NAME) ACCESS_NAME
+	          ,SUM(B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) AMT11
+				,SUM(
+				     DECODE(B.GOODS_CANCEL_YN,'N'
+				        , (B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) - (B.PREMI_CUST_PNT_SETL_AMT + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (B.PNT_USE_AMT + NVL(B.PNT_REFUND_SETL_AMT, 0)) - B.CPN_DC_AMT
+				        ,0))
+				     AMT21
+	            ,SUM(
+		             DECODE(B.GOODS_CANCEL_YN,'Y'
+		                , (B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) - (B.PREMI_CUST_PNT_SETL_AMT + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (B.PNT_USE_AMT + NVL(B.PNT_REFUND_SETL_AMT, 0)) - B.CPN_DC_AMT
+		                ,0))
+		             AMT22
+		        ,SUM(NVL(B.PNT_USE_AMT, 0)) AMT31
+		        ,SUM(NVL(B.PNT_REFUND_SETL_AMT, 0)) AMT32
+		        ,SUM(DECODE(B.GOODS_CANCEL_YN, 'N', NVL(B.CPN_DC_AMT, 0), 0)) AMT41
+		        ,SUM(DECODE(B.GOODS_CANCEL_YN, 'Y', NVL(B.CPN_DC_AMT, 0), 0)) AMT42
+		        ,SUM(NVL(B.PREMI_CUST_PNT_SETL_AMT, 0)) AMT51
+		        ,SUM(NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) AMT52
+		        ,SUM(DECODE(B.GOODS_CANCEL_YN, 'N', NVL(B.OKCASH_USE_AMT, 0), 0)) AMT53
+		        ,SUM(DECODE(B.GOODS_CANCEL_YN, 'Y', NVL(B.OKCASH_USE_AMT, 0), 0)) AMT54
+	]]>
+	<isEqual property="point_type" compareValue="5">
+		<![CDATA[
+			 ,SUM(NVL(C.AMOUNT, 0)) AMT31
+			 ,MAX(C.CREATE_DATE) CREATE_DATE
+		]]>	
+	</isEqual>
+	<isNotEqual property="point_type" compareValue="5">
+		<![CDATA[
+			,0 AMT33
+			,'' CREATE_DATE
+		]]>	
+	</isNotEqual>
+	<![CDATA[
+		       
+	    FROM OD_ORDER_MAST A
+        	,OD_ORDER_ITM B
+	]]>
+	<isEqual property="point_type" compareValue="5">
+		<![CDATA[
+			,MB_EX_PRICE C 
+		]]>	
+	</isEqual>
+	<![CDATA[	
+	    WHERE A.ORDER_ID = B.ORDER_ID
+	]]>
+	<isEqual property="point_type" compareValue="5">
+		<![CDATA[
+			AND C.ORDER_ID = A.ORDER_ID
+			AND C.CREATE_DATE >= #search_strt_ymd# 
+			AND C.CREATE_DATE <= #search_end_ymd# 
+		]]>	
+	</isEqual>
+	<![CDATA[	
+	      AND   A.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd#, 'YYYYMMDD') AND TO_DATE(#search_end_ymd#, 'YYYYMMDD') + .99999
+    ]]> 
+	<isNotEqual property="pay_type" compareValue="">
+		<![CDATA[
+			AND A.SETL_MEAN_CD = #pay_type#
+		]]>	
+	</isNotEqual>
+	<isEqual property="search_type" compareValue="1">
+		<![CDATA[
+			AND A.ACCESS_NAME = #search_text#
+		]]>	
+	</isEqual>   
+	<isEqual property="search_type" compareValue="2">
+		<![CDATA[
+			AND B.SENDER_NM = #search_text#
+		]]>	
+	</isEqual> 
+	<isEqual property="search_type" compareValue="3">
+		<![CDATA[
+			AND A.ORDER_ID = #search_text#
+		]]>	
+	</isEqual>
+	<isNotEqual property="order_type" compareValue="">
+		<![CDATA[
+			AND A.ORDER_MDA_DIV_CD = #order_type#
+		]]>	
+	</isNotEqual>
+	<![CDATA[      
+	     AND B.ORDER_STUS_CD NOT IN ('1', '9')
+	     AND (NVL(B.PNT_USE_AMT, 0) + NVL(B.PNT_REFUND_SETL_AMT, 0)) <> 0
+	    GROUP BY A.ORDER_ID
+        ,DECODE(A.SETL_MEAN_CD
+               ,'01','가상계좌'
+               ,'02', '신용카드'
+               ,'03', '신용카드해외'
+               ,'04', '신용카드창구'
+               ,'05', '즉시이체우체국'
+               ,'06', '즉시이체이니시스'   
+               ,'07', 'PAYPAL'
+               ,'08', '온누리상품권'
+               ,'09', '우수고객포인트'
+               ,'10', '전자지갑'
+               ,'11', '특판'
+               ,'12', '소액결제'   
+               ,'13', '핸드폰결제'
+               ,'14', '포인트'
+               ,'15', '현금'
+               ,'16', '복합결제'
+               ,'17', '복합수납'
+               ,'18', '복합결제취소'   
+               ,'19', 'OK캐시백'
+               ,'20', '카카오페'
+               ,'21', 'POSTmPAY'
+               ,'22', 'SyrupPay'
+               ,'23', 'NAVAERPay'
+               ,'24', 'PayNow'   
+               ,'25', 'PAYCO'
+               ,'26', '뱅크월넷카카오'
+               ,'27', '알리페이'
+               ,'28', '제휴몰'     
+               ,'기타')
+        	,DECODE(A.ORDER_MDA_DIV_CD
+              		,'01','인터넷'
+               		,'02','전화'
+               		,'03','모바일웹(WEB)'
+               		,'04','콜센터'
+               		,'05','창구쇼핑'
+               		,'06','모바일앱(APP)')
+		ORDER BY A.ORDER_ID
+	        ,DECODE(A.SETL_MEAN_CD
+	                  ,'01','가상계좌'
+	               ,'02', '신용카드'
+	               ,'03', '신용카드해외'
+	               ,'04', '신용카드창구'
+	               ,'05', '즉시이체우체국'
+	               ,'06', '즉시이체이니시스'   
+	               ,'07', 'PAYPAL'
+	               ,'08', '온누리상품권'
+	               ,'09', '우수고객포인트'
+	               ,'10', '전자지갑'
+	               ,'11', '특판'
+	               ,'12', '소액결제'   
+	               ,'13', '핸드폰결제'
+	               ,'14', '포인트'
+	               ,'15', '현금'
+	               ,'16', '복합결제'
+	               ,'17', '복합수납'
+	               ,'18', '복합결제취소'   
+	               ,'19', 'OK캐시백'
+	               ,'20', '카카오페'
+	               ,'21', 'POSTmPAY'
+	               ,'22', 'SyrupPay'
+	               ,'23', 'NAVAERPay'
+	               ,'24', 'PayNow'   
+	               ,'25', 'PAYCO'
+	               ,'26', '뱅크월넷카카오'
+	               ,'27', '알리페이'
+	               ,'28', '제휴몰'     
+	               ,'기타')
+	         ,DECODE(A.ORDER_MDA_DIV_CD
+              		,'01','인터넷'
+               		,'02','전화'
+               		,'03','모바일웹(WEB)'
+               		,'04','콜센터'
+               		,'05','창구쇼핑'
+               		,'06','모바일앱(APP)')
+	  ]]>
+	</select>
+	
+	
+	<!--포인트 통계 현황    -->
+	<select id="pointStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+		    	DECODE(SHOP_ID
+		         	,'01', '프리미엄관'
+		            ,'02', '제철식품'
+		            ,'03', '생활마트'
+		            ,'04', '꽃배달'
+		            ,'05', '전통시장'
+		            ,'06', '의류패션관'
+		            ,'07', '해외배송'
+		            ,'08', '패션B2B'
+		            ,'12', '청별상품'
+		            ,'91', '우수S/W'
+		            ,'92', '대기업상품전시'         
+		            ,'기타') SHOP_ID
+		      ,DECODE(MEMBER_TYPE,  '1', '개인',  '2', '법인',  '3', '청소년',  '기타') MEMBER_TYPE
+		      ,CATEGORY_NAME1
+		      ,CATEGORY_NAME2
+		      ,CATEGORY_NAME3
+		      ,CATEGORY_NAME4
+		      ,SUM(NVL(AMOUNT, 0)) AMOUNT
+       		  ,SUM(NVL(PEF_AMOUNT, 0)) PEF_AMOUNT
+          ]]> 
+			<isEqual property="search_term" compareValue="1">
+				<![CDATA[
+					,DAY
+				]]>	
+			</isEqual>
+			<isEqual property="search_term" compareValue="2">
+				<![CDATA[
+					,SUBSTR( DAY, 1, 6) DAY
+				]]>	
+			</isEqual>
+			<isEqual property="search_term" compareValue="3">
+				<![CDATA[
+					,SUBSTR( DAY, 1, 4) DAY
+				]]>	
+			</isEqual>
+		<![CDATA[
+        FROM MP_HISTORY_RM_STAT
+  
+	    WHERE
+	    	DAY >= #search_strt_ymd# 
+			AND DAY <= #search_end_ymd#
+        ]]> 
+        <isNotEqual property="shop_id" compareValue="">
+			<![CDATA[
+				AND SHOP_ID = #shop_id#
+			]]>	
+		</isNotEqual>
+		<isNotEqual property="member_type" compareValue="">
+			<![CDATA[
+				AND MEMBER_TYPE = #member_type#
+			]]>	
+		</isNotEqual>
+		<![CDATA[	
+        GROUP BY
+        ]]> 
+        <isEqual property="search_term" compareValue="1">
+			<![CDATA[
+				DAY
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="2">
+			<![CDATA[
+				SUBSTR( DAY, 1, 6)
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="3">
+			<![CDATA[
+				SUBSTR( DAY, 1, 4)
+			]]>	
+		</isEqual>
+        <![CDATA[
+         ,DECODE(SHOP_ID
+          ,'01', '프리미엄관'
+               ,'02', '제철식품'
+               ,'03', '생활마트'
+               ,'04', '꽃배달'
+               ,'05', '전통시장'
+               ,'06', '의류패션관'
+               ,'07', '해외배송'
+               ,'08', '패션B2B'
+               ,'12', '청별상품'
+               ,'91', '우수S/W'
+               ,'92', '대기업상품전시'         
+               ,'기타')
+        ,DECODE(MEMBER_TYPE,  '1', '개인',  '2', '법인',  '3', '청소년',  '기타'), CATEGORY_NAME1, CATEGORY_NAME2, CATEGORY_NAME3, CATEGORY_NAME4
+        ORDER BY
+         ]]>
+         <isEqual property="search_term" compareValue="1">
+			<![CDATA[
+				DAY
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="2">
+			<![CDATA[
+				SUBSTR( DAY, 1, 6)
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="3">
+			<![CDATA[
+				SUBSTR( DAY, 1, 4)
+			]]>	
+		</isEqual>
+        <![CDATA[ 
+         ,DECODE(SHOP_ID
+          ,'01', '프리미엄관'
+               ,'02', '제철식품'
+               ,'03', '생활마트'
+               ,'04', '꽃배달'
+               ,'05', '전통시장'
+               ,'06', '의류패션관'
+               ,'07', '해외배송'
+               ,'08', '패션B2B'
+               ,'12', '청별상품'
+               ,'91', '우수S/W'
+               ,'92', '대기업상품전시'         
+               ,'기타')
+        ,DECODE(MEMBER_TYPE,  '1', '개인',  '2', '법인',  '3', '청소년',  '기타'), CATEGORY_NAME1, CATEGORY_NAME2, CATEGORY_NAME3, CATEGORY_NAME4
+	    ]]>
+	</select>
+
+	<!--포인트 소멸 현황    -->
+	<select id="pointExtinctStatusList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+	        SUM(TOT_NO_USE_POINT) * 10 TOT_NO_USE_POINT
+	        ,SUM(ACCU_POINT) * 10 ACCU_POINT
+	        ,SUM(CANCEL_POINT) * 10 CANCEL_POINT
+	        ,SUM(USE_POINT) * 10 USE_POINT
+	        ,SUM(TOT_NO_USE_INWON) TOT_NO_USE_INWON
+	        ,MAX(NVL(TOT_CUR_POINT, 0)) * 10 TOT_CUR_POINT
+          ]]> 
+			<isEqual property="search_term" compareValue="1">
+				<![CDATA[
+					,TO_CHAR( TO_DATE(DAYS), 'yyyy.mm.dd') REG_DATE
+				]]>	
+			</isEqual>
+			<isEqual property="search_term" compareValue="2">
+				<![CDATA[
+					,TO_CHAR( TO_DATE(DAYS), 'yyyy.mm') REG_DATE
+				]]>	
+			</isEqual>
+			<isEqual property="search_term" compareValue="3">
+				<![CDATA[
+					,TO_CHAR( TO_DATE(DAYS), 'yyyy') REG_DATE
+				]]>	
+			</isEqual>
+		<![CDATA[
+        FROM MP_RM_STAT
+  
+	    WHERE
+	    	DAYS >= #search_strt_ymd# 
+			AND DAYS <= #search_end_ymd#
+        ]]> 
+		<![CDATA[	
+        GROUP BY
+        ]]> 
+        <isEqual property="search_term" compareValue="1">
+			<![CDATA[
+				TO_CHAR( TO_DATE(DAYS), 'yyyy.mm.dd')
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="2">
+			<![CDATA[
+				TO_CHAR( TO_DATE(DAYS), 'yyyy.mm')
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="3">
+			<![CDATA[
+				TO_CHAR( TO_DATE(DAYS), 'yyyy')
+			]]>	
+		</isEqual>
+		<![CDATA[
+        ORDER BY
+         ]]>
+         <isEqual property="search_term" compareValue="1">
+			<![CDATA[
+				TO_CHAR( TO_DATE(DAYS), 'yyyy.mm.dd')
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="2">
+			<![CDATA[
+				TO_CHAR( TO_DATE(DAYS), 'yyyy.mm')
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="3">
+			<![CDATA[
+				TO_CHAR( TO_DATE(DAYS), 'yyyy')
+			]]>	
+		</isEqual>
+	</select>
+	
+	<select id="pointExtinctStatusList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT 
+		]]> 
+		<isEqual property="search_term" compareValue="1">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4) || '.' || SUBSTR( REG_DATE, 5, 2) || '.' || SUBSTR( REG_DATE, 7, 2) REG_DATE
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="2">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4) || '.' || SUBSTR( REG_DATE, 5, 2) REG_DATE
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="3">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4) REG_DATE
+			]]>	
+		</isEqual>
+		<![CDATA[
+		        ,SUM(TOT_NO_USE_POINT) * 10 TOT_NO_USE_POINT
+		        ,SUM(ACCU_POINT) * 10 ACCU_POINT
+		        ,SUM(CANCEL_POINT) * 10 CANCEL_POINT
+		        ,SUM(USE_POINT) * 10 USE_POINT
+		        ,1 TOT_NO_USE_INWON
+		        ,0 TOT_CUR_POINT
+			FROM (  SELECT REG_DATE
+			                  ,NVL(SUM(USE_POINT), 0) TOT_NO_USE_POINT
+			                  ,0 ACCU_POINT
+			                  ,0 CANCEL_POINT
+			                  ,0 USE_POINT
+			             FROM MB_MEM_ACCMLAMT_HISTOR
+            			 WHERE ACCESS_NAME = #search_text#
+				               AND REG_DATE >= #search_strt_ymd# 
+				               AND REG_DATE <= #search_end_ymd#
+				               AND TYPE_CD = 'U4'
+          				GROUP BY REG_DATE
+          				UNION ALL
+			            SELECT REG_DATE
+			                  ,0
+			                  ,NVL(SUM(ACCU_POINT), 0) ACCU_POINT
+			                  ,0
+			                  ,0
+              			FROM MB_MEM_ACCMLAMT_HISTOR
+             			WHERE ACCESS_NAME = #search_text#
+            				AND REG_DATE >= #search_strt_ymd# 
+               				AND REG_DATE <= #search_end_ymd#
+              				AND TYPE_CD = 'A1'
+               				AND STATUS = '1'
+          				GROUP BY REG_DATE
+          				UNION ALL
+            			SELECT REG_DATE
+			                  ,0
+			                  ,0
+			                  ,NVL(SUM(ACCU_POINT), 0) CANCEL_POINT
+			                  ,0
+              			FROM MB_MEM_ACCMLAMT_HISTOR
+             			WHERE ACCESS_NAME = #search_text#
+             				AND REG_DATE >= #search_strt_ymd# 
+               				AND REG_DATE <= #search_end_ymd#
+               				AND TYPE_CD = 'A3'
+               				AND STATUS = '1'
+          				GROUP BY REG_DATE
+          				UNION ALL
+            			SELECT REG_DATE
+			                  ,0
+			                  ,0
+			                  ,NVL(SUM(USE_POINT), 0) * -1 CANCEL_POINT
+			                  ,0
+              			FROM MB_MEM_ACCMLAMT_HISTOR
+             			WHERE ACCESS_NAME = #search_text#
+               				AND REG_DATE >= #search_strt_ymd# 
+               				AND REG_DATE <= #search_end_ymd#
+               				AND TYPE_CD = 'U3'
+               				AND STATUS = '2'
+          				GROUP BY REG_DATE
+          				UNION ALL
+            			SELECT REG_DATE
+			                  ,0
+			                  ,0
+			                  ,0
+			                  ,NVL(SUM(USE_POINT), 0) USE_POINT
+              			FROM MB_MEM_ACCMLAMT_HISTOR
+             			WHERE ACCESS_NAME = #search_text#
+               				AND REG_DATE >= #search_strt_ymd# 
+               				AND REG_DATE <= #search_end_ymd#
+               				AND TYPE_CD IN ('U1', 'U5')
+               				AND STATUS = '2'
+          				GROUP BY REG_DATE)
+         GROUP BY 
+         ]]> 
+		<isEqual property="search_term" compareValue="1">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4) || '.' || SUBSTR( REG_DATE, 5, 2) || '.' || SUBSTR( REG_DATE, 7, 2)
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="2">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4) || '.' || SUBSTR( REG_DATE, 5, 2)
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="3">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4)
+			]]>	
+		</isEqual>
+		<![CDATA[
+		 ORDER BY 
+		 ]]> 
+		<isEqual property="search_term" compareValue="1">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4) || '.' || SUBSTR( REG_DATE, 5, 2) || '.' || SUBSTR( REG_DATE, 7, 2)
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="2">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4) || '.' || SUBSTR( REG_DATE, 5, 2)
+			]]>	
+		</isEqual>
+		<isEqual property="search_term" compareValue="3">
+			<![CDATA[
+				SUBSTR( REG_DATE, 1, 4)
+			]]>	
+		</isEqual>
+	</select>
+</sqlMap>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.MonthlyOverseaDelivStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<select id="selectOverseaDelivStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			SELECT
+					F_GET_COMN_CD_NM('RCO_CD',D.RCOCD) AS RCOCDNAME
+					<isEqual property="dateTerm" compareValue="monthly">
+						,ROW_NUMBER() OVER(ORDER BY SUBSTR(A.APPR_DATE,1,6) DESC)AS RNUM
+						,SUBSTR(A.APPR_DATE,1,6) MO
+					</isEqual>
+					<isEqual property="dateTerm" compareValue="daily">
+						,ROW_NUMBER() OVER(ORDER BY SUBSTR(A.APPR_DATE,1,8) DESC)AS RNUM
+						,SUBSTR(A.APPR_DATE,1,8) MO
+					</isEqual>
+			<![CDATA[
+					,(SELECT PONM FROM PICMT0060 MP WHERE MP.REGIPOCD = D.MPOREGIPOCD AND USEYN = 'Y') AS SERVER_NAME
+					,B.SUPP_PO_NM
+					,H.NATION_NM_KO
+					, F_GET_COMN_CD_NM('FRN_EXP_DIV_CD',B.FRN_EXP_DIV_CD) AS FRN_EXP_DIV_CD_NM
+					,B.SUPP_COMP_ID
+					,B.SUPP_COMP_NM
+					,CM.CTGRY_NM
+					,B.GOODS_CD
+					,B.GOODS_NM
+					,SUM(NVL(B.REQ_CNT,0)) CNT1
+					,SUM(NVL(B.DC_APPLY_PRC + B.OPTN_GOODS_APPLY_PRC+B.SEND_PRC,0)) AMT1
+					,SUM(NVL(B.DC_APPLY_PRC + B.OPTN_GOODS_APPLY_PRC,0)) AMT2
+					,SUM(NVL(B.SEND_PRC,0))AMT3
+					,B.WISH_SEND_DATE
+			FROM	OD_ORDER_MAST A
+					,OD_ORDER_ITM B
+					,PICMT0060 D
+					,GD_GOODS_MAST F
+					,GD_GOODS_CTGRY E
+					,GD_CTGRY_MAST CM
+					,CM_OVSEA_SEND_NATION_CD H
+			WHERE	A.ORDER_ID = B.ORDER_ID
+			AND 	A.APPR_DATE BETWEEN TO_DATE(#searchFromDt#, 'YYYY-MM-DD') AND TO_DATE(#searchToDt#, 'YYYY-MM-DD') + .99999
+			AND 	A.SETL_STUS_CD IN ('2100','2200','3030')
+			AND 	B.ORDER_STUS_CD NOT IN ('O01','O06')
+			AND 	B.GOODS_CD = F.GOODS_CD
+			AND 	F.GOODS_CD = E.GOODS_CD
+			AND 	E.CTGRY_CD = CM.CTGRY_CD
+			AND 	B.SEND_NATION_CD = H.NATION_CD
+			AND 	B. PAVLN_DIV_CD ='07'
+			AND 	A.ORDER_CANCEL_DATE  IS NULL
+			AND 	B.CNSMR_PRC > 0
+			AND 	A.SITE_DIV_CD	IN('01','03','05')
+			AND 	B.SUPPO_RGIST_POCD = D.REGIPOCD(+)
+			AND 	D.USEYN = 'Y'
+			]]>
+			GROUP BY B.FRN_EXP_DIV_CD
+						,D.RCOCD
+						,D.MPOREGIPOCD
+						,B.SUPP_PO_NM
+						,B.SUPP_COMP_ID
+						,B.SUPP_COMP_NM
+						,E.CTGRY_CD
+						,B.GOODS_CD
+						,B.GOODS_NM
+						,H.NATION_NM_KO
+						,B.WISH_SEND_DATE
+						,CM.CTGRY_NM
+						<isEqual property="dateTerm" compareValue="monthly">
+							,SUBSTR(A.APPR_DATE,1,6)
+						</isEqual>
+						<isEqual property="dateTerm" compareValue="daily">
+							,SUBSTR(A.APPR_DATE,1,8)
+						</isEqual>
+			ORDER BY	D.RCOCD
+						,D.MPOREGIPOCD
+						,B.SUPP_PO_NM
+						,B.SUPP_COMP_ID
+						,B.SUPP_COMP_NM
+						,E.CTGRY_CD
+						,B.GOODS_CD
+						,B.GOODS_NM
+						,H.NATION_NM_KO
+						,B.WISH_SEND_DATE
+						<isEqual property="dateTerm" compareValue="monthly">
+							,SUBSTR(A.APPR_DATE,1,6) DESC
+						</isEqual>
+						<isEqual property="dateTerm" compareValue="daily">
+							,SUBSTR(A.APPR_DATE,1,8) DESC
+						</isEqual>
+	</select>
+
+</sqlMap>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatMng187k01">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<select id="retrieveSellStat" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+PUSH_SUBQ*/
+			    RCOCD CHUNG_CODE,
+			    RCOCD,
+			    COMN_CD_NM CHUNG_NAME,
+			    SUM(DECODE(PAVLN_DIV_CD, '01', REQ_CNT, '04', REQ_CNT, '92', REQ_CNT, 0)) AS SUM_GOODS_CNT,
+			    SUM(DECODE(PAVLN_DIV_CD, '01', DC_APPLY_PRC, '04', DC_APPLY_PRC, '92', DC_APPLY_PRC, 0)) AS SUM_RECEV_AMT,
+			    SUM(DECODE(PAVLN_DIV_CD, '01', REQ_CNT, 0)) AS SUM_SPCLTY_GOODS_CNT,
+			    SUM(DECODE(PAVLN_DIV_CD, '01', DC_APPLY_PRC, 0)) AS SUM_SPCLTY_RECEV_AMT,
+			    SUM(DECODE(PAVLN_DIV_CD, '04', REQ_CNT, 0)) AS SUM_FLWR_GOODS_CNT,
+			    SUM(DECODE(PAVLN_DIV_CD, '04', DC_APPLY_PRC, 0)) AS SUM_FLWR_GOODS_AMT,
+			    SUM(DECODE(PAVLN_DIV_CD, '92', REQ_CNT, 0)) AS SUM_ENT_GOODS_CNT,
+			    SUM(DECODE(PAVLN_DIV_CD, '92', DC_APPLY_PRC, 0)) AS SUM_ENT_RECEV_AMT
+			FROM (
+			SELECT /*+LEADING(A) INDEX_FFS(B) USE_NL(A C D)*/
+			  B.RCOCD,
+			  D.COMN_CD_NM,
+			  C.PAVLN_DIV_CD,
+			  C.DC_APPLY_PRC,
+              C.REQ_CNT
+			FROM OD_ORDER_MAST A, PICMT0060 B, OD_ORDER_ITM C, CM_COMN_CD D
+			WHERE 1 = 1
+			      AND A.ORDER_ID = C.ORDER_ID
+			      AND A.RECEVPO_RGISTPOCD = B.REGIPOCD
+      ]]>
+		<isNotEmpty property="hFromDate" prepend="AND">
+			<![CDATA[	A.APPR_DATE >= TO_DATE(#hFromDate#||'000000', 'YYYYMMDDHH24MISS')]]>
+		</isNotEmpty>
+		<isNotEmpty property="hFromDate" prepend="AND">
+			<![CDATA[	A.APPR_DATE <= TO_DATE(#hFromDate#||'235959','YYYYMMDDHH24MISS')]]>
+		</isNotEmpty>
+		<![CDATA[
+			      AND D.CD_GRP_ID = 'RCO_CD'
+			      AND D.COMN_CD_ID = B.RCOCD
+			      AND C.GOODS_CANCEL_YN = 'N'
+			      AND B.USEYN='Y'
+			      AND A.ORDER_STUS_CD != 'O01'
+			      AND A.RECEVPO_RGISTPOCD = B.REGIPOCD
+			)
+			GROUP BY RCOCD, COMN_CD_NM
+			ORDER BY RCOCD
+ 	 	]]>
+  </select>
+
+</sqlMap>

@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.PriceSalesStat">
+
+	<sql id="priceWhere">
+		<isNotEmpty property="price_type" prepend="AND">
+			<isEqual property="price_type" compareValue="1">
+				A.DC_APPLY_PRC &lt; 10000
+			</isEqual>
+			<isEqual property="price_type" compareValue="2">
+				A.DC_APPLY_PRC &gt; 10000 AND A.DC_APPLY_PRC &lt; 20000
+			</isEqual>
+			<isEqual property="price_type" compareValue="3">
+				A.DC_APPLY_PRC &gt; 20000 AND A.DC_APPLY_PRC &lt; 30000
+			</isEqual>
+			<isEqual property="price_type" compareValue="4">
+				A.DC_APPLY_PRC &gt; 30000 AND A.DC_APPLY_PRC &lt; 40000
+			</isEqual>
+			<isEqual property="price_type" compareValue="5">
+				A.DC_APPLY_PRC &gt; 40000 AND A.DC_APPLY_PRC &lt; 50000
+			</isEqual>
+			<isEqual property="price_type" compareValue="6">
+				A.DC_APPLY_PRC &gt; 50000 AND A.DC_APPLY_PRC &lt; 60000
+			</isEqual>
+			<isEqual property="price_type" compareValue="7">
+				A.DC_APPLY_PRC &gt; 60000 AND A.DC_APPLY_PRC &lt; 70000
+			</isEqual>
+			<isEqual property="price_type" compareValue="8">
+				A.DC_APPLY_PRC &gt; 70000 AND A.DC_APPLY_PRC &lt; 80000
+			</isEqual>
+			<isEqual property="price_type" compareValue="9">
+				A.DC_APPLY_PRC &gt; 80000 AND A.DC_APPLY_PRC &lt; 90000
+			</isEqual>
+			<isEqual property="price_type" compareValue="10">
+				A.DC_APPLY_PRC &gt; 90000 AND A.DC_APPLY_PRC &lt; 100000
+			</isEqual>
+			<isEqual property="price_type" compareValue="11">
+				A.DC_APPLY_PRC &gt; 100000 AND A.DC_APPLY_PRC &lt; 110000
+			</isEqual>
+			<isEqual property="price_type" compareValue="12">
+				A.DC_APPLY_PRC &gt; 110000 AND A.DC_APPLY_PRC &lt; 120000
+			</isEqual>
+			<isEqual property="price_type" compareValue="13">
+				A.DC_APPLY_PRC &gt; 120000 AND A.DC_APPLY_PRC &lt; 130000
+			</isEqual>
+			<isEqual property="price_type" compareValue="14">
+				A.DC_APPLY_PRC &gt; 130000 AND A.DC_APPLY_PRC &lt; 140000
+			</isEqual>
+			<isEqual property="price_type" compareValue="15">
+				A.DC_APPLY_PRC &gt; 140000 AND A.DC_APPLY_PRC &lt; 150000
+			</isEqual>
+			<isEqual property="price_type" compareValue="16">
+				A.DC_APPLY_PRC &gt; 150000 AND A.DC_APPLY_PRC &lt; 160000
+			</isEqual>
+			<isEqual property="price_type" compareValue="17">
+				A.DC_APPLY_PRC &gt; 160000 AND A.DC_APPLY_PRC &lt; 170000
+			</isEqual>
+			<isEqual property="price_type" compareValue="18">
+				A.DC_APPLY_PRC &gt; 170000 AND A.DC_APPLY_PRC &lt; 180000
+			</isEqual>
+			<isEqual property="price_type" compareValue="19">
+				A.DC_APPLY_PRC &gt; 180000 AND A.DC_APPLY_PRC &lt; 190000
+			</isEqual>
+			<isEqual property="price_type" compareValue="20">
+				A.DC_APPLY_PRC &gt; 190000 AND A.DC_APPLY_PRC &lt; 200000
+			</isEqual>
+			<isEqual property="price_type" compareValue="21">
+				A.DC_APPLY_PRC &gt; 200000
+			</isEqual>
+		</isNotEmpty>
+	</sql>
+
+	<sql id="priceSales">
+		SELECT (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = F.HRNK_CTGRY_CD) AS CTGRY_NM1
+			 , F.CTGRY_NM AS CTGRY_NM2
+			 , E.CTGRY_NM AS CTGRY_NM3
+			 , A.GOODS_CD
+			 , A.STD_SELL_PRC AS STD_SELL_PRC
+			 , A.DC_APPLY_PRC AS DC_APPLY_PRC
+			 , A.TOTAL_PRC AS TOTAL_PRC
+			 , A.REQ_CNT AS REQ_CNT
+			 , A.ORDER_CNT AS ORDER_CNT
+			 , FLOOR(A.SUM_FEE) AS SUM_FEE
+			 , B.GOODS_NM
+			 , C.BCNC_NM
+			 , D.PONM
+			 , DECODE(SM.GOODS_SUPP_YN, 'Y', '공급', '중단') AS GOODS_SUPP_YN
+		  FROM (SELECT A.GOODS_CD, A.CTGRY_CD, A.STD_SELL_PRC, A.DC_APPLY_PRC, SUM(DC_APPLY_PRC) AS TOTAL_PRC, SUM(A.REQ_CNT) AS REQ_CNT, COUNT(*) AS ORDER_CNT
+		             , SUM(A.DC_APPLY_PRC) * (MAX(NVL(A.GOODS_BASIC_FEE,4)) * 0.01) SUM_FEE
+		          FROM OD_ORDER_ITM A, OD_ORDER_MAST B
+		         WHERE A.ORDER_ID = B.ORDER_ID
+		           AND A.ORDER_DTAIL_STUS_CD = 'O02'
+		           AND TO_CHAR(B.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+				<include refid="priceWhere" />
+				<isNotEmpty property="pavln_div_cd" prepend="AND">
+					A.PAVLN_DIV_CD = #pavln_div_cd#
+				</isNotEmpty>
+				<isNotEmpty property="ctgry" prepend="AND">
+					A.CTGRY_CD = #ctgry#
+				</isNotEmpty>
+				<isNotEmpty property="order_type" prepend="AND">
+					<isEqual property="order_type" compareValue="online">
+						B.ORDER_MDA_DIV_CD = '01'
+					</isEqual>
+					<isEqual property="order_type" compareValue="mobile">
+						B.ORDER_MDA_DIV_CD IN ('03', '06')
+					</isEqual>
+					<isEqual property="order_type" compareValue="call">
+						B.ORDER_MDA_DIV_CD IN ('02', '04')
+					</isEqual>
+					<isEqual property="order_type" compareValue="postoffice">
+						B.ORDER_MDA_DIV_CD = '05'
+					</isEqual>
+				</isNotEmpty>
+		         GROUP BY A.GOODS_CD, A.CTGRY_CD, A.STD_SELL_PRC, A.DC_APPLY_PRC) A
+		     , GD_MGT_GOODS_MAST B
+		     , CO_SUPP_COMP_MAST C
+		     , (SELECT PONM, REGIPOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N') D
+		     , GD_CTGRY_MAST E
+		     , GD_CTGRY_MAST F
+		     , GD_GOODS_SM SM
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND B.SUPP_COMP_ID = C.SUPP_COMP_ID
+		   AND C.SUPPO_RGIST_POCD = D.REGIPOCD(+)
+		   AND A.CTGRY_CD = E.CTGRY_CD
+		   AND E.HRNK_CTGRY_CD = F.CTGRY_CD
+		   AND A.GOODS_CD = SM.GOODS_CD
+	</sql>
+	
+	<select id="selectPriceSalesStatList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.CTGRY_NM1
+			 , A.CTGRY_NM2
+			 , A.CTGRY_NM3
+			 , A.GOODS_CD
+			 , TO_CHAR(A.STD_SELL_PRC,'FM999,999,999,999') AS STD_SELL_PRC
+			 , TO_CHAR(A.DC_APPLY_PRC,'FM999,999,999,999') AS DC_APPLY_PRC
+			 , TO_CHAR(A.TOTAL_PRC,'FM999,999,999,999') AS TOTAL_PRC
+			 , TO_CHAR(A.REQ_CNT,'FM999,999,999,999') AS REQ_CNT
+			 , TO_CHAR(A.ORDER_CNT,'FM999,999,999,999') AS ORDER_CNT
+			 , TO_CHAR(A.SUM_FEE,'FM999,999,999,999') AS SUM_FEE
+			 , A.GOODS_NM
+			 , A.BCNC_NM
+			 , A.PONM
+			 , A.GOODS_SUPP_YN
+		  FROM (<include refid="priceSales" />) A
+	</select>
+	
+	<select id="selectPriceSalesTotal" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT TO_CHAR(SUM(A.TOTAL_PRC),'FM999,999,999,999') AS TOTAL_PRC
+			 , TO_CHAR(SUM(A.REQ_CNT),'FM999,999,999,999') AS REQ_CNT
+			 , TO_CHAR(SUM(A.ORDER_CNT),'FM999,999,999,999') AS ORDER_CNT
+			 , TO_CHAR(SUM(A.SUM_FEE),'FM999,999,999,999') AS SUM_FEE
+		  FROM (<include refid="priceSales" />) A
+	</select>
+	
+	<select id="selectCtgryList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.CTGRY_CD AS VALUE
+			 , A.CTGRY_NM AS NAME
+		  FROM GD_CTGRY_MAST A, GD_CTGRY_PAVLN_MAPP B 
+		 WHERE A.CTGRY_CD = B.CTGRY_CD 
+		   AND A.POSTNET_CTGRY_YN = 'N'
+		   AND A.CTGRY_LEVEL = '3'
+		   AND A.USE_YN = 'Y'
+		<isNotEmpty property="pavln_div_cd" prepend="AND">
+			B.PAVLN_DIV_CD = #pavln_div_cd#
+		</isNotEmpty>
+		 GROUP BY A.CTGRY_CD, A.CTGRY_NM
+	</select>
+	
+	<select id="selectPriceSalesExcelType2List" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = C.HRNK_CTGRY_CD) AS CTGRY_NM1
+			 , C.CTGRY_NM AS CTGRY_NM2
+			 , B.CTGRY_NM AS CTGRY_NM3
+			 , TO_CHAR(A.TOTAL_PRC,'FM999,999,999,999') AS TOTAL_PRC
+			 , TO_CHAR(A.REQ_CNT,'FM999,999,999,999') AS REQ_CNT
+			 , TO_CHAR(A.ORDER_CNT,'FM999,999,999,999') AS ORDER_CNT
+			 , TO_CHAR(FLOOR(A.SUM_FEE),'FM999,999,999,999') AS SUM_FEE
+			 , A.SUPP_COMP_NM
+		  FROM (SELECT A.SUPP_COMP_NM, A.CTGRY_CD, SUM(DC_APPLY_PRC) AS TOTAL_PRC, SUM(A.REQ_CNT) AS REQ_CNT, COUNT(*) AS ORDER_CNT
+		             , SUM(A.DC_APPLY_PRC) * (MAX(NVL(A.GOODS_BASIC_FEE,4)) * 0.01) SUM_FEE
+		          FROM OD_ORDER_ITM A, OD_ORDER_MAST B
+		         WHERE A.ORDER_ID = B.ORDER_ID
+		           AND A.ORDER_DTAIL_STUS_CD = 'O02'
+		           AND TO_CHAR(B.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+				<include refid="priceWhere" />
+				<isNotEmpty property="pavln_div_cd" prepend="AND">
+					A.PAVLN_DIV_CD = #pavln_div_cd#
+				</isNotEmpty>
+				<isNotEmpty property="ctgry" prepend="AND">
+					A.CTGRY_CD = #ctgry#
+				</isNotEmpty>
+				<isNotEmpty property="order_type" prepend="AND">
+					<isEqual property="order_type" compareValue="online">
+						B.ORDER_MDA_DIV_CD = '01'
+					</isEqual>
+					<isEqual property="order_type" compareValue="mobile">
+						B.ORDER_MDA_DIV_CD IN ('03', '06')
+					</isEqual>
+					<isEqual property="order_type" compareValue="call">
+						B.ORDER_MDA_DIV_CD IN ('02', '04')
+					</isEqual>
+					<isEqual property="order_type" compareValue="postoffice">
+						B.ORDER_MDA_DIV_CD = '05'
+					</isEqual>
+				</isNotEmpty>
+		         GROUP BY A.SUPP_COMP_NM, A.CTGRY_CD) A
+		     , GD_CTGRY_MAST B
+		     , GD_CTGRY_MAST C
+		 WHERE A.CTGRY_CD = B.CTGRY_CD
+		   AND B.HRNK_CTGRY_CD = C.CTGRY_CD
+	</select>
+	
+</sqlMap>

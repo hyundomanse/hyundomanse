@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchAdjGoods">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<delete id="deleteStAdjStatus" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM ADJ_STATUS                
+			WHERE ADJ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')                 
+			AND ADJ_STATUS = 'E'
+		]]>
+	</delete>	
+	
+	<update id="insertStAdjStatus" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ADJ_STATUS(
+										ADJ_DATE, 
+									   	ADJ_DATE_SEQ, 
+									   	ADJ_STATUS, 
+									   	USEYN, 
+									   	WORK_DATE
+									  )
+								VALUES(
+										TO_CHAR(SYSDATE, 'YYYYMMDD'), 
+										(SELECT NVL(MAX(ADJ_DATE_SEQ)+1, 0) FROM ADJ_STATUS WHERE ADJ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')), 
+										'E', 
+										'Y', 
+										SYSDATE
+									  )
+
+		]]>
+	</update>	
+	
+	<update id="insertStAdjStatusHistory" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ADJ_STATUS_HISTORY(
+												ADJ_DATE, 
+												ADJ_DATE_SEQ, 
+												ADJ_STATUS, 
+												USEYN, 
+												WORK_DATE
+											  )
+									   VALUES(
+									   			TO_CHAR(SYSDATE, 'YYYYMMDD'), 
+									   			(SELECT NVL(MAX(ADJ_DATE_SEQ)+1, 0) FROM ADJ_STATUS_HISTORY WHERE ADJ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')), 
+									   			'E', 
+									   			'Y', 
+									   			SYSDATE
+									   		  )
+
+		]]>
+	</update>	
+	
+	<select id="selectStHistoryAdjust" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 1
+			    , IS_TARGET_SETTLED
+			    , LAST_SUPP_ADJ_FIN_DATE
+			    , ADJ_START_DAY
+			    , ADJ_END_DAY
+			    , ADJ_CONFIRM_DAY
+			    , ADJ_CONFIRM_NEXT_DAY 
+			    , NEW_NEXT_START_DAY
+			    , IS_CTRT_TRANSF_SUPP_ADJ
+			    , TO_CHAR(SYSDATE, 'YYYYMMDD') AS SYS_DAY 
+			    , ADJ_START_DAY_ORG 
+			FROM
+			    (
+			    SELECT GBN
+			        , IS_TARGET_SETTLED
+			        , LAST_SUPP_ADJ_FIN_DATE
+			        , ADJ_START_DAY
+			        , ADJ_END_DAY
+			        , ADJ_CONFIRM_DAY
+			        , ADJ_CONFIRM_NEXT_DAY 
+			        , NEW_NEXT_START_DAY
+			        , ADJ_START_DAY_ORG 
+			        , CASE WHEN TO_CHAR(TO_DATE(SUBSTR(TO_CHAR(ADD_MONTHS(TO_DATE(ADJ_START_DAY, 'YYYYMMDD'), 1), 'YYYYMMDD'), 1, 6)||01, 'YYYYMMDD') - 1, 'YYYYMMDD') BETWEEN ADJ_START_DAY AND ADJ_END_DAY 
+			               THEN 'Y'
+			               ELSE 'N'
+			          END AS IS_CTRT_TRANSF_SUPP_ADJ
+			    FROM
+			        (
+			        SELECT TO_CHAR(TO_DATE(LAST_SUPP_ADJ_FIN_DATE, 'YYYY/MM/DD'), 'YYYYMMDD') AS LAST_SUPP_ADJ_FIN_DATE
+			            , TO_CHAR(TO_DATE(LAST_SUPP_ADJ_FIN_DATE, 'YYYY/MM/DD') + 1, 'YYYYMMDD') AS ADJ_START_DAY
+			        FROM
+			            (
+			            SELECT 
+			                MAX(END_DAY) AS LAST_SUPP_ADJ_FIN_DATE
+			            FROM HISTORY_ADJUST
+			            WHERE SUPP_ADJ_YN = 'Y'
+			            )
+			        )A,
+			        (
+			        SELECT GBN
+			            , IS_TARGET_SETTLED
+			            , IS_SUPP_DAY_STR
+			            , ADJ_END_DAY
+			            , ADJ_CONFIRM_DAY
+			            , ADJ_CONFIRM_NEXT_DAY 
+			            , NEW_NEXT_START_DAY
+			            , ADJ_START_DAY_ORG 
+			        FROM
+			            (
+			            SELECT GBN
+			                , IS_TARGET_SETTLED
+			                , IS_SUPP_DAY_STR
+			                , ADJ_END_DAY
+			                , ADJ_CONFIRM_DAY
+			                , ADJ_CONFIRM_NEXT_DAY 
+			                , NEW_NEXT_START_DAY
+			                , ADJ_START_DAY_ORG 
+			            FROM
+			            (
+			                SELECT 1 AS GBN
+			                    , 'Y' AS IS_TARGET_SETTLED
+			                    , 'IS_SUPP_DAY_SETTLED' AS IS_SUPP_DAY_STR
+			                    , TO_CHAR(TO_DATE(START_DAY, 'YYYY/MM/DD'), 'YYYYMMDD') AS ADJ_START_DAY_ORG 
+			                    , TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD'), 'YYYYMMDD') AS ADJ_END_DAY
+			                    , TO_CHAR(TO_DATE(CONFIRM_DAY, 'YYYY/MM/DD'), 'YYYYMMDD') AS ADJ_CONFIRM_DAY
+			                    , TO_CHAR(TO_DATE(CONFIRM_DAY, 'YYYY/MM/DD')+1, 'YYYYMMDD') AS ADJ_CONFIRM_NEXT_DAY 
+			                    , TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD')+1, 'YYYYMMDD') AS NEW_NEXT_START_DAY
+			                FROM
+			                    (
+			                    SELECT 
+			                        CONFIRM_DAY, 
+			                        END_DAY, 
+			                        START_DAY 
+			                    FROM HISTORY_ADJUST
+			                    WHERE CONFIRM_DAY >= (
+			                                            SELECT 
+			                                                MAX(CONFIRM_DAY) AS LAST_SUPP_ADJ_FIN_DATE
+			                                            FROM HISTORY_ADJUST
+			                                            WHERE SUPP_ADJ_YN = 'Y'
+			                                            )
+			                    AND NVL(SUPP_ADJ_YN, 'S') NOT IN('C')
+			                    ORDER BY CONFIRM_DAY DESC, END_DAY DESC
+			                )
+			                WHERE ROWNUM <= 1
+			                
+			                UNION ALL
+			                
+			                SELECT 2 AS GBN
+			                    , 'N' AS IS_TARGET_SETTLED
+			                    , 'NOT_SUPP_DAY_SETTLED' AS IS_SUPP_DAY_STR
+			                    , '' AS ADJ_START_DAY_ORG 
+			                    , '' AS ADJ_END_DAY
+			                    , '' AS ADJ_CONFIRM_DAY
+			                    , '' AS ADJ_CONFIRM_NEXT_DAY 
+			                    , '' AS NEW_NEXT_START_DAY
+			                FROM DUAL
+			            )
+			            ORDER BY GBN
+			        )
+			        WHERE ROWNUM <= 1
+			    )B
+			)
+		]]>	 
+
+	</select>	
+	
+	<select id="selectStAdjGoods" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT COUNT(1) AS CHK_CNT
+			FROM ADJ_GOODS
+			WHERE 1 = 1
+			AND COMPLETE_DATE BETWEEN #lastAdjDay# AND #yesterDay#
+			AND ADJ_STUS_CD = '002'
+		]]>	 
+	</select>	
+
+	<delete id="deleteStAdjGoods" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE ADJ_GOODS 
+			WHERE 1 = 1
+			AND COMPLETE_DATE BETWEEN #lastAdjDay# AND #yesterDay#
+		]]>
+	</delete>	
+
+	<update id="insertStAdjGoods" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ADJ_GOODS(
+									  COMPLETE_DATE
+									, SUPP_PO_REGI_PO_CD
+									, SUPP_COMP_CD
+									, GOODS_CODE
+									, CANCEL_YN
+									, SHOP_ID
+									, RECV_TYPE
+									, SETTLE_AMOUNT
+									, FEE_AMOUNT
+									, AMOUNT_CASH
+									, AMOUNT_ACCOUNT
+									, AMOUNT_BANKTOWN
+									, AMOUNT_CARD_POSTNET
+									, AMOUNT_CARD_EPOST
+									, AMOUNT_CARD_OVERSEA
+									, AMOUNT_SP
+									, AMOUNT_RM
+									, AMOUNT_COUPON_CSF
+									, AMOUNT_COUPON_BIZ
+									, AMOUNT_COUPON_THANK
+									, AMOUNT_OKCASH
+									, AMOUNT_MULTIGIFT
+									, AMOUNT_CYBERPASS
+									, GOODS_CNT
+									, GOODS_AMOUNT
+									, RET_CNT
+									, RET_AMOUNT
+									, DELIV_DONE_CANCEL_CNT
+									, DELIV_DONE_CANCEL_AMOUNT
+									, DEFICIT_CNT
+									, DEFICIT_AMOUNT
+									, DELIV_CERT_AMOUNT
+									, CONG_CARD_AMOUNT
+									, IMMEDIATE_PRCL_PRC
+									, LATER_PRCL_PRC
+									, CSF_FEE
+									, AMOUNT_EXT_MALL_FEE
+									, PO_FEE
+									, MART_FEE
+									, REFUND_CARD_SETL_FEE
+									, DEFICIT_CARD_SETL_FEE
+									, REFUND_GOODS_AMT
+									, REFUND_CSF_FEE
+									, ADJ_STUS_CD
+									, ADJ_TREAT_YMD
+									, LAST_REG_DATE
+									, AMOUNT_KAKAO
+									, AMOUNT_MOBILE
+									)
+								(
+								SELECT 
+									COMPLETE_DATE
+									, SUPP_PO_REGI_PO_CD
+									, SUPP_COMP_CD
+									, GOODS_CODE
+									, CANCEL_YN
+									, SHOP_ID
+									, RECV_TYPE
+									, NVL(SUM(SETTLE_AMOUNT), 0) AS SETTLE_AMOUNT
+									, NVL(SUM(FEE_AMOUNT), 0) AS FEE_AMOUNT
+									, NVL(SUM(AMOUNT_CASH), 0) AS AMOUNT_CASH
+									, NVL(SUM(AMOUNT_ACCOUNT), 0) AS AMOUNT_ACCOUNT
+									, NVL(SUM(AMOUNT_BANKTOWN), 0) AS AMOUNT_BANKTOWN
+									, NVL(SUM(AMOUNT_CARD_POSTNET), 0) AS AMOUNT_CARD_POSTNET
+									, NVL(SUM(AMOUNT_CARD_EPOST), 0) AS AMOUNT_CARD_EPOST
+									, NVL(SUM(AMOUNT_CARD_OVERSEA), 0) AS AMOUNT_CARD_OVERSEA
+									, NVL(SUM(AMOUNT_SP), 0) AS AMOUNT_SP
+									, NVL(SUM(AMOUNT_RM), 0) AS AMOUNT_RM
+									, NVL(SUM(AMOUNT_COUPON_CSF), 0) AS AMOUNT_COUPON_CSF
+									, NVL(SUM(AMOUNT_COUPON_BIZ), 0)   AS AMOUNT_COUPON_BIZ
+									, NVL(SUM(AMOUNT_COUPON_THANK), 0) AS AMOUNT_COUPON_THANK
+								  , NVL(SUM(AMOUNT_OKCASH), 0) AS AMOUNT_OKCASH
+									, NVL(SUM(AMOUNT_MULTIGIFT), 0) AS AMOUNT_MULTIGIFT
+									, NVL(SUM(AMOUNT_CYBERPASS), 0) AS AMOUNT_CYBERPASS
+									, NVL(SUM(GOODS_CNT), 0) AS GOODS_CNT
+									, NVL(SUM(GOODS_AMOUNT), 0) AS GOODS_AMOUNT
+									, NVL(SUM(RET_CNT), 0) AS RET_CNT
+									, NVL(SUM(RET_AMOUNT), 0) AS RET_AMOUNT
+									, NVL(SUM(DELIV_DONE_CANCEL_CNT), 0) AS DELIV_DONE_CANCEL_CNT
+									, NVL(SUM(DELIV_DONE_CANCEL_AMOUNT), 0) AS DELIV_DONE_CANCEL_AMOUNT
+									, NVL(SUM(DEFICIT_CNT), 0) AS DEFICIT_CNT
+									, NVL(SUM(DEFICIT_AMOUNT), 0) AS DEFICIT_AMOUNT
+									, NVL(SUM(DELIV_CERT_AMOUNT), 0) AS DELIV_CERT_AMOUNT
+									, NVL(SUM(CONG_CARD_AMOUNT), 0) AS CONG_CARD_AMOUNT
+									, NVL(SUM(IMMEDIATE_PRCL_PRC), 0) AS IMMEDIATE_PRCL_PRC
+									, NVL(SUM(LATER_PRCL_PRC), 0) AS LATER_PRCL_PRC
+									, NVL(SUM(CSF_FEE), 0) AS CSF_FEE
+									, NVL(SUM(EXT_MALL_FEE), 0) AS EXT_MALL_FEE
+									, NVL(SUM(PO_FEE), 0) AS PO_FEE
+									, NVL(SUM(MART_FEE), 0) AS MART_FEE
+									, NVL(SUM(REFUND_CARD_SETL_FEE), 0) AS REFUND_CARD_SETL_FEE
+									, NVL(SUM(DEFICIT_CARD_SETL_FEE), 0) AS DEFICIT_CARD_SETL_FEE
+									, NVL(SUM(REFUND_GOODS_AMT), 0) AS REFUND_GOODS_AMT
+									, NVL(SUM(REFUND_CSF_FEE), 0) AS REFUND_CSF_FEE
+									, '001' AS ADJ_STUS_CD
+									, NULL AS ADJ_TREAT_YMD
+									, SYSDATE AS LAST_REG_DATE
+									, NVL(SUM(AMOUNT_KAKAO), 0) AS AMOUNT_KAKAO
+									, NVL(SUM(AMOUNT_MOBILE), 0) AS AMOUNT_MOBILE
+								FROM
+								(
+								SELECT 
+									SUBSTR(COMPLETE_DATE, 1, 8) AS COMPLETE_DATE, 
+									A.SUPP_PO_REGIPOCD AS SUPP_PO_REGI_PO_CD, 
+									A.BIZ_CODE AS SUPP_COMP_CD,  
+									GOODS_CODE, 
+									A.CANCEL_STATE AS CANCEL_YN,
+									A.SHOP_ID AS SHOP_ID,
+									DECODE(A.RECEV_PO_REGIPOCD, '89903', DECODE(MOBILE_GBN,'M','M','E'), '85414', 'C', 'P') AS RECV_TYPE,
+									SUM(NVL(A.AMOUNT, 0) + NVL(A.DELIV_CERT_FEE, 0) + NVL(A.CONG_CARD_FEE, 0)) AS SETTLE_AMOUNT,
+									SUM(NVL(A.FEE_AMOUNT, 0)) AS FEE_AMOUNT,
+									SUM(DECODE(A.PAYMETHOD,'1', NVL(A.CASH_BILL_AMT, 0), '3', NVL(A.CASH_BILL_AMT, 0), 0)) AS AMOUNT_CASH,
+									SUM(DECODE(A.PAYMETHOD,'O',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0))  AMOUNT_ACCOUNT,
+									SUM(DECODE(A.PAYMETHOD,'B',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0))  AMOUNT_BANKTOWN,
+									SUM(DECODE(A.PAYMETHOD,'2',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0),
+									             '3',A.AMOUNT - A.CASH_BILL_AMT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0))  AMOUNT_CARD_POSTNET,
+									SUM(DECODE(A.PAYMETHOD,'C',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0)) AMOUNT_CARD_EPOST,
+									SUM(DECODE(A.PAYMETHOD,'D',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0)) AMOUNT_CARD_OVERSEA,
+									SUM(A.SP_AMOUNT) AS AMOUNT_SP,
+									SUM(A.RM_AMOUNT) AS AMOUNT_RM,
+									SUM(DECODE(A.CP_CMP,'1',A.COUPON_AMOUNT, 0)) AMOUNT_COUPON_CSF,
+									SUM(DECODE(A.CP_CMP,'2',A.COUPON_AMOUNT, 0)) AMOUNT_COUPON_BIZ,
+									SUM(DECODE(A.CP_TYPE,'G',A.COUPON_AMOUNT, 0)) AMOUNT_COUPON_THANK,
+									SUM(NVL(A.AMOUNT_OKCASH,0)) AS AMOUNT_OKCASH,
+									SUM(DECODE(A.PAYMETHOD,'G',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0)) AMOUNT_MULTIGIFT,
+									SUM(DECODE(A.PAYMETHOD,'S',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0)) AMOUNT_CYBERPASS,
+									SUM(1) GOODS_CNT,
+									SUM(NVL(A.AMOUNT, 0)) AS GOODS_AMOUNT,
+									SUM(CASE WHEN A.RET_YN = 'Y' THEN 1 ELSE 0 END) AS RET_CNT,
+									SUM(CASE WHEN A.RET_YN = 'Y' THEN NVL(A.AMOUNT, 0) ELSE 0 END) AS RET_AMOUNT,
+									0 AS DELIV_DONE_CANCEL_CNT,
+									0 AS DELIV_DONE_CANCEL_AMOUNT,
+									SUM(CASE WHEN A.DEFICIT_YN = 'Y' THEN 1 ELSE 0 END) AS DEFICIT_CNT,
+									SUM(CASE WHEN A.DEFICIT_YN = 'Y' THEN NVL(A.AMOUNT, 0) ELSE 0 END) AS DEFICIT_AMOUNT,
+									SUM(NVL(A.DELIV_CERT_FEE, 0)) AS DELIV_CERT_AMOUNT,
+									SUM(NVL(A.CONG_CARD_FEE, 0)) AS CONG_CARD_AMOUNT,
+									SUM(NVL(A.IMMEDIATE_PRCL_PRC, 0)) AS IMMEDIATE_PRCL_PRC,
+									SUM(NVL(A.LATER_PRCL_PRC, 0)) AS LATER_PRCL_PRC,
+									SUM(CASE WHEN A.RET_YN = 'Y' THEN 0 WHEN A.DEFICIT_YN = 'Y' THEN 0 ELSE NVL(A.CSF_FEE, 0) END) AS CSF_FEE,
+									SUM(CASE WHEN A.RET_YN = 'Y' THEN 0 WHEN A.DEFICIT_YN = 'Y' THEN 0 ELSE NVL(A.EXT_MALL_FEE, 0) END) AS EXT_MALL_FEE,
+									SUM(CASE WHEN A.RET_YN = 'Y' THEN 0 WHEN A.DEFICIT_YN = 'Y'  THEN 0 WHEN SHOP_ID != '0' THEN NVL(A.FLWR_DELIV_FEE, 0) ELSE 0 END) AS PO_FEE,
+									SUM(CASE WHEN A.RET_YN = 'Y' THEN 0 WHEN A.DEFICIT_YN = 'Y'  THEN 0 WHEN A.SHOP_ID = '0' THEN NVL(A.FLWR_DELIV_FEE, 0) ELSE 0 END) AS MART_FEE,
+									SUM(CASE WHEN A.RET_YN = 'Y' THEN NVL(A.REFUND_CARD_SETL_FEE, 0) ELSE 0 END) AS REFUND_CARD_SETL_FEE,
+									SUM(CASE WHEN A.DEFICIT_YN = 'Y' THEN NVL(A.DEFICIT_CARD_SETL_FEE, 0) ELSE 0 END) AS DEFICIT_CARD_SETL_FEE, 
+									0 AS REFUND_GOODS_AMT, 
+									0 AS REFUND_CSF_FEE , 
+									SUM(DECODE(A.PAYMETHOD,'A',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0)) AMOUNT_KAKAO,
+									SUM(DECODE(A.PAYMETHOD,'I',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT-NVL(A.AMOUNT_OKCASH,0), 0)) AMOUNT_MOBILE 
+								FROM TXORDER A
+								WHERE 1 = 1
+								AND A.SHOP_ID IN('1', '2', '4','5', '6', '7', '8')
+								AND A.COMPLETE_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999' 
+								AND NOT ( A.CANCEL_STATE = 'Y' AND NVL(A.LATER_PRCL_PRC, 0) > 0)
+								GROUP BY SUBSTR(COMPLETE_DATE, 1, 8), A.SUPP_PO_REGIPOCD, A.BIZ_CODE,  A.GOODS_CODE, A.CANCEL_STATE, A.SHOP_ID, DECODE(A.RECEV_PO_REGIPOCD, '89903', DECODE(MOBILE_GBN,'M','M','E'), '85414', 'C', 'P') 
+													
+								UNION ALL
+								
+								SELECT 
+									  SUBSTR(COMPLETE_DATE, 1, 8) AS COMPLETE_DATE 
+									, A.SUPP_PO_REGIPOCD AS SUPP_PO_REGI_PO_CD 
+									, A.BIZ_CODE AS SUPP_COMP_CD
+									, GOODS_CODE
+									, 'N' AS CANCEL_YN
+									, A.SHOP_ID AS SHOP_ID
+									, DECODE(A.RECEV_PO_REGIPOCD, '89903', DECODE(MOBILE_GBN,'M','M','E'), '85414', 'C', 'P') AS RECV_TYPE
+									, 0 AS SETTLE_AMOUNT
+									, 0 AS FEE_AMOUNT
+									, 0 AS AMOUNT_CASH
+									, 0 AS AMOUNT_ACCOUNT
+									, 0 AS AMOUNT_BANKTOWN
+									, 0 AS AMOUNT_CARD_POSTNET
+									, 0 AS AMOUNT_CARD_EPOST
+									, 0 AS AMOUNT_CARD_OVERSEA
+									, 0 AS AMOUNT_SP
+									, 0 AS AMOUNT_RM
+									, 0 AS AMOUNT_COUPON_CSF
+									, 0 AS AMOUNT_COUPON_BIZ
+									, 0 AS AMOUNT_COUPON_THANK
+									 , 0 AS AMOUNT_OKCASH
+									, 0 AS AMOUNT_MULTIGIFT
+									, 0 AS AMOUNT_CYBERPASS
+									, 0 AS GOODS_CNT
+									, 0 AS GOODS_AMOUNT
+									, 0 AS RET_CNT
+									, 0 AS RET_AMOUNT
+									, NVL(SUM(1), 0) AS DELIV_DONE_CANCEL_CNT
+									, SUM(NVL(A.AMOUNT, 0)) AS DELIV_DONE_CANCEL_AMOUNT
+									, 0 AS DEFICIT_CNT
+									, 0 AS DEFICIT_AMOUNT
+									, 0 AS DELIV_CERT_AMOUNT
+									, 0 AS CONG_CARD_AMOUNT
+									, 0 AS IMMEDIATE_PRCL_PRC
+									, SUM(NVL(A.LATER_PRCL_PRC, 0)) AS LATER_PRCL_PRC
+									, 0 AS CSF_FEE
+									, 0 AS EXT_MALL_FEE
+									, 0 AS PO_FEE
+									, 0 AS MART_FEE
+									, 0 AS REFUND_CARD_SETL_FEE
+									, 0 AS DEFICIT_CARD_SETL_FEE
+									, 0 AS REFUND_GOODS_AMT
+									, 0 AS REFUND_CSF_FEE
+									, 0 AS AMOUNT_KAKAO
+									, 0 AS AMOUNT_MOBILE
+								FROM TXORDER A
+								WHERE 1=1
+								AND A.SHOP_ID IN('1', '2', '4', '5', '6', '7', '8')
+								AND A.COMPLETE_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999' 
+								AND ( A.CANCEL_STATE = 'Y' AND NVL(A.LATER_PRCL_PRC, 0) > 0)
+								GROUP BY SUBSTR(COMPLETE_DATE, 1, 8), A.SUPP_PO_REGIPOCD, A.BIZ_CODE,  A.GOODS_CODE, A.CANCEL_STATE, A.SHOP_ID, DECODE(A.RECEV_PO_REGIPOCD, '89903', DECODE(MOBILE_GBN,'M','M','E'), '85414', 'C', 'P') 
+								
+								UNION ALL
+								
+								SELECT 
+									RETRNGDCONFYMD AS COMPLETE_DATE
+									, B.SUPP_PO_REGIPOCD AS SUPP_PO_REGI_PO_CD
+									, B.BIZ_CODE AS SUPP_COMP_CD
+									, B.GOODS_CODE
+									, 'N' AS CANCEL_YN
+									, B.SHOP_ID
+									, DECODE(B.RECEV_PO_REGIPOCD, '89903', DECODE(B.MOBILE_GBN,'M','M','E'), '85414', 'C', 'P') AS RECV_TYPE
+									, 0 AS SETTLE_AMOUNT
+									, 0 AS FEE_AMOUNT
+									, 0 AS AMOUNT_CASH
+									, 0 AS AMOUNT_ACCOUNT
+									, 0 AS AMOUNT_BANKTOWN
+									, 0 AS AMOUNT_CARD_POSTNET
+									, 0 AS AMOUNT_CARD_EPOST
+									, 0 AS AMOUNT_CARD_OVERSEA
+									, 0 AS AMOUNT_SP
+									, 0 AS AMOUNT_RM
+									, 0 AS AMOUNT_COUPON_CSF
+									, 0 AS AMOUNT_COUPON_BIZ
+									, 0 AS AMOUNT_COUPON_THANK
+									, 0 AS AMOUNT_OKCASH
+									, 0 AS AMOUNT_MULTIGIFT
+									, 0 AS AMOUNT_CYBERPASS
+									, 0 AS GOODS_CNT
+									, 0 AS GOODS_AMOUNT
+									, 0 AS RET_CNT
+									, 0 AS RET_AMOUNT
+									, 0 AS DELIV_DONE_CANCEL_CNT
+									, 0 AS DELIV_DONE_CANCEL_AMOUNT
+									, 0 AS DEFICIT_CNT
+									, 0 AS DEFICIT_AMOUNT
+									, 0 AS DELIV_CERT_AMOUNT
+									, 0 AS CONG_CARD_AMOUNT
+									, 0 AS IMMEDIATE_PRCL_PRC
+									, 0 AS LATER_PRCL_PRC
+									, 0 AS CSF_FEE
+									, 0 AS EXT_MALL_FEE
+									, 0 AS PO_FEE
+									, 0 AS MART_FEE
+									, 0 AS REFUND_CARD_SETL_FEE
+									, 0 AS DEFICIT_CARD_SETL_FEE
+									, SUM(NVL(REFUNDAMT, 0)) AS REFUND_GOODS_AMT
+									, SUM(NVL(REFUNDRETRNGDCSFFEE, 0)) AS REFUND_CSF_FEE
+									, 0 AS AMOUNT_KAKAO
+									, 0 AS AMOUNT_MOBILE
+								FROM RET_INTERFACE A, TXORDER B
+								WHERE 1=1
+								AND A.TXORDERID = B.TXORDER_ID
+								AND A.RETRNGDCONFYMD BETWEEN #lastAdjDay# AND #yesterDay#
+								AND B.SHOP_ID IN('1', '2', '4', '5', '6', '7', '8')
+								AND B.CANCEL_STATE != 'Y'
+								AND A.RETRNGDREFUNDMETHCD = '04'
+								AND A.CSFACCTRANSFTRGTYN = 'Y'
+								AND A.RETRNGDTREATSTUSCD <> '004'
+								GROUP BY RETRNGDCONFYMD, B.SUPP_PO_REGIPOCD, B.BIZ_CODE, B.GOODS_CODE, B.SHOP_ID, DECODE(B.RECEV_PO_REGIPOCD, '89903', DECODE(B.MOBILE_GBN,'M','M','E'), '85414', 'C', 'P') 
+							)
+							GROUP BY COMPLETE_DATE, SUPP_PO_REGI_PO_CD, SUPP_COMP_CD, GOODS_CODE, CANCEL_YN, SHOP_ID, RECV_TYPE
+						)
+		]]>
+	</update>			
+	
+</sqlMap>

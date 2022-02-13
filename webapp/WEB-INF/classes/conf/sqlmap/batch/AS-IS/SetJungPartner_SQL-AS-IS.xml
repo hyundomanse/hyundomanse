@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchSetJungPartner">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="select_fJungInfo_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT distinct partner_id as Partner_Id
+			 FROM PARTNER
+    		 WHERE jung_day = ( select to_char(sysdate,'dd') from dual)
+		]]>	 
+	</select>
+	
+	<select id="select_fJungInfo_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT count(*) as iCnt 
+			 FROM PARTNER_ADJUST
+			 WHERE partner_id  = :Partner_Id
+			 AND confirm_day = to_char(add_months(sysdate,-1),'yyyymm')
+		]]>	 
+	</select>
+	
+	<update id="update_LinkPrice_Sale_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE LinkPrice_Sale
+			 SET bigo3 = 'Y'
+			 WHERE purchase_id in (
+				  SELECT distinct a.purchase_id 
+				  FROM txorder a, LinkPrice_Sale b
+				  WHERE a.purchase_id = b.purchase_id
+				  AND a.complete_date like to_char(add_months(sysdate,-1),'yyyymm') || '%'
+				  a.status not in ('1','9') and a.cancel_state = 'Y'
+			  )
+		]]>	 
+	</update>
+	
+	<update id="update_LinkPrice_Sale_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE ilikeclick_sale
+			 SET bigo3 = 'Y'
+			 WHERE purchase_id in (
+				  SELECT distinct a.purchase_id 
+				  FROM txorder a, ilikeclick_sale b
+				  WHERE a.purchase_id = b.purchase_id
+				  AND a.complete_date like to_char(add_months(sysdate,-1),'yyyymm') || '%'
+				  AND a.status not in ('1','9') and a.cancel_state = 'Y'
+			  )
+		]]>	 
+	</update>
+	
+	<update id="update_banner_order_sale_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE banner_order_sale
+			 SET bigo3 = 'Y'
+			 WHERE purchase_id in (
+				  SELECT distinct a.purchase_id 
+				  FROM txorder a, banner_order_sale b
+				  WHERE a.purchase_id = b.purchase_id
+				  AND a.complete_date like to_char(add_months(sysdate,-1),'yyyymm') || '%'
+				  AND a.status not in ('1','9') and a.cancel_state = 'Y'
+				  AND b.gubun = '01'
+			  )
+			  AND gubun = '01'
+		]]>	 
+	</update>
+	
+	<update id="update_partner_order_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE partner_order
+			 SET p_jung_chk = 'Y'
+			 WHERE purchase_id in (
+				  SELECT distinct a.purchase_id 
+				  FROM txorder a, partner_order b
+				  WHERE a.purchase_id = b.purchase_id
+				  AND b.partner_id  = :Partner_Id
+				  AND a.complete_date like to_char(add_months(sysdate,-1),'yyyymm') || '%'
+				  AND a.status not in ('1','9') and a.cancel_state = 'Y'
+			  )
+			  AND partner_id = :Partner_Id
+		]]>	 
+	</update>
+	
+	<insert id="insert_PARTNER_ADJUST_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 INSERT INTO PARTNER_ADJUST(partner_id,confirm_day,commission,tax_chk,create_date,process_id)
+					 SELECT distinct partner_id,to_char(add_months(sysdate,-1),'yyyymm'),COMMISSION,TAX_CHK,to_char(sysdate,'yyyymmddhh24miss'),'auto' 
+					 FROM PARTNER
+					 WHERE partner_id = :Partner_Id
+		]]>	 
+	</insert>
+
+</sqlMap>

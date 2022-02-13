@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Common">
+	<typeAlias alias="commMap" type="com.devwork.common.map.CommonMap" />
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<select id="selectCodeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT T2.CD_GRP_ID
+			 , T2.COMN_CD_ID AS value
+			 , T2.COMN_CD_NM AS name
+		  FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+		 WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+		   AND T1.CD_GRP_ID = #grpid#
+			<isNotEmpty property="cd_val1" prepend="AND">
+				T2.CD_VAL1 = #cd_val1#
+			</isNotEmpty>
+		   AND T2.USE_YN = 'Y'
+		 ORDER BY T2.SORT_ORDER ASC
+	</select>
+
+	<!-- 우편번호 시도 리스트 조회 -->
+	<select id="selectSidoList" parameterClass="java.util.HashMap"
+		resultClass="commMap">
+		SELECT
+		CITYDIVSEQ
+		, CITYDIVNM
+		, SIDIVNM
+		, USEYN
+		, LTUPDYMD
+		FROM ADMIN_DISTRICT
+		WHERE CITYDIVNM = #sido# /* 시도 */
+		AND USEYN = 'Y'
+		ORDER BY CITYDIVNM,SIDIVNM
+	</select>
+
+	<!-- 우편번호 지번 리스트 조회 -->
+	<select id="selectJibunAddrList" parameterClass="java.util.HashMap"
+		resultClass="commMap">
+		SELECT
+		NVL(LENGTH(STRTHOUSENO), 10000) AS STRTHOUSENO,
+		SUBSTR(ZIPCD, 1, 3) || '-' || SUBSTR(ZIPCD, 4, 3) AS POSTALCODE,
+		DECODE(CITYDIVNM, '서울', '서울특별시'
+		,'부산', '부산광역시'
+		,'대구', '대구광역시'
+		,'인천', '인천광역시'
+		,'광주', '광주광역시'
+		,'대전', '대전광역시'
+		,'울산', '울산광역시'
+		,'세종', '세종특별자치시'
+		,'강원', '강원도'
+		,'경기', '경기도'
+		,'경남', '경상남도'
+		,'경북', '경상북도'
+		,'전남', '전라남도'
+		,'전북', '전라북도'
+		,'제주', '제주특별자치도'
+		,'충남', '충청남도'
+		,'충북', '충청북도', '') || DECODE(SIDIVNM, ' ', ' ', ' ' || SIDIVNM || ' ') ||
+		LTRIM(REPLACE(DLNM,' ', '')) AS ADDRESS1,
+		NVL((CASE WHEN RTRIM(STRTHOUSENO) IS NULL THEN ''
+		ELSE CASE WHEN RTRIM(ENDHOUSENO) IS NULL THEN LTRIM(STRTHOUSENO)
+		ELSE LTRIM(STRTHOUSENO) || '~' || LTRIM(ENDHOUSENO)
+		END
+		END), ' ') AS ADDRESS2
+		FROM PICMT0080
+		WHERE CITYDIVNM LIKE #sido# || '%' /* 시도 */
+		<isNotEmpty property="sigungu">
+			AND SIDIVNM LIKE #sigungu# || '%' /* 시군구 */
+		</isNotEmpty>
+		AND DLNM LIKE '%' || #searchKeyword# || '%' /* 검색어 */
+		AND USEYN = 'Y'
+		ORDER BY CITYDIVNM, SIDIVNM, DLNM, ADDRESS2
+	</select>
+	<!-- 우편번호 거리명 리스트 조회 -->
+	<select id="selectStreetAddrList" parameterClass="java.util.HashMap"
+		resultClass="commMap">
+		SELECT
+		NVL(LENGTH(STRTHOUSENO), 10000) AS STRTHOUSENO,
+		SUBSTR(ZIPCD, 1, 3) || '-' || SUBSTR(ZIPCD, 4, 3) AS POSTALCODE,
+		DECODE(CITYDIVNM, '서울', '서울특별시'
+		,'부산', '부산광역시'
+		,'대구', '대구광역시'
+		,'인천', '인천광역시'
+		,'광주', '광주광역시'
+		,'대전', '대전광역시'
+		,'울산', '울산광역시'
+		,'세종', '세종특별자치시'
+		,'강원', '강원도'
+		,'경기', '경기도'
+		,'경남', '경상남도'
+		,'경북', '경상북도'
+		,'전남', '전라남도'
+		,'전북', '전라북도'
+		,'제주', '제주특별자치도'
+		,'충남', '충청남도'
+		,'충북', '충청북도', '') || DECODE(SIDIVNM, ' ', ' ', ' ' || SIDIVNM || ' ') ||
+		LTRIM(REPLACE(DLNM,' ', '')) AS ADDRESS1,
+		NVL((CASE WHEN RTRIM(STRTHOUSENO) IS NULL THEN ''
+		ELSE CASE WHEN RTRIM(ENDHOUSENO) IS NULL THEN LTRIM(STRTHOUSENO)
+		ELSE LTRIM(STRTHOUSENO) || '~' || LTRIM(ENDHOUSENO)
+		END
+		END), ' ') AS ADDRESS2
+		FROM PICMT0080
+		WHERE CITYDIVNM LIKE #sido# || '%' /* 시도 */
+		<isNotEmpty property="sigungu">
+			AND SIDIVNM LIKE #sigungu# || '%' /* 시군구 */
+		</isNotEmpty>
+		AND DLNM LIKE '%' || #searchKeyword# || '%' /* 검색어 */
+		AND USEYN = 'Y'
+		ORDER BY CITYDIVNM, SIDIVNM, DLNM, ADDRESS2
+	</select>
+
+	<!-- 청별 리스트 조회 -->
+	<select id="selectPostOfficeList" parameterClass="java.util.HashMap"
+		resultClass="commMap">
+		SELECT PONM, REGIPOCD, MAX(POCHGSEQ) POCHGSEQ
+		FROM
+		PICMT0060
+		WHERE HRNKORREGIPOCD = #upecode# AND USEYN='Y'
+		GROUP BY
+		REGIPOCD,PONM
+	</select>
+
+
+	<!-- 총괄국 리스트 조회 -->
+	<select id="selectPostOfficeList2" parameterClass="java.util.HashMap"
+		resultClass="commMap">
+		SELECT REGIPOCD, PONM
+        FROM PICMT0060
+        WHERE RCOCD = #upecode#
+        AND PODIVCD IN ('05', '06', '10', '18')
+        AND USEYN = 'Y' AND DSCDPOYN = 'N'
+        ORDER BY REGIPOCD ASC
+	</select>
+
+
+	<!-- 공급국 리스트 조회 -->
+	<select id="selectPostNameList" parameterClass="java.util.HashMap"
+		resultClass="commMap">
+		SELECT REGIPOCD, PONM
+	      FROM PICMT0060
+	      WHERE  MPOREGIPOCD = #upecode#
+	      AND  PODIVCD IN ('06', '07', '08', '09', '12', '13')
+	      AND USEYN = 'Y' AND DSCDPOYN = 'N'
+	      ORDER BY REGIPOCD ASC
+	</select>
+
+	<!-- 청별 리스트 조회 -->
+	<select id="selectPostOfficeListTotal" parameterClass="java.util.HashMap"
+		resultClass="commMap">
+		SELECT POSHORTNM,REGIPOCD,RCOCD
+		FROM (
+		SELECT POSHORTNM ,A.REGIPOCD,RCOCD
+		FROM (
+		SELECT REGIPOCD, MAX(POCHGSEQ) POCHGSEQ
+		FROM PICMT0060
+		WHERE HRNKORREGIPOCD = '89994' AND USEYN='Y'
+		GROUP BY REGIPOCD
+		) A
+		, PICMT0060 B
+		WHERE (A.REGIPOCD = B.REGIPOCD
+		AND A.POCHGSEQ = B.POCHGSEQ
+		AND RCOCD != '00')
+		UNION
+		SELECT POSHORTNM ,REGIPOCD,RCOCD
+		FROM PICMT0060
+		WHERE REGIPOCD = '89994' AND USEYN='Y')
+		ORDER BY RCOCD
+	</select>
+
+	<!-- 공급업체상세 팝업 SELECTBOX -->
+	<select id="selectCompstusList" parameterClass="java.util.HashMap"
+		resultClass="java.util.HashMap">
+		SELECT A.COMN_CD_ID AS VALUE
+		, A.COMN_CD_NM AS NAME
+		FROM CM_COMN_CD A
+		WHERE CD_GRP_ID = 'SUPP_COMP_STUS_CD'
+	</select>
+
+
+	<!-- 공급업체 조회 -->
+	<sql id="suppcomp_sql">
+		SELECT	 /*+ INDEX_DESC(A CO_SUPP_COMP_MAST_PK) */ROW_NUMBER () OVER (ORDER BY A.SUPP_COMP_ID DESC) ONUM
+				,A.SUPP_COMP_DIV_CD
+				,F_GET_COMN_CD_NM('SUPP_COMP_DIV_CD',A.SUPP_COMP_DIV_CD) AS SUPP_COMP_DIV_CD_NM
+				,(SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='RCO_CD' AND COMN_CD_ID= (   SELECT  RCOCD  FROM PICMT0060 where  REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' and rownum = 1)) AS RCONM
+				,(SELECT PONM FROM PICMT0060 WHERE REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN='Y' and DSCDPOYN = 'N'  and rownum = 1   )  AS PONM
+				,(SELECT PONM FROM PICMT0060 WHERE  REGIPOCD = (SELECT HRNKORREGIPOCD FROM PICMT0060 WHERE REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1)  AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1  ) AS POSTOFFICE
+				,A.PO_ECODE
+				,A.SUPPO_RGIST_POCD
+				,A.BCNC_NM
+				,A.SUPP_COMP_ID
+				,A.PRSDT_NM
+				,A.COMPREG_NO
+				,A.CNTRAC_REQ_YMD
+				,A.ENTRPS
+				,A.INDUTY
+				,A.TELNO
+				,A.FAXNO
+				,A.ADDR1
+				,A.TRMNL_ID
+				,A.PRSDT_MOBILE_NO
+				,A.CNTRAC_DSUSE_YMD
+				,A.CNTRAC_STOP_END_YMD
+				,B.SUPP_COMP_STUS_CD
+				,F_GET_COMN_CD_NM('SUPP_COMP_STUS_CD',B.SUPP_COMP_STUS_CD) AS SUPP_COMP_STUS_NM
+				,CPM.PAVLN_NM
+				,A.CNTRAC_STOP_REASN
+				,A.REGER_ID
+				,A.REG_DATE
+				,A.CHGER_ID
+				,A.CHG_DATE
+				,B.PAVLN_DIV_CD
+				,F_GET_COMN_CD_NM('PAVLN_DIV_CD',B.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+		FROM CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B, CO_PAVLN_MAST CPM
+		WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND B.PAVLN_ID = CPM.PAVLN_ID
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					A.SUPP_COMP_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					UPPER(A.BCNC_NM) LIKE UPPER('%'||#search_text#||'%')
+				</isEqual>
+				<isEqual property="search_type" compareValue="04">
+					A.COMPREG_NO LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( A.SUPP_COMP_ID LIKE '%'||#search_text#||'%' OR UPPER(A.BCNC_NM) LIKE UPPER('%'||#search_text#||'%') )
+			</isEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_text1">
+			<isNotEmpty property="search_type1" prepend="AND">
+				A.SUPP_COMP_DIV_CD = #search_type1#
+			</isNotEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="suppCompStusCd" prepend="AND">
+			B.SUPP_COMP_STUS_CD = #suppCompStusCd#
+		</isNotEmpty>
+		<isEqual property="termnlId" compareValue="Y">
+			AND A.TRMNL_ID IS NOT NULL
+			AND A.SUPP_COMP_ID NOT IN (SELECT BIZ_CODE FROM IF_BIZCODE)
+		</isEqual>
+	</sql>
+
+	<!-- 공급업체 팝업 -->
+	<select id="selectSuppCompList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+		FROM(
+				<include refid="suppcomp_sql" />
+				<isNotEmpty property="lastIndex">
+					<![CDATA[ AND ROWNUM <= #lastIndex# ]]>
+				</isNotEmpty>
+		)
+		<isNotEmpty property="firstIndex">
+			WHERE ONUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<!-- 공급업체 팝업 COUNT -->
+	<select id="selectSuppCompCount" parameterClass="java.util.HashMap"
+		resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		FROM (
+		<include refid="suppcomp_sql" />
+		)
+	</select>
+
+	<sql id="postOffice_list">
+		SELECT REGIPOCD
+		, PONM
+		, EDPSCD
+		, POSTCD
+		, ZIPCD
+		FROM PICMT0060
+		WHERE USEYN = 'Y'
+		AND DSCDPOYN = 'N'
+		AND REGIPOCD NOT LIKE 'Z%'
+		AND REGIPOCD NOT LIKE 'M%'
+		AND REGIPOCD NOT LIKE 'E%'
+		AND REGIPOCD NOT LIKE 'F%'
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					REGIPOCD LIKE
+					'%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					PONM LIKE
+					'%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="03">
+					EDPSCD LIKE
+					'%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="04">
+					ZIPCD LIKE
+					'%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(REGIPOCD LIKE
+				'%'||#search_text#||'%' OR PONM LIKE '%'||#search_text#||'%' OR
+				EDPSCD LIKE '%'||#search_text#||'%' OR ZIPCD LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectPostOfficePopList" parameterClass="java.util.HashMap"
+		resultClass="java.util.HashMap">
+		SELECT *
+		FROM ( SELECT
+		<isEmpty property="sidx">
+			ROW_NUMBER () OVER (ORDER BY REGIPOCD DESC) RNUM
+		</isEmpty>
+		, A.*
+		FROM (
+		SELECT *
+		FROM(
+		<include refid="postOffice_list" />
+		)
+		) A
+		) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectPostOfficePopCount" parameterClass="java.util.HashMap"
+		resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		FROM (
+		<include refid="postOffice_list" />
+		)
+	</select>
+
+	<sql id="shopUser_list">
+		SELECT A.ACCESS_NAME
+		, A.NAME
+		, A.EMAIL
+		, A.MOBILE
+		, A.TELEPHONE
+		, A.PEOPLENUM
+		FROM MEMINFO A
+		WHERE A.STATUS = '1'
+		<isEqual property="peoplenum_yn" compareValue="Y" prepend="AND">
+			A.PEOPLENUM IS NOT NULL
+		</isEqual>
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					A.ACCESS_NAME LIKE #search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					A.NAME LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.ACCESS_NAME LIKE #search_text#||'%' OR A.NAME LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectShopUserPopList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+		FROM ( SELECT
+		<isEmpty property="sidx">
+			ROW_NUMBER () OVER (ORDER BY ACCESS_NAME DESC) RNUM
+		</isEmpty>
+		, A.*
+		FROM (
+		SELECT *
+		FROM(
+		<include refid="shopUser_list" />
+		)
+		) A
+		) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<!-- 회원조회 속도개선 -->
+	<select id="selectShopUserPopList_NEW" parameterClass="java.util.HashMap"
+		resultClass="java.util.HashMap">
+		<isNotEmpty property="firstIndex">
+			<include refid="pagingHeader"/>
+		</isNotEmpty>
+
+		SELECT *
+		FROM(
+		<include refid="shopUser_list" />
+		)
+		<isEmpty property="sidx">
+			ORDER BY ACCESS_NAME DESC
+		</isEmpty>
+
+		<isNotEmpty property="firstIndex">
+			<include refid="pagingFooter"/>
+		</isNotEmpty>
+	</select>
+
+	<select id="selectShopUserPopCount" parameterClass="java.util.HashMap"
+		resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		FROM (
+		<include refid="shopUser_list" />
+		)
+	</select>
+
+	<!-- 이메일 로그 insert -->
+	<insert id="insertEmailLog" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO CM_SMS_EMAIL_SEND_LOG (
+			 SMS_SEND_SEQ		<!-- 발송일련번호 -->
+			, TEMPL_MGT_NO		<!-- 템플릿관리번호 -->
+			, ORDER_ITM_ID		<!-- 주문아이템아이디 -->
+			, GOODS_CD			<!-- 상품코드 -->
+			, SUPP_COMP_ID 		<!-- 공급업체아이디 -->
+			, TX_DIV_CD 		<!-- 전송분류코드 -->
+			, TX_CONT_DIV_CD 	<!-- 전송내용분류코드 -->
+			, TX_TRGT_TYP_CD 	<!-- 전송대상유형코드 -->
+			, TX_TYP_CD 		<!-- 전송유형코드 -->
+			, TX_HTEL_NO 		<!-- 전송핸드폰번호 -->
+			, TX_EMAIL_ADDR 	<!-- 전송EMAIL주소 -->
+			, TX_SUCC_YN  		<!-- 전송성공여부 -->
+			, SEND_DT  			<!-- 전송일자 -->
+			, REV_NO  			<!-- 수신인아이디 -->
+			, SND_MSG  			<!-- 본문내용 -->
+			, REG_DATE  		<!-- 등록일시 -->
+			, REGER_ID  		<!-- 등록자아이디 -->
+
+		)VALUES(
+			  (SELECT NVL(MAX(SMS_SEND_SEQ),0)+1 FROM CM_SMS_EMAIL_SEND_LOG)	<!-- 발송일련번호 -->
+			, #searchTemplMgtNo#	<!-- 템플릿관리번호 -->
+			, #searchOrderItmId#	<!-- 주문아이템아이디 -->
+			, #searchGoodsCd#		<!-- 상품코드 -->
+			, #searchSuppCompId# 	<!-- 공급업체아이디 -->
+			, #searchTxDivCd# 		<!-- 전송분류코드 -->
+			, #searchTxContDivCd# 	<!-- 전송내용분류코드 -->
+			, #searchTxTrgtTypCd# 	<!-- 전송대상유형코드 -->
+			, #searchTxTypCd# 		<!-- 전송유형코드 -->
+			, #searchTxHtelNo# 		<!-- 전송핸드폰번호 -->
+			, #searchTxEmailAddr# 	<!-- 전송EMAIL주소 -->
+			, #searchTxSuccYn# 		<!-- 전송성공여부 -->
+			, SYSDATE  				<!-- 전송일자 -->
+			, #searchRevNo#  		<!-- 수신인아이디 -->
+			, #searchSndMsg# 		<!-- 본문내용 -->
+			, SYSDATE				<!-- 등록일시 -->
+			, #searchRegerId# 		<!-- 등록자아이디 -->
+		)
+		]]>
+	</insert>
+	<!-- 공급업체 전시관 LIST -->
+	<select id="selectPavlnDivCdList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<include refid="pagingHeader"/>
+			SELECT	DISTINCT PAVLN_DIV_CD
+					,PAVLN_NM
+			FROM	CO_PAVLN_MAST
+			WHERE	USE_YN = 'Y'
+			AND 	HRNK_PAVLN_ID IS NULL
+			<isNotEmpty property="search_text">
+			AND		PAVLN_NM LIKE '%'||#search_text#||'%'
+			</isNotEmpty>
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 공급업체 전시관 COUNT -->
+	<select id="selectPavlnDivCdCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT	COUNT(*)
+		FROM	CO_PAVLN_MAST
+		WHERE	USE_YN = 'Y'
+		AND 	HRNK_PAVLN_ID IS NULL
+		<isNotEmpty property="search_text">
+			AND		PAVLN_NM LIKE '%'||#search_text#||'%'
+		</isNotEmpty>
+	</select>
+	
+</sqlMap>

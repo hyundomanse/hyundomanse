@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchFlwrDelivMgmt">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_UpdateFlwrDelivMgmt_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(add_months(sysdate,-4), 'yyyymm') || '16'  as start_03dt, 
+			       TO_CHAR(add_months(sysdate,-7), 'yyyymm') || '16'  as start_06dt,  
+			       TO_CHAR(add_months(sysdate,-10), 'yyyymm') || '16' as start_09dt,
+			       to_char(add_months(sysdate,-2), 'yyyymm')  || '16' as start_dt,
+			       to_char(add_months(sysdate,-1),'yyyymm') || '15'   as end_dt
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_UpdateFlwrDelivMgmt_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				ZIPCD as sZipCd, 
+				ZIPCD_SEQ as sZipCd_Seq
+			FROM FLWR_DELIV_MGMT_HISTORY A 
+			WHERE A.APPLY_END_DATE < TO_CHAR(SYSDATE, 'YYYYMMDD')
+			AND A.USE_YN = 'Y'
+		]]>	 
+	</select>
+	
+	<select id="select_UpdateFlwrDelivMgmt_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				ZIPCD as sZipCd, 
+				ZIPCD_SEQ as sZipCd_Seq, 
+				SUPP_PO_REGIPOCD as sSuppPoRegiPoCd, 
+				NO_DELIV_AREA_YN as sNoDelivAreaYn, 
+				CREATE_PRSN_ID as sCreatePrsnId
+			FROM FLWR_DELIV_MGMT_HISTORY A 
+			WHERE A.APPLY_STRT_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')
+			AND A.USE_YN = 'Y'
+		]]>	 
+	</select>
+	
+	<delete id="delete_PBSET0210_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM PBSET0210 
+			WHERE ZIPCD = #sZipCd#
+		]]>	 
+	</delete>
+	
+	<update id="update_FLWR_DELIV_MGMT_HISTORY_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE FLWR_DELIV_MGMT_HISTORY 
+			SET USE_YN = 'N'
+			WHERE ZIPCD = #sZipCd# AND ZIPCD_SEQ = #sZipCdSeq#
+		]]>	 
+	</update>
+	
+	<insert id="insert_PBSET0210_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO PBSET0210  
+			 ( zipCd,suppPoRegiPoCd,NoDelivAreaYn,lastChgDate,lastChgPrsnId, zipcd_seq)  
+			 	VALUES 
+			 ( #sZipCd#, #sSuppPoRegiPoCd#, #sNoDelivAreaYn#, sysdate, #sCreatePrsnId#, #sZipCdSeq#)
+		]]>	 
+	</insert>
+	
+</sqlMap>

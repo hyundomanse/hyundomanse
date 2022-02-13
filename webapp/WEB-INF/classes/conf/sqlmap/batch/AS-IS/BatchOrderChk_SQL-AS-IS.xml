@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchOrderChk">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectOrderChkinfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				CHKSEQNO, 
+				CHKNM, 
+				CHKSQL, 
+				VALVAL,
+				GLEVAL,
+				VALPROP, 
+				CNTVAL
+			FROM ORDER_CHKINFO 
+			WHERE 1 = 1
+			AND USE_YN = 'Y' 
+			AND CODENM='002'    
+		]]>	 
+
+	</select>
+	
+	<update id="insertOrderChkinfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ORDER_CHKRESULT(
+										RSTSEQNO, 
+										CHKSEQNO, 
+										RSTVAL, 
+										CHKDATE, 
+										CHKTIME, 
+										SMSTRANYN, 
+										SMSTRANDT
+									   ) 
+								 VALUES(
+										(SELECT NVL(MAX(RSTSEQNO), 0) + 1 FROM ORDER_CHKRESULT), 
+										#chkseqno#,
+										#rstString#,
+										TO_CHAR(SYSDATE,'YYYYMMDD'), 
+										TO_CHAR(SYSDATE,'HH24MI'),
+										#smstranyn#,
+										SYSDATE
+									   ) 
+		]]>
+	</update>	
+		
+	<select id="selectChkSql" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			$chksql$
+		]]>	 
+
+	</select>	
+
+	<update id="insertIfSmsSend" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO IF_SMS_SEND ( 
+										RAISE_SEQ, 
+										CMP_USR_ID,
+										ODR_FG,
+										SMS_GB,
+										USED_CD, 
+										MSG_GB,
+										SND_DTTM,
+										SND_PHN_ID,
+										RCV_PHN_ID,
+										SND_MSG ,
+										EXPIRE_VAL,
+										SMS_ST,
+										SVC_L_ID,
+										SVC_M_ID,
+										RSRVD_ID,
+										RSRVD_WD,
+										RTR_SEQ, 
+										IF_ID, 
+										INIT_TIME, 
+										DEAL_STATE,
+										WRK_GBN
+							         ) 
+							 VALUES (
+										IF_SMS_SEND_SQ01.NEXTVAL, 
+										'00000', 
+										'2', 
+										'1', 
+										'00', 
+										'A',
+										CASE WHEN TO_CHAR(SYSDATE, 'HH24MI') BETWEEN '0800' AND '2200' THEN TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') 
+										           WHEN TO_CHAR(SYSDATE, 'HH24MI') BETWEEN '2201' AND '2400' THEN TO_CHAR(SYSDATE+1, 'YYYYMMDD')||'081000'  
+										 ELSE TO_CHAR(SYSDATE, 'YYYYMMDD')||'081000' END, 
+										 '', 
+										 #rcvPhnId#, 
+										 #sndMsg#, 
+										 0, 
+										 '0', 
+										 'CS',
+										 'CS-1', 
+										 '1', 
+										 '', 
+										 '',
+										 'IF-ESHPSH-006-P01I',
+										 TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+										 'N',
+										 '1' 
+							         )
+		]]>
+	</update>
+		
+</sqlMap>

@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboClaim">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+			SELECT * 
+			  FROM (
+					SELECT A.*
+					     , ROWNUM  AS RNUM
+					  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<!-- 상품목록 조회 -->
+	<select id="selectGoodsList"  parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT GOODS_CD
+		     , GOODS_NM
+		  FROM GD_GOODS_MAST
+		 WHERE SUPP_COMP_ID = NVL( #schSuppCompId#, #suppCompId#)
+		 <isNotEmpty property="schGoodsCond" >
+		 	<isEqual property="schGoodsCond" compareValue="GOODS_NM">
+		 		AND GOODS_NM LIKE '%' || #searchGoodsTxt# || '%'
+		 	</isEqual>
+		 	<isEqual property="schGoodsCond" compareValue="GOODS_CD">
+		 		AND GOODS_CD = #searchGoodsTxt#
+		 	</isEqual>
+		 </isNotEmpty>
+		 ORDER BY GOODS_CD
+		 <include refid="pagingFooter"/>
+	</select>
+	
+	<!-- 민원건수 조회 -->
+	<select id="selectClaimTotCnt" parameterClass="java.util.HashMap" resultClass="int">		
+		<![CDATA[
+		SELECT COUNT( IDX ) AS CNT
+		  FROM (
+				SELECT DISTINCT 
+	                   A.IDX /*(SELECT MAX(IDX) FROM SC_QC_CLAIM E WHERE REC_DATE = A.REC_DATE AND GOODS_CD = A.GOODS_CD) AS IDX */
+                     , A.REG_DATE /*(SELECT MAX(REG_DATE) FROM SC_QC_CLAIM WHERE ORDER_ID = A.ORDER_ID ) AS REG_DATE*/
+	             FROM  SC_QC_CLAIM A
+	                 , CO_SUPP_COMP_MAST B
+	            WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		]]>
+			<!-- 접수일자 -->
+			<isEqual property ="schDateValue" compareValue="rec" prepend="AND">
+				A.REC_DATE BETWEEN #schFrRecDate# AND #schToRecDate#
+			</isEqual>
+			<!-- 등록일자 -->
+			<isEqual property ="schDateValue" compareValue="app" prepend="AND">
+				A.APP_DATE BETWEEN #schFrRecDate# AND #schToRecDate#
+			</isEqual>
+			<!-- 접수구분 -->
+			<isNotEmpty property="schCfSeizureGb" prepend="AND">
+				A.SEIZURE_GB = #schCfSeizureGb#
+			</isNotEmpty>
+			<!-- 전시관구분 
+			<isNotEmpty property="schPavlnDivCd"  prepend="AND">
+				/*A.PAVLN_DIV_CD = #"schPavlnDivCd"#*/
+			</isNotEmpty>  -->
+			<!-- 공급업체 -->
+			<isNotEmpty property="schSuppCompId"  prepend="AND">
+				A.SUPP_COMP_ID = #schSuppCompId#
+			</isNotEmpty>
+			<!-- 상품 -->
+			<isNotEmpty property="schGoodsCd"     prepend="AND">
+				A.GOODS_CD = #schGoodsCd#
+			</isNotEmpty>
+			<!-- 통보구분 -->
+			<isNotEmpty property="schCfAppGrd"     prepend="AND">
+				A.APP_GRD = #schCfAppGrd#
+			</isNotEmpty>
+			<!-- 주문번호 -->
+			<isNotEmpty property="schOrderNo"     prepend="AND">
+				A.ORDER_ID = #schOrderNo#
+			</isNotEmpty>		
+               )
+	</select>
+	
+	<!-- 민원목록 조회 -->
+	<select id="selectClaimList" parameterClass="java.util.HashMap" resultClass="commMap">
+		
+		<include refid="pagingHeader"/>
+		
+		<![CDATA[
+			SELECT DISTINCT 
+                /*   (SELECT MAX(IDX) FROM SC_QC_CLAIM E WHERE REC_DATE = A.REC_DATE AND GOODS_CD = A.GOODS_CD) AS IDX*/
+                   A.IDX
+                /* , (SELECT MAX(REG_DATE) FROM SC_QC_CLAIM WHERE ORDER_ID = A.ORDER_ID ) AS REG_DATE*/
+                 , A.REG_DATE
+                 , A.SUPP_COMP_NM
+                 , A.PAVLN_DIV_CD
+                 , F_GET_COMN_CD_NM('PAVLN_DIV_CD'  , A.PAVLN_DIV_CD  ) AS PAVLN_DIV_NM
+                 , A.SUPP_COMP_ID 
+                 , A.GOODS_NM
+                 , A.GOODS_CD 
+                 , A.REC_DATE
+                 , A.ORDER_ID
+                 , A.CLAIM_CONTENTS 
+                 , A.APP_GRD
+                 , A.APP_DATE
+                 , A.SEIZURE_GB
+                 , F_GET_COMN_CD_NM('CF_PROC_GB'  , A.PROC_GB  )   AS PROC_GB_NM     /*처리구분*/
+	             , F_GET_COMN_CD_NM('CF_CLAIM_GB' , A.CLAIM_GB )   AS CLAIM_GB_NM    /*민원구분*/
+	             , F_GET_COMN_CD_NM('CF_RESULT_GB', A.RESULT_GB)   AS RESULT_GB_NM   /*처리결과 */
+	             , F_GET_COMN_CD_NM('CF_APP_GRD'  , A.APP_GRD  )   AS APP_GRD_NM     /*통보구분 */
+             FROM  SC_QC_CLAIM A
+                 , CO_SUPP_COMP_MAST B
+            WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		]]>
+			<!-- 접수일자 -->
+			<isEqual property ="schDateValue" compareValue="rec" prepend="AND">
+				A.REC_DATE BETWEEN #schFrRecDate# AND #schToRecDate#
+			</isEqual>
+			<!-- 등록일자 -->
+			<isEqual property ="schDateValue" compareValue="app" prepend="AND">
+				A.APP_DATE BETWEEN #schFrRecDate# AND #schToRecDate#
+			</isEqual>
+			<!-- 접수구분 -->
+			<isNotEmpty property="schCfSeizureGb" prepend="AND">
+				A.SEIZURE_GB = #schCfSeizureGb#
+			</isNotEmpty>
+			<!-- 전시관구분 -->
+			<isNotEmpty property="schPavlnDivCd"  prepend="AND">
+				 A.PAVLN_DIV_CD = #"schPavlnDivCd"#  
+			</isNotEmpty> 
+			<!-- 공급업체 -->
+			<isNotEmpty property="schSuppCompId"  prepend="AND">
+				A.SUPP_COMP_ID = #schSuppCompId#
+			</isNotEmpty>
+			<!-- 상품 -->
+			<isNotEmpty property="schGoodsCd"     prepend="AND">
+				A.GOODS_CD = #schGoodsCd#
+			</isNotEmpty>
+			<!-- 통보구분 -->
+			<isNotEmpty property="schCfAppGrd"     prepend="AND">
+				A.APP_GRD = #schCfAppGrd#
+			</isNotEmpty>
+			<!-- 주문번호 -->
+			<isNotEmpty property="schOrderNo"     prepend="AND">
+				A.ORDER_ID = #schOrderNo#
+			</isNotEmpty>
+		<isNull property="excelType">		
+			<include refid="pagingFooter"/>
+		</isNull>
+		<isNotNull property="excelType">	
+			      ) A	
+			) 
+		</isNotNull>
+	</select>
+	
+	<!-- 민원 상세 조회-->
+	<select id="selectClaimDetail" parameterClass="java.util.Map" resultClass="commMap">
+		<![CDATA[
+			SELECT IDX
+			     , SUPP_COMP_NM 
+                 , SUPP_COMP_ID  
+                 , PAVLN_DIV_CD
+                 , GOODS_NM  
+                 , GOODS_CD  
+                 , REC_DATE  
+                 , TO_CHAR(REG_DATE,'YYYY-MM-DD') AS REG_DATE
+                 , ORDER_ID 
+                 , CLAIM_CONTENTS  
+                 , APP_GRD  
+                 /*, APP_GRD_RESULT  */
+                 , CALLCENTER_CONTENTS  
+                 , CLAIM_GB 
+                 , PROC_GB 
+                 , RESULT_GB 
+                 , APP_DATE 
+                 , SEIZURE_GB 
+             FROM SC_QC_CLAIM 
+            WHERE IDX = #idx#
+		]]>
+	</select> 
+	
+	<!-- 민원등록-->
+	<insert id="insertClaim" parameterClass="java.util.Map">
+		<![CDATA[
+			MERGE INTO  SC_QC_CLAIM T1
+                  USING (
+                      SELECT 
+                             #idx#                    AS IDX
+                           , #pavlnDivCd#             AS PAVLN_DIV_CD
+                           , #suppCompId#             AS SUPP_COMP_ID
+                           , #goodsCd#                AS GOODS_CD
+                           , #recDate#                AS REC_DATE
+                           , #orderId#                AS ORDER_ID
+                           , #claimContents#          AS CLAIM_CONTENTS
+                           , #cfAppGrd#               AS APP_GRD
+                           , #callcenterContents#     AS CALLCENTER_CONTENTS
+                           , #cfClaimGb#              AS CLAIM_GB
+                           , #cfProcGb#               AS PROC_GB
+                           , #cfResultGb#             AS RESULT_GB
+                           , #appDate#                AS APP_DATE
+                           , #cfSeizureGb#            AS SEIZURE_GB
+                           , #regerId#                AS REGER_ID
+                       FROM DUAL
+                        ) T2
+         ON (T1.IDX = T2.IDX)
+         WHEN MATCHED THEN
+         UPDATE 
+            SET T1.SUPP_COMP_NM         = F_GET_SUPP_COMP_NM( T2.SUPP_COMP_ID )
+              , T1.PAVLN_DIV_CD         = T2.PAVLN_DIV_CD
+              , T1.SUPP_COMP_ID         = T2.SUPP_COMP_ID  
+              , T1.GOODS_NM             = F_GET_GOODS_NM( T2.GOODS_CD )
+              , T1.GOODS_CD             = T2.GOODS_CD  
+              , T1.REC_DATE             = T2.REC_DATE  
+              , T1.ORDER_ID             = T2.ORDER_ID 
+              , T1.CLAIM_CONTENTS       = T2.CLAIM_CONTENTS  
+              , T1.APP_GRD              = T2.APP_GRD                
+              , T1.CALLCENTER_CONTENTS  = T2.CALLCENTER_CONTENTS 
+              , T1.CLAIM_GB             = T2.CLAIM_GB 
+              , T1.PROC_GB              = T2.PROC_GB 
+              , T1.RESULT_GB            = T2.RESULT_GB 
+              , T1.APP_DATE             = T2.APP_DATE 
+              , T1.SEIZURE_GB           = T2.SEIZURE_GB 
+              , T1.CHG_DATE             = sysdate
+              , T1.CHGER_ID             = T2.REGER_ID
+            WHEN NOT MATCHED THEN
+           INSERT 
+                 (  T1.IDX
+                  , T1.SUPP_COMP_NM  
+                  , T1.PAVLN_DIV_CD
+                  , T1.SUPP_COMP_ID  
+                  , T1.GOODS_NM                                                                                       
+                  , T1.GOODS_CD     
+                  , T1.REC_DATE     
+                  , T1.ORDER_ID         
+                  , T1.CLAIM_CONTENTS                                                                              
+                  , T1.APP_GRD     
+                  , T1.CALLCENTER_CONTENTS     
+                  , T1.CLAIM_GB                                                                                  
+                  , T1.PROC_GB     
+                  , T1.RESULT_GB        
+                  , T1.APP_DATE  
+                  , T1.SEIZURE_GB 
+                  , T1.REG_DATE
+                  , T1.CHG_DATE
+                  , T1.REGER_ID
+                  , T1.CHGER_ID
+                 )                                                             
+                  VALUES 
+                 (
+                    (SELECT MAX(IDX) +1 AS IDX FROM SC_QC_CLAIM) 
+                  , F_GET_SUPP_COMP_NM( T2.SUPP_COMP_ID )
+                  , T2.PAVLN_DIV_CD
+                  , T2.SUPP_COMP_ID  
+                  , F_GET_GOODS_NM( T2.GOODS_CD )                                                                                    
+                  , T2.GOODS_CD     
+                  , T2.REC_DATE     
+                  , T2.ORDER_ID         
+                  , T2.CLAIM_CONTENTS                                                                              
+                  , T2.APP_GRD     
+                  , T2.CALLCENTER_CONTENTS     
+                  , T2.CLAIM_GB                                                                                  
+                  , T2.PROC_GB     
+                  , T2.RESULT_GB         
+                  , T2.APP_DATE  
+                  , T2.SEIZURE_GB 
+                  , sysdate
+                  , sysdate
+                  , #regerId#
+                  , #regerId#
+                 )   
+		]]>
+	</insert> 
+	
+	<!-- 민원삭제 -->
+	<delete id="deleteClaim" parameterClass="java.util.Map">
+		<![CDATA[
+			DELETE SC_QC_CLAIM WHERE IDX = #idx#
+		]]>
+	</delete> 
+	
+	
+	<!-- 공급국 선택 -->
+	<select id="selectPostOffice" parameterClass="java.util.HashMap" resultClass="commMap" >
+		<![CDATA[ 
+			SELECT REGIPOCD AS VALUE
+			     , PONM AS NAME
+			  FROM PICMT0060 
+			 WHERE HRNKORREGIPOCD = #schHrnkorregipocd#
+			   AND USEYN ='Y' 
+			   AND DSCDPOYN = 'N' 
+	    ]]>
+	</select>
+	
+	<!-- 민원결과 조회 -->
+	<select id="selectClaimResultTotCnt" parameterClass="java.util.HashMap" resultClass="int" >
+		<![CDATA[
+			SELECT COUNT(CS.SUPP_COMP_ID) AS CNT
+              FROM SC_QC_CLAIM_STOP CS, CO_SUPP_COMP_MAST CU, PICMT0060 CP
+             WHERE CS.STOP_SDATE BETWEEN #schFrStopDate# AND #schToStopDate# 
+               AND CU.SUPP_COMP_ID = TRIM(CS.SUPP_COMP_ID)
+               AND CU.PO_ECODE = CP.EDPSCD
+        ]]>    
+           <isEmpty property="schSuppCompId" prepend="AND">
+           </isEmpty>
+           <isNotEmpty property="schSuppCompId" prepend="AND">
+            CU.SUPP_COMP_ID = #schSuppCompId#
+            </isNotEmpty>
+           <isNotEmpty property="schGoodsCd"  prepend="AND">
+            CS.GOODS_CD = #schGoodsCd#
+           </isNotEmpty>
+              
+	</select>
+	
+	<!-- 민원결과 조회 -->
+	<select id="selectClaimResultList" parameterClass="java.util.HashMap" resultClass="commMap" >
+		
+		<include refid="pagingHeader"/>
+		<![CDATA[
+			SELECT CS.SUPP_COMP_ID, 
+            CS.SUPP_COMP_NM, 
+            CS.GOODS_CD, 
+            CS.GOODS_NM,
+            TO_CHAR(CS.STOP_SDATE, 'yyyy-mm-dd')||' ~ '||TO_CHAR(CS.STOP_EDATE, 'yyyy-mm-dd') AS STOP_DATE,
+            TO_CHAR(CS.REG_DATE, 'yyyy-mm-dd') AS REG_DATE,
+            (
+              SELECT COUNT (GOODS_CD)
+               FROM SC_QC_CLAIM
+              WHERE REC_DATE >= ADD_MONTHS(CS.STOP_SDATE ,- 1)
+                AND REC_DATE <= LAST_DAY(ADD_MONTHS(CS.STOP_SDATE, - 1))
+                AND TRIM(CS.SUPP_COMP_ID) = SUPP_COMP_ID
+                AND CS.GOODS_CD = GOODS_CD
+             ) AS CNT, 
+            CP.PONM AS PONM   
+       FROM SC_QC_CLAIM_STOP CS, CO_SUPP_COMP_MAST CU, PICMT0060 CP
+      WHERE CS.STOP_SDATE BETWEEN #schFrStopDate# AND #schToStopDate# 
+        AND CU.SUPP_COMP_ID = TRIM(CS.SUPP_COMP_ID)
+        AND CU.PO_ECODE = CP.EDPSCD(+) 
+        AND CP.USEYN = 'Y'  
+        AND CP.DSCDPOYN = 'N' 
+        ]]>
+        /* 전시관구분 추가해야함*/
+        <isNotEmpty property="schSuppCompId">
+        	AND CU.SUPP_COMP_ID = #schSuppCompId#
+        </isNotEmpty>
+        <isNotEmpty property="schGoodsCd">
+        	AND CS.GOODS_CD = #schGoodsCd#
+        </isNotEmpty>
+        <include refid="pagingFooter"/>
+	</select>
+	
+	
+	<insert id="insertClaimResult" parameterClass="java.util.HashMap" >
+		<![CDATA[
+			MERGE INTO SC_QC_CLAIM_STOP T1
+		    USING (
+		               SELECT #idx#                AS  IDX
+		                    , #newSuppCompNm#      AS  SUPP_COMP_NM          
+		                    , #newSuppCompId#      AS  SUPP_COMP_ID
+		                    , #newGoodsCd#         AS  GOODS_CD
+		                    , #newGoodsNm#         AS  GOODS_NM
+		                    , #newFrStopDate#      AS  STOP_SDATE
+		                    , #newToStopDate#      AS  STOP_EDATE
+		                    , #regerId#            AS  REGER_ID
+		                 FROM DUAL
+		             ) T2
+		     ON(  T1.IDX = T2.IDX )
+		     WHEN MATCHED THEN
+		     UPDATE  
+		        SET  T1.SUPP_COMP_NM        =  T2.SUPP_COMP_NM
+		           , T1.SUPP_COMP_ID   =  T2.SUPP_COMP_ID
+		           , T1.GOODS_CD      =  T2.GOODS_CD
+		           , T1.GOODS_NM      =  T2.GOODS_NM
+		           , T1.STOP_SDATE     =  T2.STOP_SDATE
+		           , T1.STOP_EDATE     =  T2.STOP_EDATE
+		           , T1.CHG_DATE       =  sysdate
+		           , T1.CHGER_ID       =  T2.REGER_ID
+		     WHEN NOT MATCHED THEN       
+		     INSERT
+		     (
+		             T1.IDX
+		           , T1.SUPP_COMP_NM          
+		           , T1.SUPP_COMP_ID
+		           , T1.GOODS_CD
+		           , T1.GOODS_NM
+		           , T1.STOP_SDATE
+		           , T1.STOP_EDATE
+		           , T1.REG_DATE
+		           , T1.CHG_DATE
+		           , T1.REGER_ID
+		           , T1.CHGER_ID
+		     )
+		     VALUES
+		     (      
+		            ( SELECT NVL(MAX(IDX), 0)+1 FROM SC_QC_CLAIM_STOP ) 
+		           , T2.SUPP_COMP_NM          
+		           , T2.SUPP_COMP_ID
+		           , T2.GOODS_CD
+		           , T2.GOODS_NM
+		           , T2.STOP_SDATE
+		           , T2.STOP_EDATE
+		           , sysdate
+		           , sysdate
+		           , T2.REGER_ID
+		           , T2.REGER_ID
+		     )
+		]]>
+	</insert>
+	<select id="createClaimGoodsSampleFile" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  T1.SUPP_COMP_ID, T2.GOODS_CD, T1.BCNC_NM, T2.GOODS_NM
+              FROM CO_SUPP_COMP_MAST T1
+                 , GD_GOODS_MAST T2
+             WHERE T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+               AND T1.SUPP_COMP_ID = #sampleSuppCompId#
+		]]>
+	</select>
+	
+	<select id="checkExistSuppCompId" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(SUPP_COMP_ID) AS CNT
+              FROM CO_SUPP_COMP_MAST
+             WHERE SUPP_COMP_ID = #suppCompId#
+		]]>
+	</select>
+	
+	<select id="checkExistCrtfctId" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(CRTFCT_ID) AS CNT
+              FROM SC_GOODS_CRTFC_MAST
+             WHERE CRTFCT_ID = #crtfctId#
+		]]>
+	</select>
+	
+	<!-- 일괄업로드시 공통코드 유효코드 확인 -->
+	<select id="checkExistCd" parameterClass="java.util.Map" resultClass="commMap">
+		SELECT COMN_CD_ID
+		  FROM CM_COMN_CD
+		 WHERE CD_GRP_ID = #grpId# 
+		   AND USE_YN = 'Y'
+	</select>
+	
+	<!-- 일괄업로드시 상품 유효 확인 -->
+	<select id="checkExistGoodsCd" parameterClass="java.util.Map" resultClass="int">
+		SELECT COUNT(GOODS_CD) AS CNT 
+		  FROM GD_MGT_GOODS_MAST
+		 WHERE GOODS_CD = #goodsCd#
+	</select>
+</sqlMap>

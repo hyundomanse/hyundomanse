@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchOverseaEms">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="select_ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(ems_id) as i_cnt, max(ems_id) as i_ems_id
+			FROM ST_OVERSEA_EMS_MASTER
+			WHERE start_date = to_char(sysdate,'yyyymmdd')
+			  AND trans_date is null
+			  AND del_date   is null
+		]]>	 
+	</select>
+	
+	<delete id="delete_OVERSEA_GOODS_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE OVERSEA_GOODS A
+			WHERE  A.GOODS_IDN IN ( SELECT B.GOODS_IDN_KO
+			                        FROM ST_OVERSEA_EMS_GOODS B
+			                        WHERE B.EMS_ID = #iemsid#
+			                          AND nvl(B.GOODS_IDN_KO,0) > 0 )
+		]]>	 
+	</delete>
+	
+	<insert id="insert_OVERSEA_GOODS_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO OVERSEA_GOODS
+			 ( LOCALE,GOODS_IDN,EMS_FEE, MICRO_FEE,
+			   CREATE_DATE,LASTCHANGE,ACCESS_NAME,
+			   TRANS_TYPE,IS_DELETE)
+			SELECT
+				LOCALE,GOODS_IDN,EMS_FEE, MICRO_FEE,
+			   CREATE_DATE,LASTCHANGE,ACCESS_NAME,
+			   TRANS_TYPE,IS_DELETE
+			from  st_OVERSEA_GOODS A
+			WHERE  A.GOODS_IDN IN ( SELECT B.GOODS_IDN_KO
+									FROM ST_OVERSEA_EMS_GOODS B
+									WHERE B.EMS_ID = #iemsid#
+									  AND nvl(B.GOODS_IDN_KO,0) > 0 )
+		]]>	 
+	</insert>
+	
+	<delete id="delete_OVERSEA_GOODS_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE OVERSEA_GOODS A
+			WHERE  A.GOODS_IDN IN ( SELECT B.GOODS_IDN_US
+			                        FROM ST_OVERSEA_EMS_GOODS B
+			                        WHERE B.EMS_ID = #iemsid#
+			                          AND nvl(B.GOODS_IDN_US,0) > 0 )
+		]]>	 
+	</delete>
+	
+	<insert id="insert_OVERSEA_GOODS_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO OVERSEA_GOODS
+			 ( LOCALE,GOODS_IDN,EMS_FEE, MICRO_FEE,
+			   CREATE_DATE,LASTCHANGE,ACCESS_NAME,
+			   TRANS_TYPE,IS_DELETE)
+			SELECT
+				LOCALE,GOODS_IDN,EMS_FEE, MICRO_FEE,
+			   CREATE_DATE,LASTCHANGE,ACCESS_NAME,
+			   TRANS_TYPE,IS_DELETE
+			from  st_OVERSEA_GOODS A
+			WHERE  A.GOODS_IDN IN ( SELECT B.GOODS_IDN_US
+									FROM ST_OVERSEA_EMS_GOODS B
+									WHERE B.EMS_ID = #iemsid#
+									  AND nvl(B.GOODS_IDN_US,0) > 0 )
+		]]>	 
+	</insert>
+	
+	<delete id="delete_OVERSEA_GOODS_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE OVERSEA_GOODS A
+			WHERE  A.GOODS_IDN IN ( SELECT B.GOODS_IDN_JP
+			                        FROM ST_OVERSEA_EMS_GOODS B
+			                        WHERE B.EMS_ID = #iemsid#
+			                          AND nvl(B.GOODS_IDN_JP,0) > 0)
+		]]>	 
+	</delete>
+	
+	<insert id="insert_OVERSEA_GOODS_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO OVERSEA_GOODS
+			 ( LOCALE,GOODS_IDN,EMS_FEE, MICRO_FEE,
+			   CREATE_DATE,LASTCHANGE,ACCESS_NAME,
+			   TRANS_TYPE,IS_DELETE)
+			SELECT
+				LOCALE,GOODS_IDN,EMS_FEE, MICRO_FEE,
+			   CREATE_DATE,LASTCHANGE,ACCESS_NAME,
+			   TRANS_TYPE,IS_DELETE
+			from  st_OVERSEA_GOODS A
+			WHERE  A.GOODS_IDN IN ( SELECT B.GOODS_IDN_JP
+									FROM ST_OVERSEA_EMS_GOODS B
+									WHERE B.EMS_ID = #iemsid#
+									  AND nvl(B.GOODS_IDN_JP,0) > 0 )
+		]]>	 
+	</insert>
+	
+	<update id="update_ST_OVERSEA_EMS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_OVERSEA_EMS_MASTER
+			SET TRANS_DATE = to_char(sysdate,'yyyymmddhh24mi')
+			WHERE EMS_ID = #iemsid#
+		]]>	 
+	</update>
+		
+</sqlMap>

@@ -1,0 +1,618 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Cooperation">
+
+	<sql id="ctgry_list">
+		SELECT A.EXT_BIZ_CODE
+			 , A.APPLY_SEQ
+			 , A.CLASS_CODE
+			 , A.APPLY_START_DATE
+			 , A.APPLY_END_DATE
+			 , A.USE_YN
+			 , A.CLASS_CD1
+			 , A.CLASS_NAME1
+			 , A.CLASS_CD2
+			 , A.CLASS_NAME2
+			 , A.CLASS_CD3
+			 , A.CLASS_NAME3
+			 , A.CLASS_CD4
+			 , A.CLASS_NAME4
+			 , A.REG_DATE
+			 , A.REG_ID
+		  FROM GD_EXTERNAL_CATEGORY_MASTER A
+		 WHERE A.USE_YN = 'Y'
+		<isNotEmpty property="search_ext_biz_code" prepend="AND">
+			A.EXT_BIZ_CODE = #search_ext_biz_code#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCoopCtgryList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY CLASS_CD1, CLASS_CD2, CLASS_CD3, CLASS_CD4 ASC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="ctgry_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCoopCtgryCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="ctgry_list" />)
+	</select>
+
+	<select id="selectExternalCtgryApplySeq" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT NVL(MAX(APPLY_SEQ), 1) + 1 FROM GD_EXTERNAL_CATEGORY_MASTER WHERE EXT_BIZ_CODE = #ext_biz_code#
+	</select>
+
+	<update id="updatePrevCoopCtgryUseyn" parameterClass="java.util.HashMap">
+		UPDATE GD_EXTERNAL_CATEGORY_MASTER
+		   SET USE_YN = 'N'
+		 WHERE USE_YN = 'Y'
+	</update>
+	
+	<insert id="insertCoopCtgryUpload" parameterClass="java.util.HashMap">
+		INSERT INTO GD_EXTERNAL_CATEGORY_MASTER
+			  ( EXT_BIZ_CODE
+              , APPLY_SEQ
+              , CLASS_CODE
+              , APPLY_START_DATE
+              , APPLY_END_DATE
+              , USE_YN
+              , CLASS_CD1
+              , CLASS_NAME1
+              , CLASS_CD2
+              , CLASS_NAME2
+              , CLASS_CD3
+              , CLASS_NAME3
+              , CLASS_CD4
+              , CLASS_NAME4
+              , REG_DATE
+              , REG_ID )
+		 VALUES
+			  ( #ext_biz_code#
+              , #apply_seq#
+              , #class_cd1#||#class_cd2#||#class_cd3#
+              , TO_CHAR(SYSDATE, 'YYYYMMDD')
+              , '99991231'
+              , 'Y'
+              , #class_cd1#
+              , #class_name1#
+              , #class_cd2#
+              , #class_name2#
+              , #class_cd3#
+              , #class_name3#
+              , #class_cd4#
+              , #class_name4#
+              , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+              , NVL(#login_usr_id#, 'ADMIN') )
+	</insert>
+	
+	<sql id="ctgryMapp_list">
+		SELECT A.EXT_BIZ_CODE
+			 , A.APPLY_SEQ
+			 , A.LANGUAGE
+			 , A.ETC
+			 , A.CATEGORY_CODE
+			 , A.APPLY_START_DATE
+			 , A.APPLY_END_DATE
+			 , A.USE_YN
+			 , A.EXT_CLASS_CD1
+			 , A.EXT_CLASS_CD2
+			 , A.EXT_CLASS_CD3
+			 , A.EXT_CLASS_CD4
+			 , B.CLASS_NAME1
+			 , B.CLASS_NAME2
+			 , B.CLASS_NAME3
+			 , LEVEL1_CTGRY.CTGRY_NM AS CTGRY1_NM
+			 , LEVEL2_CTGRY.CTGRY_NM AS CTGRY2_NM
+			 , LEVEL3_CTGRY.CTGRY_NM AS CTGRY3_NM
+		  FROM GD_EXTERNAL_CATEGORY_MAPPING A
+			 , (SELECT * FROM GD_EXTERNAL_CATEGORY_MASTER WHERE USE_YN = 'Y') B
+			 , (SELECT CTGRY_CD, CTGRY_NM FROM GD_CTGRY_MAST WHERE POSTNET_CTGRY_YN = 'N' AND USE_YN = 'Y') LEVEL1_CTGRY
+			 , (SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD FROM GD_CTGRY_MAST WHERE POSTNET_CTGRY_YN = 'N' AND USE_YN = 'Y') LEVEL2_CTGRY
+			 , (SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD FROM GD_CTGRY_MAST WHERE POSTNET_CTGRY_YN = 'N' AND USE_YN = 'Y') LEVEL3_CTGRY
+		 WHERE A.EXT_BIZ_CODE = B.EXT_BIZ_CODE
+		   AND A.EXT_CLASS_CD1 = B.CLASS_CD1
+		   AND A.EXT_CLASS_CD2 = B.CLASS_CD2
+		   AND A.EXT_CLASS_CD3 = B.CLASS_CD3
+		   AND A.CATEGORY_CODE = LEVEL3_CTGRY.CTGRY_CD(+)
+		   AND LEVEL3_CTGRY.HRNK_CTGRY_CD = LEVEL2_CTGRY.CTGRY_CD(+)
+		   AND LEVEL2_CTGRY.HRNK_CTGRY_CD = LEVEL1_CTGRY.CTGRY_CD(+)
+		   AND A.USE_YN = 'Y'
+		<isNotEmpty property="search_ext_biz_code" prepend="AND">
+			A.EXT_BIZ_CODE = #search_ext_biz_code#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCoopCtgryMappList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY CATEGORY_CODE ASC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="ctgryMapp_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCoopCtgryMappCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="ctgryMapp_list" />)
+	</select>
+	
+	<update id="updatePrevCoopCtgryMappUseyn" parameterClass="java.util.HashMap">
+		UPDATE GD_EXTERNAL_CATEGORY_MAPPING
+		   SET USE_YN = 'N'
+		 WHERE USE_YN = 'Y'
+	</update>
+	
+	<select id="selectExternalCtgryMappApplySeq" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT NVL(MAX(APPLY_SEQ), 1) + 1 FROM GD_EXTERNAL_CATEGORY_MAPPING WHERE EXT_BIZ_CODE = #ext_biz_code#
+	</select>
+	
+	<insert id="insertCoopCtgryMappUpload" parameterClass="java.util.HashMap">
+		INSERT INTO GD_EXTERNAL_CATEGORY_MAPPING
+			  ( EXT_BIZ_CODE
+              , APPLY_SEQ
+              , LANGUAGE
+              , ETC
+              , CATEGORY_CODE
+              , APPLY_START_DATE
+              , APPLY_END_DATE
+              , USE_YN
+              , EXT_CLASS_CD1
+              , EXT_CLASS_CD2
+              , EXT_CLASS_CD3
+              , EXT_CLASS_CD4
+              , REG_DATE
+              , REG_ID )
+		 VALUES
+			  ( #ext_biz_code#
+              , #apply_seq#
+              , 'KO'
+              , '1'
+              , #category_code#
+              , TO_CHAR(SYSDATE, 'YYYYMMDD')
+              , '99991231'
+              , 'Y'
+              , #ext_class_cd1#
+              , #ext_class_cd2#
+              , #ext_class_cd3#
+              , #ext_class_cd4#
+              , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+              , NVL(#login_usr_id#, 'ADMIN') )
+	</insert>
+	
+	<sql id="coopMall_list">
+		SELECT A.EXT_BIZ_CODE
+			 , A.MALL_CODE
+			 , B.APPLY_SEQ
+			 , REPLACE(A.APPLY_START_DATE, '-') AS APPLY_START_DATE
+			 , REPLACE(A.APPLY_END_DATE, '-') AS APPLY_END_DATE
+			 , A.MALL_NAME
+			 , A.FEE_APPLY_MTHD
+			 , A.FEE_RATE
+			 , A.DECIMAL_RULE
+			 , A.DECIMAL_POINT
+			 , EXT_BIZ_CODE.COMN_CD_NM AS EXT_BIZ_CODE_NM
+			 , DECIMAL_RULE.COMN_CD_NM AS DECIMAL_RULE_NM
+			 , DECIMAL_POINT.COMN_CD_NM AS DECIMAL_POINT_NM
+			 , A.REG_DATE
+		  FROM PT_EXTERNAL_BIZ_MALL A
+		  	 , (SELECT EXT_BIZ_CODE, MALL_CODE, MAX(APPLY_SEQ) AS APPLY_SEQ FROM PT_EXTERNAL_BIZ_MALL GROUP BY EXT_BIZ_CODE, MALL_CODE) B
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'EXT_BIZ_CODE') EXT_BIZ_CODE
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'DECIMAL_RULE') DECIMAL_RULE
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'DECIMAL_POINT') DECIMAL_POINT
+		 WHERE A.EXT_BIZ_CODE = B.EXT_BIZ_CODE
+		   AND A.MALL_CODE = B.MALL_CODE
+		   AND A.APPLY_SEQ = B.APPLY_SEQ
+		   AND A.EXT_BIZ_CODE = EXT_BIZ_CODE.COMN_CD_ID(+)
+		   AND A.DECIMAL_RULE = DECIMAL_RULE.COMN_CD_ID(+)
+		   AND A.DECIMAL_POINT = DECIMAL_POINT.COMN_CD_ID(+)
+		<isNotEmpty property="search_ext_biz_code" prepend="AND">
+			A.EXT_BIZ_CODE = #search_ext_biz_code#
+		</isNotEmpty>
+		<isNotEmpty property="search_mall_code" prepend="AND">
+			A.MALL_CODE = #search_mall_code#
+		</isNotEmpty>
+		<isNotEmpty property="search_mall_code" prepend="AND">
+			A.MALL_CODE = #search_mall_code#
+		</isNotEmpty>
+		<isNotEmpty property="ext_biz_code" prepend="AND">
+			A.EXT_BIZ_CODE = #ext_biz_code#
+		</isNotEmpty>
+		<isNotEmpty property="mall_code" prepend="AND">
+			A.MALL_CODE = #mall_code#
+		</isNotEmpty>
+		<isNotEmpty property="apply_seq" prepend="AND">
+			A.APPLY_SEQ = #apply_seq#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCoopMallList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY REG_DATE DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="coopMall_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCoopMallCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="coopMall_list" />)
+	</select>
+	
+	<insert id="insertCoopMallInfo" parameterClass="java.util.HashMap">
+		INSERT INTO PT_EXTERNAL_BIZ_MALL
+			  ( EXT_BIZ_CODE
+			  , MALL_CODE
+              , APPLY_SEQ
+              , APPLY_START_DATE
+              , APPLY_END_DATE
+              , MALL_NAME
+              , FEE_APPLY_MTHD
+              , FEE_RATE
+              , FEE_APPLY_TRGT
+              , SETTLE_FEE
+              , ADD_FEE
+              , REG_DATE
+              , REG_ID
+              , ORDER_REG_ID_YN
+              , ORDER_REG_USER_ID
+              , DECIMAL_RULE
+              , DECIMAL_POINT )
+		 VALUES
+			  ( NVL(#ext_biz_code#, 'SBNT')
+			  , #mall_code#
+              , (SELECT NVL(MAX(APPLY_SEQ),0)+1 FROM PT_EXTERNAL_BIZ_MALL WHERE EXT_BIZ_CODE = #ext_biz_code# AND MALL_CODE = #mall_code#)
+              , REPLACE(#apply_start_date#, '-')
+              , '99991231'
+              , #mall_name#
+              , NVL(#fee_apply_mthd#, 'RATE')
+              , #fee_rate#
+              , #fee_apply_trgt#
+              , #settle_fee#
+              , #add_fee#
+              , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+              , NVL(#login_usr_id#, 'ADMIN')
+              , #order_reg_id_yn#
+              , #order_reg_user_id#
+              , #decimal_rule#
+              , #decimal_point# )
+	</insert>
+	
+	<sql id="coopOrder_list">
+		SELECT A.EXT_BIZ_CODE
+			 , EXT_BIZ_CODE.COMN_CD_NM AS EXT_BIZ_CODE_NM
+			 , A.ORDER_DATE
+			 , A.COPRTN_ORDER_NO
+			 , A.MALL_CODE
+			 , MALL_CODE.COMN_CD_NM AS MALL_NAME
+			 , A.MALL_ORDER_ID
+			 , B.ORDER_ID
+			 , C.GOODS_NM
+			 , A.SALE_CNT
+			 , A.TOTAL_COST
+			 , D.REGI_NO
+			 , A.USER_NAME
+			 , A.RECEIVE_NAME
+			 , B.ORDER_STUS_CD
+			 , ORDER_STUS_CD.COMN_CD_NM AS ORDER_STUS_CD_NM
+		  FROM PT_EXTERNAL_BIZ_ORDER A, OD_ORDER_MAST B, GD_GOODS_MAST C
+		  	 , (SELECT ORDER_ID, MAX(REGI_NO) AS REGI_NO FROM OD_ORDER_ITM GROUP BY ORDER_ID) D
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'EXT_BIZ_CODE') EXT_BIZ_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'MALL_CODE') MALL_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_STUS_CD') ORDER_STUS_CD
+	     WHERE A.PURCHASE_ID = B.ORDER_ID
+		   /*AND A.COPRTN_ORDER_NO = B.COPRTN_ORDER_NO
+		   AND A.COPRTN_ORDER_SEQ = B.COPRTN_ORDER_SEQ*/
+		   AND A.GOODS_CODE = C.GOODS_CD
+		   AND A.PURCHASE_ID = D.ORDER_ID
+		   AND A.EXT_BIZ_CODE = EXT_BIZ_CODE.COMN_CD_ID(+)
+		   AND A.MALL_CODE = MALL_CODE.COMN_CD_ID(+)
+		   AND B.ORDER_STUS_CD = ORDER_STUS_CD.COMN_CD_ID(+)
+		<isNotEmpty property="search_strt_ymd">
+			<isNotEmpty property="search_date_type" prepend="AND">
+				<isEqual property="search_date_type" compareValue="order_date">
+					A.ORDER_DATE BETWEEN REPLACE(#search_strt_ymd#,'-')||'000000' AND REPLACE(#search_end_ymd#,'-')||'999999'
+				</isEqual>
+				<isEqual property="search_date_type" compareValue="reg_date">
+					A.REG_DATE BETWEEN REPLACE(#search_strt_ymd#,'-')||'000000' AND REPLACE(#search_end_ymd#,'-')||'999999'
+				</isEqual>
+				<isEqual property="search_date_type" compareValue="delv_send_date">
+					A.DELV_SEND_DATE BETWEEN REPLACE(#search_strt_ymd#,'-')||'000000' AND REPLACE(#search_end_ymd#,'-')||'999999'
+				</isEqual>
+			</isNotEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_batch_proc_status" prepend="AND">
+			A.BATCH_PROC_STATUS = #search_batch_proc_status#
+		</isNotEmpty>
+		<isNotEmpty property="search_delv_send_yn" prepend="AND">
+			A.DELV_SEND_YN = #search_delv_send_yn#
+		</isNotEmpty>
+		<isNotEmpty property="search_order_stus_cd" prepend="AND">
+			B.ORDER_STUS_CD = #search_order_stus_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_mall_code" prepend="AND">
+			A.MALL_CODE = #search_mall_code#
+		</isNotEmpty>
+		<isNotEmpty property="search_ext_biz_code" prepend="AND">
+			A.EXT_BIZ_CODE = #search_ext_biz_code#
+		</isNotEmpty>
+		<isNotEmpty property="search_coprtn_order_no" prepend="AND">
+			A.COPRTN_ORDER_NO LIKE '%'||#search_coprtn_order_no#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="search_mall_order_id" prepend="AND">
+			A.MALL_ORDER_ID LIKE '%'||#search_mall_order_id#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="search_order_id" prepend="AND">
+			A.PURCHASE_ID LIKE '%'||#search_order_id#||'%'
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCoopOrderList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY COPRTN_ORDER_NO DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="coopOrder_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCoopOrderCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="coopOrder_list" />)
+	</select>
+	
+	<select id="selectExternalOrderDtailInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.EXT_BIZ_CODE
+			 , EXT_BIZ_CODE.COMN_CD_NM AS EXT_BIZ_CODE_NM
+			 , A.ORDER_DATE
+			 , A.COPRTN_ORDER_NO
+			 , MALL_CODE.COMN_CD_NM AS MALL_NAME
+			 , A.MALL_ORDER_ID
+			 , A.PURCHASE_ID AS ORDER_ID
+			 , C.GOODS_NM
+			 , A.SALE_CNT
+			 , TO_CHAR(A.TOTAL_COST,'99,999,999,990') AS TOTAL_COST
+			 , D.REGI_NO
+			 , A.USER_NAME
+			 , A.USER_TEL
+			 , A.RECEIVE_NAME
+			 , A.RECEIVE_ZIPCODE 
+			 , A.RECEIVE_ADDR 
+		  FROM PT_EXTERNAL_BIZ_ORDER A, OD_ORDER_MAST B, GD_GOODS_MAST C
+		  	 , (SELECT ORDER_ID, MAX(REGI_NO) AS REGI_NO FROM OD_ORDER_ITM GROUP BY ORDER_ID) D
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'EXT_BIZ_CODE') EXT_BIZ_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'MALL_CODE') MALL_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_STUS_CD') ORDER_STUS_CD
+	     WHERE A.PURCHASE_ID = B.ORDER_ID
+		   /*AND A.COPRTN_ORDER_NO = B.COPRTN_ORDER_NO
+		   AND A.COPRTN_ORDER_SEQ = B.COPRTN_ORDER_SEQ*/
+		   AND A.GOODS_CODE = C.GOODS_CD
+		   AND A.PURCHASE_ID = D.ORDER_ID
+		   AND A.EXT_BIZ_CODE = EXT_BIZ_CODE.COMN_CD_ID(+)
+		   AND A.MALL_CODE = MALL_CODE.COMN_CD_ID(+)
+		   AND B.ORDER_STUS_CD = ORDER_STUS_CD.COMN_CD_ID(+)
+		   AND A.PURCHASE_ID = #order_id#
+	</select>
+	
+	<sql id="coopClame_list">
+		SELECT A.EXT_BIZ_CODE
+			 , EXT_BIZ_CODE.COMN_CD_NM AS EXT_BIZ_CODE_NM
+			 , A.ORDER_DATE
+			 , A.EXT_BIZ_ORD_NO
+			 , MALL_CODE.COMN_CD_NM AS MALL_NAME
+			 , A.MALL_ORDER_ID
+			 , A.PURCHASE_ID AS ORDER_ID
+			 , C.GOODS_NM
+			 , A.SALE_CNT
+			 , A.TOTAL_COST
+			 , A.USER_NAME
+			 , A.RECEIVE_NAME
+			 , A.CLAME_CNT
+			 , B.ORDER_STUS_CD
+			 , A.CLAME_PROC_STATUS
+			 , CLAME_PROC_STATUS.COMN_CD_NM AS CLAME_PROC_STATUS_NM
+		  FROM OD_EXTERNAL_BIZ_CLAME A, OD_ORDER_MAST B, GD_GOODS_MAST C
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'EXT_BIZ_CODE') EXT_BIZ_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'MALL_CODE') MALL_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_STUS_CD') ORDER_STUS_CD
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'CLAME_PROC_STATUS') CLAME_PROC_STATUS
+		 WHERE A.PURCHASE_ID = B.ORDER_ID
+		   AND A.GOODS_CODE = C.GOODS_CD
+		   AND A.EXT_BIZ_CODE = EXT_BIZ_CODE.COMN_CD_ID(+)
+		   AND A.MALL_CODE = MALL_CODE.COMN_CD_ID(+)
+		   AND B.ORDER_STUS_CD = ORDER_STUS_CD.COMN_CD_ID(+)
+		   AND A.CLAME_PROC_STATUS = CLAME_PROC_STATUS.COMN_CD_ID(+)
+		<isNotEmpty property="search_strt_ymd">
+			<isNotEmpty property="search_date_type" prepend="AND">
+				<isEqual property="search_date_type" compareValue="order_date">
+					A.ORDER_DATE BETWEEN REPLACE(#search_strt_ymd#,'-')||'000000' AND REPLACE(#search_end_ymd#,'-')||'999999'
+				</isEqual>
+				<isEqual property="search_date_type" compareValue="clame_date">
+					A.REG_DATE BETWEEN REPLACE(#search_strt_ymd#,'-')||'000000' AND REPLACE(#search_end_ymd#,'-')||'999999'
+				</isEqual>
+			</isNotEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_clame_proc_status" prepend="AND">
+			A.CLAME_PROC_STATUS = #search_clame_proc_status#
+		</isNotEmpty>
+		<isNotEmpty property="search_order_stus_cd" prepend="AND">
+			A.ORDER_STUS_CD = #search_order_stus_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_mall_code" prepend="AND">
+			A.MALL_CODE = #search_mall_code#
+		</isNotEmpty>
+		<isNotEmpty property="search_ext_biz_code" prepend="AND">
+			A.EXT_BIZ_CODE = #search_ext_biz_code#
+		</isNotEmpty>
+		<isNotEmpty property="search_coprtn_order_no" prepend="AND">
+			A.COPRTN_ORDER_NO LIKE '%'||#search_coprtn_order_no#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="search_mall_order_id" prepend="AND">
+			A.MALL_ORDER_ID LIKE '%'||#search_mall_order_id#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="search_order_id" prepend="AND">
+			A.PURCHASE_ID LIKE '%'||#search_order_id#||'%'
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCoopClameList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY EXT_BIZ_ORD_NO DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="coopClame_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCoopClameCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="coopClame_list" />)
+	</select>
+	
+	<select id="selectExternalClameDtailInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.EXT_BIZ_CODE
+			 , EXT_BIZ_CODE.COMN_CD_NM AS EXT_BIZ_CODE_NM
+			 , A.ORDER_DATE
+			 , A.EXT_BIZ_ORD_NO
+			 , A.EXT_BIZ_CLAME_SEQ
+			 , MALL_CODE.COMN_CD_NM AS MALL_NAME
+			 , A.MALL_ORDER_ID
+			 , A.PURCHASE_ID AS ORDER_ID
+			 , B.GOODS_NM
+			 , A.SALE_CNT
+			 , A.TOTAL_COST
+			 , A.USER_NAME
+			 , A.USER_TEL
+			 , A.RECEIVE_NAME
+			 , A.RECEIVE_ZIPCODE 
+			 , A.CLAME_PROC_STATUS
+			 , A.CLAME_CNT
+			 , A.CLAME_CONTENT
+			 , A.CLAME_PROC_COMPLETE_DATE 
+			 , A.CLAME_MALL_COMPLETE_DATE
+			 , A.CLAME_PROC_STATUS
+			 , CLAME_PROC_STATUS.COMN_CD_NM AS CLAME_PROC_STATUS_NM
+		  FROM OD_EXTERNAL_BIZ_CLAME A, GD_GOODS_MAST B
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'EXT_BIZ_CODE') EXT_BIZ_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'MALL_CODE') MALL_CODE
+		     , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'CLAME_PROC_STATUS') CLAME_PROC_STATUS
+		 WHERE A.GOODS_CODE = B.GOODS_CD
+		   AND A.EXT_BIZ_CODE = EXT_BIZ_CODE.COMN_CD_ID(+)
+		   AND A.MALL_CODE = MALL_CODE.COMN_CD_ID(+)
+		   AND A.CLAME_PROC_STATUS = CLAME_PROC_STATUS.COMN_CD_ID(+)
+		   AND A.PURCHASE_ID = #order_id#
+	</select>
+	
+	<update id="updateCoopClameStatus" parameterClass="java.util.HashMap">
+		UPDATE OD_EXTERNAL_BIZ_CLAME
+		   SET CLAME_PROC_STATUS = #clame_proc_status#
+		     , CLAME_MALL_COMPLETE_DATE = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS)
+		 WHERE PURCHASE_ID = #order_id#
+	</update>
+	
+	<sql id="partiCorpHist_list">
+		SELECT A.SUPP_COMP_ID
+			 , A.BCNC_NM
+			 , A.COPRTN_FEE_AGREE_TURF
+			 , CASE WHEN A.COPRTN_FEE_AGREE_TURF = '0.03' THEN 'Y' ELSE '' END COPRTN_FEE_AGREE_TURF_03
+			 , CASE WHEN A.COPRTN_FEE_AGREE_TURF = '0.06' THEN 'Y' ELSE '' END COPRTN_FEE_AGREE_TURF_06
+			 , CASE WHEN A.COPRTN_FEE_AGREE_TURF = '0.10' THEN 'Y' ELSE '' END COPRTN_FEE_AGREE_TURF_10
+			 , CASE WHEN A.COPRTN_FEE_AGREE_TURF = '0.15' THEN 'Y' ELSE '' END COPRTN_FEE_AGREE_TURF_15
+			 , CASE WHEN A.COPRTN_FEE_AGREE_TURF IS NULL THEN 'Y' ELSE '' END COPRTN_FEE_AGREE_TURF_NONE
+			 , SUBSTR(A.COPRTN_FEE_CHG_APPR_YMD, 0, 8) AS COPRTN_FEE_CHG_APPR_YMD
+		  FROM CO_SUPP_COMP_HISTOR A
+		 WHERE A.COPRTN_FEE_CHG_REQ_YMD IS NOT NULL
+		   AND A.COPRTN_FEE_CHG_APPR_YMD IS NOT NULL
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="supp_comp_id">
+					A.SUPP_COMP_ID LIKE #search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="bcnc_nm">
+					A.BCNC_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.SUPP_COMP_ID LIKE #search_text#||'%' OR A.BCNC_NM LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCoopPartiCorpHistList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY COPRTN_FEE_CHG_APPR_YMD DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="partiCorpHist_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCoopPartiCorpHistCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="partiCorpHist_list" />)
+	</select>
+	
+</sqlMap>

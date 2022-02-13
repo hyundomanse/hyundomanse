@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Pg">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- Pg 목록 조회 -->
+	<select id="selectPgList" parameterClass="com.devwork.common.util.CommandMap" resultClass="commMap">
+		/* selectPgList */
+		SELECT CP.PG_ID
+				, CCC.COMN_CD_ID
+				, CCC.COMN_CD_NM
+				, CP.PG_TYPE
+				, CPPI.REGNAME
+				, CPPI.EMAIL
+				, CPPI.TELEPHONE
+				, CPPI.MOBILE
+				, CPPI.CHNL_DIV_CD
+				, CPPI.USE_YN
+		  FROM CM_COMN_CD CCC, CM_PAY_PG CP, CM_PAY_PG_INFO CPPI
+		 WHERE CP.PG_ID(+) = CCC.COMN_CD_ID
+		   AND CP.PG_ID = CPPI.PG_ID(+)
+        <isNotEmpty property="chnlDivCd">
+        	AND CPPI.CHNL_DIV_CD(+) = #chnlDivCd#
+        </isNotEmpty>
+		   AND CCC.CD_GRP_ID = #cdGrpId#
+		ORDER BY CCC.SORT_ORDER
+	</select>
+	
+	<!-- Pg 상세정보 조회 -->
+	<select id="selectPgInfo" parameterClass="com.devwork.common.util.CommandMap" resultClass="commMap">
+		/* selectPgInfo */
+		SELECT NVL(CPPI.PG_ID, #pgId#) AS PG_ID
+				, (SELECT CCC.COMN_CD_NM FROM CM_COMN_CD CCC WHERE CCC.COMN_CD_ID = NVL(CPPI.PG_ID, #pgId#) AND CCC.CD_GRP_ID = #cdGrpId#) PG_NAME
+				, CPPI.CHNL_DIV_CD
+				, CPPI.USE_PAYWAY
+				, CPPI.USE_ESCROW_PAYWAY
+				, CPPI.IS_ALLOW_TAXFREE
+				, CPPI.REGNAME, EMAIL
+				, CPPI.TELEPHONE
+				, CPPI.MOBILE
+				, CPPI.STORE_NAME
+				, CPPI.STORE_GB_CD
+				, CPPI.ACCOUNT_NO
+				, CPPI.PG_ACCOUNT_NO
+				, CPPI.PAYFEE_ACCOUNT_NO
+				, CPPI.MERCHANT_ID
+				, CPPI.PASSWORD
+				, CPPI.MERCHANT_KEY
+				, CPPI.ESCROW_ID
+				, CPPI.QUOTA
+				, CPPI.NOINTQUOTA
+				, CPPI.PG_URL
+				, CPPI.MERCHANT_CANCLE_KEY
+				, CPPI.MERCHANT_ENC_KEY
+				, CPPI.MERCHANT_HASH_KEY
+				, CPPI.USE_YN
+				, CPPI.CREATE_DATE
+				, (SELECT VIRTUAL_LIMIT_DAY FROM CM_PAY_PG CPP WHERE CPP.PG_ID = NVL(CPPI.PG_ID, #pgId#) AND ROWNUM = 1) VIRTUAL_LIMIT_DAY
+				, (SELECT PG_TYPE FROM CM_PAY_PG CPP WHERE CPP.PG_ID = NVL(CPPI.PG_ID, #pgId#) AND ROWNUM = 1) PG_TYPE
+		  FROM CM_COMN_CD CCC, CM_PAY_PG_INFO CPPI
+		 WHERE CCC.COMN_CD_ID = CPPI.PG_ID(+)
+		   AND CCC.COMN_CD_ID = #pgId#
+		   AND CCC.CD_GRP_ID = #cdGrpId#
+		   AND CPPI.PG_ID(+) = #pgId#
+		   AND CPPI.CHNL_DIV_CD(+) = #chnlDivCd#
+	</select>
+	
+	<!-- Pg 수수료 목록 조회 -->
+	<select id="selectPgFeeList" parameterClass="com.devwork.common.util.CommandMap" resultClass="commMap">
+		/* selectPgFeeList */
+		SELECT CPF.PAYWAY
+				, CPF.PG_ID
+				, CPF.CHNL_DIV_CD
+				, CPF.PAY_FEE_VALUE
+				, CPF.PAY_FEE_UNIT
+				, CPF.ESCROW_FEE_VALUE
+				, CPF.ESCROW_FEE_UNIT
+		  FROM (SELECT 1 AS PAYWAY FROM DUAL
+		        UNION
+		        SELECT 2 AS PAYWAY FROM DUAL
+		        UNION
+		        SELECT 4 AS PAYWAY FROM DUAL) A, CM_PAY_FEE CPF
+		 WHERE A.PAYWAY = CPF.PAYWAY(+)
+		   AND CPF.PG_ID(+) = #pgId#
+		   AND CPF.CHNL_DIV_CD(+) = #chnlDivCd#
+	</select>
+	
+	<!-- CM_PAY_PG 등록/수정 -->
+	<insert id="mergePayPg" parameterClass="com.devwork.common.util.CommandMap">
+		/* mergePayPg */
+		MERGE INTO CM_PAY_PG A
+			USING (SELECT  #pgId# PG_ID
+							, #virtualLimitDay# VIRTUAL_LIMIT_DAY
+							, #pgType# PG_TYPE
+			   FROM DUAL) B
+			ON (A.PG_ID = B.PG_ID)
+			WHEN MATCHED THEN
+			UPDATE SET
+			A.VIRTUAL_LIMIT_DAY = B.VIRTUAL_LIMIT_DAY
+			, A.PG_TYPE = B.PG_TYPE
+			WHEN NOT MATCHED THEN
+			INSERT VALUES
+			    (
+			     B.PG_ID
+			     , B.VIRTUAL_LIMIT_DAY
+			     , B.PG_TYPE
+			    )
+	</insert>
+	
+	<!-- CM_PAY_PG_INFO 등록/수정 -->
+	<insert id="mergePayPgInfo" parameterClass="com.devwork.common.util.CommandMap">
+		/* mergePayPgInfo */
+		MERGE INTO CM_PAY_PG_INFO A
+			USING (SELECT  #pgId# PG_ID
+							, #chnlDivCd# CHNL_DIV_CD
+							, #pgType# PG_TYPE
+							, #usePayway# USE_PAYWAY
+							, #useEscrowPayway# USE_ESCROW_PAYWAY
+							, NVL(#isAllowTaxfree#, 'F') IS_ALLOW_TAXFREE
+							, #regname# REGNAME
+							, #email# EMAIL
+							, #telephone# TELEPHONE
+							, #mobile# MOBILE
+							, #storeName# STORE_NAME
+							, #storeGbCd# STORE_GB_CD
+							, #accountNo# ACCOUNT_NO
+							, #pgAccountNo# PG_ACCOUNT_NO
+							, #payfeeAccountNo# PAYFEE_ACCOUNT_NO
+							, #merchantId# MERCHANT_ID
+							, #password# PASSWORD
+							, #merchantKey# MERCHANT_KEY
+							, #escrowId# ESCROW_ID
+							, #quota# QUOTA
+							, #nointquota# NOINTQUOTA
+							, #pgUrl# PG_URL
+							, #merchantCancleKey# MERCHANT_CANCLE_KEY
+							, #merchantEncKey# MERCHANT_ENC_KEY
+							, #merchantHashKey# MERCHANT_HASH_KEY
+							, NVL(#useYn#, 'N') USE_YN
+							, TO_CHAR(SYSDATE, 'YYYYMMDD') CREATE_DATE
+			   FROM DUAL) B
+			ON (A.PG_ID = B.PG_ID AND A.CHNL_DIV_CD = B.CHNL_DIV_CD)
+			WHEN MATCHED THEN
+			UPDATE SET
+			A.USE_PAYWAY = B.USE_PAYWAY
+			, A.USE_ESCROW_PAYWAY = B.USE_ESCROW_PAYWAY
+			, A.IS_ALLOW_TAXFREE = B.IS_ALLOW_TAXFREE
+			, A.REGNAME = B.REGNAME
+			, A.EMAIL = B.EMAIL
+			, A.TELEPHONE = B.TELEPHONE
+			, A.MOBILE = B.MOBILE
+			, A.STORE_NAME = B.STORE_NAME
+			, A.STORE_GB_CD = B.STORE_GB_CD
+			, A.ACCOUNT_NO = B.ACCOUNT_NO
+			, A.PG_ACCOUNT_NO = B.PG_ACCOUNT_NO
+			, A.PAYFEE_ACCOUNT_NO = B.PAYFEE_ACCOUNT_NO
+			, A.MERCHANT_ID = B.MERCHANT_ID
+			, A.PASSWORD = B.PASSWORD
+			, A.MERCHANT_KEY = B.MERCHANT_KEY
+			, A.ESCROW_ID = B.ESCROW_ID
+			, A.QUOTA = B.QUOTA
+			, A.NOINTQUOTA = B.NOINTQUOTA
+			, A.PG_URL = B.PG_URL
+			, A.MERCHANT_CANCLE_KEY = B.MERCHANT_CANCLE_KEY
+			, A.MERCHANT_ENC_KEY = B.MERCHANT_ENC_KEY
+			, A.MERCHANT_HASH_KEY = B.MERCHANT_HASH_KEY
+			, A.USE_YN = B.USE_YN
+			WHEN NOT MATCHED THEN
+			INSERT VALUES
+			    (
+					B.PG_ID
+					, B.CHNL_DIV_CD
+					, B.USE_PAYWAY
+					, B.USE_ESCROW_PAYWAY
+					, B.IS_ALLOW_TAXFREE
+					, B.REGNAME
+					, B.EMAIL
+					, B.TELEPHONE
+					, B.MOBILE
+					, B.STORE_NAME
+					, B.STORE_GB_CD
+					, B.ACCOUNT_NO
+					, B.PG_ACCOUNT_NO
+					, B.PAYFEE_ACCOUNT_NO
+					, B.MERCHANT_ID
+					, B.PASSWORD
+					, B.MERCHANT_KEY
+					, B.ESCROW_ID
+					, B.QUOTA
+					, B.NOINTQUOTA
+					, B.PG_URL
+					, B.MERCHANT_CANCLE_KEY
+					, B.MERCHANT_ENC_KEY
+					, B.MERCHANT_HASH_KEY
+					, B.USE_YN
+					, B.CREATE_DATE
+			    )
+	</insert>
+	
+	<!-- CM_PAY_FEE 등록/수정 -->
+	<insert id="mergePayFee" parameterClass="com.devwork.common.util.CommandMap">
+		/* mergePayFee */
+		MERGE INTO CM_PAY_FEE A
+			USING (SELECT  #payway# PAYWAY
+							, #pgId# PG_ID
+							, #chnlDivCd# CHNL_DIV_CD
+							, #payFeeValue# PAY_FEE_VALUE
+							, 2 PAY_FEE_UNIT
+							, #escrowFeeValue# ESCROW_FEE_VALUE
+							, 2 ESCROW_FEE_UNIT
+			   FROM DUAL) B
+			ON (A.PAYWAY = B.PAYWAY AND A.PG_ID = B.PG_ID AND A.CHNL_DIV_CD = B.CHNL_DIV_CD)
+			WHEN MATCHED THEN
+			UPDATE SET
+			A.PAY_FEE_VALUE = B.PAY_FEE_VALUE
+			, A.PAY_FEE_UNIT = B.PAY_FEE_UNIT
+			, A.ESCROW_FEE_VALUE = B.ESCROW_FEE_VALUE
+			, A.ESCROW_FEE_UNIT = B.ESCROW_FEE_UNIT
+			WHEN NOT MATCHED THEN
+			INSERT VALUES
+			    (
+			     B.PAYWAY
+			     , B.PG_ID
+			     , B.CHNL_DIV_CD
+			     , B.PAY_FEE_VALUE
+			     , B.PAY_FEE_UNIT
+			     , B.ESCROW_FEE_VALUE
+			     , B.ESCROW_FEE_UNIT
+			    )
+	</insert>
+	
+</sqlMap>

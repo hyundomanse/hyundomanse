@@ -1,0 +1,1059 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Monitoring">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+			SELECT *
+			  FROM (
+					SELECT A.*
+					     , ROWNUM  AS RNUM
+					  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 모니터링관리 리스트 조회 -->
+	<select id="selectMonitoringMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+        SELECT T2.ONUM
+ 	         , T2.COL1
+	         , T2.COL2
+	         , T2.COL3
+	         , T2.COL4
+	         , T2.COL5
+	         , T2.COL6
+	         , T2.COL7
+	         , T2.COL8
+	         , T2.COL9
+	         , T2.COL10
+	         , T2.REGER_ID
+	         , T2.REG_DATE
+	         , T2.CHGER_ID
+	         , T2.CHG_DATE
+        FROM(
+            SELECT
+
+		        <isEmpty property="sidx">
+		        	ROW_NUMBER() OVER(ORDER BY T1.COL3 DESC) AS ONUM
+		        </isEmpty>
+
+
+                 , ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM
+ 		         , T1.COL1
+		         , T1.COL2
+		         , T1.COL3
+		         , T1.COL4
+		         , T1.COL5
+		         , T1.COL6
+		         , T1.COL7
+		         , T1.COL8
+		         , T1.COL9
+		         , T1.COL10
+		         , T1.REGER_ID
+		         , T1.REG_DATE
+		         , T1.CHGER_ID
+		         , T1.CHG_DATE
+            FROM(
+                SELECT
+
+			        <isEmpty property="sidx">
+			        	ROW_NUMBER() OVER(ORDER BY COL3 DESC) AS TNUM
+			        </isEmpty>
+
+			         , COL1
+			         , COL2
+			         , COL3
+			         , COL4
+			         , COL5
+			         , COL6
+			         , COL7
+			         , COL8
+			         , COL9
+			         , COL10
+			         , REGER_ID
+			         , REG_DATE
+			         , CHGER_ID
+			         , CHG_DATE
+                FROM TEMP_SAMPLE
+                WHERE 1=1
+            )T1
+            WHERE 1=1
+            <!-- 매장구분 -->
+			<isNotEmpty property="searchMallType">
+				AND T1.COL2 = #searchMallType#
+			</isNotEmpty>
+
+			<!-- 조회기간 -->
+			<isNotEmpty property="searchFromDt">
+				<isNotEmpty property="searchToDt">
+					AND TO_CHAR (TO_DATE(T1.CHG_DATE), 'YYYYMMDD') BETWEEN #searchFromDt# AND #searchToDt#
+			    </isNotEmpty>
+			</isNotEmpty>
+
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="01">
+					AND (T1.COL8 LIKE '%'||#searchTxt#||'%' OR T1.COL9 LIKE '%'||#searchTxt#||'%' OR T1.COL6 LIKE '%'||#searchTxt#||'%' OR T1.CHGER_ID LIKE '%'||#searchTxt#||'%')
+				</isEqual>
+				<isEqual property="searchType" compareValue="02">
+					AND T1.COL8 LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="03">
+					AND T1.COL9 LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="04">
+					AND T1.COL6 LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="05">
+					AND T1.CHGER_ID LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+			</isNotEmpty>
+
+        )T2
+        WHERE 1=1
+        <isNotNull property="firstIndex">
+        	<isNotNull property="lastIndex">
+        		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+        	</isNotNull>
+        </isNotNull>
+        	ORDER BY T2.RNUM DESC
+
+	</select>
+
+	<!-- 모니터링관리 리스트 카운트 -->
+	<select id="selectMonitoringMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT DISTINCT COUNT(*) OVER() TOTCNT
+           FROM TEMP_SAMPLE
+          WHERE 1=1
+          GROUP BY COL1
+	</select>
+	<select id="popSelectEvalMgrMap" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+			GOODS_EVL_NO,
+			A.PAVLN_DIV_CD,
+			PAVLN_DIV.COMN_CD_NM PAVLN_DIV_NM, /**전시관 분류 **/
+			D.CTGRY_NM AS BASIC_CTGRY_NM, /** 기본 카테고리 **/
+			C.BCNC_NM, /**거래처명**/
+			A.GOODS_CD,
+			ORDER_NO,
+			TO_CHAR(B.REG_DATE, 'YYYY-MM-DD HH24:MI') AS GOODS_REG_DATE,/**상품등록일시**/
+			B.STD_SELL_PRC, /*기준판매가*/
+			C.BIZFLD_LOC, /*공급처주소*/
+			B.GOODS_NM,
+			A.REGER_ID, /**등록자**/
+			MEM.NAME,
+			MEM.EMAIL,
+			CASE WHEN TELNO_3 IS NOT NULL THEN MEM.TELNO_1 || '-' || TELNO_2 || '-' || TELNO_3 ELSE '' END AS TELNO,
+			CASE WHEN MOBILE_3 IS NOT NULL THEN MEM.MOBILE_1 || '-' || MOBILE_2 || '-' || MOBILE_3  ELSE '' END AS MOBILE,
+			MEM.ADDRESS_1,
+			MEM.ADDRESS_2,
+			A.TTL,
+			A.ACCML_PNT,   /*적립포인트*/
+			TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI') AS REG_DATE,
+			TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI') AS CHG_DATE,
+			A.PREMI_GOODS_EVL_YN, /**우수여부**/
+			DECODE(A.PREMI_GOODS_EVL_YN,'Y','우수','일반') AS PREMI_GOODS_EVL_YN_NM,
+			A.CONT,
+			A.EMAIL_SEND_YN,
+			WRAP_SCOR, /*포장점수*/
+			PRC_SCOR, /*가격점수*/
+			SEND_SCOR, /*배송점수*/
+			QUALITY_SCOR, /*품질점수*/
+			NVL(GOODSEVL_REG_STUS_CD,0) GOODSEVL_REG_STUS_CD,/**상품평 등록 상태 코드**/
+			NVL(GOODSEVL_REG_STUS.COMN_CD_NM,'대기') AS GOODSEVL_REG_STUS_NM
+		FROM
+		GD_GOODS_EVL A, GD_GOODS_MAST B, MEMINFO MEM, CO_SUPP_COMP_MAST C
+		, (SELECT A.GOODS_CD, PAVLN_DIV_CD.COMN_CD_NM||B.CTGRY_NM AS CTGRY_NM
+		          FROM GD_MGT_GOODS_CTGRY A
+		               , (SELECT A.CTGRY_CD, A.PAVLN_DIV_CD, SYS_CONNECT_BY_PATH(B.CTGRY_NM, '>>') AS CTGRY_NM
+		                    FROM GD_CTGRY_PAVLN_MAPP A, GD_CTGRY_MAST B
+		                   WHERE A.CTGRY_CD = B.CTGRY_CD
+		                   START WITH B.HRNK_CTGRY_CD IS NULL
+		                 CONNECT BY PRIOR B.CTGRY_CD = B.HRNK_CTGRY_CD) B
+		             , ( SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV_CD
+		         WHERE A.CTGRY_CD = B.CTGRY_CD
+		           AND A.PAVLN_DIV_CD = B.PAVLN_DIV_CD
+		           AND A.PAVLN_DIV_CD = PAVLN_DIV_CD.COMN_CD_ID(+)
+		           AND A.BASIC_CTGRY_YN = 'Y'
+		           AND A.USE_YN = 'Y'
+		         GROUP BY A.GOODS_CD, PAVLN_DIV_CD.COMN_CD_NM || B.CTGRY_NM
+          	    ) D
+		,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODSEVL_REG_STUS_CD') GOODSEVL_REG_STUS
+		,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV
+		WHERE A.GOODS_CD = B.GOODS_CD
+		AND A.GOODSEVL_REG_STUS_CD = GOODSEVL_REG_STUS.COMN_CD_ID(+)
+		AND A.PAVLN_DIV_CD = PAVLN_DIV.COMN_CD_ID(+)
+		AND A.GOODS_CD = D.GOODS_CD(+)
+		AND B.SUPP_COMP_ID = C.SUPP_COMP_ID(+)
+		AND A.REGER_ID = MEM.ACCESS_NAME(+)
+		AND	A.GOODS_EVL_NO = #pop_goods_evl_no#
+		AND	A.GOODS_CD = #pop_goods_cd#
+		AND A.GOODS_EVL_DIV_CD IN ('02','03') /* 일반상품평,AS-IS 상품평*/
+	</select>
+	<sql id="selectEvalMgr">
+		SELECT	D.CTGRY_CD,
+				GOODS_EVL_NO,
+				A.PAVLN_DIV_CD,
+				(SELECT ORDER_ITM_ID FROM OD_ORDER_ITM T WHERE T.ORDER_ID = A.ORDER_NO AND T.SEND_SEQ = A.SEND_SEQ AND ROWNUM = 1)AS ORDER_ITM_ID,
+				C.BCNC_NM, /**거래처명**/
+				F_GET_COMN_CD_NM('SELL_TYP_CD', B.SELL_TYP_CD) SELL_TYP_NM, /*판매유형*/
+				F_GET_COMN_CD_NM('APPR_PROC_CD', B.APPR_PROC_CD) APPR_PROC_NM, /*승인상태*/
+				F_GET_COMN_CD_NM('GOODS_STUS_CD', B.GOODS_STUS_CD) GOODS_STUS_NM, /*상품상태*/
+				A.GOODS_CD,
+				ORDER_NO,
+				TO_CHAR(B.REG_DATE, 'YYYY-MM-DD HH24:MI') AS GOODS_REG_DATE,/**상품등록일시**/
+				B.STD_SELL_PRC, /*기준판매가*/
+				C.BIZFLD_LOC, /*공급처주소*/
+				B.GOODS_NM,
+				A.REGER_ID, /**등록자**/
+				MEM.NAME,
+				MEM.EMAIL,
+				CASE WHEN TELNO_3 IS NOT NULL THEN MEM.TELNO_1 || '-' || TELNO_2 || '-' || TELNO_3 ELSE '' END AS TELNO,
+				CASE WHEN MOBILE_3 IS NOT NULL THEN MEM.MOBILE_1 || '-' || MOBILE_2 || '-' || MOBILE_3  ELSE '' END AS MOBILE,
+				MEM.ADDRESS_1,
+				MEM.ADDRESS_2,
+				A.TTL,
+				A.ACCML_PNT,   /*적립포인트*/
+				TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI') AS REG_DATE,
+				TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI') AS CHG_DATE,
+				A.PREMI_GOODS_EVL_YN, /**우수여부**/
+				DECODE(NVL(A.PREMI_GOODS_EVL_YN,'N'),'Y','우수','N','일반') AS PREMI_GOODS_EVL_YN_NM, /**우수여부**/
+				A.CONT,
+				A.EMAIL_SEND_YN,
+				WRAP_SCOR, /*포장점수*/
+				PRC_SCOR, /*가격점수*/
+				SEND_SCOR, /*배송점수*/
+				QUALITY_SCOR, /*품질점수*/
+				NVL(GOODSEVL_REG_STUS_CD,0) GOODSEVL_REG_STUS_CD,/**상품평 등록 상태 코드**/
+				F_GET_COMN_CD_NM('GOODSEVL_REG_STUS_CD', NVL(A.GOODSEVL_REG_STUS_CD,0)) GOODSEVL_REG_STUS_NM
+	FROM	GD_GOODS_EVL A, GD_GOODS_MAST B, MEMINFO MEM, CO_SUPP_COMP_MAST C
+			,(SELECT GOODS_CD, CTGRY_CD FROM GD_GOODS_CTGRY WHERE BASIC_CTGRY_YN = 'Y' AND USE_YN = 'Y') D
+	WHERE	A.GOODS_CD = B.GOODS_CD
+	AND 	A.GOODS_CD = D.GOODS_CD
+	AND 	B.SUPP_COMP_ID = C.SUPP_COMP_ID
+	AND 	A.REGER_ID = MEM.ACCESS_NAME
+	AND 	A.LANG = 'KO'
+	AND 	A.GOODS_EVL_DIV_CD IN ('02','03') /* 일반상품평,AS-IS 상품평*/
+		 <!-- 검색구분 -->
+		 <isNotEmpty property="search_index" >
+		 		<isEqual property="search_index" compareValue ="01" prepend="AND" >
+			 	B.GOODS_CD LIKE '%'|| #search_Text# || '%'
+			 	</isEqual>
+			 	<isEqual property="search_index" compareValue ="02" prepend="AND" >
+			 	B.GOODS_NM LIKE '%'|| #search_Text# || '%'
+			 	</isEqual>
+			 	<isEqual property="search_index" compareValue ="03" prepend="AND" >
+			 	A.REGER_ID LIKE '%'|| #search_Text# || '%'
+			 	</isEqual>
+			 	<isEqual property="search_index" compareValue ="04" prepend="AND" >
+			 	MEM.NAME LIKE '%'|| #search_Text# || '%'
+			 	</isEqual>
+		 </isNotEmpty>
+		 <!-- 등록기간 -->
+		<isNotEmpty property="search_StartDate" prepend="AND">
+				<![CDATA[	A.REG_DATE >= TO_DATE(REPLACE(#search_StartDate#,'-',''),'YYYYMMDDHH24MISS') ]]>
+		 </isNotEmpty>
+		 <isNotEmpty property="search_EndDate" prepend="AND">
+				<![CDATA[	A.CHG_DATE <= TO_DATE(REPLACE(#search_EndDate#,'-',''),'YYYYMMDDHH24MISS') ]]>
+		 </isNotEmpty>
+		  <isNotEmpty property="str_div" prepend="AND">
+				A.GOODS_CD IN (SELECT DISTINCT GOODS_CD
+							     FROM GD_GOODS_CTGRY
+							    WHERE USE_YN = 'Y'
+							      AND PAVLN_DIV_CD = #str_div#
+							      AND CTGRY_CD IN ( SELECT A.CTGRY_CD FROM GD_CTGRY_MAST A, GD_CTGRY_PAVLN_MAPP B
+         											 WHERE A.CTGRY_CD = B.CTGRY_CD
+							    					   AND A.USE_YN = 'Y'
+							    					   AND B.PAVLN_DIV_CD = #str_div#
+											   <isNotEmpty property="search_ctgry_cd" >
+												     START WITH A.CTGRY_CD = #search_ctgry_cd#
+												   CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD
+											   </isNotEmpty>
+												   )
+								)
+		   </isNotEmpty>
+		   <isNotEmpty property="search_supp_comp_id" prepend="AND">
+				B.SUPP_COMP_ID = #search_supp_comp_id#
+		   </isNotEmpty>
+		   <isNotEmpty property="search_sell_typ_cd" prepend="AND">
+				B.SELL_TYP_CD = #search_sell_typ_cd#
+		   </isNotEmpty>
+		   <isNotEmpty property="search_appr_proc_cd" prepend="AND">
+				B.APPR_PROC_CD = #search_appr_proc_cd#
+		   </isNotEmpty>
+		   <isNotEmpty property="search_goods_stus_cd" prepend="AND">
+				B.GOODS_STUS_CD = #search_goods_stus_cd#
+		   </isNotEmpty>
+		   <isNotEmpty property="goods_cd" prepend="AND">
+		   		B.GOODS_CD = #goods_cd#
+		   </isNotEmpty>
+	</sql>
+	<select id="selectEvalImgMgrMap" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+			MAX(DECODE(RNUM,1,ATTCHFILE_ID))ATTCHFILE_ID1,
+			MAX(DECODE(RNUM,1,FILE_SEQ))FILE_SEQ1,
+			MAX(DECODE(RNUM,1,IMAGE_PATH))IMAGE_PATH1,
+			MAX(DECODE(RNUM,1,IMAGE_NM))IMAGE_NM1,
+			MAX(DECODE(RNUM,1,IMAGE_ORIG_NM))IMAGE_ORIG_NM1,
+			MAX(DECODE(RNUM,1,IMAGE_EXTNER))IMAGE_EXTNER1,
+			MAX(DECODE(RNUM,1,IMAGE_SIZE))IMAGE_SIZE1,
+			MAX(DECODE(RNUM,2,ATTCHFILE_ID))ATTCHFILE_ID2,
+			MAX(DECODE(RNUM,2,FILE_SEQ))FILE_SEQ2,
+			MAX(DECODE(RNUM,2,IMAGE_PATH))IMAGE_PATH2,
+			MAX(DECODE(RNUM,2,IMAGE_NM))IMAGE_NM2,
+			MAX(DECODE(RNUM,2,IMAGE_ORIG_NM))IMAGE_ORIG_NM2,
+			MAX(DECODE(RNUM,2,IMAGE_EXTNER))IMAGE_EXTNER2,
+			MAX(DECODE(RNUM,2,IMAGE_SIZE))IMAGE_SIZE2,
+			MAX(DECODE(RNUM,3,ATTCHFILE_ID))ATTCHFILE_ID3,
+			MAX(DECODE(RNUM,3,FILE_SEQ))FILE_SEQ3,
+			MAX(DECODE(RNUM,3,IMAGE_PATH))IMAGE_PATH3,
+			MAX(DECODE(RNUM,3,IMAGE_NM))IMAGE_NM3,
+			MAX(DECODE(RNUM,3,IMAGE_ORIG_NM))IMAGE_ORIG_NM3,
+			MAX(DECODE(RNUM,3,IMAGE_EXTNER))IMAGE_EXTNER3,
+			MAX(DECODE(RNUM,3,IMAGE_SIZE))IMAGE_SIZE3
+	FROM
+	(
+	SELECT   ROW_NUMBER()OVER(ORDER BY FILE_SEQ ASC)RNUM
+			,IMAGE.FILE_SEQ
+			,A.ATTCHFILE_ID ATTCHFILE_ID
+			,IMAGE.FILE_STRE_PATH AS IMAGE_PATH
+			,IMAGE.STRE_FILE_NM AS IMAGE_NM
+			,IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			,IMAGE.FILE_EXTNER AS IMAGE_EXTNER
+			,IMAGE.FILE_SIZE AS IMAGE_SIZE
+		FROM(
+			 SELECT ATTCHFILE_ID1 AS ATTCHFILE_ID FROM GD_GOODS_EVL WHERE GOODS_EVL_NO=#pop_goods_evl_no# AND GOODS_CD = #pop_goods_cd# UNION ALL
+			 SELECT ATTCHFILE_ID2 AS ATTCHFILE_ID FROM GD_GOODS_EVL WHERE GOODS_EVL_NO=#pop_goods_evl_no# AND GOODS_CD = #pop_goods_cd# UNION ALL
+			 SELECT ATTCHFILE_ID3 AS ATTCHFILE_ID FROM GD_GOODS_EVL WHERE GOODS_EVL_NO=#pop_goods_evl_no# AND GOODS_CD = #pop_goods_cd#
+			 )A, CM_FILE_MGT IMAGE
+		WHERE A.ATTCHFILE_ID=IMAGE.ATTCHFILE_ID(+)
+		AND IMAGE.DEL_YN='N'
+		GROUP BY IMAGE.FILE_SEQ, IMAGE.FILE_STRE_PATH,
+		         IMAGE.STRE_FILE_NM,IMAGE.ORIG_FILE_NM,
+		         IMAGE.FILE_EXTNER,IMAGE.FILE_SIZE,A.ATTCHFILE_ID
+		)
+	</select>
+	<update id="updateEvalImg" parameterClass="java.util.HashMap">
+		UPDATE GD_GOODS_EVL
+			SET ATTCHFILE_ID1=DECODE(#image1_delyn#,'N',#image1#,''),
+				ATTCHFILE_ID2=DECODE(#image2_delyn#,'N',#image2#,''),
+				ATTCHFILE_ID3=DECODE(#image3_delyn#,'N',#image3#,'')
+		WHERE	GOODS_EVL_NO=#GOODS_EVL_NO#	AND GOODS_CD = #GOODS_CD#
+	</update>
+
+	<update id="updateEvalCmFileImg" parameterClass="java.util.HashMap">
+		UPDATE CM_FILE_MGT
+			SET DEL_YN='Y'
+		WHERE ATTCHFILE_ID=#image# AND FILE_SEQ=#image_seq#
+	</update>
+
+	<select id="selectEvalMgrList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER()OVER(ORDER BY CHG_DATE DESC)RNUM
+					</isEmpty>
+
+					,A.*
+					FROM(
+						SELECT *
+							FROM(
+							<include refid="selectEvalMgr"/>
+							)
+						)A
+					)A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectEvalMgrListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		FROM(<include refid="selectEvalMgr"/>)
+	</select>
+
+	<select id="selectGoodsEval" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT NVL(ACCML_PNT,0)AS ACCML_PNT
+				, REGER_ID AS ACCESS_NAME
+				, GOODS_CD
+				, GOODSEVL_REG_STUS_CD
+		FROM GD_GOODS_EVL
+		WHERE GOODS_EVL_NO=#GOODS_EVL_NO#
+		AND GOODS_CD = #GOODS_CD#
+	</select>
+
+	<update id="updateGoodsEvl" parameterClass="java.util.HashMap">
+		UPDATE GD_GOODS_EVL
+			SET
+				<isNotNull property="S_RMPOINT">
+				ACCML_PNT=#S_RMPOINT#,
+				PREMI_GOODS_EVL_YN=#PREMI_GOODS_EVL_YN#,
+				</isNotNull>
+				GOODSEVL_REG_STUS_CD=#GOODSEVL_REG_STUS_CD#,
+				CHG_DATE=SYSDATE,
+				CHGER_ID=#chger_id#
+			WHERE GOODS_EVL_NO=#GOODS_EVL_NO#
+			AND GOODS_CD = #GOODS_CD#
+	</update>
+
+	<update id="updateGoodsSm" parameterClass="java.util.HashMap">
+		MERGE INTO GD_GOODS_SM
+		USING DUAL ON(GOODS_CD=#GOODS_CD#)
+		WHEN MATCHED THEN
+					UPDATE SET CUST_EVAL_CNT=
+						(SELECT NVL(COUNT(*),0)FROM GD_GOODS_EVL WHERE GOODS_CD=#GOODS_CD#),
+					CHG_DATE=SYSDATE,
+					CHGER_ID=#chger_id#
+		WHEN NOT MATCHED THEN
+		INSERT
+			(
+			GOODS_CD,
+			CUST_EVAL_CNT,
+			REG_DATE,
+			CHG_DATE,
+			REGER_ID,
+			CHGER_ID)
+		VALUES
+			(
+			#GOODS_CD#,
+			(SELECT NVL(COUNT(*),0)FROM GD_GOODS_EVL WHERE GOODS_CD=#GOODS_CD#),
+			SYSDATE,
+			SYSDATE,
+			#reger_id#,
+			#chger_id#
+			)
+
+	</update>
+
+	<select id="selectRmPoint" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT NVL(SUM(CUR_POINT),0)CUR_POINT
+				,NVL(SUM(TOT_ACCU_POINT),0)TOT_ACCU_POINT
+				,COUNT(*)CNT
+		FROM MB_MEM_ACCMLAMT
+		WHERE ACCESS_NAME=#ACCESS_NAME#
+	</select>
+
+	<insert id="insertRmHistoryPoint" parameterClass="java.util.HashMap">
+		INSERT INTO MB_MEM_ACCMLAMT_HISTOR
+					(
+					ACCESS_NAME
+					,SEQ
+					,RM_TYPE
+					,ORDER_ID
+					,ORDER_ITM_ID
+					,ACCU_POINT
+					,USE_POINT
+					,TOT_CANCEL_POINT
+					,CUR_POINT
+					,CASE_CONT
+					,STATUS
+					,TYPE_CD
+					,REG_DATE
+					,CREATE_DATE
+					,VALID_DATE
+					,PRE_ACCU_POINT
+					)
+				VALUES
+					(#ACCESS_NAME#
+					,(SELECT NVL(MAX(SEQ)+1,1)SEQ FROM MB_MEM_ACCMLAMT_HISTOR WHERE ACCESS_NAME=#ACCESS_NAME#)
+					,#RM_TYPE#
+					,#ORDER_ID#
+					,#ORDER_ITM_ID#
+					,NVL(#ACCU_POINT#,0)
+					,NVL(#USE_POINT#,0)
+					,NVL(#TOT_CANCEL_POINT#,0)
+					,NVL(#S_CURACCUPOINT#,0)
+					,#CASE_CONT#
+					,#STATUS#
+					,#TYPE_CD#
+					,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+					,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+					,DECODE(#GOODSEVL_REG_STUS_CD#,'1',TO_CHAR(ADD_MONTHS(SYSDATE,24),'YYYYMMDD'),'2','')
+					,0
+					)
+	</insert>
+	<update id="updateRmPoint" parameterClass="java.util.HashMap">
+		MERGE INTO MB_MEM_ACCMLAMT
+		USING DUAL ON (ACCESS_NAME=#ACCESS_NAME#)
+		WHEN MATCHED THEN
+		UPDATE SET CUR_POINT=#S_CURACCUPOINT#
+					,TOT_ACCU_POINT=#S_TOTACCUPOINT#
+					,TOT_CANCEL_POINT = (SELECT TOT_CANCEL_POINT FROM MB_MEM_ACCMLAMT WHERE ACCESS_NAME=#ACCESS_NAME# )+NVL(#TOT_CANCEL_POINT#,0)
+					,LASTCHANGE=TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+					,CHG_DATE = SYSDATE
+					,CHGER_ID = #chger_id#
+		WHEN NOT MATCHED THEN
+		INSERT
+		(
+		ACCESS_NAME,
+		CUR_POINT,
+		TOT_ACCU_POINT,
+		LASTCHANGE,
+		REG_DATE,
+		REGER_ID
+		)
+		VALUES
+		(
+		#ACCESS_NAME#,
+		#S_CURACCUPOINT#,
+		#S_TOTACCUPOINT#,
+		TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS'),
+		SYSDATE,
+		#reger_id#
+		)
+	</update>
+	<sql id="selectSmsEmailLog"	>
+		SELECT  /*+ use_NL( LOG TX_DIV) */
+			    SMS_SEND_SEQ,
+				TEMPL_MGT_NO,
+				ORDER_ITM_ID,
+				LOG.GOODS_CD,
+				LOG.SUPP_COMP_ID,
+				SUPP.BCNC_NM AS SUPP_COMP_NM,
+				TX_DIV_CD,
+				TX_DIV.COMN_CD_NM AS TX_DIV_NM,
+				TX_CONT_DIV_CD,
+				TX_CONT_DIV.COMN_CD_NM AS TX_CONT_DIV_NM,
+				TX_TRGT_TYP_CD,
+				TX_TRGT_TYP.COMN_CD_NM AS TX_TRGT_TYP_NM,
+				TX_TYP_CD,
+				TX_TYP.COMN_CD_NM AS TX_TYP_NM,
+				TX_HTEL_NO,
+				TX_EMAIL_ADDR,
+				TX_SUCC_YN,
+				SEND_DT,
+				RESND_DT,
+				REV_NO,
+				SND_MSG,
+				LOG.REG_DATE,
+				LOG.CHG_DATE,
+				LOG.REGER_ID,
+				LOG.CHGER_ID,
+				MEM.ACCESS_NAME
+			FROM
+				CM_SMS_EMAIL_SEND_LOG LOG,
+				GD_GOODS_MAST GD,
+				MEMINFO MEM,
+				CO_SUPP_COMP_MAST SUPP,
+				(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'TX_DIV_CD') TX_DIV,
+				(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'TX_CONT_DIV_CD') TX_CONT_DIV,
+				(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'TX_TRGT_TYP_CD') TX_TRGT_TYP,
+				(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'TX_TYP_CD') TX_TYP
+			WHERE 1=1
+			AND LOG.GOODS_CD =  GD.GOODS_CD
+			AND LOG.SUPP_COMP_ID = SUPP.SUPP_COMP_ID
+			AND LOG.REV_NO = MEM.ACCESS_NAME(+)
+			AND LOG.TX_DIV_CD = TX_DIV.COMN_CD_ID(+)
+			AND LOG.TX_CONT_DIV_CD = TX_CONT_DIV.COMN_CD_ID(+)
+			AND LOG.TX_TRGT_TYP_CD = TX_TRGT_TYP.COMN_CD_ID(+)
+			AND LOG.TX_TYP_CD = TX_TYP.COMN_CD_ID(+)
+			<isNotEmpty property="search_tx_div_cd" prepend="AND">
+				LOG.TX_DIV_CD = #search_tx_div_cd#
+			</isNotEmpty>
+			<isNotEmpty property="search_tx_cont_div_cd" prepend="AND">
+				LOG.TX_CONT_DIV_CD = #search_tx_cont_div_cd#
+			</isNotEmpty>
+			<isNotEmpty property="search_tx_trgt_typ_cd" prepend="AND">
+				LOG.TX_TRGT_TYP_CD = #search_tx_trgt_typ_cd#
+			</isNotEmpty>
+			<isNotEmpty property="search_tx_typ_cd" prepend="AND">
+				LOG.TX_TYP_CD = #search_tx_typ_cd#
+			</isNotEmpty>
+			<isNotEmpty property="search_index" >
+				<isEqual property="search_index" compareValue="01" prepend="AND">
+				LOG.ORDER_ITM_ID = TRIM(#search_Text#)
+				</isEqual>
+				<isEqual property="search_index" compareValue="02" prepend="AND">
+				TRIM(GD.GOODS_NM) LIKE '%' || TRIM(#search_Text#) || '%'
+				</isEqual>
+				<isEqual property="search_index" compareValue="03" prepend="AND">
+				REPLACE(TRIM(LOG.TX_HTEL_NO),'-','') = REPLACE(TRIM(#search_Text#),'-','')
+				</isEqual>
+				<isEqual property="search_index" compareValue="04" prepend="AND">
+				TRIM(LOG.TX_EMAIL_ADDR) = TRIM(#search_Text#)
+				</isEqual>
+				<isEqual property="search_index" compareValue="05" prepend="AND">
+				TRIM(MEM.ACCESS_NAME) LIKE '%' ||  TRIM(#search_Text#) || '%'
+				</isEqual>
+				<isEqual property="search_index" compareValue="06" prepend="AND">
+				LOG.REV_NO  LIKE '%' || TRIM(#search_Text#)  || '%'
+				</isEqual>
+			</isNotEmpty>
+			<isNotEmpty property="search_SendStartDt" prepend="AND">
+				<![CDATA[	SEND_DT >= TO_DATE(REPLACE(#search_SendStartDt#,'-',''),'YYYYMMDDHH24MISS') ]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_SendEndDt" prepend="AND">
+				<![CDATA[	SEND_DT <= TO_DATE(REPLACE(#search_SendEndDt#,'-',''),'YYYYMMDD')+.99999  ]]>
+			</isNotEmpty>
+	</sql>
+
+	<!--  -->
+	<select id="selectSmsEmailLogList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER()OVER(ORDER BY SMS_SEND_SEQ DESC)RNUM
+					</isEmpty>
+
+					,A.*
+					FROM(
+						SELECT *
+							FROM(
+							<include refid="selectSmsEmailLog"/>
+							)
+						)A
+					)A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectSmsEmailLogListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		FROM(<include refid="selectSmsEmailLog"/>)
+	</select>
+
+	<!-- 유해정보신고 발생 및 제안요청 관리 리스트 조회 -->
+	<select id="selectSuggestMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM(
+				SELECT  ROW_NUMBER() OVER(ORDER BY SEQ DESC) AS RNUM,
+						SEQ,
+						TITLE,
+						EMAIL,
+						STATUS,
+						REGID,
+						REGIP,
+						TO_CHAR(REGDATE, 'YYYY-MM-DD HH24:MI:SS') AS REGDATE,
+						decode(CATEGORY, '1','불법/유해정보','2','이용불편사항신고','3','아이디어') AS CATEGORYEXPRESS,
+						decode(EMAILYN,'Y','수신허락','N','수신거절') AS EMAILEXPRESS,
+						decode(STATUS,'0','대기중','1','처리완료') AS STATUSEXPRESS
+				FROM CM_SUGGEST
+				WHERE 1=1
+				<isNotEmpty property="searchCategory" prepend="AND">
+					CATEGORY = #searchCategory#
+				</isNotEmpty>
+				<isNotEmpty property="searchStatus" prepend="AND">
+					STATUS = #searchStatus#
+				</isNotEmpty>
+				<isNotEmpty property="searchWord">
+					<isEqual property="searchIndex" compareValue="ALL" prepend="AND">
+						(TITLE LIKE '%'||#searchWord#||'%' OR REGID LIKE '%'||#searchWord#||'%')
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="TITLE" prepend="AND">
+						TITLE LIKE '%'||#searchWord#||'%'
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="REGID" prepend="AND">
+						REGID LIKE '%'||#searchWord#||'%'
+					</isEqual>
+				</isNotEmpty>
+				<isNotEmpty property="searchFromDt">
+				<isNotEmpty property="searchToDt">
+					AND REGDATE BETWEEN #searchFromDt# AND #searchToDt#
+				</isNotEmpty>
+				</isNotEmpty>
+			)
+		<isNotEmpty property="lastIndex">
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+		</isNotEmpty>
+		ORDER BY RNUM ASC
+	</select>
+
+	<!-- 모니터링관리 리스트 카운트 -->
+	<select id="selectSuggestMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM CM_SUGGEST
+		WHERE 1=1
+		<isNotEmpty property="searchCategory" prepend="AND">
+				CATEGORY = #searchCategory#
+		</isNotEmpty>
+		<isNotEmpty property="searchStatus" prepend="AND">
+				STATUS = #searchStatus#
+		</isNotEmpty>
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue="ALL" prepend="AND">
+				(TITLE LIKE '%'||#searchWord#||'%' OR REGID LIKE '%'||#searchWord#||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="TITLE" prepend="AND">
+				TITLE LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="REGID" prepend="AND">
+				REGID LIKE '%'||#searchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchFromDt">
+		<isNotEmpty property="searchToDt">
+			AND REGDATE BETWEEN #searchFromDt# AND #searchToDt#
+		</isNotEmpty>
+		</isNotEmpty>
+	</select>
+
+	<resultMap id="suggestInfoMap" class="commMap">
+		<result property="SEQ"				column= "SEQ"/>
+		<result property="TITLE"			column= "TITLE"/>
+		<result property="STATUS"			column= "STATUS"/>
+		<result property="CATEGORY"			column= "CATEGORY"/>
+		<result property="CONTENTS"			column= "CONTENTS"	javaType="java.lang.String" jdbcType="CLOB"/>
+		<result property="EMAIL"			column= "EMAIL"/>
+		<result property="EMAILYN"			column= "EMAILYN"/>
+		<result property="REGID"			column= "REGID"/>
+		<result property="REGIP"			column= "REGIP"/>
+		<result property="REGDATE"			column= "REGDATE"/>
+		<result property="MODIFYID"			column= "MODIFYID"/>
+		<result property="MODIFYIP"			column= "MODIFYIP"/>
+		<result property="MODIFYDATE"		column= "MODIFYDATE"/>
+		<result property="ANSWER_CON"		column= "ANSWER_CON"/>
+		<result property="EMAIL_DATE"		column= "EMAIL_DATE"/>
+		<result property="CATEGORYEXPRESS"	column= "CATEGORYEXPRESS"/>
+		<result property="CATEGORYEXPRESS"	column= "EMAILEXPRESS"/>
+		<result property="CATEGORYEXPRESS"	column= "STATUSEXPRESS"/>
+	</resultMap>
+	<!-- 유해정보 신고 발생 및 제안관리 상세 조회 -->
+	<select id="selectSuggestInfo" parameterClass="java.util.HashMap" resultMap="suggestInfoMap">
+		SELECT  SEQ
+				,TITLE
+				,STATUS
+				,CATEGORY
+				,CONTENTS
+				,EMAIL
+				,EMAILYN
+				,REGID
+				,REGIP
+				,REGDATE
+				,MODIFYID
+				,MODIFYIP
+				,MODIFYDATE
+				,ANSWER_CON
+				,EMAIL_DATE
+				,decode(CATEGORY, '1','불법/유해정보','2','이용불편사항신고','3','아이디어') AS CATEGORYEXPRESS
+				,decode(NVL(EMAILYN,'N'),'Y','수신허락','N','수신거절') AS EMAILEXPRESS
+				,decode(NVL(STATUS,'0'),'0','대기중','1','처리완료') AS STATUSEXPRESS
+		FROM CM_SUGGEST
+		WHERE SEQ = #seqData#
+	</select>
+	<!-- 유해정보 신고 발생 및 제안관리 상세 수정 -->
+	<update id="updateSuggestInfo" parameterClass="java.util.HashMap">
+		UPDATE CM_SUGGEST
+		SET STATUS = #rdoStatus#
+			,MODIFYID = #loginId#
+			,MODIFYIP = #ipNum#
+			,MODIFYDATE = SYSDATE
+			,ANSWER_CON = #answerCon#
+			<isEqual property="emailSend" compareValue="success">
+			,EMAIL_DATE = SYSDATE
+			</isEqual>
+		WHERE SEQ=#seq#
+	</update>
+
+	<!--주문 모니터링 건수정보 -->
+	<select id="selectOrderMonitoringTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(*) AS CNT
+			  FROM ORDER_CHKINFO A
+			 WHERE 1 = 1
+			 ]]>
+			 <isNotEmpty property="srchCodenm">
+			   AND A.CODENM = #srchCodenm#
+			 </isNotEmpty>
+			 <isNotEmpty property="srchUseYn">
+               AND A.USE_YN = #srchUseYn#
+             </isNotEmpty>
+             <isNotEmpty property="srchChknm">
+               AND A.CHKNM LIKE '%' || #srchChknm# || '%'
+             </isNotEmpty>
+			 ORDER BY 1 DESC
+
+	</select>
+
+	<!--주문 모니터링 목록정보 -->
+	<select id="selectOrderMonitoringList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+
+		<![CDATA[
+			SELECT CHKSEQNO
+				 , CODENM
+				 , F_GET_COMN_CD_NM('ORDER_CHK_TRGT_CD', A.CODENM) AS CODEDTL
+				 , F_GET_COMN_CD_NM('VALPROP_CD', A.VALPROP) AS VALPROP_NM
+				 , F_GET_COMN_CD_NM('GLEVAL_CD', A.GLEVAL) AS GLEVAL_NM
+				 , CHKNM
+				 , CHKDTL
+				 , CHKSQL
+				 , VALVAL
+				 , GLEVAL
+				 , VALPROP
+				 , DECODE(USE_YN,'Y','사용','N','미사용') AS USE_YN
+			  FROM ORDER_CHKINFO A
+			 WHERE 1 = 1
+			 ]]>
+			 <isNotEmpty property="srchCodenm">
+			   AND A.CODENM = #srchCodenm#
+			 </isNotEmpty>
+			 <isNotEmpty property="srchUseYn">
+               AND A.USE_YN = #srchUseYn#
+             </isNotEmpty>
+             <isNotEmpty property="srchChknm">
+               AND A.CHKNM LIKE '%' || #srchChknm# || '%'
+             </isNotEmpty>
+			 ORDER BY 1 DESC
+
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!--주문 모니터링 등록 -->
+	<insert id="insertOrderMonitoring" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ORDER_CHKINFO
+			  (CHKSEQNO, CODENM, CHKNM, CHKDTL, CHKSQL, VALVAL, GLEVAL, VALPROP, USE_YN, CNTVAL, CDATE)
+			VALUES
+			  (
+			     SEQ_ORDER_CHKINFO.NEXTVAL
+			   , #codenm#
+			   , #chknm#
+			   , #chkdtl#
+			   , #chksql#
+			   , #valval#
+			   , #gleval#
+			   , #valprop#
+			   , #useYn#
+			   , #cntval#
+			   , sysdate
+			  )
+		]]>
+	</insert>
+
+	<!--주문 모니터링 상세조회 -->
+	<select id="selectOrderMonitoringDetail" parameterClass="java.lang.String" resultClass="commMap">
+		<![CDATA[
+			SELECT CHKSEQNO
+			     , CODENM
+			     , CHKNM
+			     , CHKDTL
+			     , CHKSQL
+			     , VALVAL
+			     , GLEVAL
+			     , VALPROP
+			     , USE_YN
+			     , CNTVAL
+			  FROM ORDER_CHKINFO
+			  WHERE CHKSEQNO = #chkseqno#
+		]]>
+	</select>
+
+	<!--주문 모니터링 삭제 -->
+	<delete id="deleteOrderMonitoring" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE ORDER_CHKINFO WHERE CHKSEQNO = #chkseqno#
+		]]>
+	</delete>
+
+	<!--주문 모니터링 수정 -->
+	<update id="modifyOrderMonitiring" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE ORDER_CHKINFO
+			   SET CODENM   = #codenm#
+			     , CHKNM    = #chknm#
+				 , CHKDTL   = #chkdtl#
+				 , CHKSQL   = #chksql#
+				 , VALVAL   = #valval#
+				 , GLEVAL   = #gleval#
+				 , VALPROP  = #valprop#
+				 , USE_YN   = #useYn#
+				 , CNTVAL   = #cntval#
+			 WHERE CHKSEQNO = #chkseqno#
+		]]>
+	</update>
+
+	<!-- 주문 모니터링 결과 -->
+	<select id="selectOrderMonitoringResultTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+	      FROM ORDER_CHKRESULT A, ORDER_CHKINFO B
+	     WHERE A.CHKSEQNO = B.CHKSEQNO
+	     <isNotEmpty property="srchCodenm">
+	     	AND B.CODENM = #srchCodenm#
+	     </isNotEmpty>
+	     <isNotEmpty  property="srchChknm">
+	     	AND B.CHKNM LIKE '%'|| #srchChknm# ||'%'
+	     </isNotEmpty>
+	        AND A.CHKDATE BETWEEN #startChkDate# AND #endChkDate#
+	      ORDER BY A.RSTSEQNO DESC
+	</select>
+
+	<!-- 주문 모니터링 결과 -->
+	<select id="selectOrderMonitoringResultList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT A.RSTSEQNO
+	         , A.CHKSEQNO
+		     , A.RSTVAL
+		     , SUBSTR(A.CHKDATE,0,4) || '.' || SUBSTR(A.CHKDATE,5,2) || '.' || SUBSTR(A.CHKDATE,7,2) || ' ' || SUBSTR(A.CHKTIME, 0,2) || ':' || SUBSTR(A.CHKTIME, 3,2) CHKDATE
+		     , A.SMSTRANYN
+		     , TO_CHAR(A.SMSTRANDT, 'YYYY.MM.DD HH24:MI:SS') SMSTRANDT
+		     , F_GET_COMN_CD_NM('ORDER_CHK_TRGT_CD', B.CODENM) AS CODENM
+			 , F_GET_COMN_CD_NM('GLEVAL_CD', B.GLEVAL) AS GLEVAL
+		     , B.CHKNM
+		     , B.VALVAL
+	      FROM ORDER_CHKRESULT A, ORDER_CHKINFO B
+	     WHERE A.CHKSEQNO = B.CHKSEQNO
+	     <isNotEmpty property="srchCodenm">
+	     	AND B.CODENM = #srchCodenm#
+	     </isNotEmpty>
+	     <isNotEmpty  property="srchChknm">
+	     	AND B.CHKNM LIKE '%'|| #srchChknm# ||'%'
+	     </isNotEmpty>
+	        AND A.CHKDATE BETWEEN #startChkDate# AND #endChkDate#
+	      ORDER BY A.RSTSEQNO DESC
+
+	      <include refid="pagingFooter"/>
+	</select>
+	<!-- 핫라인 공통코드 목록 -->
+	<select id="selectHotlineCmCdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	COMN_CD_ID
+				,COMN_CD_NM
+		FROM	CM_COMN_CD
+		WHERE	CD_GRP_ID = #cdGrpCd#
+			<isNotNull property="confirmStep" prepend="AND">
+				COMN_CD_ID = #confirmStep#
+			</isNotNull>
+		AND		USE_YN = 'Y'
+		ORDER BY COMN_CD_ID ASC
+	</select>
+	<!-- 핫라인 목록 카운트 -->
+	<select id="selectHotlineMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT  COUNT(*)
+		FROM	CM_OVERSEA_HOTLINE A
+				,(SELECT COMN_CD_ID
+						,COMN_CD_NM
+				  FROM	CM_COMN_CD
+				  WHERE	CD_GRP_ID = 'HOTLINE_CONFIRM_STEP')HOTLINE_CONFIRM_STEP
+				 ,(SELECT COMN_CD_ID
+						 ,COMN_CD_NM
+				  FROM CM_COMN_CD
+				  WHERE CD_GRP_ID = 'HOTLINE_TYPE')HOTLINE_TYPE
+		WHERE	A.CONFIRM_STEP=HOTLINE_CONFIRM_STEP.COMN_CD_ID(+)
+				AND		A.OVERSEA_HOTLINE_TYPE = HOTLINE_TYPE.COMN_CD_ID(+)
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue ="ALL" prepend="AND" >
+			(WRITER LIKE '%'||#searchWord#||'%' OR ACCESS_NAME LIKE '%'||#searchWord#||'%' OR PURCHASE_NUMBER LIKE '%'||#searchWord#||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue ="WRITER" prepend="AND" >
+			WRITER LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue ="ACCESSNAME" prepend="AND" >
+			ACCESS_NAME LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue ="PNUMBER" prepend="AND" >
+			PURCHASE_NUMBER LIKE '%'||#searchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchFromDt">
+		<isNotEmpty property="searchToDt">
+			AND WRITE_DATE BETWEEN #searchFromDt# AND #searchToDt#
+		</isNotEmpty>
+		</isNotEmpty>
+	</select>
+	<!-- 핫라인 목록 리스트 -->
+	<select id="selectHotlineMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT *
+	FROM	(
+				SELECT  ROW_NUMBER() OVER(ORDER BY A.WRITE_DATE DESC) AS RNUM
+						,A.OVERSEA_HOTLINE_ID
+						,A.OVERSEA_HOTLINE_TYPE
+						,HOTLINE_TYPE.COMN_CD_NM AS HOTLINE_TYPE_NM
+						,A.WRITER
+						,A.ACCESS_NAME
+						,A.WRITER_EMAIL
+						,A.WRITER_TELEPHONE
+						,A.PURCHASE_NUMBER
+						,A.WRITE_DATE
+						,A.CONFIRM_STEP
+						,HOTLINE_CONFIRM_STEP.COMN_CD_NM AS HOTLINE_CONFIRM_STEP_NM
+						,A.CONFIRM_TEXT
+						,A.CONFIRM_DATE
+						,A.OP_ACCESS_NAME
+				FROM	CM_OVERSEA_HOTLINE A
+						,(SELECT COMN_CD_ID
+								,COMN_CD_NM
+						  FROM	CM_COMN_CD
+						  WHERE	CD_GRP_ID = 'HOTLINE_CONFIRM_STEP')HOTLINE_CONFIRM_STEP
+						 ,(SELECT COMN_CD_ID
+								 ,COMN_CD_NM
+						  FROM CM_COMN_CD
+						  WHERE CD_GRP_ID = 'HOTLINE_TYPE')HOTLINE_TYPE
+				WHERE	A.CONFIRM_STEP=HOTLINE_CONFIRM_STEP.COMN_CD_ID(+)
+				AND		A.OVERSEA_HOTLINE_TYPE = HOTLINE_TYPE.COMN_CD_ID(+)
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue ="ALL" prepend="AND" >
+			(WRITER LIKE '%'||#searchWord#||'%' OR ACCESS_NAME LIKE '%'||#searchWord#||'%' OR PURCHASE_NUMBER LIKE '%'||#searchWord#||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue ="WRITER" prepend="AND" >
+			WRITER LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue ="ACCESSNAME" prepend="AND" >
+			ACCESS_NAME LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue ="PNUMBER" prepend="AND" >
+			PURCHASE_NUMBER LIKE '%'||#searchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchFromDt">
+		<isNotEmpty property="searchToDt">
+			AND WRITE_DATE BETWEEN #searchFromDt# AND #searchToDt#
+		</isNotEmpty>
+		</isNotEmpty>
+		)
+		<isNotEmpty property="lastIndex">
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+		</isNotEmpty>
+	</select>
+	<!-- HOTLINE 상세 조회 -->
+	<select id="selectHotlineInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+	SELECT  A.OVERSEA_HOTLINE_ID
+			,A.OVERSEA_HOTLINE_TYPE
+			,HOTLINE_TYPE.COMN_CD_NM AS HOTLINE_TYPE_NM
+			,A.WRITER
+			,A.ACCESS_NAME
+			,A.WRITER_EMAIL
+			,A.WRITER_TELEPHONE
+			,A.PURCHASE_NUMBER
+			,A.CONTENTS
+			,A.WRITE_DATE
+			,A.CONFIRM_STEP
+			,HOTLINE_CONFIRM_STEP.COMN_CD_NM AS HOTLINE_CONFIRM_STEP_NM
+			,A.CONFIRM_TEXT
+			,A.CONFIRM_DATE
+			,A.OP_ACCESS_NAME
+	FROM    CM_OVERSEA_HOTLINE A
+			,(SELECT COMN_CD_ID
+					,COMN_CD_NM
+			  FROM	CM_COMN_CD
+			  WHERE	CD_GRP_ID = 'HOTLINE_CONFIRM_STEP')HOTLINE_CONFIRM_STEP
+			,(SELECT COMN_CD_ID
+					,COMN_CD_NM
+			  FROM	CM_COMN_CD
+			  WHERE	CD_GRP_ID = 'HOTLINE_TYPE')HOTLINE_TYPE
+	WHERE	A.OVERSEA_HOTLINE_ID = #overseaHotlineId#
+	AND		A.CONFIRM_STEP=HOTLINE_CONFIRM_STEP.COMN_CD_ID(+)
+	AND		A.OVERSEA_HOTLINE_TYPE = HOTLINE_TYPE.COMN_CD_ID(+)
+	</select>
+	<!-- HOTLINE 상세 수정 -->
+	<update id="updateHotlineInfo" parameterClass="java.util.HashMap">
+	UPDATE CM_OVERSEA_HOTLINE
+	SET 	CONFIRM_STEP = #confirmStep#
+			,CONFIRM_TEXT = #confirmText#
+			,CONFIRM_DATE = SYSDATE
+			,OP_ACCESS_NAME = #loginId#
+	WHERE OVERSEA_HOTLINE_ID = #overseaHotlineId#
+	</update>
+</sqlMap>

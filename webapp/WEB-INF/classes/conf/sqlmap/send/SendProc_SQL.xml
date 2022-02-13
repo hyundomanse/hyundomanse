@@ -1,0 +1,2879 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SendProc">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 주문자, 받는분, 보내는분 -->
+	<sql id="sendProcOrderMastInclude">
+		<!-- 주문자 -->
+		<isNotEmpty property="searchAccess">
+			<isEqual property="searchAccess" compareValue="accessName">
+		  AND OOM.ACCESS_NAME LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+			<isEqual property="searchAccess" compareValue="ordrrNm">
+		  AND OOM.ORDRR_NM LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+			<isEqual property="searchAccess" compareValue="ordrrHtelno">
+		  AND OOM.ORDRR_HTELNO LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+			<isEqual property="searchAccess" compareValue="ordrrTelno">
+		  AND OOM.ORDRR_TELNO LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+		</isNotEmpty>
+	</sql>
+	
+	<!-- Order Itm -->
+	<sql id="sendProcOrderItmInclude">
+		<!-- 통보구분: 통보 -->
+		<isEqual property="flagSuppDivCd" compareValue="Y">
+			<isNotEmpty property="searchRegiNoCreateDivCd">			<!-- 통보구분2 -->
+		  AND NVL(OOI.REGI_NO_CREATE_DIV_CD,'001') = #searchRegiNoCreateDivCd#
+			</isNotEmpty>
+			<isEqual property="searchSuppDivCd" compareValue="01">	<!-- 통보구분: 통보 -->
+		  AND OOI.ORDER_STUS_CD IN ('O04', 'D02', 'D03')
+			</isEqual>
+		</isEqual>
+		
+		<!-- 통보구분: 미통보, 취소요청 -->
+		<isEqual property="flagSuppDivCd" compareValue="N">
+			<isEqual property="searchSuppDivCd" compareValue="01">	<!-- 통보구분: 미통보 -->
+		  AND OOI.ORDER_STUS_CD = 'O02'
+			</isEqual>
+			<isEqual property="searchSuppDivCd" compareValue="03">	<!-- 통보구분: 취소요청 -->
+		  AND OOI.ORDER_STUS_CD = 'O05'
+			</isEqual>
+		</isEqual>
+		
+		<!-- 전시관 구분 -->
+		<isNotEmpty property="codePavlnDiv">
+			<isEmpty property="searchPavlnDivCd">
+				<isEqual property="codePavlnDiv" compareValue="01">
+		  AND OOI.PAVLN_DIV_CD IN ('01','04','06','07','09','90','91','92','99')
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="02">
+		  AND OOI.PAVLN_DIV_CD = '02'
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="03">
+		  AND OOI.PAVLN_DIV_CD = '03'
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="05">
+		  AND OOI.PAVLN_DIV_CD = '05'
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="08">
+		  AND OOI.PAVLN_DIV_CD = '08'
+				</isEqual>
+			</isEmpty>
+			<isNotEmpty property="searchPavlnDivCd">
+		  AND OOI.PAVLN_DIV_CD = #searchPavlnDivCd#
+			</isNotEmpty>
+		</isNotEmpty>
+		
+		<!-- 공급업체ID -->
+		<isNotEmpty property="searchSuppCompId">
+		  AND OOI.SUPP_COMP_ID = #searchSuppCompId#
+		</isNotEmpty>
+		
+		<!-- 전통시장 및 쇼핑센터-->
+		<isNotEmpty property="searchPavlnId">
+		  AND OOI.PAVLN_ID IN <iterate property="pavlnIds" open="("  close=")" conjunction=","> #pavlnIds[]# </iterate>
+		</isNotEmpty>
+		
+		<!-- 공급국등기용국기호 -->
+		<isNotEmpty property="searchSuppoRgistPocd">
+		  AND OOI.SUPPO_RGIST_POCD IN <iterate property="suppoRgistPocds" open="("  close=")" conjunction=","> #suppoRgistPocds[]# </iterate>
+		</isNotEmpty>
+		
+		<!-- 통보순번 -->
+		<isNotEmpty property="searchSuppNoticDdPerSeq">
+		  AND OOI.SUPP_NOTIC_DD_PER_SEQ = #searchSuppNoticDdPerSeq#
+		</isNotEmpty>
+		
+		<!-- 조회조건 -->
+		<isNotEmpty property="searchType">
+			<isEqual property="searchType" compareValue="orderId">
+				<isNotEmpty property="searchFromNo">
+		  AND OOI.ORDER_ID <![CDATA[ >= ]]> #searchFromNo#
+				</isNotEmpty>
+				<isNotEmpty property="searchToNo">
+		  AND OOI.ORDER_ID <![CDATA[ <= ]]> #searchToNo#
+				</isNotEmpty>
+			</isEqual>
+			<isEqual property="searchType" compareValue="goodsCd">
+		  AND OOI.GOODS_CD LIKE #searchTypeText# || '%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="regiNo">
+				<isNotEmpty property="searchFromNo">
+		  AND OOI.REGI_NO <![CDATA[ >= ]]> #searchFromNo#
+				</isNotEmpty>
+				<isNotEmpty property="searchToNo">
+		  AND OOI.REGI_NO <![CDATA[ <= ]]> #searchToNo#
+				</isNotEmpty>
+			</isEqual>
+		</isNotEmpty>
+		
+		<!-- 받는분 -->
+		<isNotEmpty property="searchRecpter">
+			<isEqual property="searchRecpter" compareValue="recpterNm">
+		  AND OOI.RECPTER_NM LIKE '%'||#searchRecpterText#||'%'
+			</isEqual>
+			<isEqual property="searchRecpter" compareValue="recpterHtelno">
+		  AND OOI.RECPTER_HTELNO LIKE '%'||#searchRecpterText#||'%'
+			</isEqual>
+			<isEqual property="searchRecpter" compareValue="recpterTelno">
+		  AND OOI.RECPTER_TELNO LIKE '%'||#searchRecpterText#||'%'
+			</isEqual>
+		</isNotEmpty>
+		
+		<!-- 보내는분 -->
+		<isNotEmpty property="searchSender">
+			<isEqual property="searchSender" compareValue="senderNm">
+		  AND OOI.SENDER_NM LIKE '%'||#searchSenderText#||'%'
+			</isEqual>
+			<isEqual property="searchSender" compareValue="senderHtelno">
+		  AND OOI.SENDER_HTELNO LIKE '%'||#searchSenderText#||'%'
+			</isEqual>
+			<isEqual property="searchSender" compareValue="senderTelno">
+		  AND OOI.SENDER_TELNO LIKE '%'||#searchSenderText#||'%'
+			</isEqual>
+		</isNotEmpty>
+	</sql>
+	
+	<!-- 조회기준일자 -->
+	<sql id="sendProcOrderMastDateInclude">
+		<isEqual property="flagSuppDivCd" compareValue="N">	<!-- 통보구분: 미통보, 취소요청 -->
+			<isEqual property="searchYmdType" compareValue="02">	<!-- 일자기준: 접수기준 -->
+			  AND OOM.APPR_DATE BETWEEN TO_DATE(#searchFromDt#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959','YYYYMMDDHH24MISS')
+			</isEqual>
+			<isEqual property="searchYmdType" compareValue="03">	<!-- 일자기준: 희망발송일(예약주문만) -->
+			  AND OOI.WISH_SEND_DATE BETWEEN TO_DATE(#searchFromDt#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959','YYYYMMDDHH24MISS')
+			  AND EXISTS(SELECT 'X' FROM OD_FIX_RESRV_ORDER ODR WHERE OOI.ORDER_ID = ODR.ORDER_ID AND NVL(ODR.USEYN, 'Y') != 'N')
+			</isEqual>
+			<isEqual property="searchYmdType" compareValue="01">	<!-- 일자기준: 미통보+희망발송2일이내 -->
+			<![CDATA[
+			  AND (
+					  (
+						   ((SELECT NVL(COUNT(1), 0) FROM OD_FIX_RESRV_ORDER ODR WHERE OOI.ORDER_ID = ODR.ORDER_ID AND NVL(ODR.USEYN, 'Y') != 'N' )  = 0)
+					   AND NVL(OOI.GIFT_ORDER_YN, 'N') = 'N'
+					   AND OOM.APPR_DATE BETWEEN TO_DATE(TO_CHAR(SYSDATE - 20,'YYYYMMDD')||'000000','YYYYMMDDHH24MISS') AND TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD')||'235959','YYYYMMDDHH24MISS')
+					  )
+				   OR
+					  (
+						   NVL(OOI.GIFT_CANCEL_YN, 'N') = 'N'
+					   AND NVL(OOI.GIFT_ORDER_YN, 'N') = 'Y'
+					  )
+				   OR
+					  (
+						   ((SELECT NVL(COUNT(1), 0) FROM OD_FIX_RESRV_ORDER ODR WHERE OOI.ORDER_ID = ODR.ORDER_ID AND NVL(ODR.USEYN, 'Y') != 'N' )  > 0)
+					   AND OOI.WISH_SEND_DATE BETWEEN TO_DATE(TO_CHAR(SYSDATE - 20,'YYYYMMDD')||'000000','YYYYMMDDHH24MISS')
+						   AND (SELECT TO_DATE(WORKCALEYMD||'235959','YYYYMMDDHH24MISS') FROM (
+									   SELECT ROWNUM AS RN, WORKCALEYMD
+										 FROM (SELECT WORKCALEYMD, HOLDAYYN
+												 FROM PIEMT0160 A
+												WHERE A.RCOCD = '00'
+												  AND WORKCALEYMD BETWEEN TO_CHAR(SYSDATE, 'YYYYMMDD') AND TO_CHAR(SYSDATE+30, 'YYYYMMDD')
+												  AND A.HOLDAYYN='N'
+												ORDER BY WORKCALEYMD
+											  )
+									  )
+									  WHERE RN = 3
+						   )
+					  )
+				  )
+			]]>
+			</isEqual>
+		</isEqual>
+		<isEqual property="flagSuppDivCd" compareValue="Y">	<!-- 통보구분: 통보 -->
+			<isEqual property="searchYmdType" compareValue="04">	<!-- 통보일자 -->
+		  AND OOI.SUPPO_RGIST_POCD IN (SELECT SUPPO_RGIST_POCD FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #searchSuppCompId#)
+		  AND OOI.ORDER_CONF_DATE BETWEEN TO_DATE(#searchFromDt#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959', 'YYYYMMDDHH24MISS')
+			</isEqual>
+		</isEqual>
+	</sql>
+	
+	<sql id="sepcSupplyMgrInclude1">
+		<isEqual property="flagSuppDivCd" compareValue="N">	<!-- 통보구분: 미통보, 취소요청 -->
+			<isEqual property="searchSuppDivCd" compareValue="01">	<!-- 통보구분: 미통보 -->
+			  AND A.ORDER_STUS_CD = 'O02'
+			</isEqual>
+			<isEqual property="searchSuppDivCd" compareValue="03">	<!-- 통보구분: 취소요청 -->
+			  AND A.ORDER_STUS_CD = 'O05'
+			</isEqual>
+			<isEqual property="searchDateDivCd" compareValue="02">	<!-- 일자기준: 접수기준 -->
+			  AND B.APPR_DATE BETWEEN TO_DATE(#searchFromDt#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959','YYYYMMDDHH24MISS')
+			</isEqual>
+			<isEqual property="searchDateDivCd" compareValue="03">	<!-- 일자기준: 희망발송일(예약주문만) -->
+			  AND A.WISH_SEND_DATE BETWEEN TO_DATE(#searchFromDt#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959','YYYYMMDDHH24MISS')
+			  AND EXISTS(SELECT 'X' FROM OD_FIX_RESRV_ORDER ODR WHERE A.ORDER_ID = ODR.ORDER_ID AND NVL(ODR.USEYN, 'Y') != 'N')
+			</isEqual>
+			<isEqual property="searchDateDivCd" compareValue="01">	<!-- 일자기준: 미통보+희망발송2일이내 -->
+			<![CDATA[
+			  AND (
+					  (
+						   ((SELECT NVL(COUNT(1), 0) FROM OD_FIX_RESRV_ORDER ODR WHERE A.ORDER_ID = ODR.ORDER_ID AND NVL(ODR.USEYN, 'Y') != 'N' )  = 0 )
+					   AND NVL(A.GIFT_ORDER_YN, 'N') = 'N'
+					   AND B.APPR_DATE BETWEEN TO_DATE(TO_CHAR(SYSDATE - 20,'YYYYMMDD')||'000000','YYYYMMDDHH24MISS') AND TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD')||'235959','YYYYMMDDHH24MISS')
+					  )
+				   OR
+					  (
+						   NVL(A.GIFT_CANCEL_YN, 'N') = 'N'
+					   AND NVL(A.GIFT_ORDER_YN, 'N') = 'Y'
+					  )
+				   OR
+					  (
+						   ((SELECT NVL(COUNT(1), 0) FROM OD_FIX_RESRV_ORDER ODR WHERE A.ORDER_ID = ODR.ORDER_ID AND NVL(ODR.USEYN, 'Y') != 'N' )  > 0)
+					   AND A.WISH_SEND_DATE BETWEEN TO_DATE(TO_CHAR(SYSDATE - 20,'YYYYMMDD')||'000000','YYYYMMDDHH24MISS')
+						   AND (SELECT TO_DATE(WORKCALEYMD||'235959','YYYYMMDDHH24MISS') FROM (
+									   SELECT ROWNUM AS RN, WORKCALEYMD
+										 FROM (SELECT WORKCALEYMD, HOLDAYYN
+												 FROM PIEMT0160 A
+												WHERE A.RCOCD = '00'
+												  AND WORKCALEYMD BETWEEN TO_CHAR(SYSDATE, 'YYYYMMDD') AND TO_CHAR(SYSDATE+30, 'YYYYMMDD')
+												  AND A.HOLDAYYN='N'
+												ORDER BY WORKCALEYMD
+											  )
+									  )
+									  WHERE RN = 3
+						   )
+					  )
+				  )
+			]]>
+			</isEqual>
+			<isNotEmpty property="searchStartReceNo"> <!-- 등기/접수 시작번호 -->
+			<![CDATA[
+			  AND A.ORDER_ID >= #searchStartReceNo#
+			]]>
+			</isNotEmpty>
+			<isNotEmpty property="searchEndReceNo"> <!-- 등기/접수 종료번호 -->
+			<![CDATA[
+			  AND A.ORDER_ID <= #searchEndReceNo#
+			]]>
+			</isNotEmpty>
+		</isEqual>
+		<isEqual property="searchSuppDivCd" compareValue="02">	<!-- 통보구분: 통보 -->
+		   AND A.ORDER_CONF_DATE BETWEEN TO_DATE(#searchDate#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchDate#||'235959','YYYYMMDDHH24MISS')
+			<isNotEmpty property="searchRegiNoCreateDivCd"> <!-- 통보구분2 -->
+			   AND NVL(A.REGI_NO_CREATE_DIV_CD,'001') = #searchRegiNoCreateDivCd#
+			</isNotEmpty>
+			<isEqual property="searchSuppRegiCd" compareValue="01">	<!-- 발송구분: 미발송 -->
+			   AND A.ORDER_STUS_CD = 'O04'
+			</isEqual>
+			<isEqual property="searchSuppRegiCd" compareValue="02">	<!-- 발송구분: 발송 -->
+			   AND A.ORDER_STUS_CD IN ('D02','D03','D04')
+			</isEqual>
+			<isEmpty property="searchSuppRegiCd"> <!-- 발송구분: 전체 -->
+			   AND A.ORDER_STUS_CD IN ('O04','D02','D03','D04')
+			</isEmpty>
+			<isEqual property="searchSortDivCd" compareValue="01">	<!-- 정렬기준: 접수번호+업체+상품 -->
+				<isNotEmpty property="searchStartReceNo"> <!-- 등기/접수 시작번호 -->
+				<![CDATA[
+				   AND A.ORDER_ID >= #searchStartReceNo#
+				]]>
+				</isNotEmpty>
+			</isEqual>
+			<isNotEqual property="searchSortDivCd" compareValue="01">	<!-- 정렬기준: 업체+상품+접수번호 -->
+				<isNotEmpty property="searchStartRegiNo"> <!-- 등기/접수 시작번호 -->
+				<![CDATA[
+				   AND A.REGI_NO >= #searchStartRegiNo#
+				]]>
+				</isNotEmpty>
+			</isNotEqual>
+			<isEqual property="searchSortDivCd" compareValue="01">	<!-- 정렬기준: 접수번호+업체+상품 -->
+				<isNotEmpty property="searchEndReceNo"> <!-- 등기/접수 종료번호 -->
+				<![CDATA[
+				   AND A.ORDER_ID <= #searchEndReceNo#
+				]]>
+				</isNotEmpty>
+			</isEqual>
+			<isNotEqual property="searchSortDivCd" compareValue="01">	<!-- 정렬기준: 업체+상품+접수번호 -->
+				<isNotEmpty property="searchEndRegiNo"> <!-- 등기/접수 종료번호 -->
+				<![CDATA[
+				   AND A.REGI_NO <= #searchEndRegiNo#
+				]]>
+				</isNotEmpty>
+			</isNotEqual>
+		</isEqual>
+		<isNotEmpty property="searchSupplyGoodsCd">	<!-- 상품 ID -->
+		  AND A.GOODS_CD = #searchSupplyGoodsCd#
+		</isNotEmpty>
+		<isNotEmpty property="orderInfos">	<!-- 등기번호 일괄입력 팝업화면 상품리스트 -->
+		  AND A.ORDER_ID IN
+				<iterate property="orderIds" open="("  close=")" conjunction=",">
+					#orderIds[]#
+				</iterate>
+		  AND A.ORDER_ID || '/' || A.GOODS_CD || NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) IN 
+				<iterate property="orderInfos" open="("  close=")" conjunction=",">
+					#orderInfos[]#
+				</iterate>
+		</isNotEmpty>
+		<isNotEmpty property="searchRecevSysDivCd">	<!-- 접수 시스템 -->
+			<isEqual property="searchRecevSysDivCd" compareValue="01">	<!-- 접수 시스템 : 창구 -->
+			  AND B.ORDER_MDA_DIV_CD = '05'
+			</isEqual>
+			<isNotEqual property="searchRecevSysDivCd" compareValue="01">	<!-- 접수 시스템 : ePost -->
+			  AND B.ORDER_MDA_DIV_CD != '05'
+			</isNotEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchSuppNoticDdPerSeq">	<!-- 통보순번 -->
+		  AND A.SUPP_NOTIC_DD_PER_SEQ = #searchSuppNoticDdPerSeq#
+		</isNotEmpty>
+	</sql>
+	<!-- 
+		등기번호 일괄입력 팝업화면 상품리스트
+		
+		<isNotEmpty property="orderInfos">
+		  AND A.ORDER_ID IN
+				<iterate property="orderIds" open="("  close=")" conjunction=",">
+					#orderIds[]#
+				</iterate>
+		  AND A.ORDER_ID || A.GOODS_CD || NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) IN 
+				<iterate property="orderInfos" open="("  close=")" conjunction=",">
+					#orderInfos[]#
+				</iterate>
+		</isNotEmpty>
+		
+		AND A.ORDER_ID||A.GOODS_CD||NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) IN
+	
+	 -->
+	
+	<!-- 배송관리_배송처리 목록 개수 요약정보 -->
+	<select id="selectSendProcStusCount" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectSendProcStusCount **/
+		SELECT
+				  SUM(TOT)	AS TOT
+				, SUM(O02)	AS O02
+				, SUM(O04)	AS O04
+				, SUM(D02)	AS D02
+				, SUM(D03)	AS D03
+				, SUM(O05)	AS O05
+		  FROM 
+				(
+					SELECT 
+							  OOM.ORDER_ID
+							, OOI.GOODS_CD
+							, 1												AS TOT
+							, DECODE(OOI.ORDER_STUS_CD, 'O02', 1, 0)		AS O02
+							, DECODE(OOI.ORDER_STUS_CD, 'O04', 1, 0)		AS O04
+							, DECODE(OOI.ORDER_STUS_CD, 'D02', 1, 0)		AS D02
+							, DECODE(OOI.ORDER_STUS_CD, 'D03', 1, 0)		AS D03
+							, DECODE(OOI.ORDER_STUS_CD, 'O05', 1, 0)		AS O05
+					  FROM
+							  OD_ORDER_MAST OOM
+							, OD_ORDER_ITM OOI
+							, GD_GOODS_MAST GGM
+							, CO_SUPP_COMP_MAST CSCM
+					 WHERE    OOM.ORDER_ID      = OOI.ORDER_ID
+					<include refid="sendProcOrderMastDateInclude" />
+					   AND    OOI.ORDER_STUS_CD IN ('O02', 'O04', 'D02', 'D03', 'O05')	/** 결재완료, 주문완료, 배송중, 배송완료, 취소요청 **/
+					   AND    OOI.GOODS_CD      = GGM.GOODS_CD
+					   AND    OOI.SUPP_COMP_ID  = CSCM.SUPP_COMP_ID
+					<include refid="sendProcOrderItmInclude" />
+					/* AND    NVL(OOI.PRSNT_YN,        'N') = 'N'
+					   AND    NVL(OOI.EXTRA_GOODS_YN,  'N') = 'N' */
+					   AND    NVL(OOI.GOODS_CANCEL_YN, 'N') = 'N'
+					   AND    NVL(OOI.BALTSHT_PRT_YN,  'N') = #searchBaltshtPrtYn#
+					GROUP BY
+							  OOM.ORDER_ID, OOI.GOODS_CD, NVL(OOI.WISH_SEND_DATE, OOM.APPR_DATE), OOI.ORDER_STUS_CD
+				)
+	</select>
+	
+	<!-- 배송관리_배송처리 리스트 카운트-->
+	<select id="selectSendProcListCount" parameterClass ="java.util.HashMap" resultClass="int">
+		/** SQL_ID : BO.SendProc.selectSendProcListCount **/
+		SELECT
+				SUM(COUNT)				AS CNT
+		  FROM 
+				(
+					SELECT 
+							  OOM.ORDER_ID
+							, OOI.GOODS_CD
+							, 1					AS COUNT
+					  FROM
+							  OD_ORDER_MAST OOM
+							, OD_ORDER_ITM OOI
+							, GD_GOODS_MAST GGM
+							, CO_SUPP_COMP_MAST CSCM
+					 WHERE    OOM.ORDER_ID      = OOI.ORDER_ID
+					<include refid="sendProcOrderMastInclude" />
+					<include refid="sendProcOrderMastDateInclude" />
+					   AND    OOI.GOODS_CD      = GGM.GOODS_CD
+					   AND    OOI.SUPP_COMP_ID  = CSCM.SUPP_COMP_ID
+					<include refid="sendProcOrderItmInclude" />
+					/* AND    NVL(OOI.PRSNT_YN,        'N') = 'N'
+					   AND    NVL(OOI.EXTRA_GOODS_YN,  'N') = 'N' */
+					   AND    NVL(OOI.GOODS_CANCEL_YN, 'N') = 'N'
+					   AND    NVL(OOI.BALTSHT_PRT_YN,  'N') = #searchBaltshtPrtYn#
+					GROUP BY
+							  OOM.ORDER_ID, OOI.GOODS_CD, NVL(OOI.WISH_SEND_DATE, OOM.APPR_DATE), OOI.ORDER_STUS_CD
+				)
+	</select>
+	
+	<!-- 배송관리_배송처리 리스트 -->
+	<select id="selectSendProcList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectSendProcList **/
+		SELECT
+				*
+		  FROM
+				  (
+					SELECT
+							  ROWNUM AS RNUM
+							, T.*
+					  FROM
+							  (
+								SELECT
+										M.*
+								  FROM (
+										SELECT
+												  OOM.ORDER_ID																									/* 주문번호 */
+												, MAX(OOI.SUPP_NOTIC_DD_PER_SEQ)													AS SUPP_NOTIC_DD_PER_SEQ	/* 통보순번 */
+												, MAX(TO_CHAR(OOI.ORDER_CONF_DATE,'YYYY-MM-DD'))									AS ORDER_CONF_DATE			/* 주문확인일자 */
+												, OOI.GOODS_CD																									/* 상품번호 */
+												, MAX(OOI.PAVLN_DIV_CD)																AS PAVLN_DIV_CD				/* 전시관 분류 코드 */
+												, MAX(F_GET_COMN_CD_NM('PAVLN_DIV_CD', OOI.PAVLN_DIV_CD))							AS PAVLN_DIV_NM				/* 전시관 분류 명 */
+												, MAX(OOI.GOODS_NM)																	AS GOODS_NM					/* 상품명 */
+												, F_GET_COMN_CD_NM('ORDER_STUS_CD', OOI.ORDER_STUS_CD)								AS ORDER_STUS_NM			/* 주문상태 */
+												, OOI.ORDER_STUS_CD																	AS ORDER_STUS_CD			/* 주문상태 상세 코드 */
+												, MAX(F_GET_COMN_CD_NM('ORDER_TYP_CD', OOI.ORDER_TYP_CD))							AS ORDER_TYP_CD				/* 주문유형	*/
+												, SUM(NVL(OOI.REQ_CNT,0))															AS REQ_CNT					/* 주문수량 */
+												, MAX(NVL(OOI.REPRSNT_REGI_NO, OOI.REGI_NO))										AS REGI_NO					/* 등기번호 */
+												, MAX(OOI.SMS_RECV_YN)																AS SMS_RECV_YN				/* SMS */
+												, MAX(F_GET_COMN_CD_NM('SEND_TYP_CD', OOI.SEND_TYP_CD))								AS SEND_TYP_NM				/* 배송타입코드 */
+												, ''																				AS SEND_PERIOD_NM			/* 발송주기 */
+												, MAX(TO_CHAR(OOM.ORDER_DATE, 'YYYY/MM/DD'))										AS ORDER_DATE				/* 주문일시 */
+												, MAX(TO_CHAR(OOI.SEND_STRT_DATE, 'YYYY/MM/DD'))									AS SEND_STRT_YMD			/* 발송 시작일 */
+												, MAX(TO_CHAR(OOI.SEND_DONE_DATE, 'YYYY/MM/DD'))									AS SEND_END_YMD				/* 발송 종료일 */
+												, TO_CHAR(NVL(OOI.WISH_SEND_DATE, OOM.APPR_DATE),'YYYY/MM/DD')						AS WISH_SEND_DATE			/* 희망배송일시 */
+												, MAX(TO_CHAR(OOI.SEND_CONF_DATE, 'YYYY/MM/DD'))									AS FIX_RESRV_SEND_YMD		/* 실배송일시 */
+												, SUM(DECODE(OOI.GOODS_CANCEL_YN,'Y',0,1))											AS ORDER_CNT				/* 배송총건수 */
+												, MAX(OOI.OVSEA_SEND_GOODS_YN)														AS OVSEA_SEND_GOODS_YN		/* 해외배송여부 */
+												, MAX(OOI.AIR_SEND_YN)																AS AIR_SEND_YN				/* 항공 배송 여부 */
+												, MAX(F_GET_COMN_CD_NM('SEND_AREA_CD', OOI.SEND_AREA_CD))							AS SEND_AREA_NM				/* 배송지역코드 */
+												, MAX(OOI.SEND_MSG)																	AS SEND_MSG					/* 배송시 요청사항 */
+												, OOI.SUPP_COMP_ID																	AS SUPP_COMP_ID				/* 공급업체ID */
+												, MAX(OOI.SUPP_COMP_NM)																AS SUPP_COMP_NM				/* 공급업체명 */
+												, MAX(OOI.SUPP_PO_NM)																AS SUPP_PO_NM				/* 공급우체국명 */
+												, MAX(OOI.REPRSNT_REGI_NO)															AS REPRSNT_REGI_NO			/* 대표등기번호 */
+												, MAX(OOI.REGI_NO_CREATE_DIV_CD)													AS REGI_NO_CREATE_DIV_CD	/* 등기 번호 생성 구분 코드 */
+												, MAX(OOI.SUPPO_RGIST_POCD)															AS SUPPO_RGIST_POCD			/* 공급국등기호*/
+												, MAX(OOM.ACCESS_NAME)																AS ACCESS_NAME				/* 구매자 ID */
+												, MAX(OOM.ORDRR_NM) 																AS ORDRR_NM					/* 구매자 성명 */
+												, MAX(OOM.ORDRR_HTELNO)																AS ORDRR_HTELNO				/* 구매자 휴대폰 */
+												, MAX(OOM.SETL_MEAN_CD)																AS SETL_MEAN_CD				/* 결제수단코드 */
+												, MAX(OOI.SENDER_NM)																AS SENDER_NM				/* 발송인명 */
+												, MAX(OOI.SENDER_ZIPCD)																AS SENDER_ZIPCD             /* 발송주소 - 우편번호 */
+												, MAX(OOI.SENDER_ADDR1)																AS SENDER_ADDR1             /* 발송주소 - 상세1 */
+												, MAX(OOI.SENDER_ADDR2)																AS SENDER_ADDR2             /* 발송주소 - 상세2 */
+												, MAX(OOI.RECPTER_NM)																AS RECPTER_NM				/* 수취인명 */
+												, MAX(OOI.RECPTER_ZIPCD)															AS RECPTER_ZIPCD			/* 배송주소 - 우편번호 */
+												, MAX(OOI.RECPTER_ADDR1)															AS RECPTER_ADDR1			/* 배송주소 - 상세1 */
+												, MAX(OOI.RECPTER_ADDR2)															AS RECPTER_ADDR2			/* 배송주소 - 상세2 */
+												, MAX(NVL(OOI.BALTSHT_PRT_YN,'N'))													AS BALTSHT_PRT_YN			/* 기표지출력여부	*/
+												, SUM(NVL(OOI.EXTRA_GOODS_CNT, 0))													AS EXTRA_GOODS_CNT			/* 덤 상품 수량		*/
+												, MAX(F_GET_ORDER_ITM_GOODS_OPTN_NM(OOM.ORDER_ID, OOI.ORDER_ITM_ID, OOI.GOODS_CD))	AS OPT_NM					/* 옵션명 */
+												, SUM(DECODE(NVL(OOI.SEND_PRC, 0), 0, 0, OOI.SEND_PRC))								AS SEND_PRC					/* 배송비 */
+												, SUM(NVL(OOI.STD_SELL_PRC, 0))														AS STD_SELL_PRC				/* 상품 금액 */
+												, SUM(NVL(OOI.DC_APPLY_PRC, 0) + NVL(OOI.OPTN_GOODS_APPLY_PRC, 0) + NVL(OOI.SEND_PRC, 0))																				AS DC_APPLY_PRC		/* 주문금액 */
+												, SUM(NVL(OOM.TOT_CPN_DC_AMT, 0) + NVL(OOM.PNT_USE_AMT, 0) + NVL(OOM.PO_PNT_USE_AMT, 0) + NVL(OOM.PREMI_CUST_PNT_SETL_AMT, 0) + NVL(OOM.OKCASH_USE_AMT, 0))				AS TOT_DC_PRC		/* 할인금액 */
+												, SUM((SELECT NVL(DOS.SETL_APPR_AMT,0) FROM OD_ORDER_SETL DOS WHERE DOS.ORDER_ID = OOM.ORDER_ID AND DOS.SETL_SEQ = '1' AND DOS.USE_YN = 'Y' ))							AS SETL_APPR_AMT    /* 결제금액 */
+												, MAX(DECODE((SELECT OSM.SEND_MSG_CONT FROM OD_SEND_MSG OSM WHERE OSM.ORDER_ITM_ID = OOI.ORDER_ITM_ID AND OSM.USEYN='Y' AND OSM.SEND_MSG_TYP_CD='B' AND ROWNUM = 1), NULL, 'N', 'Y'))		AS SEND_MSG_YN	/*약호여부			*/
+												, MAX(NVL2(CSCM.TELNO,F_DIV_TELNO(CSCM.TELNO,'F')||'-'||F_DIV_TELNO(CSCM.TELNO,'M')||'-' ||F_DIV_TELNO(CSCM.TELNO,'L'),''))									AS TELNO			/* 공급업체 전화번호 */
+												, MAX(NVL2(CSCM.FAXNO,F_DIV_TELNO(CSCM.FAXNO,'F')||'-'||F_DIV_TELNO(CSCM.FAXNO,'M')||'-' ||F_DIV_TELNO(CSCM.FAXNO,'L'),''))									AS FAXNO			/* 공급업체 팩스번호 */
+												, MAX(NVL2(OOI.SENDER_TELNO,F_DIV_TELNO(OOI.SENDER_TELNO,'F')||'-'||F_DIV_TELNO(OOI.SENDER_TELNO,'M')||'-' ||F_DIV_TELNO(OOI.SENDER_TELNO,'L'),''))			AS SENDER_TELNO		/* 보내는분 연락처1 */
+												, MAX(NVL2(OOI.SENDER_HTELNO,F_DIV_TELNO(OOI.SENDER_HTELNO,'F')||'-'||F_DIV_TELNO(OOI.SENDER_HTELNO,'M')||'-' ||F_DIV_TELNO(OOI.SENDER_HTELNO,'L'),''))		AS SENDER_HTELNO	/* 보내는분 연락처2 */
+												, MAX(NVL2(OOI.RECPTER_TELNO,F_DIV_TELNO(OOI.RECPTER_TELNO,'F')||'-'||F_DIV_TELNO(OOI.RECPTER_TELNO,'M')||'-' ||F_DIV_TELNO(OOI.RECPTER_TELNO,'L'),''))		AS RECPTER_TELNO	/* 받으시는분 연락처1 */
+												, MAX(NVL2(OOI.RECPTER_HTELNO,F_DIV_TELNO(OOI.RECPTER_HTELNO,'F')||'-'||F_DIV_TELNO(OOI.RECPTER_HTELNO,'M')||'-' ||F_DIV_TELNO(OOI.RECPTER_HTELNO,'L'),'')) AS RECPTER_HTELNO	/* 받으시는분 연락처2 */
+												, MAX((SELECT PAVLN_NM FROM CO_PAVLN_MAST WHERE PAVLN_ID = OOI.PAVLN_ID AND HRNK_PAVLN_ID = 'P05' ))	AS MARKET_NM
+												, MAX((SELECT PAVLN_NM FROM CO_PAVLN_MAST WHERE PAVLN_ID = OOI.PAVLN_ID AND HRNK_PAVLN_ID = 'P08' ))	AS SHOP_CENTER_NM
+												,NVL2((SELECT 'N'
+												         FROM CO_SUPP_COMP_MAST CSCM
+												             ,OFFICE_ADDR_INFO  OAI
+												        WHERE CSCM.SUPP_COMP_ID    = OOI.SUPP_COMP_ID
+												          AND OAI.SHIP_SYS_CUST_NO = CSCM.CUST_NO AND ROWNUM = 1), 'N', 'Y')			AS OFFICE_SER_EMPTY			/* 공급처정보 존재 유무 */
+												,(SELECT DECODE(NVL(CSCM.PO_HDRY_CNTRAC_NO, NULL), NULL, 'N', 'Y') 
+												    FROM CO_SUPP_COMP_MAST CSCM
+												   WHERE CSCM.SUPP_COMP_ID = OOI.SUPP_COMP_ID )											AS IS_PO_HDRY_CNTRAC_NO		/* 우체국택배계약번호 존재 유무 */
+												, COUNT(1)						AS BUNDLE_CNT
+												,MAX(OOI.BALTSHT_PRT_MBY_CD) BALTSHT_PRT_MBY_CD
+												,DECODE(MAX(OOI.BALTSHT_PRT_MBY_CD),'01','공급국','02','우체국','03','미출력','-') BALTSHT_PRT_MBY
+										  FROM
+												  OD_ORDER_MAST OOM
+												, OD_ORDER_ITM OOI
+												, GD_GOODS_MAST GGM
+												, CO_SUPP_COMP_MAST CSCM
+										 WHERE    OOM.ORDER_ID      = OOI.ORDER_ID
+										<include refid="sendProcOrderMastInclude" />
+										<include refid="sendProcOrderMastDateInclude" />
+										   AND    OOI.GOODS_CD      = GGM.GOODS_CD
+										   AND    OOI.SUPP_COMP_ID  = CSCM.SUPP_COMP_ID
+										<include refid="sendProcOrderItmInclude" />
+										/* AND    NVL(OOI.PRSNT_YN,        'N') = 'N'
+										   AND    NVL(OOI.EXTRA_GOODS_YN,  'N') = 'N' */
+										   AND    NVL(OOI.GOODS_CANCEL_YN, 'N') = 'N'
+										   AND    NVL(OOI.BALTSHT_PRT_YN,  'N') = #searchBaltshtPrtYn#
+										GROUP BY
+												  OOM.ORDER_ID, OOI.SUPP_COMP_ID, OOI.GOODS_CD, NVL(OOI.WISH_SEND_DATE, OOM.APPR_DATE), OOI.ORDER_STUS_CD
+								  ) M
+							ORDER BY
+							<isEqual property="searchYmdType" compareValue="01">	<!-- 일자기준: 미통보+희망발송2일이내 -->
+									  M.WISH_SEND_DATE DESC
+							</isEqual>
+							<isEqual property="searchYmdType" compareValue="02">	<!-- 일자기준: 접수기준 -->
+									  M.WISH_SEND_DATE DESC
+							</isEqual>
+							<isEqual property="searchYmdType" compareValue="03">	<!-- 일자기준: 희망발송일 -->
+									  M.WISH_SEND_DATE DESC
+							</isEqual>
+							<isEqual property="searchYmdType" compareValue="04">	<!-- 일자기준: 통보일자 -->
+									  M.ORDER_CONF_DATE DESC
+									, M.SUPP_NOTIC_DD_PER_SEQ
+							</isEqual>
+									, M.ORDER_ID
+							  ) T
+					 WHERE
+							  ROWNUM <![CDATA[<=]]> #lastIndex#
+				  )
+		 WHERE
+				  RNUM <![CDATA[ >= ]]> #firstIndex#
+	</select>
+	
+	<!-- 배송관리_배송처리 금융영업일 -->
+	<select id="selectFinBizNextDate" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectFinBizNextDate **/
+		SELECT WORKCALEYMD AS NEXT_BIZ_DATE2
+		  FROM (
+			SELECT ROWNUM AS RN, WORKCALEYMD
+			  FROM (
+				SELECT WORKCALEYMD, HOLDAYYN 
+				  FROM PIEMT0160 A 
+				 WHERE A.RCOCD='00' 
+				   AND WORKCALEYMD BETWEEN TO_CHAR(SYSDATE, 'YYYYMMDD') AND TO_CHAR(SYSDATE+30, 'YYYYMMDD')
+				   AND A.HOLDAYYN='N'
+				 ORDER BY WORKCALEYMD
+				)
+			)
+		 WHERE RN = 3
+	</select>
+	
+	<!-- 배송관리_배송처리 송장일괄입력 목록 카운트 -->
+	<select id="selectSpcltySuppGoodsNoticTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		/** SQL_ID : BO.SendProc.selectSpcltySuppGoodsNoticTotCnt **/
+		SELECT  DISTINCT COUNT(*) OVER() TOTCNT
+		FROM(
+			SELECT ROWNUM AS RNUM
+				  ,T1.GOODS_CD
+				  ,T1.GOODS_NM
+				  ,T1.WISH_SEND_DATE
+				  ,T1.ORDER_ID
+				  ,T1.ORDER_ITM_ID
+				  ,T1.SUPP_COMP_NM
+				  ,T1.SEND_SEQ
+				  ,T1.CNSMR_PRC
+				  ,T1.BUND_SEND_USE_YN
+				  ,T1.BUND_SEND_UNIT
+				  ,T1.BUND_SEND_NUM
+			FROM(
+				  SELECT GOODS_CD
+						,GOODS_NM
+						,WISH_SEND_DATE
+						,ORDER_ID
+						,ORDER_ITM_ID
+						,SUPP_COMP_ID
+						,SUPP_COMP_NM
+						,SEND_SEQ
+						,CNSMR_PRC
+						,BUND_SEND_USE_YN
+						,BUND_SEND_UNIT
+						,ROW_NUMBER() OVER(PARTITION BY ORDER_ID,GOODS_CD,WISH_SEND_DATE ORDER BY ORDER_ID,GOODS_CD,WISH_SEND_DATE) BUND_SEND_NUM
+					FROM (
+						 SELECT A.GOODS_CD
+							   ,A.GOODS_NM
+							   ,NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) AS WISH_SEND_DATE
+							   ,A.ORDER_ID
+							   ,A.ORDER_ITM_ID
+							   ,A.SUPP_COMP_ID
+							   ,A.SUPP_COMP_NM
+							   ,A.SEND_SEQ
+							   ,A.CNSMR_PRC
+							   ,NVL(MAX(C.BUND_SEND_USE_YN),'N') BUND_SEND_USE_YN
+							   ,NVL(TO_CHAR(MAX(C.BUND_SEND_TYP_CD)),'1') BUND_SEND_UNIT
+						   FROM OD_ORDER_ITM A,
+								OD_ORDER_MAST B,
+								GD_GOODS_MAST C
+						  WHERE A.ORDER_ID = B.ORDER_ID
+						    AND A.GOODS_CD = C.GOODS_CD
+						/*  AND NVL(A.PRSNT_YN,'N') = 'N'
+							AND NVL(A.EXTRA_GOODS_YN,'N') = 'N' */
+						<include refid="sepcSupplyMgrInclude1" />
+						  GROUP BY A.GOODS_CD
+								  ,A.GOODS_NM
+								  ,A.ORDER_ID
+								  ,A.ORDER_ITM_ID
+								  ,A.WISH_SEND_DATE
+								  ,B.APPR_DATE
+								  ,A.SUPP_COMP_ID
+								  ,A.SUPP_COMP_NM
+								  ,A.SEND_SEQ
+								  ,A.CNSMR_PRC
+						) T
+					<isEqual property="searchSortDivCd" compareValue="01">	/* 정렬기준: 접수번호+업체+상품 */
+					ORDER BY T.ORDER_ID
+						   , T.SUPP_COMP_ID
+						   , T.GOODS_CD
+					</isEqual>
+					<isEqual property="searchSortDivCd" compareValue="02">	/* 정렬기준: 업체+상품+접수번호 */
+					ORDER BY T.SUPP_COMP_ID
+						   , T.GOODS_CD
+						   , T.ORDER_ID
+					</isEqual>
+					) T1
+			) T2
+	</select>
+	
+	<!-- 배송관리_배송처리 송장일괄입력 목록 조회 -->
+	<select id="selectSpcltySuppGoodsNoticList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectSpcltySuppGoodsNoticList **/
+		SELECT
+				  ROWNUM AS RNUM
+				, M.*
+		  FROM
+				  (
+					SELECT
+							  A.SUPP_COMP_ID
+							, A.SUPP_COMP_NM
+							, A.GOODS_CD
+							, A.GOODS_NM
+							, A.ORDER_ID
+							, A.ORDER_ID||'/'||A.GOODS_CD||NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) ORDER_INFO
+							, COUNT(1)		AS GOODS_CNT
+					  FROM
+							  OD_ORDER_ITM A
+							, OD_ORDER_MAST B
+							, GD_GOODS_MAST C
+					 WHERE
+					          A.ORDER_ID = B.ORDER_ID
+					   AND    A.GOODS_CD = C.GOODS_CD
+					/* AND    NVL(A.PRSNT_YN,'N')       = 'N'
+					   AND    NVL(A.EXTRA_GOODS_YN,'N') = 'N' */
+					   <include refid="sepcSupplyMgrInclude1" />
+					GROUP BY
+							  A.SUPP_COMP_ID
+							, A.SUPP_COMP_NM
+							, A.GOODS_CD
+							, A.GOODS_NM
+							, A.ORDER_ID
+							, A.WISH_SEND_DATE
+							, B.APPR_DATE
+					ORDER BY
+							  A.ORDER_ID
+							, A.GOODS_CD
+							, NVL(A.WISH_SEND_DATE, B.APPR_DATE)
+				  ) M
+	</select>
+	
+	<!-- 배송관리_배송처리 등기번호 일괄입력 팝업 리스트 상세정보 -->
+	<select id="selectSpcltySuppGoodsNoticDetailList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectSpcltySuppGoodsNoticDetailList **/
+		SELECT
+				  A.SUPP_COMP_ID
+				, A.SUPP_COMP_NM
+				, A.GOODS_CD
+				, A.ORDER_ID
+				, A.ORDER_ITM_ID
+				, A.SEND_SEQ
+				, A.SEND_ADDR_SEQ
+				, A.CNSMR_PRC
+				, A.PAVLN_DIV_CD
+				, NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) AS WISH_SEND_DATE
+		  FROM
+				  OD_ORDER_ITM A
+				, OD_ORDER_MAST B
+				, GD_GOODS_MAST C
+		 WHERE
+		          A.ORDER_ID = B.ORDER_ID
+		   AND    A.GOODS_CD = C.GOODS_CD
+		/* AND    NVL(A.PRSNT_YN,'N')       = 'N'
+		   AND    NVL(A.EXTRA_GOODS_YN,'N') = 'N' */
+		   <include refid="sepcSupplyMgrInclude1" />
+		ORDER BY
+				  A.ORDER_ID
+				, A.GOODS_CD
+				, NVL(A.WISH_SEND_DATE, B.APPR_DATE)
+	</select>
+	
+	<!-- 배송관리_배송처리 마스터 등기번호 조회 -->
+	<select id="selectRegiNoTrackingNumberMaster" parameterClass="java.util.HashMap" resultClass="int">
+		/** SQL_ID : BO.SendProc.selectRegiNoTrackingNumberMaster **/
+		SELECT COUNT(OTMM.REGI_NO)			AS CNT
+		  FROM OD_TRACKING_MASTER_MGMT OTMM
+		 WHERE OTMM.REGI_NO BETWEEN #startRegiNo# AND #endRegiNo#
+	</select>
+	
+	<!-- 배송관리_배송처리 공급국 등기용국기호 조회 -->
+	<select id="selectSuppoRgistPocd" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectSuppoRgistPocd **/
+		SELECT SUPPO_RGIST_POCD
+		  FROM CO_SUPP_COMP_MAST
+		 WHERE SUPP_COMP_ID = #searchSuppCompId#
+		   AND ROWNUM = 1
+	</select>
+	
+	<!-- 배송관리_배송처리 동대문 B2B 공급국 등기용국기호 조회 -->
+	<select id="selectB2BSuppoRgistPocd" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectB2BSuppoRgistPocd **/
+		SELECT REGIPOCD
+		  FROM PICMT0060
+		 WHERE REGIPOCD = #searchRegiPocd#
+		   AND USEYN    = 'Y'
+		   AND DSCDPOYN = 'N'
+	</select>
+	
+	<!-- 배송관리_배송처리 부가취급수수료반환 -->
+	<select id="selectDomFrnFee" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectDomFrnFee **/
+		SELECT USSF_GET_VALTREATFEE(TO_CHAR(SYSDATE,'YYYYMMDD'), #feeLargeDivCd#, #feeMidDivCd#, #feeSmallDivCd#) FEEAMT FROM DUAL
+	</select>
+	
+	<!-- 배송관리_배송처리 공급국 우편번호 조회 -->
+	<select id="selectRegiPoInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectRegiPoInfo **/
+		SELECT REGIPOCD
+			  ,PONM
+			  ,PODIVCD
+			  ,RCOCD
+			  ,MPOREGIPOCD
+			  ,ZIPCD
+		  FROM PICMT0060
+		 WHERE REGIPOCD = (SELECT SUPPO_RGIST_POCD FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #searchSuppCompId# AND ROWNUM = 1)
+		   AND USEYN = 'Y' 
+		   AND DSCDPOYN = 'N'
+		 ORDER BY REGIPOCD ASC
+	</select>
+	
+	<!-- 배송관리_배송처리 동대문 B2B 공급국 우편번호 조회 -->
+	<select id="selectB2BRegiPoInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectB2BRegiPoInfo **/
+		SELECT REGIPOCD
+			  ,PONM
+			  ,PODIVCD
+			  ,RCOCD
+			  ,MPOREGIPOCD
+			  ,ZIPCD
+		  FROM PICMT0060
+		 WHERE REGIPOCD = #searchRegiPocd#
+		   AND USEYN    = 'Y' 
+		   AND DSCDPOYN = 'N'
+		 ORDER BY REGIPOCD ASC
+	</select>
+	
+	<!-- 배송관리_배송처리 통보순번 +1 조회 -->
+	<select id="getMaxSuppNoticDdSeq" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.getMaxSuppNoticDdSeq **/
+		SELECT  NVL(MAX(OOI.SUPP_NOTIC_DD_PER_SEQ) + 1, 1)	AS maxDdSeq
+		  FROM  OD_ORDER_ITM OOI
+		 WHERE  OOI.SUPPO_RGIST_POCD = (SELECT CSCM.SUPPO_RGIST_POCD FROM CO_SUPP_COMP_MAST CSCM WHERE CSCM.SUPP_COMP_ID = #searchSuppCompId# AND ROWNUM = 1)
+		  AND   OOI.ORDER_CONF_DATE BETWEEN TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD')||'000000','YYYYMMDDHH24MISS') AND TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD')||'235959','YYYYMMDDHH24MISS')
+	</select>
+	
+	<!-- 배송관리_배송처리 발신자 전화번호 조회 -->
+	<select id="selectReqImagineInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectReqImagineInfo **/
+		SELECT OOI.ORDER_ID
+			  ,NVL(OOI.SENDER_TELNO,'')		AS SENDER_TELNO
+			  ,NVL(OOI.SENDER_HTELNO,'')	AS SENDER_HTELNO
+			  ,NVL(OOI.SENDER_ZIPCD,'')		AS SENDER_ZIPCD
+			  ,NVL(OOI.RECPTER_TELNO,'')	AS RECPTER_TELNO
+			  ,NVL(OOI.RECPTER_HTELNO,'')	AS RECPTER_HTELNO
+			  ,NVL(OOI.RECPTER_ZIPCD,'')	AS RECPTER_ZIPCD
+		  FROM OD_ORDER_ITM OOI
+		 WHERE OOI.ORDER_ITM_ID = #orderItmId#
+	</select>
+	
+	<!-- 배송관리_배송처리 주문정보 발신자 가상번호 등록 -->
+	<update id="updateReqImagineTelNo" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateReqImagineTelNo **/
+		UPDATE OD_ORDER_ITM
+		   SET SENDER_VIRTL_NO = #reqImaginetelno#
+		 WHERE ORDER_ITM_ID    = #orderItmId#
+	</update>
+	
+	<!-- 배송관리_배송처리 주문정보 소포료계산 관련 조회 -->
+	<select id="selectShopOrderGoodsPerRecPrsnInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectShopOrderGoodsPerRecPrsnInfo **/
+		SELECT A.ORDER_ID
+			  ,A.ORDER_ITM_ID
+			  ,A.GOODS_CD
+			  ,'' goodsSeq
+			  ,'' goodsPerRecPrsnSeq
+			  ,REPLACE(A.SENDER_ZIPCD,'-','') reqPrsnZipCd
+			  ,REPLACE(A.RECPTER_ZIPCD,'-','') recPrsnZipCd
+			  ,1 orderGoodsCnt
+			  ,NVL(A.WGHT,0) WGHT
+			  ,NVL(A.VOLM,0) VOLM
+			  ,A.KIND_DIV_CD
+			  ,NVL(A.DOM_EXP_YN,'N') DOM_EXP_YN
+			  ,NVL(A.TDAY_EXP_YN,'N') TDAY_EXP_YN
+			  ,A.STD_DIV_CD
+			  ,NVL((SELECT X.NEXTDDAMLIMITYN FROM V_POSTALCODE X WHERE X.ZIPCD=REPLACE(A.RECPTER_ZIPCD,'-','') AND X.USEYN='Y' AND ROWNUM=1),'N') AS NEXTDDAMLIMITYN
+			  ,NVL(A.RECPTER_NM,'') RECPTER_NM
+			  ,NVL(A.RECPTER_TELNO,'') RECPTER_TELNO
+			  ,NVL(A.RECPTER_HTELNO,'') RECPTER_HTELNO
+			  ,NVL(REPLACE(A.RECPTER_ZIPCD,'-',''),'') RECPTER_ZIPCD
+			  ,NVL(A.RECPTER_ADDR1,'') RECPTER_ADDR1
+			  ,NVL(A.RECPTER_ADDR2,'') RECPTER_ADDR2
+			  ,NVL(A.RECPTER_VIRTL_NO,'') RECPTER_VIRTL_NO
+			  ,A.SEND_SEQ
+			  ,A.SEND_ADDR_SEQ
+		  FROM OD_ORDER_ITM A
+		 WHERE A.ORDER_ITM_ID = #orderItmId#
+		 ORDER BY A.ORDER_ITM_ID, A.RECPTER_NM
+	</select>
+	
+	<!-- 배송관리_배송처리 익일오전특급 지역구분 조회 -->
+	<select id="selectSuppZipcdInfo" parameterClass ="String" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectSuppZipcdInfo **/
+		<![CDATA[
+		SELECT DOMAREADIVCD
+		  FROM V_POSTALCODE
+		WHERE USEYN  = 'Y'
+		  AND ZIPCD  = #zipCd#
+		  AND ROWNUM = 1
+		]]>
+	</select>
+	
+	<!-- 배송관리_배송처리 당일특급 가능여부 조회 -->
+	<select id="selectCheckDomExpYn" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectCheckDomExpYn **/
+		SELECT USSF_Check_DomExpYn(#chkGubun#,#regiPoCd#,#recZipCd#) CheckDomExpYn FROM DUAL
+	</select>
+	
+	<!-- 배송관리_배송처리 등기번호 마스터 일괄수정 -->
+	<update id="updateTrackingNumberMaster" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateTrackingNumberMaster **/
+		UPDATE OD_TRACKING_MASTER_MGMT M
+		   SET M.ORDER_ITM_ID = #orderItmId# 
+		     , M.STR_DIV_CD   = #strDivCd#   
+		     , M.AREA_DIV_CD  = #areaDivCd#  
+		     , M.REGI_DIV_CD  = #regiDivCd#  
+		     , M.CREATE_DATE  = SYSDATE      
+		 WHERE M.REGI_NO      = #strtRegiNo#
+	</update>
+	
+	<!-- 배송관리_배송처리 등기번호 일괄수정 -->
+	<update id="updateTrackingNumberMGMT" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateTrackingNumberMGMT **/
+		UPDATE OD_TRACKING_NUMBER_MGMT M
+		   SET ORDER_ITM_ID           = #orderItmId#
+		     , CREATE_DATE            = SYSDATE
+		     , USE_YN                 = 'Y'
+		     , BALTSHT_PRT_YN         = 'N'
+		     , ORDER_STUS_CD          = 'O04'
+		 WHERE M.REGI_NO              = #strtRegiNo#
+	</update>
+	
+	<!-- 배송관리_배송처리 등기번호 일괄등록 시작등기번호 -->
+	<select id="selectStartRegiNo" parameterClass="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectStartRegiNo **/
+		SELECT MAX(M.REGI_NO) AS MAXSEQ
+		  FROM OD_TRACKING_MASTER_MGMT M
+		 WHERE M.REGI_NO LIKE #searchRegiNoForm2# || '%'
+	</select>
+	
+	<!-- 배송관리_배송처리 등기번호 마스터 등록 -->
+	<update id="insertTrackingNumberMaster" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.createInsertTrackingNumberMaster **/
+		INSERT INTO OD_TRACKING_MASTER_MGMT( REGI_NO, ORDER_ITM_ID, STR_DIV_CD, AREA_DIV_CD, REGI_DIV_CD, CREATE_DATE)
+		VALUES (#strtRegiNo#, #orderItmId#, #strDivCd#, #areaDivCd#, #regiDivCd#, SYSDATE)
+	</update>
+	
+	<!-- 배송관리_배송처리 등기번호 등록 -->
+	<update id="insertPickupTrackingNumber" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.createInsertPickupTrackingNumber **/
+		INSERT INTO OD_TRACKING_NUMBER_MGMT( REGI_NO, ORDER_ITM_ID, CREATE_DATE, SEQ, USE_YN, BALTSHT_PRT_YN, ORDER_STUS_CD)
+		VALUES (#strtRegiNo#, #orderItmId#, SYSDATE, SEQ_OD_TRACKING_NUMBER_MGMT_01.NEXTVAL, 'Y', 'Y', 'O04')
+	</update>
+	
+	<!-- 배송관리_배송처리 통보 처리(아이템) -->
+	<update id="updateSpcltySuppGoodsNoticList" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateSpcltySuppGoodsNoticList **/
+		UPDATE OD_ORDER_ITM
+		   SET SUPP_NOTIC_DD_PER_SEQ    = #suppNoticDdPerSeq#
+			  ,ORDER_CONF_DATE          = TO_DATE(#orderConfDate#,'YYYYMMDDHH24MISS')
+			  ,REGI_NO_CREATE_DIV_CD    = #regiNoCreateDivCd#
+			  ,ORDER_STUS_CD            = 'O04'
+			  ,CHG_DATE                 = SYSDATE
+			  ,CHGER_ID                 = #chgPrsnId#
+			<isEqual property="pavlnDivCd" compareValue="01">
+			  ,PRCL_AMT                 = DECODE(NVL(EXTRA_GOODS_YN,'N'),'Y',0,#goodsCnt#*( #fee#+( USSF_GET_PRC(TO_CHAR(SYSDATE,'YYYYMMDD'),'P01','02','1'||#stdDivCd#,#wght#,#volm#))))
+			</isEqual>
+			<isNotEqual property="pavlnDivCd" compareValue="01">
+			  ,PRCL_AMT                 = 0
+			</isNotEqual>
+			  ,WGHT                     = #wght#
+			  ,VOLM                     = #volm#
+			  ,DOM_EXP_YN               = #domExpYn#
+			  ,TDAY_EXP_YN              = #tdayExpYn#
+			  ,STD_DIV_CD               = #stdDivCd#
+			  ,KIND_DIV_CD              = #kindDivCd#
+			  ,REGI_NO                  = #strtRegiNo#
+			<isNotEmpty property="reprsntRegiNo">
+			  ,REPRSNT_REGI_NO          = #reprsntRegiNo#
+			</isNotEmpty>
+			  ,IMMPMN_PRCL_AMT          = 0
+			  ,AFTPMN_PRCL_AMT          = 0
+			  ,DELIV_CERT_YN            = 'N'
+			  ,RECPTER_VIRTL_NO         = #recpterVirtlNo#
+			  ,SENDER_VIRTL_NO          = #senderVirtlNo#
+			  ,HDRYCO_CD                = '01'
+			  ,SEND_TYP_CD              = '01'
+		 WHERE ORDER_ITM_ID             = #orderItmId#
+		   AND ORDER_STUS_CD            = 'O02'
+	</update>
+	
+	<!-- 배송관리_배송처리 통보 처리(마스터) -->
+	<update id="updateSpcltySuppGoodsNoticList2" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateSpcltySuppGoodsNoticList2 **/
+		UPDATE OD_ORDER_MAST
+		   SET ORDER_STUS_CD    = 'O04'
+		      ,ORDER_CONF_DATE  = SYSDATE
+		      ,CHG_DATE         = SYSDATE
+		      ,CHGER_ID         = #chgPrsnId#
+		 WHERE ORDER_ID         = #orderId#
+		   AND ORDER_STUS_CD IN ('O01', 'O02')
+	</update>
+	
+	<!-- 배송관리_배송처리 통보 목록 카운트 조회 -->
+	<select id="selectSpcltySuppGoodsNoticListCnt" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectSpcltySuppGoodsNoticListCnt **/
+		SELECT COUNT(1) as cnt
+		  FROM OD_ORDER_ITM
+		 WHERE ORDER_ITM_ID            = #orderItmId#
+		   AND ORDER_STUS_CD           = 'O04'
+		/* AND NVL(PRSNT_YN,'N')       = 'N'
+		   AND NVL(EXTRA_GOODS_YN,'N') = 'N' */
+	</select>
+	
+	<!-- 배송관리_배송처리 소포료 합계 조회 -->
+	<select id="getTotPrclPrc" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.getTotPrclPrc **/
+		SELECT SUM(PRCL_AMT) totPrclPrc
+		  FROM OD_ORDER_ITM
+		 WHERE ORDER_ITM_ID = #orderItmId#
+		   AND ORDER_STUS_CD = 'O04'
+	</select>
+	
+	<!--Seq 조회(서울청)-->
+	<select id="getSeq1" resultClass="String">
+		/** SQL_ID : BO.SendProc.getSeq1 **/
+		SELECT SEQ_Imagine_Tel_No_Mgmt_01.NEXTVAL as Seq FROM DUAL
+	</select>
+	
+	<!--Seq 조회(지방청)-->
+	<select id="getSeq2" resultClass="String">
+		/** SQL_ID : BO.SendProc.getSeq2 **/
+		SELECT SEQ_Imagine_Tel_No_Mgmt_02.NEXTVAL as Seq FROM DUAL
+	</select>
+	
+	<!-- 사용할 가상전화번호를 가져온다.(서울청 LOC_DIV_CD = 1 지방청 : LOC_DIV_CD = 2) -->
+	<select id="getImagineTelNo" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.getImagineTelNo **/
+		SELECT IMAGINE_TEL_NO
+		  FROM OD_IMAGINE_TEL_NO_MGMT
+		 WHERE SEQ = #seq#
+		   AND USE_YN = 'N'
+		   AND LOC_DIV_CD = #locDivCd#
+	</select>
+	
+	<!-- 우체국쇼핑 가상전화번호 사용정보를 연계테이블에 생성한다. -->
+	<insert id="createImagineTelNo" parameterClass ="java.util.HashMap">
+	/** SQL_ID : BO.SendProc.createImagineTelNo **/
+	 INSERT INTO OD_IMAGINE_TEL_NO_INFO
+					(   REQ_YMD
+					  , REGI_NO
+					  , IMAGINE_TEL_NO
+					  , TEL_NO
+					  , HTEL_NO
+					  , STATUS
+					  , RAISE_SEQ
+					  , IF_ID
+					  , INIT_TIME
+					  , DEAL_STATE
+					  , WRK_GBN
+					  , LOC_DIV_CD
+			  )
+			VALUES (	TO_CHAR(SYSDATE,'YYYYMMDD')
+					  , #regiNo#
+					  , #imagineTelNo#
+					  , #telNo#
+					  , #hTelNo#
+					  , 'C'
+					  , Imagine_Tel_No_Info_sq01.nextval
+					  , 'IF-ESHXMD-003-P01I'
+					  , TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+					  , 'N'
+					  , '1'
+					  , #locDivCd#
+				   )
+	</insert>
+	
+	<!-- 가상전화번호사용테이들에 가상전화번호를 사용상태로 업데이트한다. -->
+	<update id="updateImagineTelNoUseYnY" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateImagineTelNoUseYnY **/
+		UPDATE OD_IMAGINE_TEL_NO_MGMT
+		   SET USE_YN  = 'Y'
+		 WHERE IMAGINE_TEL_NO = #imagineTelNo#
+	</update>
+	
+	<!-- 픽업요청 주문건 조회 -->
+	<select id="selectPicupReqOrderList" parameterClass="java.util.HashMap"  resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqOrderList **/
+		SELECT
+				  ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY OOI.ORDER_ID)	AS RNUM
+				, OOI.ORDER_ID													/* 주문번호 */
+				, TO_CHAR(OOM.APPR_DATE,'YYYY-MM-DD')	AS APPR_DATE			/* 승인일자 */
+				, OOI.PAVLN_DIV_CD												/* 전시관구분코드 */
+				, (SELECT COMN_CD_NM 
+				     FROM CM_COMN_CD 
+				    WHERE CD_GRP_ID = 'PAVLN_DIV_CD' 
+				      AND COMN_CD_ID = OOI.PAVLN_DIV_CD) AS PAVLN_DIV_NM		/* 전시관구분명 */
+				,(SELECT Y.PONM 
+				    FROM PICMT0060 Y 
+				   WHERE Y.USEYN = 'Y' 
+				     AND Y.REGIPOCD = OOM.RECEVPO_RGISTPOCD 
+				     AND ROWNUM = 1)					AS RECEVPO_RGISTPONM /* 접수국 */
+				, OOI.GOODS_CD													/* 상품코드 */
+				, OOI.GOODS_NM													/* 상품명 */
+				, SUM(1)								AS TOT_GOODS_CNT		/* 상품수량 */
+				, NVL(TO_CHAR(OOI.WISH_SEND_DATE, 'YYYY-MM-DD'), TO_CHAR(OOM.APPR_DATE, 'YYYY-MM-DD')) AS WISH_SEND_DATE /* 희망배송일자 */
+				, OOI.REGI_NO													/* 등기번호 */
+				, CSCM.SUPP_COMP_ID												/* 공급업체아이디 */
+				, CSCM.CUST_NO													/* 고객번호 */
+				, CSCM.PO_HDRY_CNTRAC_NO				AS PO_HDRY_CNTRAC_NO	/* 우체국택배계약번호 */
+				, CSCM.SEND_ZIPCD						AS SEND_ZIPCD			/* 발송우편번호 */
+				, CSCM.COMPREG_NO						AS COMPREG_NO			/* 사업자등록번호 */
+				, CSCM.COMPREG_NO						AS TAX_COMPNO			/* 사업자등록번호 */
+				,CASE WHEN NVL(NVL(OOI.HDRYCO_CD,CSCM.HDRYCO_CD),CSCM.HDRYCO_CD)= '01' THEN 'Y'
+				 ELSE 'N'
+				 END									AS PO_SHIP_YN			/*우체국 계약 택배 여부*/
+				, OOI.HDRYCO_CD							AS ITEM_HDRYCO_CD		/* 주문아이템:택배사코드 */
+				, CSCM.HDRYCO_CD						AS SUPP_HDRYCO_CD		/* 공급업체마스터:택배사코드 */
+				, GGM.HDRYCO_CD							AS GOOD_HDRYCO_CD		/* 상품마스터:택배사코드 */
+				, 'N'									AS TAX_PUBYN			/* 세금계산서발행여부 */
+		  FROM
+				  OD_ORDER_MAST     OOM
+				, OD_ORDER_ITM      OOI
+				, GD_GOODS_MAST     GGM
+				, CO_SUPP_COMP_MAST CSCM
+		 WHERE
+				  OOM.ORDER_ID = OOI.ORDER_ID
+		/* AND    NVL(OOI.PRSNT_YN,'N')         = 'N'
+		   AND    NVL(OOI.EXTRA_GOODS_YN,'N')   = 'N' */
+		   AND    NVL(OOI.GOODS_CANCEL_YN, 'N') = 'N'
+		   AND    NVL(OOI.BALTSHT_PRT_YN,  'N') = 'N'
+		   AND    OOI.ORDER_ID IN 
+		<iterate property="orderIdList" open="(" conjunction="," close=")">
+		                         #orderIdList[]#
+		</iterate>
+		   AND    OOI.ORDER_ID || OOI.GOODS_CD || NVL(TO_CHAR(OOI.WISH_SEND_DATE,'YYYYMMDD'),TO_CHAR(OOM.APPR_DATE,'YYYYMMDD')) IN
+		<iterate property="orderInfoList" open="(" conjunction="," close=")">
+		                         #orderInfoList[]#
+		</iterate>
+		   AND    GGM.GOODS_CD      = OOI.GOODS_CD
+		   AND    CSCM.SUPP_COMP_ID = OOI.SUPP_COMP_ID
+		 GROUP BY OOI.ORDER_ID
+				 ,OOI.GOODS_CD
+				 ,OOI.PAVLN_DIV_CD
+				 ,OOI.GOODS_CD
+				 ,OOI.GOODS_NM
+				 ,OOM.RECEVPO_RGISTPOCD
+				 ,OOI.WISH_SEND_DATE
+				 ,OOM.APPR_DATE
+				 ,OOI.REGI_NO
+				 ,CSCM.SUPP_COMP_ID
+				 ,CSCM.CUST_NO
+				 ,CSCM.PO_HDRY_CNTRAC_NO
+				 ,CSCM.SEND_ZIPCD
+				 ,CSCM.COMPREG_NO
+				 ,OOI.HDRYCO_CD
+				 ,GGM.HDRYCO_CD
+				 ,CSCM.HDRYCO_CD
+	</select>
+	
+	<!-- 픽업요청 고객번호 목록 조회 -->
+	<select id="selectPicupReqCustNoList" parameterClass="java.util.HashMap"  resultClass="commMap">
+		/** SQL_ID : BO.SrmFoOrder.selectPicupReqCustNoList **/
+		SELECT /*+ USE_NL(A) USE_NL(B) USE_NL(C) */
+			   DISTINCT A.CUSTNO
+		  FROM PCCAT0010 A
+			  ,PRCTT0040 B
+			  ,CO_SUPP_COMP_MAST C
+		 WHERE A.CUSTNO = B.CUSTNO
+		   AND A.SENCPTSSN = REPLACE(C.COMPREG_NO,'-')
+		   AND B.CNTRACDIVCD = '8' AND B.STUSCD = '1'
+		   AND C.SUPP_COMP_ID IN (#searchSuppCompId#, #loginId#)
+		<isNotEmpty  property="searchCustNo">
+		   AND A.CUSTNO = #searchCustNo#
+		</isNotEmpty>
+	</select>
+
+	<!-- 픽업요청 승인번호 목록 조회 -->
+	<select id="selectPicupReqApprNoList" parameterClass="java.util.HashMap"  resultClass="commMap">
+		/** SQL_ID : BO.SrmFoOrder.selectPicupReqApprNoList **/
+		SELECT /*+ USE_NL(A) USE_NL(B) USE_NL(C) */
+			   B.APPRNO
+			  ,B.PRCPAYMETHCD
+		  FROM PCCAT0010 A
+			  ,PRCTT0040 B
+			  ,CO_SUPP_COMP_MAST C
+		 WHERE A.CUSTNO = B.CUSTNO
+		   AND A.SENCPTSSN = REPLACE(C.COMPREG_NO,'-')
+		   AND B.CNTRACDIVCD = '8' AND B.STUSCD = '1'
+		   AND C.SUPP_COMP_ID IN (#searchSuppCompId#, #loginId#)
+		   AND A.CUSTNO = #custNo#
+	</select>
+	
+	<!-- 배송관리_배송처리 픽업요청 - 픽업우체국 조회(등기국 정보) -->
+	<select id="selectPickupPostSrch" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPickupPostSrch **/
+		SELECT AA.REGIPOCD
+			  ,AA.PICKUPAREANM
+			  ,AA.WEEKDAYDIVCD
+			  ,AA.PICKUPPARTYNM
+			  ,AA.EXPECTTIMEDESCCONT
+			  ,AA.REQPSSBHHMI
+			  ,AA.PICKUPSTRTHHMI
+			  ,AA.PICKUPENDHHMI
+			  ,AA.BASICCHRGPRSNID
+			  ,AA.PICKUPAREASEQ
+			  ,AA.PICKUPPARTYSEQ
+			  ,BB.PONM AS REGIPOCDNM
+			  ,BB.POFNO AS REGIPOCDPOFNO
+			  ,BB.POMNO AS REGIPOCDPOMNO
+			  ,BB.POLNO AS REGIPOCDPOLNO
+		  FROM (
+		 		SELECT ROWNUM RNUM
+					  ,B.REGIPOCD
+					  ,B.PICKUPAREANM
+					  ,C.WEEKDAYDIVCD
+					  ,C.PICKUPPARTYNM
+					  ,C.EXPECTTIMEDESCCONT
+					  ,C.REQPSSBHHMI
+					  ,C.PICKUPSTRTHHMI
+					  ,C.PICKUPENDHHMI
+					  ,B.BASICCHRGPRSNID
+					  ,B.PICKUPAREASEQ
+					  ,C.PICKUPPARTYSEQ
+		 		  FROM PEDUT0030 A, PEDUT0010 B, PEDUT0020 C
+				 WHERE REPLACE(#zipCd#,'-') BETWEEN A.STRTZIPCD AND A.ENDZIPCD
+				   AND A.PICKUPAREASEQ = B.PICKUPAREASEQ
+				   AND B.PICKUPAREASEQ = C.PICKUPAREASEQ
+				   AND B.USEYN = 'Y'
+				   AND C.TEMPPARTYYN = 'N'
+				   AND C.USEYN = 'Y'
+				) AA
+			  ,PICMT0060 BB
+		 WHERE AA.REGIPOCD = BB.REGIPOCD
+		   AND BB.REGIPOCD = (
+							  SELECT DECODE(MPOREGIPOCD,'66446','60159','69018','69027',MPOREGIPOCD) 
+								FROM PICMT0060 
+							   WHERE REGIPOCD = (SELECT DELIVREGIPOCD 
+												   FROM V_POSTALCODE 
+												  WHERE ZIPCD = REPLACE(#zipCd#,'-')
+													AND USEYN = 'Y' 
+													AND ROWNUM = 1
+												)
+								 AND USEYN = 'Y'
+								 AND DSCDPOYN = 'N'
+							  )
+		   AND BB.USEYN = 'Y'
+		   AND BB.DSCDPOYN = 'N'
+		   AND ROWNUM = 1
+		 ORDER BY AA.WEEKDAYDIVCD, AA.PICKUPSTRTHHMI
+	</select>
+	
+	<!-- 배송관리_배송처리 픽업요청 - 픽업우체국 조회(총괄국 정보) -->
+	<select id="selectPickupAllPostSrch" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPickupAllPostSrch **/
+		SELECT DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD) MPOREGIPOCD
+			  ,(SELECT Y.PONM FROM PICMT0060 Y
+				 WHERE Y.REGIPOCD = DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD)
+				   AND Y.USEYN='Y' AND Y.DSCDPOYN='N' AND ROWNUM=1) REGIPOCDNM
+			  ,(SELECT Y.POFNO FROM PICMT0060 Y
+				 WHERE Y.REGIPOCD = DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD)
+				   AND Y.USEYN='Y' AND Y.DSCDPOYN='N' AND ROWNUM=1) REGIPOFNO
+			  ,(SELECT Y.POMNO FROM PICMT0060 Y
+				 WHERE Y.REGIPOCD = DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD)
+				   AND Y.USEYN='Y' AND Y.DSCDPOYN='N' AND ROWNUM=1) REGIPOMNO
+			  ,(SELECT Y.POLNO FROM PICMT0060 Y
+				 WHERE Y.REGIPOCD = DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD)
+				   AND Y.USEYN='Y' AND Y.DSCDPOYN='N' AND ROWNUM=1) REGIPOLNO
+			  ,(SELECT Y.POFNO FROM PICMT0060 Y
+				 WHERE Y.REGIPOCD = DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD)
+				   AND Y.USEYN='Y' AND Y.DSCDPOYN='N' AND ROWNUM=1) REGIPOCDPOFNO
+			  ,(SELECT Y.POMNO FROM PICMT0060 Y
+				 WHERE Y.REGIPOCD = DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD)
+				   AND Y.USEYN='Y' AND Y.DSCDPOYN='N' AND ROWNUM=1) REGIPOCDPOMNO
+			  ,(SELECT Y.POLNO FROM PICMT0060 Y
+				 WHERE Y.REGIPOCD = DECODE(A.MPOREGIPOCD,'66446','60159','69018','69027',A.MPOREGIPOCD)
+				   AND Y.USEYN='Y' AND Y.DSCDPOYN='N' AND ROWNUM=1) REGIPOCDPOLNO
+		  FROM PICMT0060 A
+		 WHERE A.REGIPOCD = (SELECT DISTINCT DELIVREGIPOCD FROM V_POSTALCODE WHERE ZIPCD = REPLACE(#zipCd#,'-') AND USEYN = 'Y' AND ROWNUM = 1)
+		   AND A.USEYN = 'Y'
+		   AND A.DSCDPOYN = 'N'
+	</select>
+	
+	<!-- 배송관리_배송처리 픽업요청 공급처 정보 -->
+	<select id="selectPicupReqSuplyOficeInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqSuplyOficeInfo **/
+		SELECT SHIP_SYS_CUST_NO
+			  ,SHIP_SYS_CUST_NO											AS CUST_NO
+			  ,OFFICE_SER
+			  ,OFFICE_NM
+			  ,CASE WHEN LENGTH(OFFICE_ZIPCD) = 5 THEN OFFICE_ZIPCD
+					WHEN LENGTH(OFFICE_ZIPCD) = 6 THEN SUBSTR(OFFICE_ZIPCD,1,3) || '-' || SUBSTR(OFFICE_ZIPCD,4)
+					ELSE OFFICE_ZIPCD
+				END 													AS OFFICE_ZIPCD
+			  ,OFFICE_ZIPCD												AS ZIP_CD
+			  ,OFFICE_ZIPCD_ADDR
+			  ,OFFICE_DTAIL_ADDR
+			  ,OFFICE_CHARG_PRSN_NM
+			  ,OFFICE_CHARG_PRSN_EMAIL
+			  ,(OFFICE_TEL_FNO||OFFICE_TEL_MNO||OFFICE_TEL_LNO)			AS OFFICE_TELNO
+			  ,(OFFICE_FAX_FNO||OFFICE_FAX_MNO||OFFICE_FAX_LNO)			AS OFFICE_FAXNO
+			  ,(OFFICE_CHARG_PRSN_HTEL_FNO||OFFICE_CHARG_PRSN_HTEL_MNO||OFFICE_CHARG_PRSN_HTEL_LNO)	AS OFFICE_CHARG_PRSN_HTELNO
+		  FROM OFFICE_ADDR_INFO
+		 WHERE SHIP_SYS_CUST_NO = #custNo#
+		<isNotEmpty  property="#officrSer#">
+		   AND OFFICE_SER       = #officrSer#
+		   AND ROWNUM           = 1
+		</isNotEmpty>
+		   AND OFFICE_AVAIL_YN = 'Y'
+		   AND OFFICE_DIV_CD IN ('1', '2')
+	</select>
+	<!-- 
+		 WHERE SHIP_SYS_CUST_NO = #poHdryCntracNo#
+		<isNotEmpty  property="#officrSer#">
+		   AND OFFICE_SER = #officrSer#
+		   AND ROWNUM = 1
+		</isNotEmpty>
+		   AND OFFICE_AVAIL_YN = 'Y'
+		   AND OFFICE_DIV_CD IN ('1', '2')
+	 -->
+	
+	<!-- 배송관리_배송처리 픽업요청 주문정보 조회 -->
+	<select id="selectPicupReqOrderInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqOrderInfo **/
+		SELECT
+				 OOM.ORDER_ID
+				,OOI.ORDER_ITM_ID
+				,OOI.PAVLN_DIV_CD
+				,OOI.RECPTER_VIRTL_NO
+				,OOI.REPRSNT_REGI_NO
+				,OOI.REGI_NO
+				,OOI.SEND_ADDR_SEQ
+				/** 주문구분 **/
+				,DECODE(OOI.SETL_METH_DIV_CD, '02', 'Y', 'N')	AS DLV_FEE_YN
+				,CASE
+				    WHEN (GGM.SELL_TYP_CD || OOI.PAVLN_DIV_CD || DECODE(OOM.NATION_CD, NULL, 'KO', 'KO', 'KO', 'FR')) <![CDATA[ <> ]]> 'G07FR' AND OOI.SETL_METH_DIV_CD = '03'  THEN '2'	/* 후납정산 */
+				    WHEN (GGM.SELL_TYP_CD || OOI.PAVLN_DIV_CD || DECODE(OOM.NATION_CD, NULL, 'KO', 'KO', 'KO', 'FR')) <![CDATA[ <> ]]> 'G07FR' AND OOI.SETL_METH_DIV_CD = '02'  THEN '2'	/* 착불 */
+				    WHEN (GGM.SELL_TYP_CD || OOI.PAVLN_DIV_CD || DECODE(OOM.NATION_CD, NULL, 'KO', 'KO', 'KO', 'FR')) <![CDATA[ <> ]]> 'G07FR' AND OOI.SETL_METH_DIV_CD = '01'  THEN '1'	/* 선불 */
+				    WHEN (GGM.SELL_TYP_CD || OOI.PAVLN_DIV_CD || DECODE(OOM.NATION_CD, NULL, 'KO', 'KO', 'KO', 'FR')) <![CDATA[ <> ]]> 'G07FR' AND OOI.SETL_METH_DIV_CD IS NULL THEN '2'
+				    ELSE NULL
+				 END											AS PAY_METH
+				,OOI.GOODS_CD
+				,GGM.GOODS_NM
+				,OOI.WGHT
+				,OOI.VOLM
+				,OOI.KIND_DIV_CD
+				/** 신청인 **/
+				,OOM.ORDRR_NM
+				,OOM.ORDRR_ZIPCD
+				,OOM.ORDRR_ADDR1
+				,OOM.ORDRR_ADDR2
+				,OOM.ORDRR_TELNO
+				,OOM.ORDRR_HTELNO
+				,OOM.ORDRR_EMAIL
+				,OOM.ORDRR_ADDR_DIV_CD
+				/** 발송인 **/
+				,OOI.SENDER_NM
+				,OOI.SENDER_ZIPCD
+				,OOI.SENDER_ADDR1
+				,OOI.SENDER_ADDR2
+				,OOI.SENDER_TELNO
+				,OOI.SENDER_HTELNO
+				,OOI.SENDER_EMAIL
+				,OOI.SEND_MSG
+				,OOI.SENDER_ADDR_DIV_CD
+				/** 수취인 **/
+				,OOI.RECPTER_NM
+				,OOI.RECPTER_ZIPCD
+				,OOI.RECPTER_ADDR1
+				,OOI.RECPTER_ADDR2
+				,OOI.RECPTER_TELNO
+				,OOI.RECPTER_HTELNO
+				,OOI.RECPTER_EMAIL
+				,OOI.RECPTER_ADDR_DIV_CD
+				,GGM.SUPP_COMP_ID
+				,OOI.SUPP_COMP_NM
+				,CSCM.PRC_PAY_DIV_CD
+				,CSCM.PO_HDRY_CNTRAC_NO
+				,CSCM.CUST_NO
+				,CSCM.BCNC_NM
+				,CSCM.CHRGER_NAME
+				,CSCM.CHRGER_EMAIL
+				,CSCM.ZIPCD
+				,CSCM.ADDR1
+				,CSCM.ADDR2
+				,CSCM.TELNO
+		  FROM 
+				 OD_ORDER_MAST     OOM
+				,OD_ORDER_ITM      OOI
+				,GD_GOODS_MAST     GGM
+				,CO_SUPP_COMP_MAST CSCM
+		 WHERE
+				OOM.ORDER_ID = OOI.ORDER_ID
+		   AND  OOM.ORDER_ID = #orderIds#
+		   AND  OOI.ORDER_ID || '/' || OOI.GOODS_CD || NVL(TO_CHAR(OOI.WISH_SEND_DATE,'YYYYMMDD'),TO_CHAR(OOM.APPR_DATE,'YYYYMMDD')) IN
+			<iterate property="orderInfos" open="(" conjunction="," close=")">
+				#orderInfos[]#
+			</iterate>
+		   AND  OOI.GOODS_CD = GGM.GOODS_CD
+		   AND  CSCM.SUPP_COMP_ID = OOI.SUPP_COMP_ID
+		   AND  CSCM.SUPP_COMP_ID IN (#searchSuppCompId#, #loginId#)
+		/* AND  NVL(OOI.PRSNT_YN,        'N') = 'N'
+		   AND  NVL(OOI.EXTRA_GOODS_YN,  'N') = 'N' */
+		   AND  NVL(OOI.GOODS_CANCEL_YN, 'N') = 'N'
+		ORDER BY
+				 TO_NUMBER(OOI.ORDER_ITM_ID)
+				,OOI.SEND_ADDR_SEQ
+	</select>
+	
+	<!-- 픽업요청 계약승인번호 리스트 -->
+	<select id="selectPicupReqContractNoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqContractNoList **/
+		SELECT APPRNO				AS CONTRACT_NO
+			  ,CUSTNO				AS CUST_NO
+		  FROM PRCTT0040
+		 WHERE CUSTNO      = #custNo#
+		   AND CNTRACDIVCD = '8'
+	</select>
+	<!-- 
+		SELECT APPRNO CONTRACT_NO
+		  FROM PRCTT0040
+		 WHERE CUSTNO = #poHdryCntracNo#
+		   AND CNTRACDIVCD = '8'
+		   AND STUSCD = '1'
+	 -->
+	
+	<!-- 국내지역구분코드 조회 -->
+	<select id="selectAreaDivCd" parameterClass ="String" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectAreaDivCd **/
+		SELECT DOMAREADIVCD FROM V_POSTALCODE WHERE ZIPCD = REPLACE(#zipcd#,'-') AND USEYN='Y' AND ROWNUM = 1
+	</select>
+
+	<!-- 일반택배 요금 조회 -->
+	<select id="selectPicupReqFeeInfoForNorm" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectPicupReqFeeInfoForNorm **/
+	<![CDATA[
+		SELECT DOMFRNPRC
+		  FROM PIPMT0010
+		 WHERE PRCLARGEDIVCD = 'P05'
+		   AND PRCMIDDIVCD = '02'
+		   AND PRCSMALLDIVCD = #prcsmalldivcd#
+		   AND DOMFRNPRC =( SELECT MIN(DOMFRNPRC)  
+							  FROM PIPMT0010 
+							 WHERE PRCLARGEDIVCD = 'P05'
+							   AND PRCMIDDIVCD = '02' 
+							   AND PRCSMALLDIVCD = #prcsmalldivcd#
+							   AND (PRCCALSTDWGHT >= #wght# 
+							   AND PRCCALSTDVOLM >= #volm# )
+		   AND APPLYSTRTYMD < TO_CHAR(SYSDATE, 'YYYYMMDD')
+		   AND APPLYENDYMD > TO_CHAR(SYSDATE, 'YYYYMMDD') )
+		   AND ROWNUM = 1
+	]]>
+	</select>
+	
+	<!-- 배송관리_배송처리 픽업요청 배송일련번호 조회 -->
+	<select id="selectPickupDlvrSeq" parameterClass="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectPickupDlvrSeq **/
+		SELECT OTMM.REGI_NO
+		  FROM OD_TRACKING_MASTER_MGMT OTMM
+		 WHERE OTMM.ORDER_ITM_ID = ( SELECT ORDER_ITM_ID
+		                               FROM OD_TRACKING_MASTER_MGMT
+		                              WHERE REGI_NO     = #regiNo#
+		                                AND STR_DIV_CD  = #strDivCd#
+		                             <isNotEmpty property="regiDivCd">
+		                                AND REGI_DIV_CD = #regiDivCd# 
+		                             </isNotEmpty>
+		                            )
+		   AND OTMM.STR_DIV_CD   = #strDivCd#
+		   AND OTMM.REGI_DIV_CD  = 'DA'
+	</select>
+	<!-- 
+		SELECT REGI_NO
+		  FROM OD_TRACKING_MASTER_MGMT
+		 WHERE ORDER_ITM_ID = (SELECT ORDER_ITM_ID
+								 FROM OD_TRACKING_MASTER_MGMT
+								WHERE REGI_NO		= #regiNo#
+								  AND STR_DIV_CD	= 'ESCROW'
+								  AND REGI_DIV_CD	= 'DS')
+		   AND STR_DIV_CD	= 'ESCROW'
+		   AND REGI_DIV_CD	= 'DA'
+	 -->
+	
+	<!-- 픽업요청 -->
+	<update id="insertPicupReqForNormAjax"  parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.insertPicupReqForNormAjax **/
+		INSERT INTO NORM_AMT_LEDGER
+			(
+			 VISIT_RECEV_RES_SER
+			,SEND_SEQ
+			,REC_SEQ
+			,REQ_REGI_PO_CD
+			,TREAT_REGI_PO_CD
+			,PICKUP_YMD
+			,PICKUP_PARTY_SEQ
+			,PICKUP_STRT_HHMI
+			,PICKUP_END_HHMI
+			,PICKUP_AREA_SEQ
+			,PICKUP_PRSN_ID
+			,REQ_YMD
+			,REQ_HHMI
+			,ALERT_CONF_YN
+			,ORD_ZIPCD
+			,ORD_ZIPCD_ADDR
+			,ORD_DETAIL_ADDR
+			,ORD_NM
+			,ORD_TEL_FNO
+			,ORD_TEL_MNO
+			,ORD_TEL_LNO
+			,ORD_HTEL_FNO
+			,ORD_HTEL_MNO
+			,ORD_HTEL_LNO
+			,ORD_EMAIL
+			,SEND_ZIPCD
+			,SEND_ZIPCD_ADDR
+			,SEND_DETAIL_ADDR
+			,SEND_NM
+			,SEND_TEL_FNO
+			,SEND_TEL_MNO
+			,SEND_TEL_LNO
+			,SEND_HTEL_FNO
+			,SEND_HTEL_MNO
+			,SEND_HTEL_LNO
+			,SEND_EMAIL
+			,REGI_NO
+			,WORK_LEVEL_CD
+			,DELIV_PRINT_YN
+			,CANCEL_YN
+			,PRC_PAY_METH_CD
+			,AREA_DIV_CD
+			,KIND_DIV_CD
+			,MAIL_WGHT
+			,MAIL_VOLM
+			,RECEV_PRC
+			,MAIL_CONT
+			,DELIV_ZIPCD
+			,DELIV_ZIPCD_ADDR
+			,DELIV_DETAIL_ADDR
+			,DELIV_NM
+			,DELIV_TEL_FNO
+			,DELIV_TEL_MNO
+			,DELIV_TEL_LNO
+			,DELIV_HTEL_FNO
+			,DELIV_HTEL_MNO
+			,DELIV_HTEL_LNO
+			,DELIV_EMAIL
+			,WRITE_DATE
+			,ADB_OPCODE1
+			,ADB_OPCODE2
+			,ADB_OPCODE3
+			,TAX_PUBYN
+			,TAX_COMPNO
+			,ADB_SEQUENCE
+			,ADB_TIMESTAMP
+			,ADB_OPCODE
+			,ADB_REF_OBJECT
+			,ADB_L_DELIVERY_STATUS
+			,RAISE_SEQ
+			,IF_ID
+			,INIT_TIME
+			,DEAL_STATE
+			,WRK_GBN
+			,IMAGINETELYN
+			,IMAGINE_TEL_NO
+			)
+			VALUES
+			(
+			 #visitRecevResSer#
+			,'001'
+			,'00001'
+			,(SELECT PICKUPREGIPOCD FROM V_POSTALCODE WHERE ZIPCD = #officeZipcd# and USEYN ='Y' AND rownum = 1)
+			,(SELECT PICKUPREGIPOCD FROM V_POSTALCODE WHERE ZIPCD = #officeZipcd# and USEYN ='Y' AND rownum = 1)
+			,#pickupymd#
+			,#pickuppartyseq#
+			,#pickupstrthhmi#
+			,#pickupendhhmi#
+			,#pickupareaseq#
+			,#pickupprsnid#
+			,TO_CHAR(SYSDATE,'YYYYMMDD')
+			,TO_CHAR(SYSDATE,'HH24MI')
+			,'N'
+			,REPLACE(#senderZipcd#,'-','')
+			,#senderAddr1#
+			,#senderAddr2#
+			,#senderNm#
+			,F_DIV_TELNO(#senderTelno#,'F')
+			,F_DIV_TELNO(#senderTelno#,'M')
+			,F_DIV_TELNO(#senderTelno#,'L')
+			,F_DIV_TELNO(#senderHtelno#,'F')
+			,F_DIV_TELNO(#senderHtelno#,'M')
+			,F_DIV_TELNO(#senderHtelno#,'L')
+			,#senderEmail#
+			,REPLACE(#officeZipcd#,'-','')
+			,#officeZipcdAddr#
+			,#officeDtailAddr#
+			,#officeNm#
+			,F_DIV_TELNO(#officeTelno#,'F')
+			,F_DIV_TELNO(#officeTelno#,'M')
+			,F_DIV_TELNO(#officeTelno#,'L')
+			,F_DIV_TELNO(#officeChargPrsnHtelno#,'F')
+			,F_DIV_TELNO(#officeChargPrsnHtelno#,'M')
+			,F_DIV_TELNO(#officeChargPrsnHtelno#,'L')
+			,#officeChargPrsnEmail#
+			,#regiNo#
+			,'01'
+			,'N'
+			,'N'
+			,'10'
+			,#areaDivCd#
+			,#kindDivCd#
+			,#wght#
+			,#volm#
+			,#fee#
+			,#goodsNm#
+			,REPLACE(#recpterZipcd#,'-','')
+			,#recpterAddr1#
+			,#recpterAddr2#
+			,#recpterNm#
+			,F_DIV_TELNO(#recpterTelno#,'F')
+			,F_DIV_TELNO(#recpterTelno#,'M')
+			,F_DIV_TELNO(#recpterTelno#,'L')
+			,F_DIV_TELNO(#recpterHtelno#,'F')
+			,F_DIV_TELNO(#recpterHtelno#,'M')
+			,F_DIV_TELNO(#recpterHtelno#,'L')
+			,#recpterEmail#
+			,SYSDATE
+			,'1'
+			,'1'
+			,'1'
+			,#taxPubyn#
+			,#taxCompno#
+			,SEQ_NORM_AMT_LEDGER.NEXTVAL
+			,SYSDATE
+			,'1'
+			,'04'
+			,'N'
+			,SEQ_NORM_AMT_LEDGER_ESB.NEXTVAL
+			,'IF-SHADED-001-P04I'
+			,SYSDATE
+			,'N'
+			,'1'
+			,DECODE(#recpterVirtlNo#,'','N','Y')
+			,#recpterVirtlNo#
+			)
+	</update>
+	
+	<!-- 픽업요청 주문아이템상태변경 -->
+	<update id="updatePicupReqOrderDtailStusChg"  parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updatePicupReqOrderDtailStusChg **/
+		UPDATE OD_ORDER_ITM
+		   SET ORDER_STUS_CD = 'D01'
+		 WHERE ORDER_ID = #searchOrderId#
+		   AND NVL(REPRSNT_REGI_NO,REGI_NO) = #regiNo#
+		   AND ORDER_STUS_CD = 'O04'
+	</update>
+	
+	<!-- 기업택배 요금 조회-->
+	<select id="selectPicupReqFeeInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqFeeInfo **/
+		SELECT PRCPAYMETHCD
+			  ,TOTALCNTRACPRC
+			  ,CNTRACWGHT1PRC
+			  ,CNTRACWGHTPRC2
+			  ,CNTRACWGHTPRC5
+			  ,CNTRACWGHTPRC10
+			  ,CNTRACWGHTPRC20
+			  ,CNTRACWGHTPRC30
+			  ,CNTRACWGHT500PRC
+		  FROM PRCTT0040
+		 WHERE APPRNO = #contractNo#
+		   AND CNTRACDIVCD = '8'
+	</select>
+	<!-- 
+		   AND STUSCD = '1'
+	 -->
+	
+	<!-- 픽업요청 기업택배고객번호, 주소 조회 -->
+	<select id="selectPicupReqFormCorpDtdCsmNo" parameterClass="java.util.HashMap"  resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqFormCorpDtdCsmNo **/
+		SELECT MAX(A.PO_HDRY_CNTRAC_NO) PO_HDRY_CNTRAC_NO
+			  ,MAX(A.SEND_ZIPCD) SEND_ZIPCD
+			  ,MAX(A.COMPREG_NO) COMPREG_NO
+		  FROM CO_SUPP_COMP_MAST A
+			  ,OD_ORDER_ITM B
+			  ,OD_ORDER_MAST C
+		 WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		   AND B.ORDER_ID = C.ORDER_ID
+		/* AND NVL(B.PRSNT_YN,'N') = 'N'
+		   AND NVL(B.EXTRA_GOODS_YN,'N') = 'N' */
+		   AND B.ORDER_ID = #orderIds#
+		   AND B.ORDER_ID || '/' || B.GOODS_CD || NVL(TO_CHAR(B.WISH_SEND_DATE,'YYYYMMDD'),TO_CHAR(C.APPR_DATE,'YYYYMMDD')) = #orderInfos#
+		 GROUP BY B.ORDER_ID
+				 ,B.GOODS_CD
+				 ,NVL(TO_CHAR(B.WISH_SEND_DATE,'YYYYMMDD'),TO_CHAR(C.APPR_DATE,'YYYYMMDD'))
+	</select>
+	
+	<!-- 픽업요청 -->
+	<update id="insertPicupReqAjax"  parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.insertPicupReqAjax **/
+		INSERT INTO SEND_AMT_LEDGER
+			(
+			 VISIT_RECEV_RES_SER
+			,SHIP_SYS_CUST_NO
+			,APPR_NO
+			,EXCHG_YN
+			,RECEV_REQ_YMD
+			,RECEV_REQ_HHMI
+			,SEND_REQ_DIVCD
+			,SEND_REQ_PATH_DIVCD
+			,ORDER_PRSN_NM
+			,ORDER_TEL_FNO
+			,ORDER_TEL_MNO
+			,ORDER_TEL_LNO
+			,ORDER_HTEL_FNO
+			,ORDER_HTEL_MNO
+			,ORDER_HTEL_LNO
+			,SEND_PLC_SER
+			,RET_PLC_SER
+			,SEND_PLC_NM
+			,SEND_PLC_PRSN_NM
+			,SEND_PLC_EMAIL
+			,SEND_ZIPCD
+			,SEND_ZIPCD_ADDR
+			,SEND_DETAIL_ADDR
+			,SEND_TEL_FNO
+			,SEND_TEL_MNO
+			,SEND_TEL_LNO
+			,SEND_HTEL_FNO
+			,SEND_HTEL_MNO
+			,SEND_HTEL_LNO
+			,REGI_NO
+			,DELIV_PRSN_NM
+			,DELIV_ZIPCD
+			,DELIV_ZIPCD_ADDR
+			,DELIV_DETAIL_ADDR
+			,DELIV_TEL_FNO
+			,DELIV_TEL_MNO
+			,DELIV_TEL_LNO
+			,DELIV_HTEL_FNO
+			,DELIV_HTEL_MNO
+			,DELIV_HTEL_LNO
+			,GOOD_CD
+			,GOOD_NM
+			,WG
+			,VOL
+			,CONT_AMT
+			,FEE
+			,DELIV_FEE_YN
+			,WISH_VISIT_YMD
+			,WISH_DELIV_YMD
+			,PICKUP_REGI_PO_CD
+			,DELIV_REGI_PO_CD
+			,TREAT_EVENT_CODE
+			,ADB_SEQUENCE
+			,ADB_TIMESTAMP
+			,ADB_OPCODE
+			,ADB_REF_OBJECT
+			,ADB_L_DELIVERY_STATUS
+			,RAISE_SEQ
+			,IF_ID
+			,INIT_TIME
+			,DEAL_STATE
+			,WRK_GBN
+			,IMAGINETELYN
+			,IMAGINE_TEL_NO
+			)
+			VALUES
+			(
+			 #visitRecevResSer#
+			,#poHdryCntracNo#
+			,#contractNo#
+			,'N'
+			,TO_CHAR(SYSDATE,'YYYYMMDD')
+			,TO_CHAR(SYSDATE,'HH24MISS')
+			,'01'
+			,'04'
+			,#senderNm#
+			,F_DIV_TELNO(#senderTelno#,'F')
+			,F_DIV_TELNO(#senderTelno#,'M')
+			,F_DIV_TELNO(#senderTelno#,'L')
+			,F_DIV_TELNO(#senderHtelno#,'F')
+			,F_DIV_TELNO(#senderHtelno#,'M')
+			,F_DIV_TELNO(#senderHtelno#,'L')
+			,#officeSer#
+			,#officeSer#
+			,#officeNm#
+			,#officeChargPrsnNm#
+			,#officeChargPrsnEmail#
+			,REPLACE(#officeZipcd#,'-','')
+			,#officeZipcdAddr#
+			,#officeDtailAddr#
+			,F_DIV_TELNO(#officeTelno#,'F')
+			,F_DIV_TELNO(#officeTelno#,'M')
+			,F_DIV_TELNO(#officeTelno#,'L')
+			,F_DIV_TELNO(#officeChargPrsnHtelno#,'F')
+			,F_DIV_TELNO(#officeChargPrsnHtelno#,'M')
+			,F_DIV_TELNO(#officeChargPrsnHtelno#,'L')
+			,#regiNo#
+			,#recpterNm#
+			,REPLACE(#recpterZipcd#,'-','')
+			,#recpterAddr1#
+			,#recpterAddr2#
+			,F_DIV_TELNO(#recpterTelno#,'F')
+			,F_DIV_TELNO(#recpterTelno#,'M')
+			,F_DIV_TELNO(#recpterTelno#,'L')
+			,F_DIV_TELNO(#recpterHtelno#,'F')
+			,F_DIV_TELNO(#recpterHtelno#,'M')
+			,F_DIV_TELNO(#recpterHtelno#,'L')
+			,#goodsCd#
+			,#goodsNm#
+			,#wght#
+			,#volm#
+			,'1'
+			,#fee#
+			,DECODE(#kindDivCd#,16,'Y','N')
+			,TO_CHAR(SYSDATE,'YYYYMMDD')
+			,TO_CHAR(SYSDATE+1,'YYYYMMDD')
+			,SUBSTR(#contractNo#,1,5)
+			,(SELECT DELIVREGIPOCD FROM V_POSTALCODE WHERE ZIPCD = #officeZipcd# AND USEYN ='Y' AND ROWNUM = 1)
+			,'01'
+			,SEQ_SEND_AMT_LEDGER.NEXTVAL
+			,TO_CHAR(SYSDATE,'YYYYMMDD')
+			,'1'
+			,'04'
+			,'N'
+			,SEQ_SEND_AMT_LEDGER_ESB.NEXTVAL
+			,'IF-SPADED-003-P04I'
+			,SYSDATE
+			,'N'
+			,'1'
+			,DECODE(#recpterVirtlNo#,'','N','Y')
+			,#recpterVirtlNo#
+			)
+	</update>
+
+	<!--전통시장 상품 픽업요청 정보조회-->
+	<select id="selectMmarketPicupInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectMmarketPicupInfo **/
+		SELECT CUSTNO														/*고객번호			*/
+			  ,CONTRACT_NO													/*계약승인번호		*/
+			  ,EXCHG_YN														/*맞교환구분		*/
+			  ,REQ_DATE														/*신청일			*/
+			  ,REQ_TIME														/*신청시각			*/
+			  ,DLV_REQ_CD													/*배송신청구분코드(01 기업, 03 개인, 04 EMS)*/
+			  ,DLV_REQ_PATH_CD												/*배송신청경로구분코드(09 개인, 16 기업)*/
+			  ,ORD_MAN_NM													/*주문자명			*/
+			  ,ORD_PR_TEL_FNO												/*주문자전화지역번호*/
+			  ,ORD_PR_TEL_MNO												/*주문자전화국번호	*/
+			  ,ORD_PR_TEL_LNO												/*주문자전화끝번호	*/
+			  ,ORD_PR_HTEL_FNO												/*주문자핸드폰시작번호*/
+			  ,ORD_PR_HTEL_MNO												/*주문자핸드폰국번호*/
+			  ,ORD_PR_HTEL_LNO												/*주문자핸드폰끝번호*/
+			  ,ENTR_NO														/*거래처코드		*/
+			  ,RET_ENTR_NO													/*반품처코드		*/
+			  ,ENTR_NM														/*거래처명			*/
+			  ,ENTR_AEMP_NM													/*거래처담당자명	*/
+			  ,ENTR_EMAIL_ADDR												/*거래처담당자이메일*/
+			  ,ENTR_POST_NO													/*거래처우편번호	*/
+			  ,ENTR_POST_ADDR												/*거래처우편번호주소*/
+			  ,ENTR_DTL_ADDR												/*거래처상세주소	*/
+			  ,ENTR_TEL_FNO													/*거래처전화지역번호*/
+			  ,ENTR_TEL_MNO													/*거래처전화국번호	*/
+			  ,ENTR_TEL_LNO													/*거래처전화끝번호	*/
+			  ,ENTR_HTEL_FNO												/*거래처핸드폰시작번호*/
+			  ,ENTR_HTEL_MNO												/*거래처핸드폰국번호*/
+			  ,ENTR_HTEL_LNO												/*거래처핸드폰끝번호*/
+			  ,EX_INV_NO													/*맞교환이전송장번호*/
+			  ,RE_INV_NO													/*맞교환회수송장번호*/
+			  ,CONS_NATION_NO												/*수취인전화국가번호*/
+			  ,CONS_MAN_NM													/*수취인성명		*/
+			  ,CONS_ZIPCD													/*수취인우편번호	*/
+			  ,CONS_ZIPCD_ADDR												/*수취인우편번호주소*/
+			  ,CONS_DETAIL_ADDR												/*수취인상세주소	*/
+			  ,CONS_TEL_FNO													/*수취인전화지역번호*/
+			  ,CONS_TEL_MNO													/*수취인전화국번호	*/
+			  ,CONS_TEL_LNO													/*수취인전화끝번호	*/
+			  ,CONS_HTEL_FNO												/*수취인핸드폰시작번호*/
+			  ,CONS_HTEL_MNO												/*수취인핸드폰국번호*/
+			  ,CONS_HTEL_LNO												/*수취인핸드폰끝번호*/
+			  ,GOODS_CD														/*상품코드			*/
+			  ,GOODS_NM || ' 외 ' || (TOTQTY-1) || '건' GOODS_NM			/*상품명			*/
+			  ,GOODS_WEIGHT													/*상품중량			*/
+			  ,GOODS_VOLUME													/*상품부피			*/
+			  ,TOTQTY CONT_AMT												/*포장 상품 총수량	*/
+			  ,FEE															/*배송비 예상요금	*/
+			  ,DLV_FEE_YN													/*착불여부			*/
+			  ,PAY_METH														/*지불방법			*/
+			  ,PICKUP_REQ_DATE												/*집하요청일자		*/
+			  ,WISH_VISIT_YMD												/*희망방문접수일	*/
+			  ,WISH_DLV_DATE												/*희망배달일		*/
+			  ,DLV_MSG														/*배송메세지		*/
+			  ,NOTE															/*비고				*/
+			  ,ORDER_NO														/*주문번호			*/
+			  ,ORD_DTL_SN													/*주문내역일련번호	*/
+			  ,DLVP_SN														/*배송지ID			*/
+			  ,DLV_SN														/*배송일련번호		*/
+			  --,LWST_ENTR_NO													/*하위거래처번호	*/
+			  ,PICKUP_REGIPOCD												/*수집등기용국기호(국기호 테스트 우편번호 : 143725, 테스트국기호 : 60202)*/
+			  ,DLV_REGIPOCD													/*배달등기용국기호(테스트국기호 : 66633)*/
+			  ,NREQ_REGIPOCD												/*신청국등기용국기호(테스트국기호 : 10186)*/
+			  ,NPICKUP_REGIPOCD												/*집하국등기용국기호(테스트국기호 : 40326)*/
+			  ,NRECEV_REGIPOCD												/*접수국등기용국기호*/
+			  ,PARCEL_ECODE													/*택배처리이벤트코드 처리상태코드*/
+			  ,ADB_TIMESTAMP												/*신청일			*/
+			  ,ADB_OPCODE													/*신청구분코드		*/
+			  ,SEQ_TP														/*일련타입			*/
+			  ,TODAY_YN														/*당일택배여부		*/
+			  ,HOLDAY_YN													/*휴일택배여부		*/
+			  ,EXPRESS_YN													/*국내특급여부		*/
+			  --, '' THISDDDELIVAREADIVCD									/*당일택배지역구분코드*/
+			  --, '' GOOD_SIZE												/*사이즈			*/
+			  --, '' COLOR													/*색상				*/
+			  --, '' LINK_DIV_CD											/*연동업체코드		*/
+			  ,AREADIVCD													/*제주배송지역구분	*/
+			  ,MICRO_YN														/*초소형택배구분	*/
+			  ,NEXTDAY_YN													/*익일예약여부		*/
+			  --, SYSDATE INS_DATE											/*입력일			*/
+			  ,CODYN														/*COD상품구분코드	*/
+			  ,GOODSAMT														/*COD상품금액		*/
+			  ,IMAGINETELYN													/*가상전화번호사용여부*/
+			  ,IMAGINE_TEL_NO												/*가상전화번호		*/
+			  ,MAIL_CONT													/*우편물내역		*/
+			  ,PRC_PAY_METH_CD												/*요금납부방법코드	*/
+			  ,FRN_MAIL_DIV_CD												/*국제우편물구분코드*/
+			  ,FRN_MAIL_KIND_CD												/*국제우편물종류코드*/
+			  ,CONSIG_DIV_CD												/*국제운송편구분코드*/
+			  ,ARRIVNAT_CD													/*도착국가코드		*/
+			  ,PRC_APPLY_AREA_CD											/*요금적용지역코드	*/
+			  ,SMS_YN														/*SMS여부			*/
+			  ,THISDD_PICKYN												/*당일픽업여부		*/
+			  ,SHIPPING_PRT_YN												/*기표지출력여부	*/
+			  ,IF_ID														/*인터페이스 ID		*/
+			  ,INIT_TIME													/*IF등록일시		*/
+			  ,DEAL_STATE													/*작업상태			*/
+			  ,WRK_GBN														/*작업구분			*/
+			  ,TX_ID														/*트랜잭션 ID		*/
+			  ,REGI_NO														/*송장번호			*/
+		  FROM (
+				SELECT ROW_NUMBER() OVER(PARTITION BY A.ORDER_ID ORDER BY A.REPRSNT_REGI_NO, A.ORDER_ITM_ID ASC) AS ROWIDX
+					  ,SUM(1) OVER(PARTITION BY A.ORDER_ID) TOTQTY
+					  ,C.CUST_NO CUSTNO																			/*고객번호				*/
+					  ,DECODE(D.HS_CD, NULL, C.PO_HDRY_CNTRAC_NO, C.EMS_CNTRAC_NO) CONTRACT_NO			/*계약승인번호			*/
+					  ,'N' EXCHG_YN																		/*맞교환구분			*/
+					  ,TO_CHAR(SYSDATE, 'YYYYMMDD') REQ_DATE											/*신청일				*/
+					  ,TO_CHAR(SYSDATE, 'HH24MISS') REQ_TIME											/*신청시각				*/
+					  ,CASE WHEN D.HS_CD IS NULL THEN '04'
+						  WHEN (D.HS_CD IS NOT NULL AND C.PO_HDRY_CNTRAC_NO IS NOT NULL) THEN '01'
+						  WHEN (D.HS_CD IS NOT NULL AND C.PO_HDRY_CNTRAC_NO IS NULL) THEN '03'
+						END DLV_REQ_CD																	/*배송신청구분코드(01 기업, 03 개인, 04 EMS)*/
+					  ,CASE WHEN (D.HS_CD IS NOT NULL AND C.PO_HDRY_CNTRAC_NO IS NULL) THEN '09'
+							WHEN (D.HS_CD IS NOT NULL AND C.PO_HDRY_CNTRAC_NO IS NOT NULL) THEN '16'
+						END DLV_REQ_PATH_CD																/*배송신청경로구분코드(09 개인, 16 기업)*/
+					  ,NVL(B.ORDRR_NM,A.SENDER_NM) ORD_MAN_NM											/*주문자명				*/
+					  ,F_DIV_TELNO(NVL(B.ORDRR_TELNO,A.SENDER_TELNO),'F') ORD_PR_TEL_FNO				/*주문자전화지역번호	*/
+					  ,F_DIV_TELNO(NVL(B.ORDRR_TELNO,A.SENDER_TELNO),'M') ORD_PR_TEL_MNO				/*주문자전화국번호		*/
+					  ,F_DIV_TELNO(NVL(B.ORDRR_TELNO,A.SENDER_TELNO),'L') ORD_PR_TEL_LNO				/*주문자전화끝번호		*/
+					  ,F_DIV_TELNO(NVL(B.ORDRR_HTELNO,A.SENDER_HTELNO),'F') ORD_PR_HTEL_FNO				/*주문자핸드폰시작번호	*/
+					  ,F_DIV_TELNO(NVL(B.ORDRR_HTELNO,A.SENDER_HTELNO),'M') ORD_PR_HTEL_MNO				/*주문자핸드폰국번호	*/
+					  ,F_DIV_TELNO(NVL(B.ORDRR_HTELNO,A.SENDER_HTELNO),'L') ORD_PR_HTEL_LNO				/*주문자핸드폰끝번호	*/
+					  ,C.SUPP_COMP_ID ENTR_NO															/*거래처코드			*/
+					  ,C.SUPP_COMP_ID RET_ENTR_NO														/*반품처코드			*/
+					  ,C.BCNC_NM ENTR_NM																/*거래처명				*/
+					  ,C.PRSDT_NM ENTR_AEMP_NM															/*거래처담당자명		*/
+					  ,C.EMAIL ENTR_EMAIL_ADDR															/*거래처담당자이메일	*/
+					  ,C.ZIPCD ENTR_POST_NO																/*거래처우편번호		*/
+					  ,C.ADDR1 ENTR_POST_ADDR															/*거래처우편번호주소	*/
+					  ,C.ADDR2 ENTR_DTL_ADDR															/*거래처상세주소		*/
+					  ,F_DIV_TELNO(C.TELNO, 'F') ENTR_TEL_FNO											/*거래처전화지역번호	*/
+					  ,F_DIV_TELNO(C.TELNO, 'M') ENTR_TEL_MNO											/*거래처전화국번호		*/
+					  ,F_DIV_TELNO(C.TELNO, 'L') ENTR_TEL_LNO											/*거래처전화끝번호		*/
+					  ,F_DIV_TELNO(C.PRSDT_MOBILE_NO, 'F') ENTR_HTEL_FNO								/*거래처핸드폰시작번호	*/
+					  ,F_DIV_TELNO(C.PRSDT_MOBILE_NO, 'M') ENTR_HTEL_MNO								/*거래처핸드폰국번호	*/
+					  ,F_DIV_TELNO(C.PRSDT_MOBILE_NO, 'L') ENTR_HTEL_LNO								/*거래처핸드폰끝번호	*/
+					  ,'' EX_INV_NO																		/*맞교환이전송장번호	*/
+					  ,'' RE_INV_NO																		/*맞교환회수송장번호	*/
+					  ,'' CONS_NATION_NO																/*수취인전화국가번호	*/
+					  ,A.RECPTER_NM CONS_MAN_NM															/*수취인성명			*/
+					  ,A.RECPTER_ZIPCD CONS_ZIPCD														/*수취인우편번호		*/
+					  ,A.RECPTER_ADDR1 CONS_ZIPCD_ADDR													/*수취인우편번호주소	*/
+					  ,A.RECPTER_ADDR2 CONS_DETAIL_ADDR													/*수취인상세주소		*/
+					  ,F_DIV_TELNO(A.RECPTER_TELNO, 'F') CONS_TEL_FNO									/*수취인전화지역번호	*/
+					  ,F_DIV_TELNO(A.RECPTER_TELNO, 'M') CONS_TEL_MNO									/*수취인전화국번호		*/
+					  ,F_DIV_TELNO(A.RECPTER_TELNO, 'L') CONS_TEL_LNO									/*수취인전화끝번호		*/
+					  ,F_DIV_TELNO(A.RECPTER_HTELNO, 'F') CONS_HTEL_FNO									/*수취인핸드폰시작번호	*/
+					  ,F_DIV_TELNO(A.RECPTER_HTELNO, 'M') CONS_HTEL_MNO									/*수취인핸드폰국번호	*/
+					  ,F_DIV_TELNO(A.RECPTER_HTELNO, 'L') CONS_HTEL_LNO									/*수취인핸드폰끝번호	*/
+					  ,A.GOODS_CD																		/*상품코드				*/
+					  ,A.GOODS_NM																		/*상품명				*/
+					  ,(A.WGHT * 1000) GOODS_WEIGHT														/*상품중량				*/
+					  ,A.VOLM GOODS_VOLUME																/*상품부피				*/
+					  ,COUNT(*) OVER(PARTITION BY A.ORDER_ITM_ID) CONT_AMT								/*포장 상품 총수량		*/
+					  ,NVL(FN_DELIVERY_PRICE(A.WGHT, A.VOLM), 0) FEE									/*배송비 예상요금		*/
+					  ,NVL(DECODE(E.SETL_METH_DIV_CD,'02','Y','N'),'N') DLV_FEE_YN						/*착불여부				*/
+					  ,CASE WHEN D.HS_CD IS NOT NULL AND E.SETL_METH_DIV_CD = '03' THEN '2' -- 착불
+							WHEN D.HS_CD IS NOT NULL AND E.SETL_METH_DIV_CD = '02' THEN '1' -- 선불
+							WHEN D.HS_CD IS NOT NULL AND E.SETL_METH_DIV_CD = '01' THEN '1' -- (선불,착불 무조건 선불로 나감)
+							WHEN D.HS_CD IS NOT NULL AND E.SETL_METH_DIV_CD IS NULL THEN '1' -- (선불,착불 개발 이전 로직시)
+							ELSE NULL
+						END PAY_METH																	/*지불방법				*/
+					  ,TO_CHAR(SYSDATE + 1, 'YYYYMMDD') PICKUP_REQ_DATE									/*집하요청일자			*/
+					  ,'' WISH_VISIT_YMD																/*희망방문접수일		*/
+					  ,'' WISH_DLV_DATE																	/*희망배달일			*/
+					  ,SUBSTRB(A.SEND_MSG, 1, 90) DLV_MSG												/*배송메세지			*/
+					  ,SUBSTRB(A.SEND_MEMO, 1, 90) NOTE													/*비고					*/
+					  ,A.ORDER_ID ORDER_NO																/*주문번호				*/
+					  ,SUBSTR(A.ORDER_ITM_ID, 1, 12) ORD_DTL_SN											/*주문내역일련번호		*/
+					  ,A.ORDER_ID DLVP_SN																/*배송지ID				*/
+					  ,SUBSTR(A.ORDER_ITM_ID, -7, 7) DLV_SN												/*배송일련번호			*/
+					  ,C.LWRNK_BCNC_NO																	/*하위거래처번호		*/
+					  ,NVL2(C.PO_HDRY_CNTRAC_NO, SUBSTR(C.PO_HDRY_CNTRAC_NO, 0,5), FN_REGIPOCD(C.ZIPCD)) PICKUP_REGIPOCD /*수집등기용국기호(국기호 테스트 우편번호 : 143725, 테스트국기호 : 60202)*/
+					  ,FN_REGIPOCD(A.RECPTER_ZIPCD) DLV_REGIPOCD										/*배달등기용국기호(테스트국기호 : 66633)*/
+					  ,NVL2(C.PO_HDRY_CNTRAC_NO, SUBSTR(C.PO_HDRY_CNTRAC_NO, 0,5), FN_REGIPOCD(C.ZIPCD)) NREQ_REGIPOCD /*신청국등기용국기호(테스트국기호 : 10186)*/
+					  ,NVL2(C.PO_HDRY_CNTRAC_NO, SUBSTR(C.PO_HDRY_CNTRAC_NO, 0,5), FN_REGIPOCD(C.ZIPCD)) NPICKUP_REGIPOCD /*집하국등기용국기호(테스트국기호 : 40326)*/
+					  ,'' NRECEV_REGIPOCD 																/*접수국등기용국기호	*/
+					  ,'01' PARCEL_ECODE																/*택배처리이벤트코드 처리상태코드*/
+					  ,SYSDATE ADB_TIMESTAMP 															/*신청일				*/
+					  ,DECODE(D.HS_CD,NULL,'N','','N','C') ADB_OPCODE									/*신청구분코드			*/
+					  ,DECODE(D.HS_CD,NULL,'O','','O','H') SEQ_TP										/*일련타입				*/
+					  ,'N' TODAY_YN																		/*당일택배여부			*/
+					  ,'N' HOLDAY_YN																	/*휴일택배여부			*/
+					  ,'N' EXPRESS_YN																	/*국내특급여부			*/
+					  --, '' THISDDDELIVAREADIVCD														/*당일택배지역구분코드	*/
+					  --, '' GOOD_SIZE																	/*사이즈				*/
+					  --, '' COLOR																		/*색상					*/
+					  --, '' LINK_DIV_CD																/*연동업체코드			*/
+					  ,FN_AREADIVCD(A.RECPTER_ZIPCD) AREADIVCD											/*제주배송지역구분		*/
+					  ,'' MICRO_YN																		/*초소형택배구분		*/
+					  ,'' NEXTDAY_YN																	/*익일예약여부			*/
+					  --, SYSDATE INS_DATE																/*입력일				*/
+					  ,'N' CODYN																		/*COD상품구분코드		*/
+					  ,'' GOODSAMT																		/*COD상품금액			*/
+					  ,DECODE(A.RECPTER_VIRTL_NO,NULL,'N','','N','Y') IMAGINETELYN						/*가상전화번호사용여부	*/
+					  ,A.RECPTER_VIRTL_NO IMAGINE_TEL_NO												/*가상전화번호			*/
+					  ,A.GOODS_NM MAIL_CONT																/*우편물내역			*/
+					  ,C.PRC_PAY_DIV_CD PRC_PAY_METH_CD													/*요금납부방법코드		*/
+					  ,'31' FRN_MAIL_DIV_CD																/*국제우편물구분코드	*/
+					  ,'301' FRN_MAIL_KIND_CD															/*국제우편물종류코드	*/
+					  ,'1' CONSIG_DIV_CD																/*국제운송편구분코드	*/
+					  ,'' ARRIVNAT_CD																	/*도착국가코드			*/
+					  ,'' PRC_APPLY_AREA_CD																/*요금적용지역코드		*/
+					  ,'N' SMS_YN																		/*SMS여부				*/
+					  ,'N' THISDD_PICKYN																/*당일픽업여부			*/
+					  ,A.BALTSHT_PRT_YN SHIPPING_PRT_YN													/*기표지출력여부		*/
+					  ,'' IF_ID																			/*인터페이스 ID			*/
+					  ,SYSDATE INIT_TIME																/*IF등록일시			*/
+					  ,'N' DEAL_STATE																	/*작업상태				*/
+					  ,'1' WRK_GBN																		/*작업구분				*/
+					  ,'' TX_ID																			/*트랜잭션 ID			*/
+					  ,NVL(A.REPRSNT_REGI_NO,A.REGI_NO) REGI_NO											/*송장번호				*/
+				  FROM OD_ORDER_ITM A
+					  ,OD_ORDER_MAST B
+					  ,CO_SUPP_COMP_MAST C
+					  ,GD_GOODS_MAST D
+					  ,GD_GOODS_SEND E
+				 WHERE A.ORDER_ID = B.ORDER_ID
+				   AND A.SUPP_COMP_ID = C.SUPP_COMP_ID
+				   AND A.GOODS_CD = D.GOODS_CD
+				   AND A.GOODS_CD = E.GOODS_CD
+				   AND A.ORDER_ID = #searchOrderId#
+				   AND NVL(A.REPRSNT_REGI_NO,A.REGI_NO) = #regiNo#
+				) MST
+		 WHERE ROWIDX = 1
+	</select>
+	
+	<!--전통시장 픽업요청 SEQ 조회-->
+	<select id="selectMmarketPicupSeq" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectMmarketPicupSeq **/
+		SELECT TO_CHAR(SYSDATE,'YYYYMMDD') || LPAD(CAST(COUNT(*) AS INT) + 1,8,'0') VISIT_NO
+		  FROM MMA_IF_DELIVERY
+		 WHERE REQ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')
+	</select>
+	
+	<!-- 전통시장 픽업요청 -->
+	<update id="insertMmarketPicupReqInterface"  parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.insertMmarketPicupReqInterface **/
+		INSERT INTO MMA_IF_DELIVERY
+			(
+			 VISIT_NO											/*예약신청번호		*/
+			,CUSTNO												/*고객번호			*/
+			,CONTRACT_NO										/*계약승인번호		*/
+			,EXCHG_YN											/*맞교환구분		*/
+			,REQ_DATE											/*신청일			*/
+			,REQ_TIME											/*신청시각			*/
+			,DLV_REQ_CD											/*배송신청구분코드	*/
+			,DLV_REQ_PATH_CD									/*배송신청경로구분코드*/
+			,ORD_MAN_NM											/*주문자명			*/
+			,ORD_PR_TEL_FNO										/*주문자전화지역번호*/
+			,ORD_PR_TEL_MNO										/*주문자전화국번호	*/
+			,ORD_PR_TEL_LNO										/*주문자전화끝번호	*/
+			,ORD_PR_HTEL_FNO									/*주문자핸드폰시작번호*/
+			,ORD_PR_HTEL_MNO									/*주문자핸드폰국번호*/
+			,ORD_PR_HTEL_LNO									/*주문자핸드폰끝번호*/
+			,ENTR_NO											/*거래처코드		*/
+			,RET_ENTR_NO										/*반품처코드		*/
+			,ENTR_NM											/*거래처명			*/
+			,ENTR_AEMP_NM										/*거래처담당자명	*/
+			,ENTR_EMAIL_ADDR									/*거래처담당자이메일*/
+			,ENTR_POST_NO										/*거래처우편번호	*/
+			,ENTR_POST_ADDR										/*거래처우편번호주소*/
+			,ENTR_DTL_ADDR										/*거래처상세주소	*/
+			,ENTR_TEL_FNO										/*거래처전화지역번호*/
+			,ENTR_TEL_MNO										/*거래처전화국번호	*/
+			,ENTR_TEL_LNO										/*거래처전화끝번호	*/
+			,ENTR_HTEL_FNO										/*거래처핸드폰시작번호*/
+			,ENTR_HTEL_MNO										/*거래처핸드폰국번호*/
+			,ENTR_HTEL_LNO										/*거래처핸드폰끝번호*/
+			,INVOICE_NO											/*송장번호			*/
+			,EX_INV_NO											/*맞교환이전송장번호*/
+			,RE_INV_NO											/*맞교환회수송장번호*/
+			,CONS_NATION_NO										/*수취인전화국가번호*/
+			,CONS_MAN_NM										/*수취인성명		*/
+			,CONS_ZIPCD											/*수취인우편번호	*/
+			,CONS_ZIPCD_ADDR									/*수취인우편번호주소*/
+			,CONS_DETAIL_ADDR									/*수취인상세주소	*/
+			,CONS_TEL_FNO										/*수취인전화지역번호*/
+			,CONS_TEL_MNO										/*수취인전화국번호	*/
+			,CONS_TEL_LNO										/*수취인전화끝번호	*/
+			,CONS_HTEL_FNO										/*수취인핸드폰시작번호*/
+			,CONS_HTEL_MNO										/*수취인핸드폰국번호*/
+			,CONS_HTEL_LNO										/*수취인핸드폰끝번호*/
+			,GOOD_CD											/*상품코드			*/
+			,GOOD_NM											/*상품명			*/
+			,GOODS_WEIGHT										/*상품중량			*/
+			,GOODS_VOLUME										/*상품부피			*/
+			,CONT_AMT											/*포장 상품 총수량	*/
+			,FEE												/*배송비 예상요금	*/
+			,DLV_FEE_YN											/*착불여부			*/
+			,PAY_METH											/*지불방법			*/
+			,PICKUP_REQ_DATE									/*집하요청일자		*/
+			,WISH_VISIT_YMD										/*희망방문접수일	*/
+			,WISH_DLV_DATE										/*희망배달일		*/
+			,DLV_MSG											/*배송메세지		*/
+			,NOTE												/*비고				*/
+			,ORDER_NO											/*주문번호			*/
+			,ORD_DTL_SN											/*주문내역일련번호	*/
+			,DLV_SN												/*배송일련번호		*/
+			,PICKUP_REGIPOCD									/*수집등기용국기호	*/
+			,DLV_REGIPOCD										/*배달등기용국기호	*/
+			,NREQ_REGIPOCD										/*신청국등기용국기호*/
+			,NPICKUP_REGIPOCD									/*집하국등기용국기호*/
+			,NRECEV_REGIPOCD									/*접수국등기용국기호*/
+			,PARCEL_ECODE										/*택배처리이벤트코드 처리상태코드*/
+			,ADB_TIMESTAMP										/*신청일			*/
+			,ADB_OPCODE											/*신청구분코드		*/
+			,TODAY_YN											/*당일택배여부		*/
+			,HOLDAY_YN											/*휴일택배여부		*/
+			,EXPRESS_YN											/*국내특급여부		*/
+		  --,THISDDDELIVAREADIVCD								/*당일택배지역구분코드*/
+		  --,GOOD_SIZE											/*사이즈			*/
+		  --,COLOR												/*색상				*/
+		  --,LINK_DIV_CD										/*연동업체코드		*/
+			,AREADIVCD											/*제주배송지역구분	*/
+			,MICRO_YN											/*초소형택배구분	*/
+			,NEXTDAY_YN											/*익일예약여부		*/
+		  --,INS_DATE											/*입력일			*/
+			,CODYN												/*COD상품구분코드	*/
+			,GOODSAMT											/*COD상품금액		*/
+			,IMAGINETELYN										/*가상전화번호사용여부*/
+			,IMAGINE_TEL_NO										/*가상전화번호		*/
+			,MAIL_CONT											/*우편물내역		*/
+			,PRC_PAY_METH_CD									/*요금납부방법코드	*/
+			,FRN_MAIL_DIV_CD									/*국제우편물구분코드*/
+			,FRN_MAIL_KIND_CD									/*국제우편물종류코드*/
+			,CONSIG_DIV_CD										/*국제운송편구분코드*/
+			,ARRIVNAT_CD										/*도착국가코드		*/
+			,PRC_APPLY_AREA_CD									/*요금적용지역코드	*/
+			,SMS_YN												/*SMS여부			*/
+			,THISDD_PICKYN										/*당일픽업여부		*/
+			,SHIPPING_PRT_YN									/*기표지출력여부	*/
+			,IF_ID												/*인터페이스 ID		*/
+			,INIT_TIME											/*IF등록일시		*/
+			,DEAL_STATE											/*작업상태			*/
+			,WRK_GBN											/*작업구분			*/
+			,TX_ID												/*트랜잭션 ID		*/
+			,VISIT_TYPE											/*신청구분타입		*/
+			)
+			VALUES
+			(
+			 #visitno#										/*예약신청번호		*/
+			,#custno#										/*고객번호			*/
+			,#contractNo#									/*계약승인번호		*/
+			,#exchgYn#										/*맞교환구분		*/
+			,#reqDate#										/*신청일			*/
+			,#reqTime#										/*신청시각			*/
+			,#dlvReqCd#										/*배송신청구분코드	*/
+			,#dlvReqPathCd#									/*배송신청경로구분코드*/
+			,#ordManNm#										/*주문자명			*/
+			,#ordPrTelFno#									/*주문자전화지역번호*/
+			,#ordPrTelMno#									/*주문자전화국번호	*/
+			,#ordPrTelLno#									/*주문자전화끝번호	*/
+			,#ordPrHtelFno#									/*주문자핸드폰시작번호*/
+			,#ordPrHtelMno#									/*주문자핸드폰국번호*/
+			,#ordPrHtelLno#									/*주문자핸드폰끝번호*/
+			,#entrNo#										/*거래처코드		*/
+			,#retEntrNo#									/*반품처코드		*/
+			,#entrNm#										/*거래처명			*/
+			,#entrAempNm#									/*거래처담당자명	*/
+			,#entrEmailAddr#								/*거래처담당자이메일*/
+			,#entrPostNo#									/*거래처우편번호	*/
+			,#entrPostAddr#									/*거래처우편번호주소*/
+			,#entrDtlAddr#									/*거래처상세주소	*/
+			,#entrTelFno#									/*거래처전화지역번호*/
+			,#entrTelMno#									/*거래처전화국번호	*/
+			,#entrTelLno#									/*거래처전화끝번호	*/
+			,#entrHtelFno#									/*거래처핸드폰시작번호*/
+			,#entrHtelMno#									/*거래처핸드폰국번호*/
+			,#entrHtelLno#									/*거래처핸드폰끝번호*/
+			,#regino#										/*송장번호			*/
+			,#exInvNo#										/*맞교환이전송장번호*/
+			,#reInvNo#										/*맞교환회수송장번호*/
+			,#consNationNo#									/*수취인전화국가번호*/
+			,#consManNm#									/*수취인성명		*/
+			,#consZipcd#									/*수취인우편번호	*/
+			,#consZipcdAddr#								/*수취인우편번호주소*/
+			,#consDetailAddr#								/*수취인상세주소	*/
+			,#consTelFno#									/*수취인전화지역번호*/
+			,#consTelMno#									/*수취인전화국번호	*/
+			,#consTelLno#									/*수취인전화끝번호	*/
+			,#consHtelFno#									/*수취인핸드폰시작번호*/
+			,#consHtelMno#									/*수취인핸드폰국번호*/
+			,#consHtelLno#									/*수취인핸드폰끝번호*/
+			,#goodsCd#										/*상품코드			*/
+			,#goodsNm#										/*상품명			*/
+			,#goodsWeight#									/*상품중량			*/
+			,#goodsVolume#									/*상품부피			*/
+			,#contAmt#										/*포장 상품 총수량	*/
+			,#fee#											/*배송비 예상요금	*/
+			,#dlvFeeYn#										/*착불여부			*/
+			,#payMeth#										/*지불방법			*/
+			,#pickupReqDate#								/*집하요청일자		*/
+			,#wishVisitYmd#									/*희망방문접수일	*/
+			,#wishDlvDate#									/*희망배달일		*/
+			,#dlvMsg#										/*배송메세지		*/
+			,#note#											/*비고				*/
+			,#orderNo#										/*주문번호			*/
+			,#ordDtlSn#										/*주문내역일련번호	*/
+			,#dlvSn#										/*배송일련번호		*/
+			,#pickupRegipocd#								/*수집등기용국기호	*/
+			,#dlvRegipocd#									/*배달등기용국기호	*/
+			,#nreqRegipocd#									/*신청국등기용국기호*/
+			,#npickupRegipocd#								/*집하국등기용국기호*/
+			,#nrecevRegipocd#								/*접수국등기용국기호*/
+			,#parcelEcode#									/*택배처리이벤트코드 처리상태코드*/
+			,SYSDATE										/*신청일			*/
+			,#adbOpcode#									/*신청구분코드		*/
+			,#todayYn#										/*당일택배여부		*/
+			,#holdayYn#										/*휴일택배여부		*/
+			,#expressYn#									/*국내특급여부		*/
+			--,'' AS thisdddelivareadivcd					/*당일택배지역구분코드*/
+			--,'' AS goodSize								/*사이즈			*/
+			--,'' AS color									/*색상				*/
+			--,'' AS linkDivCd								/*연동업체코드		*/
+			,#areadivcd#									/*제주배송지역구분	*/
+			,#microYn#										/*초소형택배구분	*/
+			,#nextdayYn#									/*익일예약여부		*/
+			--,'' AS insDate								/*입력일			*/
+			,#codyn#										/*COD상품구분코드	*/
+			,#goodsamt#										/*COD상품금액		*/
+			,#imaginetelyn#									/*가상전화번호사용여부*/
+			,#imagineTelNo#									/*가상전화번호		*/
+			,#mailCont#										/*우편물내역		*/
+			,#prcPayMethCd#									/*요금납부방법코드	*/
+			,#frnMailDivCd#									/*국제우편물구분코드*/
+			,#frnMailKindCd#								/*국제우편물종류코드*/
+			,#consigDivCd#									/*국제운송편구분코드*/
+			,#arrivnatCd#									/*도착국가코드		*/
+			,#prcApplyAreaCd#								/*요금적용지역코드	*/
+			,#smsYn#										/*SMS여부			*/
+			,#thisddPickyn#									/*당일픽업여부		*/
+			,#shippingPrtYn#								/*기표지출력여부	*/
+			,#ifId#											/*인터페이스 ID		*/
+			,SYSDATE										/*IF등록일시		*/
+			,#dealState#									/*작업상태			*/
+			,#wrkGbn#										/*작업구분			*/
+			,#txId#											/*트랜잭션 ID		*/
+			,'C'											/*신청구분타입		*/
+			)
+	</update>
+	
+	<!-- 물류연계 등기번호 입력(통계용 / 에스크로 DB) -->
+	<update id="insertEcOrderPostage" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.insertEcOrderPostage **/
+		INSERT INTO EC_ORDER_POSTAGE_INTERFACE M
+		(      M.TXORDER_ID, M.GBN, M.TRACKING_NUMBER, M.CREATE_DATE, M.STATUS )
+		SELECT I.TXORDER_ID, I.GBN, I.TRACKING_NUMBER, I.CREATE_DATE, I.STATUS
+		  FROM
+				(SELECT   OOI.ORDER_ITM_ID						AS TXORDER_ID
+						 ,'02'									AS GBN
+						 ,OOI.REGI_NO							AS TRACKING_NUMBER
+						 ,TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')	AS CREATE_DATE
+						 ,'0'									AS STATUS
+				  FROM   OD_ORDER_ITM  OOI
+						,OD_ORDER_MAST OOM
+				 WHERE   OOI.ORDER_ID = OOM.ORDER_ID
+				   AND   OOI.ORDER_ID = #orderId#
+				   AND   NVL(OOI.REPRSNT_REGI_NO, OOI.REGI_NO) = #regiNo# ) I
+	</update>
+	
+	<!-- 기표지출력주체 수정 -->
+	<update id="updateOrderBaltshtPrtMbyCd" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SrmFoOrder.updateOrderBaltshtPrtMbyCd **/
+		UPDATE OD_ORDER_ITM
+		   SET BALTSHT_PRT_MBY_CD = #baltshtPrtMbyCd#
+		 WHERE ORDER_ID = #orderId#
+	</update>
+	
+	<!-- 집하정보 조회 -->
+	<select id="selectPicupReqGatheringInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqGatheringInfo **/
+		SELECT B.REGIPOCD
+			  ,(SELECT PONM FROM PICMT0060 Y WHERE Y.REGIPOCD = B.REGIPOCD AND Y.USEYN = 'Y') REGIPOCDNM
+			  ,B.PICKUPAREANM
+			  ,C.WEEKDAYDIVCD
+			  ,C.PICKUPPARTYNM
+			  ,C.EXPECTTIMEDESCCONT
+			  ,C.REQPSSBHHMI
+			  ,C.PICKUPSTRTHHMI
+			  ,C.PICKUPENDHHMI
+			  ,B.BASICCHRGPRSNID
+			  ,B.PICKUPAREASEQ
+			  ,C.PICKUPPARTYSEQ
+		  FROM PEDUT0030 A
+			  ,PEDUT0010 B
+			  ,PEDUT0020 C
+		 WHERE REPLACE(#recpterZipcd#,'-') BETWEEN A.STRTZIPCD 
+		   AND A.ENDZIPCD
+		   AND A.PICKUPAREASEQ = B.PICKUPAREASEQ
+		   AND B.PICKUPAREASEQ = C.PICKUPAREASEQ
+		   AND B.USEYN = 'Y'
+		   AND B.REGIPOCD =(SELECT DISTINCT PICKUPREGIPOCD FROM V_POSTALCODE WHERE ZIPCD = REPLACE(#recpterZipcd#,'-') AND USEYN = 'Y' AND ROWNUM = 1)
+		   AND C.TEMPPARTYYN = 'N'
+		   AND C.USEYN = 'Y'
+		<isNotEmpty  property="weekdaydivcd">
+		   AND WEEKDAYDIVCD = #weekdaydivcd#
+		</isNotEmpty>
+		   AND ROWNUM = 1
+		 ORDER BY C.WEEKDAYDIVCD, C.PICKUPSTRTHHMI
+	</select>
+	
+	<!-- 집하날짜 조회 -->
+	<select id="selectPicupReqGatheringDateList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqGatheringDateList **/
+		<![CDATA[
+		SELECT WORKCALEYMD
+			  ,WEEKDAYCD
+		  FROM (
+				SELECT WORKCALEYMD, WEEKDAYCD
+				  FROM PICMT0130
+				 WHERE WORKCALEYMD >= #searchCurrentDate#
+				   AND RCOCD = (SELECT RCOCD FROM PICMT0060 WHERE REGIPOCD = #regipocd# AND USEYN = 'Y' AND DSCDPOYN = 'N')
+				   AND HOLDAYYN = 'N'
+				 ORDER BY WORKCALEYMD )
+		 WHERE ROWNUM < 8
+		]]>
+	</select>
+	<!-- 
+	WHERE WORKCALEYMD >= TO_CHAR(SYSDATE,'YYYYMMDD')
+	 -->
+	
+	<!-- 집하정보 조회 -->
+	<select id="selectPicupReqGatheringInfo2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectPicupReqGatheringInfo2 **/
+		SELECT PICKUPREGIPOCD REGIPOCD
+		  FROM V_POSTALCODE A
+		 WHERE ZIPCD = REPLACE(#recpterZipcd#,'-')
+		   AND USEYN = 'Y' 
+		   AND ROWNUM = 1
+	</select>
+	
+	<!-- 배송관리_배송처리 주문상태 조회 Ajax -->
+	<select id="selectOrderStusChkAjax" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectOrderStusChkAjax **/
+		SELECT  OOM.ORDER_ID
+			  , OOM.ORDER_STUS_CD
+		  FROM  OD_ORDER_MAST OOM
+		 WHERE  OOM.ORDER_ID IN <iterate property="orderIdList" open="(" conjunction="," close=")">#orderIdList[]#</iterate>
+	</select>
+	
+	<!-- 배송관리_배송처리 송장 정보 리스트 카운트 -->
+	<select id="selectSendShippingChgMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="int">
+		/** SQL_ID : BO.SendProc.selectSendShippingChgMgrListTotCnt **/
+		SELECT   COUNT(*)			AS TOTCNT
+		  FROM   OD_ORDER_ITM  OOI
+				,GD_GOODS_MAST GGM
+				,CO_SUPP_COMP_MAST CSCM
+		 WHERE   OOI.GOODS_CD      = GGM.GOODS_CD(+)
+		   AND   OOI.SUPP_COMP_ID  = CSCM.SUPP_COMP_ID(+)
+		   AND   OOI.ORDER_ID IN
+			<iterate property="orderIds" open="("  close=")" conjunction=",">
+				#orderIds[]#
+			</iterate>
+	</select>
+	
+	<!-- 배송관리_배송처리 송장 정보 리스트 -->
+	<select id="selectSendShippingChgMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectSendShippingChgMgrList **/
+		SELECT T.*
+			  ,ROWNUM RNUM
+		  FROM (
+				SELECT OOI.ORDER_ID
+					  ,OOI.ORDER_ITM_ID
+					  ,OOI.REQ_CNT
+					  ,OOI.RECPTER_NM
+					  ,OOI.HDRYCO_CD
+					  ,OOI.SEND_TYP_CD
+					  ,OOI.REGI_NO
+					  ,OOI.DC_APPLY_PRC
+					  ,(SELECT F_GET_COMN_CD_NM('HDRYCO_CD',   NVL(NVL(OOI.HDRYCO_CD,OOI.HDRYCO_CD),OOI.HDRYCO_CD)) FROM DUAL)	AS HDRYCO_NM
+					  ,(SELECT F_GET_COMN_CD_NM('SEND_TYP_CD', OOI.SEND_TYP_CD) FROM DUAL)										AS SEND_TYP_NM
+				  FROM OD_ORDER_ITM  OOI
+					  ,GD_GOODS_MAST GGM
+					  ,CO_SUPP_COMP_MAST CSCM
+				 WHERE OOI.GOODS_CD      = GGM.GOODS_CD
+				   AND OOI.SUPP_COMP_ID  = CSCM.SUPP_COMP_ID
+				   AND OOI.ORDER_ID IN
+				<iterate property="orderIds" open="("  close=")" conjunction=",">
+					#orderIds[]#
+				</iterate>
+				 ORDER BY OOI.ORDER_ITM_ID
+			) T
+	</select>
+	
+	<!-- 배송관리_배송처리 송장 수정 -->
+	<update id="updateSendShippingChgAjax" parameterClass="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateSendShippingChgAjax **/
+		UPDATE OD_ORDER_ITM
+		  SET  REGI_NO		= #regiNo#,
+			  ,SEND_TYP_CD	= #sendTypCd#,
+			  ,HDRYCO_CD	= #hdrycoCd#
+		WHERE  ORDER_ITM_ID = #orderItmId#
+	</update>
+	
+	<!-- 배송관리 배송조회 대표등기번호 조회 -->
+	<select id="selectReprsntRegiNoAjax" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectReprsntRegiNoAjax **/
+		<![CDATA[
+		SELECT MAX( NVL(OOI.REPRSNT_REGI_NO, OOI.REGI_NO) ) OVER (ORDER BY OOI.REGI_NO DESC ) AS REPRSNT_REGI_NO
+		  FROM OD_ORDER_ITM OOI
+		 WHERE OOI.ORDER_ID                 = #searchOrderId#
+		/* AND NVL(OOI.PRSNT_YN,       'N') = 'N'
+		   AND NVL(OOI.EXTRA_GOODS_YN, 'N') = 'N' */
+		   AND ROWNUM = 1
+		]]>
+	</select>
+	
+	<!-- 주문/통보 우편번호로 지역코드를 조회한다. -->
+	<select id="selectImaginePerRcocd" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectImaginePerRcocd **/
+		SELECT DECODE(RCOCD, 1, 1, 10, 1, 15, 1, 2) AS RCOCD
+		FROM  PICMT0060
+		WHERE REGIPOCD = (SELECT PICKUPREGIPOCD FROM V_POSTALCODE WHERE ZIPCD = REPLACE(#zipCd#, '-', '') AND USEYN='Y' AND ROWNUM = 1)
+		AND   USEYN    = 'Y'
+		AND   ROWNUM   = 1
+	</select>
+	
+	<!-- 우편번호로 등기용국기호 조회 -->
+	<select id="selectPicupReqRegiPocd" parameterClass ="String" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectPicupReqRegiPocd **/
+		SELECT PICKUPREGIPOCD REGIPOCD
+		  FROM V_POSTALCODE A
+		 WHERE ZIPCD = REPLACE(#zipCd#,'-')
+		   AND USEYN = 'Y'
+		   AND ROWNUM = 1
+	</select>
+	
+	<!-- 배송관리_배송처리 픽업요청 -->
+	<update id="insertMmaIfDelivery" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.insertMmaIfDelivery **/
+		INSERT INTO MMA_IF_DELIVERY
+			(
+			 VISIT_NO
+			,CUSTNO
+			,CONTRACT_NO
+			,EXCHG_YN
+			,REQ_DATE
+			,REQ_TIME
+			,DLV_REQ_CD
+			,DLV_REQ_PATH_CD
+			,ORD_MAN_NM
+			,ORD_PR_TEL_FNO
+			,ORD_PR_TEL_MNO
+			,ORD_PR_TEL_LNO
+			,ORD_PR_HTEL_FNO
+			,ORD_PR_HTEL_MNO
+			,ORD_PR_HTEL_LNO
+			,ENTR_NO
+			,RET_ENTR_NO
+			,ENTR_NM
+			,ENTR_AEMP_NM
+			,ENTR_EMAIL_ADDR
+			,ENTR_POST_NO
+			,ENTR_POST_ADDR
+			,ENTR_DTL_ADDR
+			,ENTR_TEL_FNO
+			,ENTR_TEL_MNO
+			,ENTR_TEL_LNO
+			,ENTR_HTEL_FNO
+			,ENTR_HTEL_MNO
+			,ENTR_HTEL_LNO
+			,INVOICE_NO
+			,EX_INV_NO
+			,RE_INV_NO
+			,CONS_NATION_NO
+			,CONS_MAN_NM
+			,CONS_ZIPCD
+			,CONS_ZIPCD_ADDR
+			,CONS_DETAIL_ADDR
+			,CONS_TEL_FNO
+			,CONS_TEL_MNO
+			,CONS_TEL_LNO
+			,CONS_HTEL_FNO
+			,CONS_HTEL_MNO
+			,CONS_HTEL_LNO
+			,GOOD_CD
+			,GOOD_NM
+			,GOODS_WEIGHT
+			,GOODS_VOLUME
+			,CONT_AMT
+			,FEE
+			,DLV_FEE_YN
+			,PAY_METH
+			,PICKUP_REQ_DATE
+			,WISH_VISIT_YMD
+			,WISH_DLV_DATE
+			,DLV_MSG
+			,NOTE
+			,ORDER_NO
+			,ORD_DTL_SN
+			,DLV_SN
+			,PICKUP_REGIPOCD
+			,DLV_REGIPOCD
+			,NREQ_REGIPOCD
+			,NPICKUP_REGIPOCD
+			,NRECEV_REGIPOCD
+			,PARCEL_ECODE
+			,ADB_TIMESTAMP
+			,ADB_OPCODE
+			,TODAY_YN
+			,HOLDAY_YN
+			,EXPRESS_YN
+			,AREADIVCD
+			,MICRO_YN
+			,NEXTDAY_YN
+			,CODYN
+			,GOODSAMT
+			,IMAGINETELYN
+			,IMAGINE_TEL_NO
+			,MAIL_CONT
+			,PRC_PAY_METH_CD
+			,FRN_MAIL_DIV_CD
+			,FRN_MAIL_KIND_CD
+			,CONSIG_DIV_CD
+			,ARRIVNAT_CD
+			,PRC_APPLY_AREA_CD
+			,SMS_YN
+			,THISDD_PICKYN
+			,SHIPPING_PRT_YN
+			,IF_ID
+			,INIT_TIME
+			,DEAL_STATE
+			,WRK_GBN
+			,TX_ID
+			,VISIT_TYPE
+			)
+			VALUES
+			(
+			 #visitNo#
+			,#custno#
+			,#contractNo#
+			,#exchgYn#
+			,TO_CHAR(SYSDATE,'YYYYMMDD')
+			,TO_CHAR(SYSDATE,'HH24MISS')
+			,#dlvReqCd#
+			,#dlvReqPathCd#
+			,#ordManNm#
+			,F_DIV_TELNO(#ordPrTelFno#, 'F')
+			,F_DIV_TELNO(#ordPrTelMno#, 'M')
+			,F_DIV_TELNO(#ordPrTelLno#, 'L')
+			,F_DIV_TELNO(#ordPrHtelFno#, 'F')
+			,F_DIV_TELNO(#ordPrHtelMno#, 'M')
+			,F_DIV_TELNO(#ordPrHtelLno#, 'L')
+			,#entrNo#
+			,#retEntrNo#
+			,#senderNm#
+			,#entrAempNm#
+			,#entrEmailAddr#
+			,REPLACE(#entrPostNo#, '-', '')
+			,#entrPostAddr#
+			,#entrDtlAddr#
+			,F_DIV_TELNO(#entrTelFno#, 'F')
+			,F_DIV_TELNO(#entrTelMno#, 'M')
+			,F_DIV_TELNO(#entrTelLno#, 'L')
+			,F_DIV_TELNO(#entrHtelFno#, 'F')
+			,F_DIV_TELNO(#entrHtelMno#, 'M')
+			,F_DIV_TELNO(#entrHtelLno#, 'L')
+			,#invoiceNo#
+			,#exInvNo#
+			,#reInvNo#
+			,#consNationNo#
+			,#consManNm#
+			,REPLACE(#consZipcd#, '-', '')
+			,#consZipcdAddr#
+			,#consDetailAddr#
+			,F_DIV_TELNO(#consTelFno#, 'F')
+			,F_DIV_TELNO(#consTelMno#, 'M')
+			,F_DIV_TELNO(#consTelLno#, 'L')
+			,F_DIV_TELNO(#consHtelFno#, 'F')
+			,F_DIV_TELNO(#consHtelMno#, 'M')
+			,F_DIV_TELNO(#consHtelLno#, 'L')
+			,#goodCd#
+			,#goodNm#
+			,#goodsWeight#
+			,#goodsVolume#
+			,#contAmt#
+			,#fee#
+			,#dlvFeeYn#
+			,#payMeth#
+			,#pickupReqDate#
+			,#wishVisitYmd#
+			,#wishDlvDate#
+			,SUBSTR(#dlvMsg#, 1, 35)
+			,#note#
+			,#orderNo#
+			,#ordDtlSn#
+			,#dlvSn#
+			,NVL2(#contractNo#, SUBSTR(#contractNo#,1,5), #pickupRegipocd#)
+			,#dlvRegipocd#
+			,NVL2(#contractNo#, SUBSTR(#contractNo#,1,5), #nreqRegipocd#)
+			,NVL2(#contractNo#, SUBSTR(#contractNo#,1,5), #npickupRegipocd#)
+			,#nrecevRegipocd#
+			,#parcelEcode#
+			,#adbTimestamp#
+			,#adbOpcode#
+			,#todayYn#
+			,#holdayYn#
+			,#expressYn#
+			,#areadivcd#
+			,#microYn#
+			,#nextdayYn#
+			,#codyn#
+			,#goodsamt#
+			,#imaginetelyn#
+			,#imagineTelNo#
+			,#mailCont#
+			,#prcPayMethCd#
+			,#frnMailDivCd#
+			,#frnMailKindCd#
+			,#consigDivCd#
+			,#arrivnatCd#
+			,#prcApplyAreaCd#
+			,#smsYn#
+			,#thisddPickyn#
+			,#shippingPrtYn#
+			,#ifId#
+			,SYSDATE
+			,#dealState#
+			,#wrkGbn#
+			,#txId#
+			,#visitType#
+			)
+	</update>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 - 픽업요청 삭제 -->
+	<select id="selectMmaIfDelivery" parameterClass ="String" resultClass="String">
+		/** SQL_ID : BO.SrmFoOrder.selectMmaIfDelivery **/
+		SELECT COUNT(*)
+		  FROM MMA_IF_DELIVERY
+		 WHERE VISIT_NO = #visitNo#
+	</select>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 - 픽업요청 삭제 -->
+	<delete id="deleteMmaIfDelivery" parameterClass ="String">
+		/** SQL_ID : BO.SendProc.deleteMmaIfDelivery **/
+		DELETE MMA_IF_DELIVERY
+		 WHERE VISIT_NO = #visitNo#
+	</delete>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 - 물류연계 등기번호 입력(통계용 / 에스크로 DB) 삭제 -->
+	<delete id="deleteEcOrderPostage" parameterClass ="String">
+		/** SQL_ID : BO.SendProc.deleteEcOrderPostage **/
+		DELETE EC_ORDER_POSTAGE_INTERFACE
+		 WHERE TXORDER_ID = #txorderId#
+	</delete>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 선주문 등기번호 마스터 삭제 -->
+	<delete id="deleteTrackingNumberMaster" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.deleteTrackingNumberMaster **/
+		DELETE OD_TRACKING_MASTER_MGMT
+		WHERE ORDER_ITM_ID = #orderItmId#
+	</delete>
+	<!-- 
+	WHERE REGI_NO = #regiNo#
+	 -->
+
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 등기번호 관리 사용여부 변경 -->
+	<update id="updateTrackingNumber" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateTrackingNumber **/
+		UPDATE OD_TRACKING_NUMBER_MGMT
+		   SET USE_YN = 'N'
+			  ,ORDER_STUS_CD = ''
+		WHERE ORDER_ITM_ID = #orderItmId#
+		  AND (USE_YN = 'Y' OR USE_YN IS NULL)
+	</update>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 통보취소 대상 조회 -->
+	<select id="selectSpcltySuppItemInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectSpcltySuppItemInfo **/
+		SELECT A.ORDER_ITM_ID
+			  ,A.REGI_NO
+			  ,A.PAVLN_DIV_CD
+			  ,(SELECT OTMM.REGI_NO
+			      FROM OD_TRACKING_MASTER_MGMT OTMM 
+			     WHERE OTMM.ORDER_ITM_ID = A.ORDER_ITM_ID
+			       AND OTMM.REGI_DIV_CD  = 'DA' )				AS DA_REGI_NO
+			  ,B.GOODS_NM
+			  ,B.ORDER_STUS_CD
+			  ,(SELECT Y.COMN_CD_NM FROM CM_COMN_CD Y WHERE Y.CD_GRP_ID = 'ORDER_STUS_CD' AND Y.COMN_CD_ID = B.ORDER_STUS_CD) ORDER_STUS_NM
+			  ,NVL(B.BALTSHT_PRT_YN,'N') BALTSHT_PRT_YN
+		  FROM OD_ORDER_ITM A
+			  ,OD_ORDER_MAST B
+		 WHERE A.ORDER_ID = B.ORDER_ID
+		   AND A.ORDER_ID = #orderId#
+		   AND A.GOODS_CD = #goodsCd#
+		   AND NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) = #wishSendDate#
+		   AND A.ORDER_STUS_CD     = 'O04'
+		   AND NVL(A.BALTSHT_PRT_YN,'N') = 'N'
+		/* AND NVL(A.PRSNT_YN,'N')       = 'N'
+		   AND NVL(A.EXTRA_GOODS_YN,'N') = 'N' */
+	</select>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 주문아이템정보 변경 -->
+	<update id="updateSpcltySuppGoodsNoticCancel" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateSpcltySuppGoodsNoticCancel **/
+		UPDATE OD_ORDER_ITM
+		   SET ORDER_STUS_CD         = 'O02'
+			  ,REGI_NO               = null
+			  ,REPRSNT_REGI_NO       = null
+			  ,REGI_NO_CREATE_DIV_CD = null
+			  ,SENDER_VIRTL_NO       = null
+			  ,RECPTER_VIRTL_NO      = null
+			  ,SUPP_NOTIC_DD_PER_SEQ = null
+			  ,ORDER_CONF_DATE       = null
+			  ,TDAY_EXP_YN           = 'N'
+			  ,DOM_EXP_YN            = 'N'
+			  ,PRCL_AMT              = 0
+			  ,BALTSHT_PRT_MBY_CD = null
+			  ,SEND_TYP_CD = null
+			  ,HDRYCO_CD = null
+			  ,CHG_DATE              = SYSDATE
+			  ,CHGER_ID              = #chgPrsnId#
+		WHERE ORDER_ITM_ID           = #orderItmId#
+		  AND ORDER_STUS_CD     = 'O04'
+		   AND NVL(BALTSHT_PRT_YN,'N') = 'N'
+	</update>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 통보취소 제외 대상 조회 -->
+	<select id="selectSpcltyNoticCancleFailInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.SendProc.selectSpcltyNoticCancleFailInfo **/
+		SELECT A.ORDER_ITM_ID
+			  ,A.REGI_NO
+			  ,A.GOODS_NM
+			  ,(SELECT Y.COMN_CD_NM FROM CM_COMN_CD Y WHERE Y.CD_GRP_ID = 'ORDER_STUS_CD' AND Y.COMN_CD_ID = A.ORDER_STUS_CD) ORDER_STUS_NM
+			  ,NVL(A.BALTSHT_PRT_YN,'N') BALTSHT_PRT_YN
+		  FROM OD_ORDER_ITM A
+			  ,OD_ORDER_MAST B
+		 WHERE A.ORDER_ID = B.ORDER_ID
+		   AND A.ORDER_ID = #orderId#
+		   AND A.GOODS_CD = #goodsCd#
+		   AND NVL(TO_CHAR(A.WISH_SEND_DATE, 'YYYYMMDD'), TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) = #wishSendDate#
+		   AND (A.ORDER_STUS_CD IN ('D02','D03','D04') OR NVL(A.BALTSHT_PRT_YN,'N') = 'Y')
+		/* AND NVL(A.PRSNT_YN,'N') = 'N'
+		   AND NVL(A.EXTRA_GOODS_YN,'N') = 'N' */
+		 ORDER BY A.REGI_NO
+	</select>
+	
+	<!-- 주문/통보_특산품공급관리 통보취소 처리 주문정보 변경 -->
+	<update id="updateSpcltySuppGoodsNoticCancel2" parameterClass ="java.util.HashMap">
+		/** SQL_ID : BO.SendProc.updateSpcltySuppGoodsNoticCancel2 **/
+		UPDATE OD_ORDER_MAST
+		   SET ORDER_STUS_CD = 'O02'
+			  ,CHG_DATE = SYSDATE
+			  ,CHGER_ID = #chgPrsnId#
+		WHERE ORDER_ID = #orderId#
+		  AND ORDER_STUS_CD = 'O04'
+	</update>
+	
+	<!-- 주문_통보 예약신청번호 -->
+	<select id="selectPickupVisitNo" parameterClass ="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectPickupVisitNo **/
+		SELECT TO_CHAR(SYSDATE, 'YYYYMMDD') || LPAD(CAST(COUNT(*) AS INT) + 1,8,'0')	AS VISIT_NO
+		  FROM MMA_IF_DELIVERY
+		 WHERE REQ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')
+	</select>
+	
+	<!-- 주문/통보_특산품공급관리 채번 기준 등기번호 조회 -->
+	<select id="selectRegiNoTrackingNumberExists" parameterClass="String" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectRegiNoTrackingNumberExists **/
+		SELECT OTM.REGI_NO
+		  FROM OD_TRACKING_MASTER_MGMT OTM
+		 WHERE OTM.REGI_NO = #regiNo# 
+	</select>
+	
+	<!-- 주문/통보_특산품공급관리 채번 기준 등기번호 조회 -->
+	<select id="selectRegiNoTrackingNumber" parameterClass="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SendProc.selectRegiNoTrackingNumber **/
+		SELECT MAX(OTM.REGI_NO)	AS REGI_NO
+		  FROM OD_TRACKING_MASTER_MGMT OTM
+		 WHERE OTM.REGI_NO LIKE #searchRegiNoForm# || '%' 
+	</select>
+	
+		<!-- 주문/통보_특산품공급관리 채번 기준 등기번호 조회 -->
+	<select id="selectRegiNoTrackingNumberForUpdate" parameterClass="java.util.HashMap" resultClass="String">
+		/** SQL_ID : BO.SrmFoOrder.selectRegiNoTrackingNumberForUpdate **/
+		SELECT SEQ
+		  FROM OD_SEND_SEQ
+		 WHERE SEQ_GRP_ID = #searchRegiNoForm#
+		   AND REGI_DIV_CD = #regiDivCd#
+		   FOR UPDATE
+	</select>
+
+	<!-- 주문/통보_특산품공급관리 등기번호 시퀀스 테이블 update -->
+	<insert id="updateRegiNoSeqTbl" parameterClass="java.util.HashMap">
+		/** SQL_ID : BO.SrmFoOrder.updateRegiNoSeqTbl **/
+		MERGE INTO OD_SEND_SEQ
+			USING DUAL
+			ON (SEQ_GRP_ID = #searchRegiNoForm# AND REGI_DIV_CD = #regiDivCd#)
+		WHEN MATCHED THEN
+			UPDATE
+			SET SEQ = #newRegiNo#
+		WHEN NOT MATCHED THEN
+			INSERT (
+				 SEQ_GRP_ID
+				,REGI_DIV_CD
+				,SEQ
+			)
+			VALUES (
+				 #searchRegiNoForm#
+				,#regiDivCd#
+				,#initRegiNo#
+			)
+	</insert>
+	
+	<!-- 공급업체 조회 -->
+	<sql id="suppcomp_sql">
+		SELECT 	ROW_NUMBER () OVER (ORDER BY A.REG_DATE DESC NULLS LAST) ONUM
+				,A.SUPP_COMP_DIV_CD
+				,F_GET_COMN_CD_NM('SUPP_COMP_DIV_CD',A.SUPP_COMP_DIV_CD) AS SUPP_COMP_DIV_CD_NM
+				,(SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='RCO_CD' AND COMN_CD_ID= (   SELECT  RCOCD  FROM PICMT0060 where  REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' and rownum = 1)) AS RCONM
+				,(SELECT PONM FROM PICMT0060 WHERE REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN='Y' and DSCDPOYN = 'N'  and rownum = 1   )  AS PONM
+				,(SELECT PONM FROM PICMT0060 WHERE  REGIPOCD = (SELECT HRNKORREGIPOCD FROM PICMT0060 WHERE REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1)  AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1  ) AS POSTOFFICE
+				,A.PO_ECODE
+				,A.SUPPO_RGIST_POCD
+				,A.BCNC_NM
+				,A.SUPP_COMP_ID
+				,A.PRSDT_NM
+				,A.COMPREG_NO
+				,A.CNTRAC_REQ_YMD
+				,A.ENTRPS
+				,A.INDUTY
+				,A.TELNO
+				,A.FAXNO
+				,A.ADDR1
+				,A.PRSDT_MOBILE_NO
+				,A.CNTRAC_DSUSE_YMD
+				,A.CNTRAC_STOP_END_YMD
+				,A.SUPP_COMP_STUS_CD
+				,F_GET_COMN_CD_NM('SUPP_COMP_STUS_CD',A.SUPP_COMP_STUS_CD) AS SUPP_COMP_STUS_NM
+				,A.CNTRAC_STOP_REASN
+				,A.REGER_ID
+				,A.REG_DATE
+				,A.CHGER_ID
+				,A.CHG_DATE
+				,B.PAVLN_DIV_CD
+				,F_GET_COMN_CD_NM('PAVLN_DIV_CD',B.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+		  FROM CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+		 WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		   AND B.PAVLN_DIV_CD != '04'
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					A.SUPP_COMP_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					UPPER(A.BCNC_NM) LIKE UPPER('%'||#search_text#||'%')
+				</isEqual>
+				<isEqual property="search_type" compareValue="03">
+					A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="04">
+					A.COMPREG_NO LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.SUPP_COMP_ID LIKE '%'||#search_text#||'%' OR UPPER(A.BCNC_NM) LIKE UPPER('%'||#search_text#||'%')
+				OR A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%' OR A.COMPREG_NO LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_text1">
+			<isNotEmpty property="search_type1" prepend="AND">
+				A.SUPP_COMP_DIV_CD = #search_type1#
+			</isNotEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_comp_stus">
+			<isNotEmpty property="search_comp_stus" prepend="AND">
+				A.SUPP_COMP_STUS_CD = #search_comp_stus#
+			</isNotEmpty>
+		</isNotEmpty>
+		<isEqual property="use_comp_yn" prepend="AND" compareValue="Y">
+				A.SUPP_COMP_STUS_CD IN ('01', '05')
+		</isEqual>
+	</sql>
+	
+	<!-- 공급업체 팝업 -->
+	<select id="selectSendProcSuppCompList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+		FROM ( SELECT
+		<isEmpty property="sidx">
+			ROW_NUMBER () OVER (ORDER BY A.SUPP_COMP_ID DESC) RNUM
+		</isEmpty>
+		, A.*
+		FROM (
+		SELECT *
+		FROM(
+		<include refid="suppcomp_sql" />
+		)
+		) A
+		) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<!-- 공급업체 팝업 COUNT -->
+	<select id="selectSendProcSuppCompCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		FROM (
+		<include refid="suppcomp_sql" />
+		)
+	</select>
+	
+</sqlMap>

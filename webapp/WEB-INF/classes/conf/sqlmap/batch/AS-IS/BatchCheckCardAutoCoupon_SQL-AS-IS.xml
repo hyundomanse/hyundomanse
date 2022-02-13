@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchCheckCardAutoCoupon">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectEvCpnMastList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT /*+ INDEX(A CP_MASTER_IX05) */ A.BIZ_CODE,B.GOODS_IDN , max(A.CP_EVENT_ID) event_id
+			FROM CP_MASTER A, CP_GOODS B     
+			WHERE 1=1                                                 
+			 AND A.CP_EVENT_ID = B.CP_EVENT_ID
+			 AND A.USE_FROM <= to_char(sysdate, 'yyyymmdd') || '000000'
+			 AND A.USE_TO >= to_char(sysdate, 'yyyymmdd') || '999999'      
+			 AND A.CP_CMP  = '2'           
+			 and A.CARD_GBN = '01'       
+			 AND A.APPLY_TYPE = 'B'           
+			 AND A.STOP_DATE IS NULL
+			 AND B.STOP_DATE IS NULL
+			GROUP BY A.BIZ_CODE,B.GOODS_IDN                                                 
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  a.purchase_id ,max(a.access_name) access_name 
+			FROM TXORDER a, KICC_CREDIT b 
+			WHERE 1=1                                           
+			  and a.purchase_id = b.purchase_id       
+			   and a.complete_date >=  to_char(sysdate-  1/24,'yyyymmddhh24miss')  and a.complete_date <=  to_char(sysdate,'yyyymmdd') || '999999'  
+			   and a.biz_code   = ?  
+			   and a.goods_idn = ?  
+			  and a.cancel_state = 'N' 
+			  and b.CARD_ISSUER ='우체국 행복한 체크카드' 
+			  and a.amount > 0 
+			  and a.access_name <> ' ' 
+			  and a.CHKCARD_CPISSUE_DATE is null 
+			GROUP BY a.purchase_id                                                                                  
+		]]>	 
+	</select>
+	
+	<select id="selectEvCpnMastList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  TYPE || APPLY_TYPE || TO_CHAR(SYSDATE, 'YYMMDDHH24MI') || LPAD( CP_USERINFO_SEQ.NEXTVAL, 8, 0) cpno,
+			       DECODE(DAY_CHK, 'Y', TO_CHAR(SYSDATE, 'YYYYMMDD')         || '000000', USE_FROM) usefrom,
+			       DECODE(DAY_CHK, 'Y', TO_CHAR(SYSDATE+USE_DAY, 'YYYYMMDD') || '999999', USE_TO)   useto
+			FROM  cp_master      
+			WHERE CP_EVENT_ID  = ?                                                                      
+		]]>	 
+	</select>
+	
+	<update id="insertEvCpnUserIssueInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO CP_USERINFO (ACCESS_NAME,  CP_EVENT_ID,  CP_NO, IP_ADDR, CREATE_DATE,USE_FROM, USE_TO)   
+ 			VALUES (?,   ? , ? , 'auto', TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),  ?, ?)                          
+		]]>
+	</update>
+		
+	<update id="updateOdOrderMast" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER                                                
+			set CHKCARD_CPISSUE_DATE = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')       
+			where purchase_id = ?                               
+			  and goods_idn = ?                                    
+		]]>
+	</update>	
+</sqlMap>

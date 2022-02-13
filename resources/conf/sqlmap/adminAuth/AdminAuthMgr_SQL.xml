@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.AdminAuth">
+	<typeAlias  alias="commonMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<select id="selectAdminAuthList" parameterClass ="java.util.HashMap" resultClass="commonMap">
+		<include refid="pagingHeader"/>
+		SELECT	ADMIN_ID			/* 어드민_아이디 */
+			  , ADMIN_AUTH			/* 어드민 권한 */
+              , ADMIN_PASSWORD		/* 어드민_비밀번호 */
+              , ADMIN_NAME			/* 어드민_이름 */
+              , ADMIN_DEPT			/* 어드민_소속 */
+              , ADMIN_EMAIL			/* 어드민_이메일 */
+              , ADMIN_TEL			/* 어드민_전화 */
+              , ADMIN_MOBILE		/* 어드민_휴대폰 */
+              , USE_YN				/* 사용여부 */
+              , REG_ID				/* 등록자아이디 */
+              , REG_DT				/* 등록일시 */
+              , MOD_ID				/* 수정자아이디 */
+              , MOD_DT				/* 수정일시 */
+        FROM	TB_ADMIN_M			/* 어드민_관리 */         		
+		WHERE	1=1
+
+		<!-- 조회기간 -->			            
+		<isNotEmpty property="searchFromDate">
+			<isNotEmpty property="searchToDate">
+				AND TO_CHAR(REG_DT, 'YYYYMMDD') BETWEEN #searchFromDate# AND #searchToDate#
+		    </isNotEmpty>
+		</isNotEmpty>
+		
+		<!-- 검색구분 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchType" compareValue="01">
+				AND (ADMIN_ID LIKE '%'||#searchTxt#||'%' OR ADMIN_NAME LIKE '%'||#searchTxt#||'%')
+			</isEqual>
+			<isEqual property="searchType" compareValue="02">
+				AND ADMIN_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="03">
+				AND ADMIN_NAME LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+		</isNotEmpty>		
+						
+		ORDER BY MOD_DT DESC
+		<include refid="pagingFooter"/>
+	</select>		
+
+	<select id="selectAdminAuthListTotCnt" resultClass="int">
+		SELECT	COUNT(*)
+		FROM	TB_ADMIN_M
+		WHERE 	1=1
+		<!-- 조회기간 -->			            
+		<isNotEmpty property="searchFromDate">
+			<isNotEmpty property="searchToDate">
+				AND TO_CHAR(REG_DT, 'YYYYMMDD') BETWEEN #searchFromDate# AND #searchToDate#
+		    </isNotEmpty>
+		</isNotEmpty>
+			
+		<!-- 검색구분 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchType" compareValue="01">
+				AND (ADMIN_ID LIKE '%'||#searchTxt#||'%' OR ADMIN_NAME LIKE '%'||#searchTxt#||'%')
+			</isEqual>
+			<isEqual property="searchType" compareValue="02">
+				AND ADMIN_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="03">
+				AND ADMIN_NAME LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+		</isNotEmpty>	
+	</select>	
+	
+	<select id="selectAdminAuth" resultClass="commonMap">
+	SELECT	ADMIN_ID
+		  , ADMIN_AUTH
+		  , ADMIN_PASSWORD
+		  , ADMIN_NAME
+		  , ADMIN_DEPT
+		  , ADMIN_EMAIL
+		  , ADMIN_TEL
+		  , ADMIN_MOBILE
+		  , USE_YN
+		  , REG_ID
+		  , TO_CHAR (REG_DT, 'YYYY-MM-DD') AS REG_DT
+		  , MOD_ID
+		  , TO_CHAR (MOD_DT, 'YYYY-MM-DD') AS MOD_DT
+	FROM	TB_ADMIN_M
+	WHERE 	1=1
+	AND 	ADMIN_ID = #searchAdminId#
+	</select>
+		
+	<insert id="insertAdminAuth" parameterClass="java.util.HashMap">
+	<![CDATA[
+	INSERT INTO TB_ADMIN_M(
+		  ADMIN_ID
+		, ADMIN_AUTH
+		, ADMIN_PASSWORD
+		, ADMIN_NAME
+		, ADMIN_DEPT
+		, ADMIN_EMAIL
+		, ADMIN_TEL
+		, ADMIN_MOBILE
+		, USE_YN
+		, REG_ID
+		, REG_DT
+		, MOD_ID
+		, MOD_DT
+	)VALUES(
+		  #searchAdminId#
+		, #searchAdminAuth#
+		, #searchAdminPassword#
+		, #searchAdminName#
+		, #searchAdminDept#
+		, #searchAdminEmail#
+		, #searchAdminTel#
+		, #searchAdminMobile#
+		, 'Y'
+		, #sessionAdminId#
+		, SYSDATE
+		, #sessionAdminId#
+		, SYSDATE	
+	)
+	]]>
+	</insert>	
+	
+	<update id="updateAdminAuth" parameterClass="java.util.HashMap">
+	<![CDATA[
+	UPDATE	TB_ADMIN_M
+	SET		ADMIN_AUTH		= #searchAdminAuth#
+		  , ADMIN_PASSWORD	= #searchAdminPassword#
+		  , ADMIN_NAME		= #searchAdminName#
+		  , ADMIN_DEPT 		= #searchAdminDept#
+		  , ADMIN_EMAIL 	= #searchAdminEmail#
+		  , ADMIN_TEL 		= #searchAdminTel#
+		  , ADMIN_MOBILE 	= #searchAdminMobile#
+		  , USE_YN 			= #searchUseYn#
+		  , MOD_ID 			= #sessionAdminId#
+		  , MOD_DT 			= SYSDATE
+	WHERE	1=1
+	AND		ADMIN_ID 		= #searchAdminId#
+	]]>
+	</update>	
+	
+	<delete id="deleteAdminAuth" parameterClass="java.util.HashMap">
+	DELETE	TB_ADMIN_M
+	WHERE	1=1
+	AND		ADMIN_ID = #searchAdminId#
+	</delete>
+		
+	<select id="selectAdminAuthDupCheck" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT	COUNT(ADMIN_ID)
+	FROM 	TB_ADMIN_M
+	WHERE 	1=1
+	AND 	ADMIN_ID = #searchAdminId#
+	</select>	
+</sqlMap>

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Spcsal">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+
+	<sql id="selectSpcsalEvent">
+			<![CDATA[
+	           SELECT T2.DSPY_SEQ                                                                                                                                               
+	            	 , T1.PAVLN_DIV_CD                                      									/* 전시관 분류 */
+	                 , T1.EVENT_ID
+	                 , T2.TEMPL_SEQ                                                                         	/*템플릿 일련번호*/
+	                 , ( SELECT COMN_CD_NM
+	                       FROM CM_COMN_CD
+	                      WHERE CD_GRP_ID = 'PAVLN_DIV_CD' AND COMN_CD_ID = T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM    /*상설 전시관 명*/
+	                 , T1.EVENT_NM                                                                          	/*상설 이벤트 명*/
+	                 , T1.PSNSER																				/*주최자*/
+	                 , (SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ = T2.TEMPL_SEQ ) AS TEMPL_NM     	/*템플릿 명*/
+	                 , DECODE(T2.USE_YN, 'Y','예','아니오') AS USE_YN_NM                                    	/*사용여부*/
+	                 , TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') AS CHG_DATE                             	/*최종 수정일자*/
+	                 , T1.CHGER_ID                                                                          	/*최종 수정 ID*/
+	                 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYYMMDD') AS EVENT_STRT_DATE                            	/* 이벤트 시작일 */
+	                 , TO_CHAR(T1.EVENT_END_DATE,  'YYYYMMDD') AS EVENT_END_DATE                             	/* 이벤트 종료일 */
+	                 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD') || ' ~ ' ||  TO_CHAR(T1.EVENT_END_DATE, 'YYYY-MM-DD') AS EVENT_DATE
+	                 , T3.DSPY_SPOT_CD                                                                      	/* 전시위치 */
+	                 , T2.DSPY_STUS_CD                                                                          /* 진행상태코드 */
+	                 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'DSPY_STUS_CD' AND COMN_CD_ID = T2.DSPY_STUS_CD ) AS DSPY_STUS_NM   /* 진행상태 */
+	              FROM EV_EVENT_MAST T1,    /* 이벤트 마스터 */
+	                   DP_DSPY_MAST T2,     /* 전시마스터 */
+	                   DP_DSPY_DTAIL T3     /* 전시 상세 */
+	                  /*EV_EVENT_DC_GOODS  T3이벤트 할인 상품 */ 
+	             WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+	               AND T1.DSPY_SEQ = T3.DSPY_SEQ
+	               AND T1.DEL_YN = 'N'
+	            ]]>
+	                <isNotEmpty property="schEventId">
+	                  AND T1.EVENT_ID    = #schEventId#
+	                </isNotEmpty>
+	                <isNotEmpty property="schPavlnDivCd">
+	                  AND T1.PAVLN_DIV_CD = #schPavlnDivCd#
+	                </isNotEmpty>
+	                <isNotEmpty property="schEventNm">
+	                  AND T1.EVENT_NM LIKE '%'|| #schEventNm# || '%'
+	                </isNotEmpty>
+	                <isNotEmpty property="rdoUseYn">
+	                  AND T2.USE_YN    = #rdoUseYn#
+	                </isNotEmpty>
+	                <isNotEmpty property="dspyStusCd">
+	                  AND T2.DSPY_STUS_CD    = #dspyStusCd#
+	                </isNotEmpty>
+	                <isNotEmpty property="dspy_typ_cd">
+	               	  AND T2.DSPY_TYP_CD = #dspy_typ_cd#
+	                </isNotEmpty>
+	                <isNotEmpty property="caleventStrtDate">
+						/*상설 이벤트 시작-종료일자*/
+						AND (TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD') BETWEEN #caleventStrtDate# AND #caleventEndDate#    
+						OR TO_CHAR(T1.EVENT_END_DATE, 'YYYY-MM-DD') BETWEEN #caleventStrtDate# AND #caleventEndDate#)
+					</isNotEmpty>
+	</sql>
+	<select id="selectSpcsalEventList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY DSPY_SEQ DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectSpcsalEvent" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectSpcsalEventListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectSpcsalEvent" />)
+	</select>
+	<select id="selectSpcsalEventTTL" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	SELECT
+		EVENT_ID,
+		SUBJECT_TTL_ID,
+		SUBJECT_TTL_ORDER,
+		SUBJECT_TTL_NM,
+		DSPY_YN,
+		DSPY_YN DSPY_YN_SEL,
+		DEL_YN,
+		REG_DATE,
+		CHG_DATE,
+		REGER_ID,
+		CHGER_ID
+	FROM
+	 	GD_CORPSPCSAL_EVENT_SUBJECT
+	 WHERE 	EVENT_ID=#evtid#
+	 AND 	DEL_YN='N'
+	 ORDER BY TO_NUMBER(SUBJECT_TTL_ORDER) ASC
+	</select>
+	<update id="updateSpcsalEventTTL" parameterClass="java.util.HashMap" >
+		UPDATE GD_CORPSPCSAL_EVENT_SUBJECT 
+		 	SET DEL_YN ='Y' 
+		WHERE SUBJECT_TTL_ID=#SUBJECT_TTL_ID#
+		AND   EVENT_ID =#EVENT_ID#
+	</update>
+	<update id="updateSpcsalEventTTLSeq" parameterClass="java.util.HashMap" >
+		UPDATE GD_CORPSPCSAL_EVENT_SUBJECT 
+		 	SET SUBJECT_TTL_ORDER =  #SUBJECT_TTL_ORDER#
+		WHERE SUBJECT_TTL_ID=#SUBJECT_TTL_ID#
+		AND   EVENT_ID =#EVENT_ID#
+	</update>
+	<update id="updateSpcsalEventGoods" parameterClass="java.util.HashMap" >
+		UPDATE GD_CORPSPCSAL_EVENT_GOODS
+			SET USE_YN = 'N' 
+		WHERE  1=1 
+		<isNotEmpty property="subjectTtlId" prepend="AND">
+		SUBJECT_TTL_ID =#subjectTtlId#
+		</isNotEmpty>
+		<isNotEmpty property="eventId" prepend="AND">
+		EVENT_ID =#eventId#
+		</isNotEmpty>
+		<isNotEmpty property="SUBJECT_TTL_ID" prepend="AND">
+		SUBJECT_TTL_ID =#SUBJECT_TTL_ID#
+		</isNotEmpty>
+		<isNotEmpty property="EVENT_ID" prepend="AND">
+		EVENT_ID =#EVENT_ID#
+		</isNotEmpty> 
+	    <isNotEmpty property="goodsCd" prepend="AND">
+	  	GOODS_CD = #goodsCd#
+	    </isNotEmpty>
+	    <isNotEmpty property="corpspcsalGoodsSeq" prepend="AND">
+	  	CORPSPCSAL_GOODS_SEQ = #corpspcsalGoodsSeq#
+	    </isNotEmpty>
+	</update>
+	<update id="updateSpcsalEventGoodsSeq" parameterClass="java.util.HashMap" >
+		UPDATE GD_CORPSPCSAL_EVENT_GOODS
+			SORT_ORDER = #SORT_ORDER#
+		WHERE  SUBJECT_TTL_ID =#subjectTtlId#
+		  AND  EVENT_ID =#eventId# 	
+		  AND  GOODS_CD = #goodsCd#
+	</update>
+	<select id="selectSpcsalEventGoods" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT 	A.SORT_ORDER AS "rnum",
+					A.CORPSPCSAL_GOODS_SEQ AS "corpspcsalGoodsSeq",
+					A.SUBJECT_TTL_ID AS "subjectTtlId",
+					A.EVENT_ID AS "eventId",
+					A.GOODS_CD AS "goodsCd",
+					B.GOODS_NM AS "goodsNm",
+					B.CNSMR_PRC AS "cnsmrPrc",
+					B.STOCK_VOLM AS "stockVolm",
+					F_GET_COMN_CD_NM('SYS_06',B.GOODS_STUS_CD) AS "goodsStusNm"
+			FROM 	GD_CORPSPCSAL_EVENT_GOODS A, GD_GOODS_MAST B, GD_CORPSPCSAL_EVENT_SUBJECT C
+				WHERE A.EVENT_ID = C.EVENT_ID
+				AND  A.SUBJECT_TTL_ID = C.SUBJECT_TTL_ID		
+				AND  A.GOODS_CD = B.GOODS_CD
+				AND  A.SUBJECT_TTL_ID =#subject_ttl_id#
+				AND  A.EVENT_ID =#evtid#
+				AND  A.USE_YN ='Y'
+				AND  C.DEL_YN ='N'
+				ORDER BY A.SORT_ORDER ASC
+	</select>
+	<insert id="registSpcsalEventTTL" parameterClass="java.util.HashMap" >
+		MERGE INTO GD_CORPSPCSAL_EVENT_SUBJECT
+		USING DUAL ON (SUBJECT_TTL_ID =#SUBJECT_TTL_ID#
+		  			   AND  EVENT_ID =#EVENT_ID# )
+		WHEN MATCHED THEN
+			UPDATE SET 	SUBJECT_TTL_ORDER = #SUBJECT_TTL_ORDER# ,
+						SUBJECT_TTL_NM  = #SUBJECT_TTL_NM# ,
+						DSPY_YN	  		= #DSPY_YN#	,
+						CHG_DATE 		= SYSDATE ,
+						CHGER_ID 		= #chger_id# 
+			WHEN NOT MATCHED THEN
+			INSERT
+			 (
+			 EVENT_ID,
+			 SUBJECT_TTL_ID,
+			 SUBJECT_TTL_ORDER,
+			 SUBJECT_TTL_NM,
+			 DSPY_YN,
+			 DEL_YN,
+			 REG_DATE,
+			 CHG_DATE,
+			 REGER_ID,
+			 CHGER_ID
+			 )
+			VALUES
+			(
+			#EVENT_ID#,
+			LPAD(NVL((SELECT MAX(TO_NUMBER(SUBJECT_TTL_ID))+1 FROM GD_CORPSPCSAL_EVENT_SUBJECT),1),6,0),
+			#SUBJECT_TTL_ORDER#,
+			#SUBJECT_TTL_NM#,
+			#DSPY_YN#,
+			'N',
+			SYSDATE,
+			SYSDATE,
+			#reger_id#,
+			#chger_id#
+			) 			   
+	</insert>
+	<insert id="registSpcsalEventGoods" parameterClass="java.util.HashMap" >
+		MERGE INTO GD_CORPSPCSAL_EVENT_GOODS
+			USING DUAL ON (GOODS_CD = #goodsCd# AND EVENT_ID =#eventId# AND SUBJECT_TTL_ID = #subjectTtlId#)
+		WHEN MATCHED THEN
+			UPDATE SET SORT_ORDER = #rnum#,
+					   CHG_DATE 		= SYSDATE ,
+					   CHGER_ID 		= #chger_id# 
+		WHEN NOT MATCHED THEN
+			INSERT
+			 (GOODS_CD,
+			  CORPSPCSAL_GOODS_SEQ,
+			  DSPY_SEQ,
+			  EVENT_ID,
+			  USE_YN,
+			  SORT_ORDER,
+			  REG_DATE,
+			  CHG_DATE,
+			  REGER_ID,
+			  CHGER_ID,
+			  SUBJECT_TTL_ID
+			  )			     
+			  VALUES
+			  (#goodsCd#,
+			  NVL((SELECT MAX(CORPSPCSAL_GOODS_SEQ)+1 FROM GD_CORPSPCSAL_EVENT_GOODS),1),
+			  (SELECT DSPY_SEQ FROM EV_EVENT_MAST WHERE EVENT_ID = #eventId#  ),
+			  #eventId#,
+			  'Y',
+			  #rnum#,
+			  SYSDATE,
+			  SYSDATE,
+			  #reger_id#,
+			  #chger_id#,
+			  #subjectTtlId#
+			  )
+	</insert>
+</sqlMap>

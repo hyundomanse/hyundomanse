@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchCashPrtBizChangeNew">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<select id="selectOdCashreqList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select A.PURCHASE_ID                                     
+				, max(A.gbn   ) GBN                                      
+				, max(a.JUMIN_SEED_1)  jumin_seed_1        
+				, max(a.JUMIN_SEED_2)  jumin_seed_2        
+				, max(a.JUMIN_SEED_3)  jumin_seed_3        
+			From CASHREQ A, CASHINFO B                       
+			Where A.purchase_id = B.purchase_id                          
+			AND A.purchase_id in (                                                                
+									SELECT distinct A.PURCHASE_ID                                                                     
+									FROM TXORDER A                                                                           
+									Where  A.COMPLETE_DATE >= to_char(add_months(sysdate, -1),'yyyymmdd')                                  
+									and  A.COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '999999'                       
+									and  A.status in ('2','3','4','5')                                                                                         
+									AND  A.cancel_state = 'N'                                                                                           
+									AND  A.PAYMETHOD IN ('B','O')                                                                                 
+									)                                                                                  
+			AND B.BIZ_CODE <> B.NEW_BIZ_CODE                                                       
+			AND B.STATUS      = 'D1'                                                               
+			AND A.SEND_CHK    = '01'		                                
+			AND A.JUMIN_SEED_1 IS NOT NULL                                        
+			group by A.PURCHASE_ID                                       	
+		]]>	 
+	</select>
+			
+</sqlMap>

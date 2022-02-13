@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http#//ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchNaverOrder">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  to_char(sysdate - 1,'yyyymmdd') as sDay 
+			FROM dual
+		]]>	 
+	</select>
+	
+	<select id="fMakeMemInfo_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  to_char(sysdate -1 ,'yyyy-mm-dd') as sOrderDate
+	   		FROM dual
+		]]>	 
+	</select>
+	
+	<select id="fMakeMemInfo_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(distinct a.GOODS_CODE) as sGoodsCnt,
+	            nvl(sum(a.amount),0)  as sTotAmt
+			 FROM PT_PARTNER_ORDER c, TXORDER a
+			 WHERE c.purchase_id = a.purchase_id 
+			   AND c.order_date >= #sSDay# and a.order_date <= #sSDay# || '999999'
+			   AND c.partner_id  = 'naver'
+			   AND a.amount       > 0
+			   AND a.status not in ('1','9')
+			   AND a.cancel_state = 'N'
+		]]>	 
+	</select>
+	
+	<select id="fMakeMemInfo_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT a.GOODS_CODE as sGoods_Code,
+		            count(distinct a.txorder_id) as sQty,
+		            sum(a.amount)  as sAmt ,
+		            nvl(max(dd.access_cnt),0) as sReview_cnt
+		     FROM PT_PARTNER_ORDER c , TXORDER a, 
+		          ( select d.goods_idn , sum(d.access_cnt) access_cnt 
+		            from partner_goods_view d
+		            where d.ACCESS_DATE >= #sSDay# and d.ACCESS_DATE <= #sSDay# || '999999'
+		              and d.PARTNER_ID = 'naver'
+		            group by d.goods_idn
+		          )  dd
+		     WHERE c.purchase_id = a.purchase_id
+		       and c.order_date >= #sSDay# and c.order_date <= #sSDay# || '999999'
+		       and c.partner_id  = 'naver'
+		       and a.goods_idn   = dd.goods_idn(+)
+		       and a.amount       > 0
+		       and a.status not in ('1','9')
+		       and a.cancel_state = 'N'
+		     GROUP BY  a.GOODS_CODE 
+		     ORDER BY  a.GOODS_CODE
+		]]>	 
+	</select>
+	
+</sqlMap>

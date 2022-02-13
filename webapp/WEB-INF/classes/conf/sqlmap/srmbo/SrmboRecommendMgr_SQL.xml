@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.RecommendMgr">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 시장/쇼핑센터관리_모집인관리 관리기관 조회 -->
+	<select id="selectDDMPavlnIdList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** BO.RecommendMgr.selectDDMPavlnIdList **/
+		SELECT
+				  CDOM.DDM_PAVLN_ID			/** 동대문 기관 코드 **/
+				, CDOM.DDM_PAVLN_INTRCN		/** 동대문 기관 명 **/
+		  FROM
+				  CO_DDM_OR_MGT CDOM
+		 WHERE
+				  CDOM.USE_YN = 'Y'
+	</select>
+
+	<!-- 시장/쇼핑센터관리_모집인관리 쇼핑센터 조회 -->
+	<select id="selectPavlnIdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** BO.RecommendMgr."selectPavlnIdList" **/
+		<![CDATA[
+		SELECT PAVLN_ID
+		     , PAVLN_NM
+		     , DDM_PAVLN_ID
+		FROM CO_PAVLN_MAST
+		WHERE 1=1
+		AND USE_YN = 'Y'
+		AND HRNK_PAVLN_ID = 'P08'
+		AND DDM_PAVLN_ID = #sDdmPavlnId#
+		ORDER BY SORT_ORDER
+		]]>
+	</select>	
+	
+	<!-- 시장/쇼핑센터관리_모집인관리 모집인 목록 개수 -->
+	<select id="selectRecommendMgmtListCount" parameterClass ="java.util.HashMap" resultClass="int">
+		/** BO.RecommendMgr.selectRecommendMgmtListCount **/
+		SELECT
+				  COUNT(*)
+		  FROM
+				  MB_RECOMMEND_MGMT MRM
+		 WHERE
+				  MRM.USE_YN = 'Y'
+		<!-- 동대문기관코드 -->
+		<isNotEmpty property="searchDdmPavlnId">
+		   AND    MRM.DDM_PAVLN_ID = #searchDdmPavlnId#
+		</isNotEmpty>
+		
+		<!-- 조회조건 -->
+		<isNotEmpty property="searchType">
+			<isEqual property="searchType" compareValue="mobNm">
+		   AND MRM.USER_NM LIKE '%' || #searchTypeText# || '%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="mobId">
+		   AND MRM.RECOMMEND_ID LIKE '%' || #searchTypeText# || '%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="mobNo">
+		   AND MRM.MOB_F_NO || MRM.MOB_M_NO || MRM.MOB_L_NO LIKE '%' || #searchTypeText# || '%'
+			</isEqual>
+		</isNotEmpty>
+		
+		<!-- 모집자아이디 -->
+		<isNotEmpty property="searchAreaCd">
+		   AND MRM.AREA_CD = #searchAreaCd#
+		</isNotEmpty>
+		
+		<!-- 시군구코드 -->
+		<isNotEmpty property="searchSidoCd">
+		   AND MRM.SIDO_CD = #searchSidoCd#
+		</isNotEmpty>
+		
+		<!-- 생성일자 -->
+		<isNotEmpty property="searchFromDt">
+		  AND MRM.CREATE_DATE BETWEEN TO_DATE(#searchFromDt#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959', 'YYYYMMDDHH24MISS')
+		</isNotEmpty>
+	</select>
+	
+	<!-- 시장/쇼핑센터관리_모집인관리 모집인 목록 조회 -->
+	<select id="selectRecommendMgmtList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** BO.RecommendMgr.selectRecommendMgmtList **/
+		SELECT
+				  *
+		  FROM
+				(
+					SELECT
+							  T.*
+							, ROWNUM		AS RNUM
+					  FROM
+							(
+								SELECT
+										  MRM.RECOMMEND_ID
+										, MRM.USER_NM
+										, MRM.MOB_F_NO
+										, MRM.MOB_M_NO
+										, MRM.MOB_L_NO
+										, MRM.USER_F_NO
+										, MRM.USER_M_NO
+										, MRM.USER_L_NO
+										, MRM.FAXNO
+										, MRM.USER_EMAIL_ID
+										, MRM.ADDR1
+										, MRM.ADDR2
+										, MRM.AREA_CD
+										, F_GET_COMN_CD_NM('AREA_CD', MRM.AREA_CD)	AS AREA_NM
+										, MRM.SIDO_CD
+										, F_GET_COMN_CD_NM('SIDO_CD', MRM.SIDO_CD)	AS SIDO_NM
+										/* , MRM.CREATE_DATE */
+										,TO_CHAR(MRM.CREATE_DATE,'yyyymmdd') AS CREATE_DATE
+										, MRM.CRE_PRSN_ID
+								  FROM
+										  MB_RECOMMEND_MGMT MRM
+								 WHERE
+										  MRM.USE_YN = 'Y'
+								<!-- 동대문기관코드 -->
+								<isNotEmpty property="searchDdmPavlnId">
+								   AND    MRM.DDM_PAVLN_ID = #searchDdmPavlnId#
+								</isNotEmpty>
+								
+								<!-- 조회조건 -->
+								<isNotEmpty property="searchType">
+									<isEqual property="searchType" compareValue="mobNm">
+								   AND MRM.USER_NM LIKE '%' || #searchTypeText# || '%'
+									</isEqual>
+									<isEqual property="searchType" compareValue="mobId">
+								   AND MRM.RECOMMEND_ID LIKE '%' || #searchTypeText# || '%'
+									</isEqual>
+									<isEqual property="searchType" compareValue="mobNo">
+								   AND MRM.MOB_F_NO || MRM.MOB_M_NO || MRM.MOB_L_NO LIKE '%' || #searchTypeText# || '%'
+									</isEqual>
+								</isNotEmpty>
+								
+								<!-- 모집자아이디 -->
+								<isNotEmpty property="searchAreaCd">
+								   AND MRM.AREA_CD = #searchAreaCd#
+								</isNotEmpty>
+								
+								<!-- 시군구코드 -->
+								<isNotEmpty property="searchSidoCd">
+								   AND MRM.SIDO_CD = #searchSidoCd#
+								</isNotEmpty>
+								
+								<!-- 생성일자 -->
+								<isNotEmpty property="searchFromDt">
+								  AND MRM.CREATE_DATE BETWEEN TO_DATE(#searchFromDt#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959', 'YYYYMMDDHH24MISS')
+								</isNotEmpty>
+								ORDER BY MRM.RECOMMEND_ID DESC
+							) T
+					 WHERE
+							  ROWNUM <![CDATA[<=]]> #lastIndex#
+				)
+		 WHERE
+				  RNUM <![CDATA[ >= ]]> #firstIndex#
+	</select>
+	
+	<!-- 시장/쇼핑센터관리_모집인관리 모집인 조회 -->
+	<select id="selectRecommendMgr" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** BO.RecommendMgr.selectRecommendMgr **/
+		SELECT
+				  MRM.RECOMMEND_ID
+				, MRM.DDM_PAVLN_ID
+				, MRM.USER_NM
+				, MRM.MOB_F_NO
+				, MRM.MOB_M_NO
+				, MRM.MOB_L_NO
+				, MRM.USER_F_NO
+				, MRM.USER_M_NO
+				, MRM.USER_L_NO
+				, MRM.FAXNO
+				, MRM.USER_EMAIL_ID 
+				, MRM.ZIP_CD 
+				, MRM.ADDR1
+				, MRM.ADDR2
+				, MRM.AREA_CD
+				, F_GET_COMN_CD_NM('AREA_CD', MRM.AREA_CD)	AS AREA_NM
+				, MRM.SIDO_CD
+				, F_GET_COMN_CD_NM('SIDO_CD', MRM.SIDO_CD)	AS SIDO_NM
+				/* , MRM.CREATE_DATE */
+				,TO_CHAR(MRM.CREATE_DATE,'yyyymmdd') AS CREATE_DATE
+				, MRM.CRE_PRSN_ID
+				, SUBSTR(MRM.FAXNO,1,INSTR(MRM.FAXNO,'-',1,1)-1) FAX_F_NO
+			    , SUBSTR(MRM.FAXNO,INSTR(MRM.FAXNO,'-',1,1)+1, INSTR(MRM.FAXNO,'-',1,2) - INSTR(MRM.FAXNO,'-',1,1)-1) FAX_M_NO
+			    , SUBSTR(MRM.FAXNO,INSTR(MRM.FAXNO,'-',1,2)+1, LENGTH(MRM.FAXNO)) FAX_L_NO
+		  FROM
+				  MB_RECOMMEND_MGMT MRM
+		 WHERE
+				  MRM.RECOMMEND_ID = #searchRecommendId#
+		   AND
+				  MRM.USE_YN = 'Y'
+	</select>
+	
+	<!-- 동대문기관관리 keySelect -->
+	<select id="selectRecommendid" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+	SELECT 'DMI' || NVL(LPAD(TO_CHAR(MAX(TO_NUMBER(SUBSTR(RECOMMEND_ID,4,LENGTH(DDM_PAVLN_ID))))+1),4,'0'), '0001') AS RECOMMEND_ID 
+	FROM MB_RECOMMEND_MGMT
+	]]>
+	</select>
+		
+	<!-- 시장/쇼핑센터관리_모집인관리 모집인 등록 -->
+	<update id="insertRecommendMgr" parameterClass ="java.util.HashMap">
+		/** BO.RecommendMgr.insertRecommendMgr **/
+		INSERT INTO MB_RECOMMEND_MGMT
+								(
+									  RECOMMEND_ID
+									, DDM_PAVLN_ID
+									, USER_NM
+									, MOB_F_NO
+									, MOB_M_NO
+									, MOB_L_NO
+									, USER_F_NO
+									, USER_M_NO
+									, USER_L_NO
+									, FAXNO
+									, USER_EMAIL_ID
+									, ADDR1
+									, ADDR2
+									, AREA_CD
+									, SIDO_CD
+									, ZIP_CD
+									, USE_YN
+									, CREATE_DATE
+									, CRE_PRSN_ID
+								)
+					VALUES
+								(
+									  #recommendId#
+									, #ddmPavlnId#
+									, #userNm#
+									, #mobFNo#
+									, #mobMNo#
+									, #mobLNo#
+									, #userFNo#
+									, #userMNo#
+									, #userLNo#
+									, nvl2(#faxFNo#,#faxFNo# || '-' || #faxMNo# || '-' || #faxLNo#,'')
+									, #userEmailId#
+									, #addr1#
+									, #addr2#
+									, #areaCd#
+									, #sidoCd#
+									, #zipCd#
+									, 'Y'
+									, SYSDATE
+									, #crePrsnId#
+								)
+	</update>
+	
+	<!-- 시장/쇼핑센터관리_모집인관리 모집인 수정 -->
+	<update id="updateRecommendMgr" parameterClass ="java.util.HashMap" >
+		/** BO.RecommendMgr.updateRecommendMgr **/
+		UPDATE MB_RECOMMEND_MGMT
+		   SET
+				  DDM_PAVLN_ID   = #ddmPavlnId#
+				, USER_NM        = #userNm#     
+				, MOB_F_NO       = #mobFNo#     
+				, MOB_M_NO       = #mobMNo#     
+				, MOB_L_NO       = #mobLNo#     
+				, USER_F_NO      = #userFNo#    
+				, USER_M_NO      = #userMNo#    
+				, USER_L_NO      = #userLNo#    
+				, FAXNO          = nvl2(#faxFNo#,#faxFNo# || '-' || #faxMNo# || '-' || #faxLNo#,'')
+				, USER_EMAIL_ID  = #userEmailId#
+				, ADDR1          = #addr1#
+				, ADDR2          = #addr2#
+				, AREA_CD        = #areaCd#
+				, SIDO_CD        = #sidoCd#
+				, ZIP_CD         = #zipCd#
+				, CREATE_DATE    = SYSDATE
+				, CRE_PRSN_ID    = #crePrsnId#
+		WHERE
+				  RECOMMEND_ID = #recommendId#
+	</update>
+	
+	<!-- 시장/쇼핑센터관리_모집인관리 모집인 삭제 -->
+	<update id="deleteRecommendMgr" parameterClass ="java.util.HashMap" >
+		/** BO.RecommendMgr.deleteRecommendMgr **/
+		UPDATE
+				  MB_RECOMMEND_MGMT
+		   SET
+				  USE_YN = 'N'
+		 WHERE
+				  RECOMMEND_ID = #searchRecommendId#
+	</update>
+	
+</sqlMap>

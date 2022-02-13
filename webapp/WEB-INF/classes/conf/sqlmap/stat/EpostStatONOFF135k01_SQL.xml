@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatONOFF135k01">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="retrieveCompareRealStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+            SELECT  '1' GBN,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '001', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS SUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '001', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS SUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '001', a.goods_Prcl_Prc,0),0)),0) as SUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '002', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS SUMFLWRDELIVSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '002', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS SUMFLWRDELIVRECEVAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '005', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS SUMPOSTETCSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '005', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS SUMPOSTETCSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '005', a.goods_Prcl_Prc,0),0)),0) as SUMPOSTETCSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0)),0) AS OFFTOTGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',a.setl_Amt-a.return_Gd_Amt,0)),0) AS OFFTOTSELLAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01', a.goods_Prcl_Prc,0)),0) as OFFTOTSELLPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '001', a.SUPP_GOODS_CNT-a.return_Gd_Cnt, '011', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '001', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ONSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '001', a.setl_Amt-a.return_Gd_Amt,'011', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '001', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ONSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '001', a.goods_Prcl_Prc,'011', a.goods_Prcl_Prc,0),'03',DECODE(a.recev_Div_Cd, '001', a.goods_Prcl_Prc,0),0)),0) as ONSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '002', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,'012', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '002', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ONSUMFLWRDELIVSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '002', a.setl_Amt-a.return_Gd_Amt,'012', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '002', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ONSUMFLWRDELIVRECEVAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '004', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ESCSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '004', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ESCSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '004', a.goods_Prcl_Prc,0),0)),0) as ESCSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '005', a.SUPP_GOODS_CNT-a.return_Gd_Cnt, '018', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '005', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ETCSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '005', a.setl_Amt-a.return_Gd_Amt, '018', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '005', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ETCSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '005', a.goods_Prcl_Prc, '018', a.goods_Prcl_Prc,0),'03',DECODE(a.recev_Div_Cd, '005', a.goods_Prcl_Prc,0),0)),0) as ETCSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '006', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS BTBSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '006', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS BTBSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '006', a.goods_Prcl_Prc,0),0)),0) as BTBSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '008', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,'019', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '008', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,'019', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS OVERSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '008', a.setl_Amt-a.return_Gd_Amt,'019', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '008', a.setl_Amt-a.return_Gd_Amt,'019', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS OVERSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '008', a.goods_Prcl_Prc,'019', a.goods_Prcl_Prc,0),'03',DECODE(a.recev_Div_Cd, '008', a.goods_Prcl_Prc,'019', a.goods_Prcl_Prc,0),0)),0) as OVERSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',a.SUPP_GOODS_CNT-a.return_Gd_Cnt,'03',a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0)),0) AS ONTOTGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',a.setl_Amt-a.return_Gd_Amt,'03',a.setl_Amt-a.return_Gd_Amt,0)),0) AS ONTOTSELLAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',a.goods_Prcl_Prc,'03',a.goods_Prcl_Prc,0)),0) as ONTOTPRC,
+            NVL(SUM(a.SUPP_GOODS_CNT-a.return_Gd_Cnt),0) AS TOTGOODSCNT,
+            NVL(SUM(a.setl_Amt-a.return_Gd_Amt),0) AS TOTSELLAMT,
+            NVL(SUM(a.goods_Prcl_Prc),0) as TOTSELLPRC
+            FROM
+            (SELECT  RCOCD, REGIPOCD
+            FROM    PICMT0060
+            WHERE   USEYN='Y'
+            ) B,
+            MP_POST_SHOP_SUPP_DAY A
+            WHERE  A.supp_Po_regi_Po_Cd = B.REGIPOCD(+)
+            AND    A.recev_Stus_Cd = '2'
+            AND A.SELL_CLOSE_YMD >= #hFromDate#
+            AND A.SELL_CLOSE_YMD <= #hToDate#
+            union all
+            SELECT  '2' GBN,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '001', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS SUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '001', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS SUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '001', a.goods_Prcl_Prc,0),0)),0) as SUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '002', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS SUMFLWRDELIVSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '002', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS SUMFLWRDELIVRECEVAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '005', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS SUMPOSTETCSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '005', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS SUMPOSTETCSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',DECODE(a.recev_Div_Cd, '005', a.goods_Prcl_Prc,0),0)),0) as SUMPOSTETCSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0)),0) AS OFFTOTGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',a.setl_Amt-a.return_Gd_Amt,0)),0) AS OFFTOTSELLAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'01', a.goods_Prcl_Prc,0)),0) as OFFTOTSELLPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '001', a.SUPP_GOODS_CNT-a.return_Gd_Cnt, '011', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '001', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ONSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '001', a.setl_Amt-a.return_Gd_Amt, '011', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '001', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ONSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '001', a.goods_Prcl_Prc,'011', a.goods_Prcl_Prc,0),'03',DECODE(a.recev_Div_Cd, '001', a.goods_Prcl_Prc,0),0)),0) as ONSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '002', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,'012', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '002', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ONSUMFLWRDELIVSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '002', a.setl_Amt-a.return_Gd_Amt,'012', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '002', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ONSUMFLWRDELIVRECEVAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '004', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ESCSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '004', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ESCSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '004', a.goods_Prcl_Prc,0),0)),0) as ESCSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '005', a.SUPP_GOODS_CNT-a.return_Gd_Cnt, '018', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '005', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS ETCSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '005', a.setl_Amt-a.return_Gd_Amt, '018', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '005', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS ETCSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '005', a.goods_Prcl_Prc, '018', a.goods_Prcl_Prc,0),'03',DECODE(a.recev_Div_Cd, '005', a.goods_Prcl_Prc,0),0)),0) as ETCSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '006', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS BTBSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '006', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS BTBSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '006', a.goods_Prcl_Prc,0),0)),0) as BTBSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '008', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,'019', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),'03',DECODE(a.recev_Div_Cd, '008', a.SUPP_GOODS_CNT-a.return_Gd_Cnt, '019', a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0),0)),0) AS OVERSUMSPCLTYSUPPGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '008', a.setl_Amt-a.return_Gd_Amt,'019', a.setl_Amt-a.return_Gd_Amt,0),'03',DECODE(a.recev_Div_Cd, '008', a.setl_Amt-a.return_Gd_Amt,'019', a.setl_Amt-a.return_Gd_Amt,0),0)),0) AS OVERSUMSPCLTYSUPPAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(a.recev_Div_Cd, '008', a.goods_Prcl_Prc,'019', a.goods_Prcl_Prc,0),'03',DECODE(a.recev_Div_Cd, '008', a.goods_Prcl_Prc,'019', a.goods_Prcl_Prc,0),0)),0) as OVERSUMSPCLTYSUPPPRC,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',a.SUPP_GOODS_CNT-a.return_Gd_Cnt,'03',a.SUPP_GOODS_CNT-a.return_Gd_Cnt,0)),0) AS ONTOTGOODSCNT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',a.setl_Amt-a.return_Gd_Amt,'03',a.setl_Amt-a.return_Gd_Amt,0)),0) AS ONTOTSELLAMT,
+            NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',a.goods_Prcl_Prc,'03',a.goods_Prcl_Prc,0)),0) as ONTOTPRC,
+            NVL(SUM(a.SUPP_GOODS_CNT-a.return_Gd_Cnt),0) AS TOTGOODSCNT,
+            NVL(SUM(a.setl_Amt-a.return_Gd_Amt),0) AS TOTSELLAMT,
+            NVL(SUM(a.goods_Prcl_Prc),0) as TOTSELLPRC
+            FROM
+            (SELECT  RCOCD, REGIPOCD
+            FROM    PICMT0060
+            WHERE   USEYN='Y'
+            ) B,
+            MP_POST_SHOP_SUPP_DAY A
+            WHERE  A.supp_Po_regi_Po_Cd = B.REGIPOCD(+)
+            AND    A.recev_Stus_Cd = '2'
+            AND A.SELL_CLOSE_YMD >= #hFromDate2#
+            AND A.SELL_CLOSE_YMD <= #hToDate2#
+        ]]>
+  </select>
+	
+</sqlMap>

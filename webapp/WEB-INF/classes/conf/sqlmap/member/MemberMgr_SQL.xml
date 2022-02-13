@@ -1,0 +1,1452 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Member">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM AS RNUM
+				  FROM (
+		]]>
+	</sql>
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+	)A	<isNotEmpty property="lastIndex">
+		<![CDATA[
+			WHERE ROWNUM <= #lastIndex#
+		]]>
+		</isNotEmpty>
+		)
+		<isNotEmpty property="firstIndex">
+		<![CDATA[
+				WHERE RNUM >= #firstIndex#
+		]]>
+		</isNotEmpty>
+	</sql>
+
+	<!-- 쇼핑회원관리 리스트 조회 -->
+	<select id="selectMemberMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	T1. *
+		FROM(
+			SELECT	T2.*
+					,ROWNUM AS RNUM
+			FROM (
+					SELECT /*+ INDEX(M IDX_MEMINFO_IX1) */ M.ACCESS_NAME /*회원ID*/
+							,M.NAME /*회원명*/
+							,M.POSTOFFICE /*추천우체국*/
+							,NVL((SELECT PONM FROM PICMT0060 WHERE REGIPOCD = M.RECOMMRCODE   AND USEYN='Y'   AND DSCDPOYN = 'N'  AND ROWNUM = 1), '' ) AS POSTNAME /*추천우체국명*/
+							,(SELECT MAX(MEM_GRADE) KEEP (DENSE_RANK LAST ORDER BY MEM_GRADE_APPLY_YMD ASC) FROM MB_MEM_GRADE WHERE ACCESS_NAME = M.ACCESS_NAME) AS MEM_GRADE /* 회원 등급 */
+							,M.MEMBER_TYPE /*회원종류*/
+							,F_GET_COMN_CD_NM('MEM_KIND_CD', M.MEMBER_TYPE) AS TYPE_NAME /*회원종류*/
+							,M.IPIN_USERAGE
+							,DECODE(M.IPIN_USERSEX, '1', '남성', '2', '여성') AS SEX_NAME
+							,TO_CHAR(TO_DATE(M.CREATE_DATE, 'YYYY-MM-DD HH24'),'YYYY-MM-DD HH24') AS CREATE_DATE
+							,TO_CHAR(M.LASTLOGIN_DT, 'YYYY-MM-DD') AS LASTLOGIN_DT
+							,M.VISIT_CNT
+							,(M.MOBILE_1||'-'||M.MOBILE_2||'-'||M.MOBILE_3) AS MOBILE
+							,M.EMAIL
+							,M.TELNO_1||'-'||M.TELNO_2||'-'||M.TELNO_3 AS TELNO
+							,M.STATUS /* 회원 상태 */
+							,F_GET_COMN_CD_NM('MEM_STUS_CD', M.STATUS) AS STATUS_NAME /* 회원 상태 */
+							,(SELECT SUM(ORDER_CNT) FROM MB_MEM_GRADE WHERE ACCESS_NAME = M.ACCESS_NAME) AS ORDER_CNT /* 주문 건수 */
+							,(SELECT SUM(ORDER_AMT) FROM MB_MEM_GRADE WHERE ACCESS_NAME = M.ACCESS_NAME) AS ORDER_AMT /* 주문 금액 */
+							,(SELECT CUR_POINT FROM MB_MEM_ACCMLAMT WHERE ACCESS_NAME = M.ACCESS_NAME) AS CUR_POINT /* 현재 포인트 */
+							,(SELECT POST_POINT FROM MB_MEM_ACCMLAMT WHERE ACCESS_NAME = M.ACCESS_NAME) AS POST_POINT /* 우체국 포인트 */
+							,(SELECT NVL(EMP_YN, 'N') EMP_YN FROM MB_MEM_MAST WHERE ACCESS_NAME = M.ACCESS_NAME) AS EMP_YN /* 임직원여부 */
+					FROM	MEMINFO M
+					WHERE	1=1
+					<isNotEmpty property="search_mem_stus_cd" prepend="AND">
+						M.STATUS = #search_mem_stus_cd#						/*회원 상태*/
+					</isNotEmpty>
+					<isNotEmpty property="search_mem_kind_cd" prepend="AND">
+						M.MEMBER_TYPE = #search_mem_kind_cd#			/*회원 종류*/
+					</isNotEmpty>
+					<isNotEmpty property="sex" prepend="AND">
+						M.IPIN_USERSEX =#sex#						/*성별*/
+					</isNotEmpty>
+					<isNotEmpty property="searchRecommrcode" prepend="AND">
+						M.POSTOFFICE = #searchRecommrCode#			/*추천우체국*/
+					</isNotEmpty>
+					<isNotEmpty property="regFromDt">
+						<isNotEmpty property="regToDt" prepend="AND">
+						M.CREATE_DATE BETWEEN REPLACE(#regFromDt#,'-','') AND  REPLACE(#regToDt#,'-','')	/*회원가입일*/
+						</isNotEmpty>
+					</isNotEmpty>
+					<isNotEmpty property="visitFromDt">
+						<isNotEmpty property="visitToDt" prepend="AND">
+						M.LASTLOGIN_DT BETWEEN REPLACE(#visitFromDt#,'-','') AND  REPLACE(#visitToDt#,'-','') /*최근접속일*/
+						</isNotEmpty>
+					</isNotEmpty>
+					<isNotEmpty property="searchWord">
+						<isEqual property="searchIndex" compareValue="01" prepend="AND">
+							M.NAME LIKE  #searchWord# || '%'				/*회원명*/
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="02" prepend="AND">
+							M.ACCESS_NAME LIKE  #searchWord# || '%'		/*회원ID*/
+						</isEqual>
+					</isNotEmpty>
+			)T2
+			WHERE 1=1
+			<isNotEmpty property="search_mem_grade_cd" prepend="AND">
+				T2.MEM_GRADE = #search_mem_grade_cd#					/*회원 등급*/
+			</isNotEmpty>
+			<isNotEmpty property="empYn" prepend="AND">
+				T2.EMP_YN = #empYn#			/*임직원 여부*/
+			</isNotEmpty>
+				AND ROWNUM <![CDATA[<=]]> #lastIndex#
+			)T1
+		WHERE T1.RNUM BETWEEN #firstIndex# AND #lastIndex#
+	</select>
+
+	<!-- 쇼핑회원관리 리스트 카운트 -->
+	<select id="selectMemberMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(T1.ACCESS_NAME) AS TOTCNT
+		FROM(
+			SELECT	T2.*
+					,ROWNUM AS RNUM
+			FROM (
+					SELECT /*+ INDEX(M IDX_MEMINFO_IX1) */ M.ACCESS_NAME /*회원ID*/
+							,M.NAME /*회원명*/
+							,M.POSTOFFICE /*추천우체국*/
+							,NVL((SELECT PONM FROM PICMT0060 WHERE REGIPOCD = M.RECOMMRCODE   AND USEYN='Y'   AND DSCDPOYN = 'N'  AND ROWNUM = 1), '' ) AS POSTNAME /*추천우체국명*/
+							,(SELECT MAX(MEM_GRADE) KEEP (DENSE_RANK LAST ORDER BY MEM_GRADE_APPLY_YMD ASC) FROM MB_MEM_GRADE WHERE ACCESS_NAME = M.ACCESS_NAME) AS MEM_GRADE /* 회원 등급 */
+							,M.MEMBER_TYPE /*회원종류*/
+							,F_GET_COMN_CD_NM('MEM_KIND_CD', M.MEMBER_TYPE) AS TYPE_NAME /*회원종류*/
+							,M.IPIN_USERAGE
+							,DECODE(M.IPIN_USERSEX, '1', '남성', '2', '여성') AS SEX_NAME
+							,TO_DATE(M.CREATE_DATE, 'YYYY-MM-DD-HH24') AS CREATE_DATE
+							,TO_CHAR(M.LASTLOGIN_DT, 'YYYY-MM-DD') AS LASTLOGIN_DT
+							,M.VISIT_CNT
+							,(M.MOBILE_1||'-'||M.MOBILE_2||'-'||M.MOBILE_3) AS MOBILE
+							,M.EMAIL
+							,M.TELNO_1||'-'||M.TELNO_2||'-'||M.TELNO_3 AS TELNO
+							,M.STATUS /* 회원 상태 */
+							,F_GET_COMN_CD_NM('MEM_STUS_CD', M.STATUS) AS STATUS_NAME /* 회원 상태 */
+							,(SELECT SUM(ORDER_CNT) FROM MB_MEM_GRADE WHERE ACCESS_NAME = M.ACCESS_NAME) AS ORDER_CNT /* 주문 건수 */
+							,(SELECT SUM(ORDER_AMT) FROM MB_MEM_GRADE WHERE ACCESS_NAME = M.ACCESS_NAME) AS ORDER_AMT /* 주문 금액 */
+							,(SELECT CUR_POINT FROM MB_MEM_ACCMLAMT WHERE ACCESS_NAME = M.ACCESS_NAME) AS CUR_POINT /* 현재 포인트 */
+							,(SELECT POST_POINT FROM MB_MEM_ACCMLAMT WHERE ACCESS_NAME = M.ACCESS_NAME) AS POST_POINT /* 우체국 포인트 */
+							,(SELECT NVL(EMP_YN, 'N') EMP_YN FROM MB_MEM_MAST WHERE ACCESS_NAME = M.ACCESS_NAME) AS EMP_YN /* 임직원여부 */
+					FROM	MEMINFO M
+					WHERE	1=1
+					<isNotEmpty property="search_mem_stus_cd" prepend="AND">
+						M.STATUS = #search_mem_stus_cd#						/*회원 상태*/
+					</isNotEmpty>
+					<isNotEmpty property="search_mem_kind_cd" prepend="AND">
+						M.MEMBER_TYPE = #search_mem_kind_cd#			/*회원 종류*/
+					</isNotEmpty>
+					<isNotEmpty property="sex" prepend="AND">
+						M.IPIN_USERSEX =#sex#						/*성별*/
+					</isNotEmpty>
+					<isNotEmpty property="searchRecommrcode" prepend="AND">
+						M.POSTOFFICE = #searchRecommrCode#			/*추천우체국*/
+					</isNotEmpty>
+					<isNotEmpty property="regFromDt">
+						<isNotEmpty property="regToDt" prepend="AND">
+						M.CREATE_DATE BETWEEN REPLACE(#regFromDt#,'-','') AND  REPLACE(#regToDt#,'-','')	/*회원가입일*/
+						</isNotEmpty>
+					</isNotEmpty>
+					<isNotEmpty property="visitFromDt">
+						<isNotEmpty property="visitToDt" prepend="AND">
+						M.LASTLOGIN_DT BETWEEN REPLACE(#visitFromDt#,'-','') AND  REPLACE(#visitToDt#,'-','') /*최근접속일*/
+						</isNotEmpty>
+					</isNotEmpty>
+					<isNotEmpty property="searchWord">
+						<isEqual property="searchIndex" compareValue="01" prepend="AND">
+							M.NAME LIKE  #searchWord# || '%'				/*회원명*/
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="02" prepend="AND">
+							M.ACCESS_NAME LIKE  #searchWord# || '%'		/*회원ID*/
+						</isEqual>
+					</isNotEmpty>
+			)T2
+			WHERE 1=1
+			<isNotEmpty property="search_mem_grade_cd" prepend="AND">
+				T2.MEM_GRADE = #search_mem_grade_cd#					/*회원 등급*/
+			</isNotEmpty>
+			<isNotEmpty property="empYn" prepend="AND">
+				T2.EMP_YN = #empYn#			/*임직원 여부*/
+			</isNotEmpty>
+		)T1
+	</select>
+
+	<!-- 쇼핑회원 상세보기 -->
+	<select id="selectMemberInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+	SELECT	M.ACCESS_NAME/* 회원ID */
+			,M.NAME/* 회원명 */
+			,DECODE(M.IPIN_USERSEX,'1','남성','2','여성') AS SEX_NM     /* 성별 */
+			,MEM_GRADE
+			,F_GET_COMN_CD_NM('MEM_GRADE_CD',G.MEM_GRADE) AS GRADE_NAME	/* 회원 등급 */
+			,F_GET_COMN_CD_NM('MEM_KIND_CD',M.MEMBER_TYPE) AS TYPE_NAME	/*회원종류*/
+			,F_GET_COMN_CD_NM('MEM_STUS_CD',M.STATUS) AS STATUS_NAME	/* 회원 상태 */
+			,NVL((SELECT PONM FROM PICMT0060 WHERE REGIPOCD = M.RECOMMRCODE AND USEYN='Y' AND DSCDPOYN = 'N' AND ROWNUM = 1),'추천안함' ) AS POSTNAME   /* 우체국명 */
+			,TO_DATE(M.IPIN_USERBIRTH,'YYYY-MM-DD') AS IPIN_USERBIRTH /*생년월일*/
+			, M.EMAIL
+			,(M.TELNO_1||'-'||M.TELNO_2||'-'||M.TELNO_3) AS TELNO
+			,(M.MOBILE_1||'-'||M.MOBILE_2||'-'||M.MOBILE_3) AS MOBILE
+			,M.POSTAL_CODE /* 우편번호 */
+			,M.ADDRESS_2 /*주소*/
+			,M.ACCESSTIME /* 최종접속일자 */
+			,M.VISIT_CNT /* 접속 수 */
+			,TO_DATE(M.CREATE_DATE,'YYYY-MM-DD-HH24') AS CREATE_DATE /*가입날짜*/
+			,NVL(TO_CHAR(A.CUR_POINT,'FM9,999,999,999'),0) AS CUR_POINT /* 현재 마일리지 포인트 */
+			,NVL(TO_CHAR(A.POST_POINT,'FM9,999,999,999'),0) AS POST_POINT /* 우체국금융 포인트 */
+			,G.ORDER_CNT /* 주문 건수 */
+			,NVL(TO_CHAR(G.ORDER_AMT,'FM9,999,999,999'),0) AS ORDER_AMT /* 주문 금액 */
+			,DECODE(M.EMAIL_YN,'Y','수신','N','수신안함') AS EMAIL_YN /*EMAIL 수신여부*/
+			,DECODE(M.MOBILE_YN,'Y','수신','N','수신안함') AS MOBILE_YN /*모바일 수신여부*/
+	FROM	MEMINFO M
+			,MB_MEM_GRADE G
+			,MB_MEM_ACCMLAMT A
+	WHERE	M.ACCESS_NAME = G.ACCESS_NAME(+)
+	AND 	M.ACCESS_NAME = A.ACCESS_NAME
+		<isNotEmpty property="searchAccessName">
+			AND  M.ACCESS_NAME = #searchAccessName#
+		</isNotEmpty>
+	</select>
+	<!-- 쇼핑회원관리 비밀번호 초기화 (#1 비밀번호 초기화)-->
+	<update id="updateMemberMgrPw" parameterClass="java.util.HashMap">
+		UPDATE	MEMINFO SET
+				PASSWORD = #password#,
+				INIT_YN = 'Y',
+				MODIFY_DT=SYSDATE,
+				STATUS = '1',
+				STOP_DT = NULL,
+				STOP_REASON = NULL,
+				PROCESS_ID = #loginId#,
+				PWCHANGE_DATE = TO_CHAR(SYSDATE,'YYYYMMDD'),
+				PASSWORD2 = #password2#,
+				LOGIN_FCNT = 0
+		WHERE ACCESS_NAME = #accessName#
+	</update>
+
+	<!-- MAIL_SENDINFO DELETE (#2 비밀번호 초기화)-->
+	<update id="deleteMailSendInfo" parameterClass="java.util.HashMap">
+	DELETE
+	FROM	MAIL_SENDINFO
+	WHERE ACCESS_NAME = #accessName#
+	</update>
+
+	<!-- MAIL_SENDINFO INSERT (#3 비밀번호 초기화)-->
+	<insert id="insertMailSendInfo" parameterClass="java.util.HashMap">
+	INSERT INTO MAIL_SENDINFO
+		(
+		ACCESS_NAME
+		,STATUS
+		,SEND_DATE
+		)
+	VALUES
+		(
+		#accessName#
+		,'P'
+		,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+		)
+	</insert>
+	<!-- 쇼핑회원 관리 임직원 설정/해제 -->
+	<update id="updateEmpYnMgr" parameterClass="java.util.HashMap">
+		UPDATE	MB_MEM_MAST SET
+				EMP_YN = #empYn#
+				,CHGER_ID = #loginId#
+				,CHG_DATE = SYSDATE
+		WHERE ACCESS_NAME = #accessName#
+	</update>
+
+	<!-- 쇼핑회원쿠폰 리스트 카운트 -->
+	<select id="selectMemberCpnListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+				SELECT	COUNT(*)
+				FROM	EV_CPN_USER_ISSUE_INFO C,MEMINFO M, EV_CPN_MAST CM
+				WHERE	M.ACCESS_NAME = C.ACCESS_NAME
+				AND 	C.CPN_MAST_NO = CM.CPN_MAST_NO
+				AND 	M.ACCESS_NAME = #accessName#
+	</select>
+	<!-- 쇼핑회원쿠폰 리스트 조회 -->
+	<select id="selectMemberCpnList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	M.ACCESS_NAME
+				,C.CPN_MAST_NO
+				,CM.TITLE
+				,CM.APPLY_DATE
+				,DECODE(DC_DIV_CD,'1','정액','2','정률') AS DC_DIV_NAME
+				,CM.AMOUNT /*액면가*/
+				,CM.RATE_TYPE /*쿠폰의 정률*/
+				,DECODE(CM.CP_TYPE_CD,'A','일반상품쿠폰','B','전환쿠폰','C','신규회원쿠폰','D','생일자쿠폰','E','기념일쿠폰','F','대량구매쿠폰','감사쿠폰') AS CP_TYPE_NAME
+				,DECODE(CM.BIZ_CP_STATUS,'2','미승인','3','승인') AS BIZ_CP_STATUS_NAME
+		FROM	EV_CPN_USER_ISSUE_INFO C,MEMINFO M, EV_CPN_MAST CM
+		WHERE	M.ACCESS_NAME = C.ACCESS_NAME
+		AND 	C.CPN_MAST_NO = CM.CPN_MAST_NO
+		AND 	M.ACCESS_NAME = #accessName#
+	</select>
+	<!-- 쇼핑회원 1:1문의 리스트 조회 -->
+	<select id="selectMemberQnaList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT QN.SEQ_NO
+				,(SELECT NAME FROM QNABBS_CODE QC WHERE QC.CODE=QN.Q2_CODE AND QC.CODE_TYPE=QN.Q1_CODE) AS QNAME
+				,QN.WRITER_ID
+				,QN.WRITER_NAME
+				,TO_CHAR(TO_DATE(QN.WRITE_DATE,'YYYY-MM-DD HH24:MI:SS'),'YYYY-MM-DD HH24:MI:SS') AS WRITE_DATE
+				,QN.WRITE_TITLE
+				,QN.ANSWER_ID
+				,QN.ANSWER_NAME
+		FROM	QNABBS_Q_NEW QN
+		WHERE	QN.WRITER_ID = #accessName#
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 쇼핑회원 1:1문의 리스트 조회 -->
+	<select id="selectMemberQnaListTotCnt" parameterClass ="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(*)
+		FROM	QNABBS_Q_NEW QN
+		WHERE	QN.WRITER_ID = #accessName#
+	</select>
+	<resultMap id="memberQnaMap" class="commMap" >
+		<result	property="SEQ_NO"		column="SEQ_NO" />
+		<result	property="QNAME"		column="QNAME" />
+		<result	property="Q1_CODE"		column="Q1_CODE" />
+		<result	property="STATUS_TYPE"	column="STATUS_TYPE" />
+		<result	property="WRITER_ID"	column="WRITER_ID" />
+		<result	property="WRITER_NAME"	column="WRITER_NAME" />
+		<result	property="WRITE_DATE"	column="WRITE_DATE" />
+		<result	property="WRITE_TITLE"	column="WRITE_TITLE" />
+		<result	property="WRITE_TEXT"	column="WRITE_TEXT" />
+		<result	property="ANSWER_ID"	column="ANSWER_ID" />
+		<result	property="ANSWER_NAME"	column="ANSWER_NAME" />
+		<result	property="CLOB_WRITE_TEXT"	column="CLOB_WRITE_TEXT" javaType="java.lang.String" jdbcType="CLOB"/>
+		<result	property="ANSWER_DATE"	column="ANSWER_DATE" />
+	</resultMap>
+	<!-- 쇼핑회원 1:1문의 상세 조회 -->
+	<select id="selectMemberQnaInfo" parameterClass ="java.util.HashMap" resultMap="memberQnaMap">
+		SELECT	SEQ_NO
+				,(SELECT NAME FROM QNABBS_CODE QC WHERE QC.CODE=Q2_CODE AND QC.CODE_TYPE=Q1_CODE) AS QNAME
+				,DECODE(Q1_CODE,'AA','우편서비스','BB','우체국택배','CC','국제우편','DD','우체국쇼핑','EE','생활마트'
+				,'FF','메일','GG','회원정보','HH','기타문의','II','우체국B2B','JJ','사업자포탈') AS Q1_CODE			/*업무구분*/
+				,DECODE(STATUS_TYPE,'S','미확인','D','처리중','C','전화','E','이메일','R','답변거부','F','처리완료','X','삭제','') AS STATUS_TYPE
+				,WRITER_ID
+				,WRITER_NAME
+				,TO_DATE(WRITE_DATE,'YYYY-MM-DD HH24:MI:SS') AS WRITE_DATE
+				,WRITE_TITLE
+				,WRITE_TEXT
+				,ANSWER_ID
+				,ANSWER_NAME
+				,NVL(CLOB_WRITE_TEXT,'내용없음') AS CLOB_WRITE_TEXT
+				,TO_DATE(ANSWER_DATE,'YYYY-MM-DD HH24:MI:SS') AS ANSWER_DATE
+		FROM	QNABBS_Q_NEW
+		WHERE	SEQ_NO = #qnaSeqNo#
+	</select>
+
+	<!-- 쇼핑회원관리 SMS 전송 -->
+	<insert id="insertArreoSms" parameterClass="java.util.HashMap">
+		INSERT INTO ARREO_SMS (
+				CMP_MSG_ID,
+				SND_PHN_ID,
+				RCV_PHN_ID,
+				CALLBACK,
+				SND_MSG,
+				SND_DTTM
+			) VALUES (
+				SEQ_UNIQUE_20.NEXTVAL,
+				#sndPhnId#,
+				#rcvPhnId#,
+				#callback#,
+				#sndMsg#,
+ 			<isEqual property="sendMethod" compareValue="R">
+				TO_CHAR(#sndDttm# , 'YYYYMMDDHH24MISS')
+			</isEqual>
+ 			<isEqual property="sendMethod" compareValue="S">
+				TO_CHAR(SYSDATE , 'YYYYMMDDHH24MISS')
+			</isEqual>
+			)
+	</insert>
+
+	<!-- 쇼핑회원 통계 리스트 조회 -->
+	<select id="selectMemberStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	UP_DATE                 as update1
+					,N_TYPE1                as ntype1
+					,N_TYPE1_F              AS NTYPE1F
+					,N_TYPE1_KPS            AS NTYPE1KPS
+					,N_TYPE2                as ntype2
+					,N_TYPE2_KPS            AS NTYPE2KPS
+					,N_TYPE3                as ntype3
+					,C_TYPE1                as ctype1
+					,C_TYPE1_F              AS CTYPE1F
+					,C_TYPE1_KPS            AS CTYPE1KPS
+					,C_TYPE2                as ctype2
+					,C_TYPE2_KPS            AS CTYPE2KPS
+					,C_TYPE3                as ctype3
+					,MEM_TOTAL                as memtotal
+					,LOSS_TYPE1_TOTAL        as losstype1total
+					,LOSS_TYPE2_TOTAL        as losstype2total
+					,LOSS_TYPE3_TOTAL        as losstype3total
+					,(MEM_TOTAL-LOSS_TYPE1_TOTAL-LOSS_TYPE2_TOTAL- LOSS_TYPE3_TOTAL) AS activememtotal
+		FROM(
+			SELECT
+					 UP_DATE
+					,CNT_TYPE1 AS N_TYPE1
+					,CNT_TYPE1_F AS N_TYPE1_F
+					,CNT_TYPE1_KPS AS N_TYPE1_KPS
+					,CNT_TYPE2 AS N_TYPE2
+					,CNT_TYPE2_KPS AS N_TYPE2_KPS
+					,CNT_TYPE3 AS N_TYPE3
+					,CNT_TOTAL AS N_TOTAL
+					,C_CNT_TYPE1 AS C_TYPE1
+					,C_CNT_TYPE1_F AS C_TYPE1_F
+					,C_CNT_TYPE1_KPS AS C_TYPE1_KPS
+					,C_CNT_TYPE2 AS C_TYPE2
+					,C_CNT_TYPE2_KPS AS C_TYPE2_KPS
+					,C_CNT_TYPE3 AS C_TYPE3
+					,C_CNT_TOTAL AS C_TOTAL
+					,(SELECT X.MEM_TOTAL
+					  FROM MEMBER_STAT X
+					  WHERE X.UP_DATE = MEM_DATE) AS MEM_TOTAL
+					,(SELECT NVL(X.LOSS_TYPE1,0)
+					  FROM MEMBER_STAT X
+					  WHERE X.UP_DATE = MEM_DATE) AS LOSS_TYPE1_TOTAL
+					,(SELECT NVL(X.LOSS_TYPE2,0)
+					  FROM MEMBER_STAT X
+					  WHERE X.UP_DATE = MEM_DATE) AS LOSS_TYPE2_TOTAL
+					,(SELECT NVL(X.LOSS_TYPE3,0)
+					  FROM MEMBER_STAT X
+					  WHERE X.UP_DATE = MEM_DATE) AS LOSS_TYPE3_TOTAL
+					 ,ROW_NUMBER() OVER(ORDER BY UP_DATE DESC) AS ONUM
+				FROM(
+						SELECT
+							SUM(CNT_TYPE1) AS CNT_TYPE1
+							,SUM(CNT_TYPE1_F) AS CNT_TYPE1_F
+							,SUM(CNT_TYPE1_KPS) AS CNT_TYPE1_KPS
+							,SUM(CNT_TYPE2) AS CNT_TYPE2
+							,SUM(CNT_TYPE2_KPS) AS CNT_TYPE2_KPS
+							,SUM(CNT_TYPE3) AS CNT_TYPE3
+							,(SUM(CNT_TYPE1) + SUM(CNT_TYPE2) + SUM(CNT_TYPE3)) AS CNT_TOTAL /*가입회원계*/
+							,SUM(C_CNT_TYPE1) AS C_CNT_TYPE1
+							,SUM(C_CNT_TYPE1_F) AS C_CNT_TYPE1_F
+							,SUM(C_CNT_TYPE1_KPS) AS C_CNT_TYPE1_KPS
+							,SUM(C_CNT_TYPE2) AS C_CNT_TYPE2
+							,SUM(C_CNT_TYPE2_KPS) AS C_CNT_TYPE2_KPS
+							,SUM(C_CNT_TYPE3) AS C_CNT_TYPE3
+							,(SUM(C_CNT_TYPE1) + SUM(C_CNT_TYPE2) + SUM(C_CNT_TYPE3)) AS C_CNT_TOTAL
+							,MAX(UP_DATE) AS MEM_DATE
+							<isEqual property="mode" compareValue="00">
+								,'기간전체' AS UP_DATE		/*기간전체*/
+							</isEqual>
+							<isEqual property="mode" compareValue="01">
+								,SUBSTR(UP_DATE,1,4) AS UP_DATE		/*연도별*/
+							</isEqual>
+							<isEqual property="mode" compareValue="02">
+								,TO_DATE(SUBSTR(UP_DATE,1,6),'YYYY-MM') AS UP_DATE	/*월별*/
+							</isEqual>
+							<isEqual property="mode" compareValue="03">
+								,TO_DATE(UP_DATE,'YYYY-MM-DD') AS UP_DATE	/*일별*/
+							</isEqual>
+				 		FROM MEMBER_STAT
+				        WHERE 1=1
+			        	<isNotNull property="searchToDt">
+							<isNotNull property="searchFromDt">
+						AND UP_DATE BETWEEN #searchFromDt# AND #searchToDt#
+							 </isNotNull>
+						</isNotNull>
+			        	<isEqual property="mode" compareValue="00">
+					    GROUP BY ''							/*기간전체*/
+					    </isEqual>
+			        	<isEqual property="mode" compareValue="01">
+					    GROUP BY SUBSTR(UP_DATE,1,4)	/*연도별*/
+					    </isEqual>
+					    <isEqual property="mode" compareValue="02">
+
+					    GROUP BY TO_DATE(SUBSTR(UP_DATE,1,6),'YYYY-MM')	/*월별*/
+					    </isEqual>
+					    <isEqual property="mode" compareValue="03">
+					    GROUP BY TO_DATE(UP_DATE,'YYYY-MM-DD')	/*일별*/
+					    </isEqual>
+				    )
+			)
+		WHERE 1=1
+		<isNotNull property="lastIndex">
+			<isNotNull property="firstIndex">
+			AND ONUM BETWEEN #firstIndex# AND #lastIndex#
+			</isNotNull>
+		</isNotNull>
+		ORDER BY UP_DATE DESC
+	</select>
+
+		<!-- 쇼핑회원 통계 리스트 조회 -->
+	<select id="selectMemberStatListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM(
+			SELECT	UP_DATE                 as update1
+					,N_TYPE1                as ntype1
+					,N_TYPE1_F              AS NTYPE1F
+					,N_TYPE1_KPS            AS NTYPE1KPS
+					,N_TYPE2                as ntype2
+					,N_TYPE2_KPS            AS NTYPE2KPS
+					,N_TYPE3                as ntype3
+					,C_TYPE1                as ctype1
+					,C_TYPE1_F              AS CTYPE1F
+					,C_TYPE1_KPS            AS CTYPE1KPS
+					,C_TYPE2                as ctype2
+					,C_TYPE2_KPS            AS C_TYPE2_KPS
+					,C_TYPE3                as ctype3
+					,MEM_TOTAL                as memtotal
+					,LOSS_TYPE1_TOTAL        as losstype1total
+					,LOSS_TYPE2_TOTAL        as losstype2total
+					,LOSS_TYPE3_TOTAL        as losstype3total
+					,(MEM_TOTAL-LOSS_TYPE1_TOTAL-LOSS_TYPE2_TOTAL- LOSS_TYPE3_TOTAL) AS activememtotal
+			FROM(
+				SELECT
+						 UP_DATE
+						,CNT_TYPE1 AS N_TYPE1
+						,CNT_TYPE1_F AS N_TYPE1_F
+						,CNT_TYPE1_KPS AS N_TYPE1_KPS
+						,CNT_TYPE2 AS N_TYPE2
+						,CNT_TYPE2_KPS AS N_TYPE2_KPS
+						,CNT_TYPE3 AS N_TYPE3
+						,CNT_TOTAL AS N_TOTAL
+						,C_CNT_TYPE1 AS C_TYPE1
+						,C_CNT_TYPE1_F AS C_TYPE1_F
+						,C_CNT_TYPE1_KPS AS C_TYPE1_KPS
+						,C_CNT_TYPE2 AS C_TYPE2
+						,C_CNT_TYPE2_KPS AS C_TYPE2_KPS
+						,C_CNT_TYPE3 AS C_TYPE3
+						,C_CNT_TOTAL AS C_TOTAL
+						,(SELECT X.MEM_TOTAL
+						  FROM MEMBER_STAT X
+						  WHERE X.UP_DATE = MEM_DATE) AS MEM_TOTAL
+						,(SELECT NVL(X.LOSS_TYPE1,0)
+						  FROM MEMBER_STAT X
+						  WHERE X.UP_DATE = MEM_DATE) AS LOSS_TYPE1_TOTAL
+						,(SELECT NVL(X.LOSS_TYPE2,0)
+						  FROM MEMBER_STAT X
+						  WHERE X.UP_DATE = MEM_DATE) AS LOSS_TYPE2_TOTAL
+						,(SELECT NVL(X.LOSS_TYPE3,0)
+						  FROM MEMBER_STAT X
+						  WHERE X.UP_DATE = MEM_DATE) AS LOSS_TYPE3_TOTAL
+						 ,ROW_NUMBER() OVER(ORDER BY UP_DATE DESC) AS ONUM
+					FROM(
+							SELECT
+								SUM(CNT_TYPE1) AS CNT_TYPE1
+								,SUM(CNT_TYPE1_F) AS CNT_TYPE1_F
+								,SUM(CNT_TYPE1_KPS) AS CNT_TYPE1_KPS
+								,SUM(CNT_TYPE2) AS CNT_TYPE2
+								,SUM(CNT_TYPE2_KPS) AS CNT_TYPE2_KPS
+								,SUM(CNT_TYPE3) AS CNT_TYPE3
+								,(SUM(CNT_TYPE1) + SUM(CNT_TYPE2) + SUM(CNT_TYPE3)) AS CNT_TOTAL /*가입회원계*/
+								,SUM(C_CNT_TYPE1) AS C_CNT_TYPE1
+								,SUM(C_CNT_TYPE1_F) AS C_CNT_TYPE1_F
+								,SUM(C_CNT_TYPE1_KPS) AS C_CNT_TYPE1_KPS
+								,SUM(C_CNT_TYPE2) AS C_CNT_TYPE2
+								,SUM(C_CNT_TYPE2_KPS) AS C_CNT_TYPE2_KPS
+								,SUM(C_CNT_TYPE3) AS C_CNT_TYPE3
+								,(SUM(C_CNT_TYPE1) + SUM(C_CNT_TYPE2) + SUM(C_CNT_TYPE3)) AS C_CNT_TOTAL
+								,MAX(UP_DATE) AS MEM_DATE
+								<isEqual property="mode" compareValue="00">
+									,'기간전체' AS UP_DATE		/*기간전체*/
+								</isEqual>
+								<isEqual property="mode" compareValue="01">
+									,SUBSTR(UP_DATE,1,4) AS UP_DATE		/*연도별*/
+								</isEqual>
+								<isEqual property="mode" compareValue="02">
+									,TO_DATE(SUBSTR(UP_DATE,1,6),'YYYY-MM') AS UP_DATE	/*월별*/
+								</isEqual>
+								<isEqual property="mode" compareValue="03">
+									,TO_DATE(UP_DATE,'YYYY-MM-DD') AS UP_DATE	/*일별*/
+								</isEqual>
+					 		FROM MEMBER_STAT
+							WHERE 1=1
+							<isNotNull property="searchToDt">
+								<isNotNull property="searchFromDt">
+							AND UP_DATE BETWEEN #searchFromDt# AND #searchToDt#
+								 </isNotNull>
+							 </isNotNull>
+				        	<isEqual property="mode" compareValue="00">
+						    GROUP BY ''							/*기간전체*/
+						    </isEqual>
+				        	<isEqual property="mode" compareValue="01">
+						    GROUP BY SUBSTR(UP_DATE,1,4)	/*연도별*/
+						    </isEqual>
+						    <isEqual property="mode" compareValue="02">
+
+						    GROUP BY TO_DATE(SUBSTR(UP_DATE,1,6),'YYYY-MM')	/*월별*/
+						    </isEqual>
+						    <isEqual property="mode" compareValue="03">
+						    GROUP BY TO_DATE(UP_DATE,'YYYY-MM-DD')	/*일별*/
+						    </isEqual>
+					    )
+				)
+		)
+
+	</select>
+
+	<!-- 쇼핑회원 접속정보 조회 -->
+
+	<select id="selectMemberAccessInfoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	M.RNUM
+				,M.ACCESS_NAME 	AS ACCESSNAME
+				,M.NAME
+				,M.EMAIL
+				,M.STATUSNM
+				,M.CNTLOG
+				,M.LOGDAY
+				,M.LASTLOG
+		FROM (
+				SELECT /*+ INDEX(E IDX_MEMINFO_PK) USE_NL(D E) */ D.ACCESS_NAME
+						,E.NAME
+						,E.EMAIL
+						,DECODE(E.STATUS,'1','정상',
+										 '2','로그인정지',
+										 '3','아동_비동의',
+										 '4',DECODE((	SELECT SM.STATUS
+														FROM SLEEP_MEMBER SM
+														WHERE SM.ACCESS_NAME = E.ACCESS_NAME),'S','휴면회원','탈퇴'),
+										 '8','정상',
+										 '기타' ) AS STATUSNM
+						,D.CNTLOG
+						,D.LOGDAY
+						,D.LASTLOG
+						,ROW_NUMBER() OVER(ORDER BY D.ACCESS_NAME ASC) AS RNUM
+				FROM (
+						SELECT COUNT(LOG_DATE) CNTLOG
+								,A.ACCESS_NAME
+								,MAX(LOG_DATE) LASTLOG
+								,COUNT(DISTINCT DT) LOGDAY
+						FROM (	SELECT	LOG_DATE
+										, TO_CHAR(LOG_DATE,'YYYYMMDD') AS DT
+										, ACCESS_NAME
+								FROM MEM_LOGIN
+								<isNotNull property="searchToDt">
+									<isNotNull property="searchFromDt">
+									WHERE LOG_DATE BETWEEN TO_DATE(#searchFromDt#,'YYYYMMDD') AND TO_DATE(#searchToDt#,'YYYYMMDD')
+									</isNotNull>
+								</isNotNull>
+							 ) A
+						GROUP BY A.ACCESS_NAME
+						) D
+						,MEMINFO E
+				WHERE	D.ACCESS_NAME = E.ACCESS_NAME
+				AND 	ROWNUM <![CDATA[<=]]> #lastIndex#
+				<isNotEmpty property="searchWord">
+					<isEqual property="searchIndex" compareValue="00">
+						AND		(
+									E.ACCESS_NAME LIKE #searchWord#||'%' 	/* 전체		*/
+								OR	E.NAME 	LIKE #searchWord#||'%' 		/* 회원명	*/
+								OR	E.EMAIL LIKE #searchWord#||'%'			/* EMAIL	*/
+								)
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="01">
+						AND		E.ACCESS_NAME LIKE #searchWord#||'%'  		/* 회원 ID 	*/
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="02">
+						AND		E.NAME LIKE #searchWord# ||'%' 			/* 회원명 	*/
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="03">
+						AND		E.EMAIL LIKE #searchWord#	||'%'			/* EMAIL 	*/
+					</isEqual>
+				</isNotEmpty>
+				<isNotEqual property="searchStatus" compareValue="0">
+					<isNotEmpty property="searchStatus">
+						AND	( 	E.STATUS = #searchStatus#		/* 1. 정상(1,8) 2. 로그인정지 3. 아동_비동의 4. 휴면/탈퇴  */
+					<isEqual property="searchStatus" compareValue="1">
+						OR		E.STATUS = '8'
+					</isEqual>
+					)
+				</isNotEmpty>
+		</isNotEqual>
+		 )M
+		<isNotNull property="firstIndex">
+			<isNotNull property="lastIndex">
+		WHERE M.RNUM <![CDATA[>=]]> #firstIndex#
+			</isNotNull>
+		</isNotNull>
+	</select>
+	<!-- 쇼핑회원 접속정보 카운트 -->
+	<select id="selectMemberAccessInfoListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+			SELECT  COUNT(M.ACCESS_NAME)
+			FROM (
+					SELECT /*+ INDEX(E IDX_MEMINFO_PK) USE_NL(D E) */ D.ACCESS_NAME
+							,E.NAME
+							,E.EMAIL
+							,DECODE(E.STATUS,'1','정상',
+											 '2','로그인정지',
+											 '3','아동_비동의',
+											 '4',DECODE((	SELECT SM.STATUS
+															FROM SLEEP_MEMBER SM
+															WHERE SM.ACCESS_NAME = E.ACCESS_NAME),'S','휴면회원','탈퇴'),
+											 '8','정상',
+											 '기타' ) AS STATUSNM
+							,D.CNTLOG
+							,D.LOGDAY
+							,D.LASTLOG
+							,ROW_NUMBER() OVER(ORDER BY D.ACCESS_NAME ASC) AS RNUM
+					FROM (
+							SELECT COUNT(LOG_DATE) CNTLOG
+									,A.ACCESS_NAME
+									,MAX(LOG_DATE) LASTLOG
+									,COUNT(DISTINCT DT) LOGDAY
+							FROM (	SELECT	LOG_DATE
+											, TO_CHAR(LOG_DATE,'YYYYMMDD') AS DT
+											, ACCESS_NAME
+									FROM MEM_LOGIN
+									<isNotNull property="searchToDt">
+										<isNotNull property="searchFromDt">
+										WHERE LOG_DATE BETWEEN TO_DATE(#searchFromDt#,'YYYYMMDD') AND TO_DATE(#searchToDt#,'YYYYMMDD')
+										</isNotNull>
+									</isNotNull>
+								 ) A
+							GROUP BY A.ACCESS_NAME
+							) D
+							,MEMINFO E
+					WHERE	D.ACCESS_NAME = E.ACCESS_NAME
+					<isNotEmpty property="searchWord">
+						<isEqual property="searchIndex" compareValue="00">
+							AND		(
+										E.ACCESS_NAME LIKE #searchWord#||'%' 	/* 전체		*/
+									OR	E.NAME 	LIKE #searchWord#||'%' 		/* 회원명	*/
+									OR	E.EMAIL LIKE #searchWord#||'%'			/* EMAIL	*/
+									)
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="01">
+							AND		E.ACCESS_NAME LIKE #searchWord#||'%'  		/* 회원 ID 	*/
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="02">
+							AND		E.NAME LIKE #searchWord# ||'%' 			/* 회원명 	*/
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="03">
+							AND		E.EMAIL LIKE #searchWord#	||'%'			/* EMAIL 	*/
+						</isEqual>
+					</isNotEmpty>
+					<isNotEqual property="searchStatus" compareValue="0">
+						<isNotEmpty property="searchStatus">
+							AND	( 	E.STATUS = #searchStatus#		/* 1. 정상(1,8) 2. 로그인정지 3. 아동_비동의 4. 휴면/탈퇴  */
+						<isEqual property="searchStatus" compareValue="1">
+							OR		E.STATUS = '8'
+						</isEqual>
+						)
+					</isNotEmpty>
+		</isNotEqual>
+		 )M
+	</select>
+
+	<!-- 쇼핑회원 구매 내역 통계 분석LIST -->
+	<select id="selectMemberAccuOrderMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			SELECT	COUNT(DISTINCT ACCESS_NAME) AS MEM_CNT
+					, NVL(SUM(GOODS_CNT), 0) AS GOODS_CNT
+					, NVL(SUM(GOODS_AMOUNT), 0) AS GOODS_AMOUNT
+					<isEqual property="grpDivCd" compareValue="all">
+					,#srchFromDt#||'~'||#srchToDt# as COMPLETE_DATE
+					</isEqual>
+					<isEqual property="grpDivCd" compareValue="month">
+					,SUBSTR(COMPLETE_DATE, 1, 6) AS COMPLETE_DATE
+					</isEqual>
+			FROM MEM_ORDER_STAT A
+			WHERE 1=1
+			AND DATE_TP = 'D'
+			<isNotEmpty property="srchFromDt">
+				<isNotEmpty property="srchToDt">
+				AND COMPLETE_DATE BETWEEN #srchFromDt# AND #srchToDt#
+				</isNotEmpty>
+			</isNotEmpty>
+			AND ACCESS_NAME NOT IN('X')
+			<isNotEmpty property="sysDivCd">
+			AND A.SYS_DIV_CD IN(#sysDivCd#)
+			</isNotEmpty>
+			<isNotEmpty property="bizDivCd">
+				<isEqual property="bizDivCd" compareValue="ALL">
+				AND A.BIZ_DIV_CD IN(#bizDivCd#)
+				</isEqual>
+				<isEqual property="bizDivCd" compareValue="5">
+				AND A.BIZ_DIV_CD IN(#bizDivCd#, '6', '7')
+				</isEqual>
+			</isNotEmpty>
+			<isNotEmpty property="accessName">
+			AND A.ACCESS_NAME = #accessName#
+			</isNotEmpty>
+			<isNotEmpty property="grpDivCd">
+				<isEqual property="grpDivCd" compareValue="month">
+				GROUP BY SUBSTR(COMPLETE_DATE, 1, 6)
+				</isEqual>
+				<isEqual property="grpDivCd" compareValue="month">
+				ORDER BY SUBSTR(COMPLETE_DATE, 1, 6)
+				</isEqual>
+			</isNotEmpty>
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 쇼핑회원 구매 내역 통계 분석 CNT -->
+	<select id="selectMemberAccuOrderMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM (
+				SELECT	COUNT(DISTINCT ACCESS_NAME) AS MEM_CNT
+						, NVL(SUM(GOODS_CNT), 0) AS GOODS_CNT
+						, NVL(SUM(GOODS_AMOUNT), 0) AS GOODS_AMOUNT
+						<isEqual property="grpDivCd" compareValue="all">
+						,#srchFromDt#||'~'||#srchToDt# as COMPLETE_DATE
+						</isEqual>
+						<isEqual property="grpDivCd" compareValue="month">
+						,SUBSTR(COMPLETE_DATE, 1, 6) AS COMPLETE_DATE
+						</isEqual>
+					FROM MEM_ORDER_STAT A
+					WHERE 1=1
+					AND DATE_TP = 'D'
+					<isNotEmpty property="srchFromDt">
+						<isNotEmpty property="srchToDt">
+						AND COMPLETE_DATE BETWEEN #srchFromDt# AND #srchToDt#
+						</isNotEmpty>
+					</isNotEmpty>
+					AND ACCESS_NAME NOT IN('X')
+					<isEqual property="sysDivCd" compareValue="all">
+					AND A.SYS_DIV_CD IN(#sysDivCd#)
+					</isEqual>
+					<isNotEmpty property="bizDivCd">
+						<isEqual property="bizDivCd" compareValue="all">
+						AND A.BIZ_DIV_CD IN(#bizDivCd#)
+						</isEqual>
+						<isEqual property="bizDivCd" compareValue="5">
+						AND A.BIZ_DIV_CD IN(#bizDivCd#, '6', '7')
+						</isEqual>
+					</isNotEmpty>
+					<isNotEmpty property="accessName">
+					AND A.ACCESS_NAME LIKE '%'|| #accessName# ||'%'
+					</isNotEmpty>
+					<isNotEmpty property="grpDivCd">
+						<isEqual property="grpDivCd" compareValue="month">
+						GROUP BY SUBSTR(COMPLETE_DATE, 1, 6)
+						</isEqual>
+						<isEqual property="grpDivCd" compareValue="month">
+						ORDER BY SUBSTR(COMPLETE_DATE, 1, 6)
+						</isEqual>
+					</isNotEmpty>
+			)
+	</select>
+
+	<!-- 회원 기본 분석 [직업] -->
+	<select id="selectMemberBasicJobList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT  *
+		FROM(
+			SELECT 'AA' AS JOBCLASS,('전체')GUBUN, COUNT(*) CNT, (1)ORDER_FLAG
+			FROM	MEMINFO
+		UNION
+			SELECT	AA.JOBCLASS
+					,DECODE(NVL(AA.JOBCLASS,'00'),
+					'00','선택안됨',  '01','회사원',        '02','자영업',
+					'03','대학(원)생','04','학생(초/중/고)','05','주부',
+					'06','공무원',    '07','교직자',        '08','전문직',
+					'09','의료인',    '10','법조인',        '11','군인',
+					'12','종교인',    '13','언론방송인',    '14','농축수산업',
+					'15','일용직',    '16','프리랜서',      '17','예술,연애인',
+					'18','운동선수',  '30','기타','  ','예외') GUBUN
+					,COUNT(NVL(AA.JOBCLASS,00)) CNT
+					,(2)ORDER_FLAG
+			FROM	MEM_EXTRA AA
+			GROUP BY	JOBCLASS
+		)ORDER BY  ORDER_FLAG ASC,JOBCLASS ASC
+	</select>
+	<!-- 회원 기본 분석 [취미] -->
+	<select id="selectMemberBasicHobbyList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT  *
+		FROM (
+				SELECT ('전체')GUBUN, COUNT(*) CNT, (1)ORDER_FLAG
+				FROM  MEMINFO
+
+				UNION
+
+				SELECT (A.GUBUN)GUBUN, (NVL(A.CNT,0) + NVL(B.CNT,0) + NVL(C.CNT,0))CNT, (2)ORDERFLAG
+				FROM (	SELECT  DECODE(SUBSTR(AA.HOBBY,1,2),'00','선택안됨', '01','스포츠(구기)', '02','등산',
+														'03','낚시',		'04','경기관람',	'05','독서',
+														'06','미술',		'07','바둑,장기',	'08','사진',
+														'09','수집,스크랩',	'10','여행(산책)',	'11','영화감상',
+														'12','요리',		'13','음악감상',	'14','인터넷',
+														'15','연극관람',	'16','미술(감상)',	'17','악기연주',
+														'18','레포츠',	'19','골프',		'20','볼링',
+														'21','스키',		'22','스쿠버,수상스키','23','수영',
+														'24','승마',		'25','테니스',	'26','꽂꽂이',
+														'27','분재',		'28','서예',		'29','애완동물기르기 ',
+														'30','PC게임',	'31','기타',		'35','기타') GUBUN ,
+								COUNT(SUBSTR(aa.HOBBY,1,2)) CNT
+						FROM	MEMINFO A, MEM_EXTRA AA
+						WHERE	A.ACCESS_NAME = AA.ACCESS_NAME(+)
+						AND 	AA.HOBBY IS NOT NULL
+						AND 	LENGTH(AA.HOBBY) > 1
+						GROUP BY  SUBSTR(AA.HOBBY,1,2)
+					 ) A,
+					(	SELECT  DECODE(SUBSTR(AA.HOBBY,3,4),'00','선택안됨', '01','스포츠(구기)', '02','등산',
+														'03','낚시',		'04','경기관람',	'05','독서',
+														'06','미술',		'07','바둑,장기',	'08','사진',
+														'09','수집,스크랩',	'10','여행(산책)',	'11','영화감상',
+														'12','요리',		'13','음악감상',	'14','인터넷',
+														'15','연극관람',	'16','미술(감상)',	'17','악기연주',
+														'18','레포츠',	'19','골프',		'20','볼링',
+														'21','스키',		'22','스쿠버,수상스키','23','수영',
+														'24','승마',		'25','테니스',	'26','꽂꽂이',
+														'27','분재',		'28','서예',		'29','애완동물기르기 ',
+														'30','PC게임',	'31','기타',		'35','기타') GUBUN ,
+						COUNT(SUBSTR(AA.HOBBY,3,4)) CNT
+						FROM  MEMINFO A, MEM_EXTRA AA
+						WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+)
+						AND  AA.HOBBY IS NOT NULL
+						AND  LENGTH(AA.HOBBY) > 3
+						GROUP BY  SUBSTR(AA.HOBBY,3,4)
+					 ) B,
+					(	SELECT  DECODE(SUBSTR(AA.HOBBY,5,6),'00','선택안됨', '01','스포츠(구기)', '02','등산',
+														'03','낚시',		'04','경기관람',	'05','독서',
+														'06','미술',		'07','바둑,장기',	'08','사진',
+														'09','수집,스크랩',	'10','여행(산책)',	'11','영화감상',
+														'12','요리',		'13','음악감상',	'14','인터넷',
+														'15','연극관람',	'16','미술(감상)',	'17','악기연주',
+														'18','레포츠',	'19','골프',		'20','볼링',
+														'21','스키',		'22','스쿠버,수상스키','23','수영',
+														'24','승마',		'25','테니스',	'26','꽂꽂이',
+														'27','분재',		'28','서예',		'29','애완동물기르기 ',
+														'30','PC게임',	'31','기타',		'35','기타') GUBUN ,
+						COUNT(SUBSTR(AA.HOBBY,5,6)) CNT
+						FROM  MEMINFO A, MEM_EXTRA AA
+						WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+)
+						AND  AA.HOBBY IS NOT NULL
+						AND  LENGTH(AA.HOBBY) > 5
+						GROUP BY  SUBSTR(AA.HOBBY,5,6)
+						) C
+				WHERE  A.GUBUN = B.GUBUN(+)
+				AND  A.GUBUN = C.GUBUN(+)
+
+				UNION
+
+				SELECT ('미선택')GUBUN, COUNT(*) CNT, (3)ORDER_FLAG
+				FROM  MEMINFO A, MEM_EXTRA AA
+				WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+)
+				AND  AA.HOBBY IS NULL
+			)
+		ORDER BY  3
+	</select>
+	<!-- 회원 기본 분석 [결혼여부] -->
+	<select id="selectMemberBasicMarryList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT  *
+		FROM (	SELECT ('전체')GUBUN, COUNT(*) CNT, (1)ORDER_FLAG
+				FROM  MEMINFO
+				UNION
+				SELECT	DECODE(nVL(AA.MARRY,'3'),0,'선택안됨',1,'미혼',2,'기혼',3,'예외') GUBUN ,
+						COUNT(nvL(AA.MARRY,3)) CNT, (2)ORDER_FLAG
+				FROM	MEM_EXTRA AA
+				GROUP BY	AA.MARRY
+			 )
+		ORDER BY 3
+	</select>
+	<!-- 회원 기본 분석 [성별] -->
+	<select id="selectMemberBasicGenderList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT  *
+	FROM (	SELECT	('전체')GUBUN, COUNT(*) CNT, (1)ORDER_FLAG
+			FROM	MEMINFO
+			UNION
+			SELECT	DECODE(NVL(AA.SEX,3),0,'선택안됨',1,'여자',2,'남자',3,'예외')GUBUN ,
+					COUNT(NVL(AA.SEX,3)) CNT, (2)ORDER_FLAG
+			FROM	MEM_EXTRA AA
+			GROUP BY AA.SEX
+		 )
+	ORDER BY  2 desc
+	</select>
+
+	<!-- 회원 가입 동기 통계  -->
+	<select id="selectMemberJoinReasonMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT	SUBSTR(M.CREATE_DATE,1,6) C_DATE,
+				NVL(MAX(A.A1),0) A1,   NVL(MAX(B.B1),0) B1,
+				NVL(MAX(C.C1),0) C1,   NVL(MAX(D.D1),0) D1,
+				NVL(MAX(E.E1),0) E1,   NVL(MAX(F.F1),0) F1,   NVL(MAX(G.G1),0) G1,
+				NVL(MAX(H.H1),0) H1,   NVL(MAX(I.I1),0) I1,   NVL(MAX(J.J1),0) J1,
+				NVL(MAX(K.K1),0) K1,   NVL(MAX(L.L1),0) L1,   NVL(MAX(N.N1),0) N1
+		FROM  MEMINFO M,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6) ATIT, COUNT(EPOST) A1
+			    FROM  MEMINFO A, MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND  AA.EPOST = '00'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) A ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)BTIT, COUNT(EPOST)B1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '01'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) B ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)CTIT, COUNT(EPOST)C1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '02'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) C ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)DTIT, COUNT(EPOST)D1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '03'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) D ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)ETIT, COUNT(EPOST)E1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '04'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) E ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)FTIT, COUNT(EPOST)F1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '05'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) F ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)GTIT, COUNT(EPOST)G1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '06'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) G ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)HTIT, COUNT(EPOST)H1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '07'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) H ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)ITIT, COUNT(EPOST)I1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '08'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) I ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)JTIT, COUNT(EPOST)J1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '09'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) J ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)KTIT, COUNT(EPOST)K1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '10'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) K ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)LTIT, COUNT(EPOST)L1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '11'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) L ,
+			 (SELECT  SUBSTR(CREATE_DATE,1,6)NTIT, COUNT(EPOST)N1
+			    FROM  MEMINFO A,MEM_EXTRA AA
+			   WHERE  A.ACCESS_NAME = AA.ACCESS_NAME(+) AND AA.EPOST = '20'
+			GROUP BY  SUBSTR(CREATE_DATE,1,6)
+			 ) N
+		WHERE	SUBSTR(M.CREATE_DATE,1,6) = A.ATIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = B.BTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = C.CTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = D.DTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = E.ETIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = F.FTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = G.GTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = H.HTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = I.ITIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = J.JTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = K.KTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = L.LTIT(+)
+		AND 	SUBSTR(M.CREATE_DATE,1,6) = N.NTIT(+)
+		<isNotEmpty property="srchFromDt">
+		AND 	M.CREATE_DATE BETWEEN SUBSTR(REPLACE(#srchFromDt#,'-'),1,6) AND SUBSTR(REPLACE(#srchToDt#,'-'),1,6)
+		</isNotEmpty>
+		<isEmpty property="srchFromDt">
+		AND 	M.CREATE_DATE IS NOT NULL
+		</isEmpty>
+		GROUP BY  SUBSTR(M.CREATE_DATE,1,6)
+		ORDER BY  SUBSTR(M.CREATE_DATE,1,6)
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 회원 가입 동기 통계 -->
+	<select id="selectMemberJoinReasonMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(CNT)
+		FROM (
+				SELECT	COUNT(*) AS CNT
+				FROM  MEMINFO M
+				<isNotEmpty property="srchFromDt" prepend="WHERE">
+					M.CREATE_DATE BETWEEN SUBSTR(REPLACE(#srchFromDt#,'-'),1,6) AND SUBSTR(REPLACE(#srchToDt#,'-'),1,6)
+				</isNotEmpty>
+				<isEmpty property="srchFromDt" prepend="WHERE">
+					M.CREATE_DATE IS NOT NULL
+				</isEmpty>
+				GROUP BY  SUBSTR(M.CREATE_DATE,1,6)
+			)
+	</select>
+	<!-- 쇼핑회원 기념일 통계 [생일/결혼기념일] LIST -->
+	<select id="selectMemberMemrlDayMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT	A.ACCESS_NAME,
+				A.NAME,
+				DECODE(#flagCd#, 1, AA.BIRTH, 2, AA.WEDDAY) ANNIDAY,
+				DECODE(A.EMAIL, 'none@none', '', A.EMAIL) EMAIL,
+				A.TELNO_1 || '-' || A.TELNO_2 || '-' || A.TELNO_3 TELNO,
+				A.MOBILE_1 || '-' || A.MOBILE_2 || '-' || A.MOBILE_3 MOBILE
+		FROM	MEMINFO A,
+				MEM_EXTRA AA
+		WHERE	A.ACCESS_NAME = AA.ACCESS_NAME(+)
+		  AND	A.DELETE_DATE IS NULL
+		<isEqual property="flagCd" compareValue="1">
+			AND 	NVL(SUBSTR(AA.BIRTH,5),'0000')  BETWEEN DECODE(#flagCd#, 1, #srchFromDt#, '0000') AND DECODE(#flagCd#, 1, #srchToDt#||'999999', '9999')
+		</isEqual>
+		<isEqual property="flagCd" compareValue="2">
+			AND 	NVL(SUBSTR(AA.WEDDAY,5),'0000') BETWEEN DECODE(#flagCd#, 2, #srchFromDt#, '0000') AND DECODE(#flagCd#, 2, #srchToDt#||'999999', '9999')
+		</isEqual>
+		ORDER BY	DECODE(#flagCd#, 1, SUBSTR(AA.BIRTH,5), 2, SUBSTR(AA.WEDDAY,5)), NAME
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 쇼핑회원 기념일 통계 [생일/결혼기념일] CNT -->
+	<select id="selectMemberMemrlDayMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT	COUNT(A.ACCESS_NAME) AS CNT
+		FROM	MEMINFO A,
+				MEM_EXTRA AA
+		WHERE	A.ACCESS_NAME = AA.ACCESS_NAME(+)
+		  AND	A.DELETE_DATE IS NULL
+		<isEqual property="flagCd" compareValue="1">
+			AND 	NVL(SUBSTR(AA.BIRTH,5),'0000')  BETWEEN DECODE(#flagCd#, 1, #srchFromDt#, '0000') AND DECODE(#flagCd#, 1, #srchToDt#||'999999', '9999')
+		</isEqual>
+		<isEqual property="flagCd" compareValue="2">
+			AND 	NVL(SUBSTR(AA.WEDDAY,5),'0000') BETWEEN DECODE(#flagCd#, 2, #srchFromDt#, '0000') AND DECODE(#flagCd#, 2, #srchToDt#||'999999', '9999')
+		</isEqual>
+	</select>
+
+		<!-- 회원 등급 관리 회원별 승급정보 -->
+	<select id="selectMemGradeInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT SUM(DECODE(MEM_GRADE, '0', ORDER_CNT)) ORDERCNT0
+				, SUM(DECODE(MEM_GRADE, '0', ORDER_AMOUNT)) ORDERAMOUNT0
+				, SUM(DECODE(MEM_GRADE, '0', RECENT_MONTHS)) RECENTMONTHS0
+				, SUM(DECODE(MEM_GRADE, '0', APPLY_TERM)) APPLYTERM0
+				, SUM(DECODE(MEM_GRADE, '1', ORDER_CNT)) ORDERCNT1
+				, SUM(DECODE(MEM_GRADE, '1', ORDER_AMOUNT)) ORDERAMOUNT1
+				, SUM(DECODE(MEM_GRADE, '1', RECENT_MONTHS)) RECENTMONTHS1
+				, SUM(DECODE(MEM_GRADE, '1', APPLY_TERM)) APPLYTERM1
+				, SUM(DECODE(MEM_GRADE, '2', ORDER_CNT)) ORDERCNT2
+				, SUM(DECODE(MEM_GRADE, '2', ORDER_AMOUNT)) ORDERAMOUNT2
+				, SUM(DECODE(MEM_GRADE, '2', RECENT_MONTHS)) RECENTMONTHS2
+				, SUM(DECODE(MEM_GRADE, '2', APPLY_TERM)) APPLYTERM2
+				, SUM(DECODE(MEM_GRADE, '3', ORDER_CNT)) ORDERCNT3
+				, SUM(DECODE(MEM_GRADE, '3', ORDER_AMOUNT)) ORDERAMOUNT3
+				, SUM(DECODE(MEM_GRADE, '3', RECENT_MONTHS)) RECENTMONTHS3
+				, SUM(DECODE(MEM_GRADE, '3', APPLY_TERM)) APPLYTERM3
+				, SUM(DECODE(MEM_GRADE, '4', ORDER_CNT)) ORDERCNT4
+				, SUM(DECODE(MEM_GRADE, '4', ORDER_AMOUNT)) ORDERAMOUNT4
+				, SUM(DECODE(MEM_GRADE, '4', RECENT_MONTHS)) RECENTMONTHS4
+				, SUM(DECODE(MEM_GRADE, '4', APPLY_TERM)) APPLYTERM4
+				, SUM(DECODE(MEM_GRADE, '5', ORDER_CNT)) ORDERCNT5
+				, SUM(DECODE(MEM_GRADE, '5', ORDER_AMOUNT)) ORDERAMOUNT5
+				, SUM(DECODE(MEM_GRADE, '5', RECENT_MONTHS)) RECENTMONTHS5
+				, SUM(DECODE(MEM_GRADE, '5', APPLY_TERM)) APPLYTERM5
+			FROM MB_GRADE_INFO
+		WHERE USE_YN = 'Y'
+			AND MEM_GRADE IN ('0','1', '2', '3', '4', '5')
+			AND APPLY_YMD = (SELECT MAX(APPLY_YMD) FROM MB_GRADE_INFO WHERE  USE_YN = 'Y' )
+	</select>
+
+	<!-- 회원 등급 관리 리스트 -->
+	<select id="selectMemGradeList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT NVL(SUM(MEMCNT_0), 0) MEMCNT0
+				, NVL(SUM(MEMCNT_1), 0) MEMCNT1
+				, NVL(SUM(MEMCNT_2), 0) MEMCNT2
+				, NVL(SUM(MEMCNT_3), 0) MEMCNT3
+				, NVL(SUM(MEMCNT_4), 0) MEMCNT4
+				, NVL(SUM(MEMCNT_5), 0) MEMCNT5
+				, DECODE(NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0),0,0,
+					ROUND(NVL(SUM(MEMCNT_0),0) / NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0)* 100, 1)) AS MEMPER0
+				, DECODE(NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0),0,0,
+					ROUND(NVL(SUM(MEMCNT_1),0) / NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0)* 100, 1)) AS MEMPER1
+				, DECODE(NVL(SUM(MEMCNT_0)  + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0),0,0,
+					ROUND(NVL(SUM(MEMCNT_2),0) / NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0)* 100, 1)) AS MEMPER2
+				, DECODE(NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0),0,0,
+					ROUND(NVL(SUM(MEMCNT_3),0) / NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0)* 100, 1)) AS MEMPER3
+				, DECODE(NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0),0,0,
+					ROUND(NVL(SUM(MEMCNT_4),0) / NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0)* 100, 1)) AS MEMPER4
+				, DECODE(NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0),0,0,
+					ROUND(NVL(SUM(MEMCNT_5),0) / NVL(SUM(MEMCNT_0) + SUM(MEMCNT_1) + SUM(MEMCNT_2) + SUM(MEMCNT_3) + SUM(MEMCNT_4) + SUM(MEMCNT_5),0)* 100, 1)) AS MEMPER5
+				, NVL(SUM(MAILCNT_0), 0) MAILCNT0
+				, NVL(SUM(MAILCNT_1), 0) MAILCNT1
+				, NVL(SUM(MAILCNT_2), 0) MAILCNT2
+				, NVL(SUM(MAILCNT_3), 0) MAILCNT3
+				, NVL(SUM(MAILCNT_4), 0) MAILCNT4
+				, NVL(SUM(MAILCNT_5), 0) MAILCNT5
+				, NVL(SUM(MOBILECNT_0), 0) MOBILECNT0
+				, NVL(SUM(MOBILECNT_1), 0) MOBILECNT1
+				, NVL(SUM(MOBILECNT_2), 0) MOBILECNT2
+				, NVL(SUM(MOBILECNT_3), 0) MOBILECNT3
+				, NVL(SUM(MOBILECNT_4), 0) MOBILECNT4
+				, NVL(SUM(MOBILECNT_5), 0) MOBILECNT5
+				, NVL(SUM(BIRTHCNT_0), 0) BIRTHCNT0
+				, NVL(SUM(BIRTHCNT_1), 0) BIRTHCNT1
+				, NVL(SUM(BIRTHCNT_2), 0) BIRTHCNT2
+				, NVL(SUM(BIRTHCNT_3), 0) BIRTHCNT3
+				, NVL(SUM(BIRTHCNT_4), 0) BIRTHCNT4
+				, NVL(SUM(BIRTHCNT_5), 0) BIRTHCNT5
+				, NVL(SUM(WEDCNT_0), 0) WEDCNT0
+				, NVL(SUM(WEDCNT_1), 0) WEDCNT1
+				, NVL(SUM(WEDCNT_2), 0) WEDCNT2
+				, NVL(SUM(WEDCNT_3), 0) WEDCNT3
+				, NVL(SUM(WEDCNT_4), 0) WEDCNT4
+				, NVL(SUM(WEDCNT_5), 0) WEDCNT5
+			FROM
+				(
+					SELECT DECODE(A.MEM_GRADE, '0', COUNT(1),0) MEMCNT_0
+							, DECODE(A.MEM_GRADE, '1', COUNT(1),0) MEMCNT_1
+							, DECODE(A.MEM_GRADE, '2', COUNT(1),0) MEMCNT_2
+							, DECODE(A.MEM_GRADE, '3', COUNT(1),0) MEMCNT_3
+							, DECODE(A.MEM_GRADE, '4', COUNT(1),0) MEMCNT_4
+							, DECODE(A.MEM_GRADE, '5', COUNT(1),0) MEMCNT_5
+							, DECODE(A.MEM_GRADE, '0',
+								DECODE(NVL(B.EMAIL_YN, 'N'), 'Y', COUNT(1))) AS MAILCNT_0
+							, DECODE(A.MEM_GRADE, '1',
+                      			DECODE(NVL(B.EMAIL_YN, 'N'), 'Y', COUNT(1))) AS MAILCNT_1
+                      		, DECODE(A.MEM_GRADE, '2',
+                      			DECODE(NVL(B.EMAIL_YN, 'N'), 'Y', COUNT(1))) AS MAILCNT_2
+                      		, DECODE(A.MEM_GRADE, '3',
+                      			DECODE(NVL(B.EMAIL_YN, 'N'), 'Y', COUNT(1))) AS MAILCNT_3
+                      		, DECODE(A.MEM_GRADE, '4',
+                      			DECODE(NVL(B.EMAIL_YN, 'N'), 'Y', COUNT(1))) AS MAILCNT_4
+                      		, DECODE(A.MEM_GRADE, '5',
+                      			DECODE(NVL(B.EMAIL_YN, 'N'), 'Y', COUNT(1))) AS MAILCNT_5
+                      		, DECODE(A.MEM_GRADE, '0',
+                      			DECODE(NVL(B.MOBILE_YN, 'N'), 'Y', COUNT(1))) AS MOBILECNT_0
+                      		, DECODE(A.MEM_GRADE, '1',
+								DECODE(NVL(B.MOBILE_YN, 'N'), 'Y', COUNT(1))) AS MOBILECNT_1
+							, DECODE(A.MEM_GRADE, '2',
+                      			DECODE(NVL(B.MOBILE_YN, 'N'), 'Y', COUNT(1))) AS MOBILECNT_2
+                      		, DECODE(A.MEM_GRADE, '3',
+                      			DECODE(NVL(B.MOBILE_YN, 'N'), 'Y', COUNT(1))) AS MOBILECNT_3
+                      		, DECODE(A.MEM_GRADE, '4',
+                      			DECODE(NVL(B.MOBILE_YN, 'N'), 'Y', COUNT(1))) AS MOBILECNT_4
+                      		, DECODE(A.MEM_GRADE, '5',
+                      			DECODE(NVL(B.MOBILE_YN, 'N'), 'Y', COUNT(1))) AS MOBILECNT_5
+                      		, DECODE(A.MEM_GRADE, '0',
+                      			NVL(CASE WHEN B.IPIN_USERBIRTH IS NOT NULL THEN COUNT(1) END, 0)) AS BIRTHCNT_0
+                      		, DECODE(A.MEM_GRADE, '1',
+                      			NVL(CASE WHEN B.IPIN_USERBIRTH IS NOT NULL THEN COUNT(1) END, 0)) AS BIRTHCNT_1
+                      		, DECODE(A.MEM_GRADE, '2',
+                      			NVL(CASE WHEN B.IPIN_USERBIRTH IS NOT NULL THEN COUNT(1) END, 0)) AS BIRTHCNT_2
+                      		, DECODE(A.MEM_GRADE, '3',
+                      			NVL(CASE WHEN B.IPIN_USERBIRTH IS NOT NULL THEN COUNT(1) END, 0)) AS BIRTHCNT_3
+                      		, DECODE(A.MEM_GRADE, '4',
+                      			NVL(CASE WHEN B.IPIN_USERBIRTH IS NOT NULL THEN COUNT(1) END, 0)) AS BIRTHCNT_4
+                      		, DECODE(A.MEM_GRADE, '5',
+                      			NVL(CASE WHEN B.IPIN_USERBIRTH IS NOT NULL THEN COUNT(1) END, 0)) AS BIRTHCNT_5
+                      		, DECODE(A.MEM_GRADE, '0',
+                      			NVL(CASE WHEN C.WEDDAY IS NOT NULL THEN COUNT(1) END, 0)) AS WEDCNT_0
+                      		, DECODE(A.MEM_GRADE, '1',
+								NVL(CASE WHEN C.WEDDAY IS NOT NULL THEN COUNT(1) END, 0)) AS WEDCNT_1
+							, DECODE(A.MEM_GRADE, '2',
+								NVL(CASE WHEN C.WEDDAY IS NOT NULL THEN COUNT(1) END, 0)) AS WEDCNT_2
+							, DECODE(A.MEM_GRADE, '3',
+								NVL(CASE WHEN C.WEDDAY IS NOT NULL THEN COUNT(1) END, 0)) AS WEDCNT_3
+							, DECODE(A.MEM_GRADE, '4',
+								NVL(CASE WHEN C.WEDDAY IS NOT NULL THEN COUNT(1) END, 0)) AS WEDCNT_4
+							, DECODE(A.MEM_GRADE, '5',
+								NVL(CASE WHEN C.WEDDAY IS NOT NULL THEN COUNT(1) END, 0)) AS WEDCNT_5
+						FROM MB_MEM_GRADE A, MEMINFO B, MEM_EXTRA C
+					WHERE A.ACCESS_NAME = B.ACCESS_NAME
+						AND A.ACCESS_NAME = C.ACCESS_NAME(+)
+						AND A.MEM_GRADE IN ('0','1','2','3','4','5')
+						AND B.STATUS = '1'
+						AND B.MEMBER_TYPE IN ('1', '3')
+			   			<isNotEmpty property="searchFromDt">
+						AND SUBSTR(A.MEM_GRADE_APPLY_YMD, 0, 6) = #searchFromDt#	/*  이행데이터 6자리 아닌경우 확인 */
+						</isNotEmpty>
+					GROUP BY A.MEM_GRADE, B.EMAIL_YN, B.MOBILE_YN, B.IPIN_USERBIRTH, C.WEDDAY
+				)
+	</select>
+
+	<!-- 회원 등급 관리 리스트 엑셀다운로드 -->
+	<select id="selectMemGradeListExcel" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		SELECT A.ACCESS_NAME ACCESSNAME
+				, A.NAME NAME
+				, SUBSTR(TO_CHAR(TO_NUMBER(TO_CHAR(SYSDATE,'YYYYMMDD'))-TO_NUMBER(C.BIRTH)),0,2) AGE
+				, A.POSTAL_CODE POSTALCODE
+				, A.ADDRESS_1 ADDR1
+				, A.ADDRESS_2 ADDR2
+				, A.MOBILE_1 || '-' || A.MOBILE_2 || '-' || A.MOBILE_3 MOBILE
+				, A.TELNO_1 || '-' || A.TELNO_2 || '-' || A.TELNO_3 TEL
+				, A.EMAIL
+				, A.CREATE_DATE CREATEDATE
+				, B.STAT_STRT_YMD AS STATSTRTDATE
+				, B.STAT_END_YMD AS STATENDDATE
+				, B.ORDER_CNT ORDERCNT
+				, B.ORDER_AMT AS ORDERAMOUNT
+				, B.MEM_GRADE_APPLY_YMD AS APPLYDATE
+				<isNotEmpty property="searchStatType">
+					/* 결혼기념일 */
+					<isEqual property="searchStatType" compareValue="2">
+				, C.WEDDAY AS WEDDAY
+					</isEqual>
+					<isEqual property="searchStatType" compareValue="5">
+				, C.WEDDAY AS WEDDAY
+					</isEqual>
+				</isNotEmpty>
+			FROM MEMINFO A
+				, MB_MEM_GRADE B
+				,  MEM_EXTRA C
+		WHERE B.ACCESS_NAME = A.ACCESS_NAME
+				AND B.ACCESS_NAME = C.ACCESS_NAME(+)
+				/* 승인년월 */
+	   			<isNotEmpty property="searchFromDt">
+				AND SUBSTR(B.MEM_GRADE_APPLY_YMD, 0, 6) = #searchFromDt#	/* 이행데이터 확인요망 6자리 아닌경우 */
+				</isNotEmpty>
+				/* 회원등급 검색 */
+				<isNotEmpty property="searchGrade">
+				AND B.MEM_GRADE = #searchGrade#
+				</isNotEmpty>
+
+				<isNotEmpty property="searchStatType">
+					<isEqual property="searchStatType" compareValue="2">
+				/* 생일 */
+				AND C.BIRTH IS NOT NULL
+					</isEqual>
+					<isEqual property="searchStatType" compareValue="3">
+				/* 메일수신 */
+				AND NVL(A.EMAIL_YN, 'N') = 'Y'
+					</isEqual>
+					<isEqual property="searchStatType" compareValue="4">
+				/* sms 수신 */
+				AND NVL(A.MOBILE_YN, 'N') = 'Y'
+					</isEqual>
+					<isEqual property="searchStatType" compareValue="5">
+				/* 결혼 기념일 */
+				AND C.WEDDAY IS NOT NULL
+					</isEqual>
+				</isNotEmpty>
+
+				AND A.STATUS = '1'
+				AND A.MEMBER_TYPE IN ('1', '3')
+				/* AND ROWNUM <![CDATA[<=10]]> */		/* 데이터양이 많아서 임시로 */
+	</select>
+
+
+
+	<!-- 쇼핑회원 고객성향분석 CNT -->
+	<select id="selectMemberTendencyStatCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+
+		<![CDATA[
+		SELECT  /* 파일명[파일설명] : MemberMgr_SQL.xml[쇼핑회원 고객성향분석 CNT] SQL ID : selectMemberTendencyStatCnt */
+
+				COUNT(1) AS TOTCNT
+
+		FROM (
+				SELECT
+				  		RTRIM(A.ACCESS_NAME) ACCESS_NAME
+		          		, A.PASSWORD
+		          		, RTRIM(A.NAME) NAME
+		          		, RTRIM(A.EMAIL) EMAIL
+		          		, SUBSTR( A.CREATE_DATE, 1, 8 ) CREATE_DATE
+		          		, A.MOBILE_1 || '-' || A.MOBILE_2 || '-' || A.MOBILE_3 MOBILE
+		          		, A.EMAIL_YN  AS EMAIL_YN
+
+		      	FROM    MEMINFO A
+		            	,MB_MEM_ACCMLAMT B
+		            	,MEM_EXTRA AA
+
+			    WHERE   A.ACCESS_NAME         = B.ACCESS_NAME(+)
+			    AND  	A.ACCESS_NAME         = AA.ACCESS_NAME(+)
+			    AND  	A.MEMBER_TYPE    NOT IN ('0','4')
+			    AND  	A.EMAIL              <> 'none@none'
+			    AND  	ASCII(A.ACCESS_NAME) <= ASCII('z')
+			    AND  	A.DELETE_DATE        IS NULL
+		]]>
+			<isNotEmpty prepend="AND" property="job_cd" >
+				<![CDATA[	AA.JOB = #job_cd# 	]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="hobby_cd" >
+				<![CDATA[	AA.HOBBY LIKE '%' ||#hobby_cd#|| '%' ]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="marry_cd" >
+				<![CDATA[	AA.MARRY = #marry_cd#	]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="gender_cd" >
+				<![CDATA[	AA.SEX = #gender_cd# 	]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="jobclass" >
+				<![CDATA[	AA.JOBCLASS = #jobclass# 	]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="Address_1" >
+				<![CDATA[	A.ADDRESS_1 LIKE '%' ||#Address_1#|| '%' ]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="Peoplenum_cd" >
+				<![CDATA[	SUBSTR(AA.BIRTH, 1,4) BETWEEN TO_CHAR(TO_CHAR(SYSDATE, 'YYYY') - #Peoplenum_cd_st#) AND TO_CHAR(TO_CHAR(SYSDATE, 'YYYY') - #Peoplenum_cd_ed#) ]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="mem_grade_cd" >
+				<![CDATA[	(SELECT COUNT(1) FROM MB_MEM_GRADE WHERE ACCESS_NAME = A.ACCESS_NAME AND USE_YN='Y' AND MEM_GRADE=#mem_grade_cd# ) > 0 	]]>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="PointValue" >
+			    <isNotEqual property="PointValue" compareValue="14" >
+			    	<![CDATA[	B.TOT_ACCU_POINT BETWEEN  #PointValue_st# AND #PointValue_ed# ]]>
+			    </isNotEqual>
+			    <isEqual property="PointValue" compareValue="14" >
+			    	<![CDATA[	B.TOT_ACCU_POINT >= #PointValue_st# ]]>
+			    </isEqual>
+			</isNotEmpty>
+			<isNotEmpty prepend="AND" property="searchFromDt" >
+				<isNotEmpty property="searchToDt" >
+					<![CDATA[	SUBSTR( A.CREATE_DATE, 1, 8 ) BETWEEN #searchFromDt# AND #searchToDt#  ]]>
+				</isNotEmpty>
+			</isNotEmpty>
+			<![CDATA[
+			    )
+			]]>
+	</select>
+
+	<!-- 쇼핑회원 고객성향분석 조회 -->
+	<select id="selectMemberTendencyStatList" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+
+		<![CDATA[
+			SELECT  /* 파일명[파일설명] : MemberMgr_SQL.xml[쇼핑회원 고객성향분석 조회] SQL ID : selectMemberTendencyStatList */
+					RES.*
+			FROM (
+					SELECT
+					  		RTRIM(A.ACCESS_NAME) ACCESS_NAME
+			          		, A.PASSWORD
+			          		, RTRIM(A.NAME) NAME
+			          		, RTRIM(A.EMAIL) EMAIL
+			          		, SUBSTR( A.CREATE_DATE, 1, 8 ) CREATE_DATE
+			          		, A.MOBILE_1 || '-' || A.MOBILE_2 || '-' || A.MOBILE_3 MOBILE
+			          		, A.EMAIL_YN  AS EMAIL_YN
+			          		, ROWNUM AS RNUM
+
+			      	FROM    MEMINFO A
+			            	,MB_MEM_ACCMLAMT B
+			            	,MEM_EXTRA AA
+				    WHERE   A.ACCESS_NAME         = B.ACCESS_NAME(+)
+				    AND  	A.ACCESS_NAME         = AA.ACCESS_NAME(+)
+				    AND  	A.MEMBER_TYPE    NOT IN ('0','4')
+				    AND  	A.EMAIL              <> 'none@none'
+				    AND  	ASCII(A.ACCESS_NAME) <= ASCII('z')
+				    AND  	A.DELETE_DATE        IS NULL
+				    AND 	ROWNUM <= #lastIndex#
+		]]>
+				<isNotEmpty prepend="AND" property="job_cd" >
+					<![CDATA[	AA.JOB = #job_cd# 	]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="hobby_cd" >
+					<![CDATA[	AA.HOBBY LIKE '%' ||#hobby_cd#|| '%' ]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="marry_cd" >
+					<![CDATA[	AA.MARRY = #marry_cd#	]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="gender_cd" >
+					<![CDATA[	AA.SEX = #gender_cd# 	]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="jobclass" >
+					<![CDATA[	AA.JOBCLASS = #jobclass# 	]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="Address_1" >
+					<![CDATA[	A.ADDRESS_1 LIKE '%' ||#Address_1#|| '%' ]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="Peoplenum_cd" >
+					<![CDATA[	SUBSTR(AA.BIRTH, 1,4) BETWEEN TO_CHAR(TO_CHAR(SYSDATE, 'YYYY') - #Peoplenum_cd_st#) AND TO_CHAR(TO_CHAR(SYSDATE, 'YYYY') - #Peoplenum_cd_ed#) ]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="mem_grade_cd" >
+					<![CDATA[   (SELECT COUNT(1) FROM MB_MEM_GRADE WHERE ACCESS_NAME = A.ACCESS_NAME AND USE_YN='Y' AND MEM_GRADE=#mem_grade_cd# ) > 0  	]]>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="PointValue" >
+				    <isNotEqual property="PointValue" compareValue="14" >
+				    	<![CDATA[	B.TOT_ACCU_POINT BETWEEN  #PointValue_st# AND #PointValue_ed# ]]>
+				    </isNotEqual>
+				    <isEqual property="PointValue" compareValue="14" >
+				    	<![CDATA[	B.TOT_ACCU_POINT >= #PointValue_st# ]]>
+				    </isEqual>
+				</isNotEmpty>
+				<isNotEmpty prepend="AND" property="searchFromDt" >
+					<isNotEmpty property="searchToDt" >
+						<![CDATA[	SUBSTR( A.CREATE_DATE, 1, 8 ) BETWEEN #searchFromDt# AND #searchToDt#	]]>
+					</isNotEmpty>
+				</isNotEmpty>
+				<![CDATA[
+				    ORDER BY A.NAME ) RES
+				    WHERE 1=1
+				]]>
+				<isEqual property="EXCEL_YN" compareValue="N" >
+					<![CDATA[ AND RES.RNUM BETWEEN #firstIndex# AND #lastIndex# ]]>
+				</isEqual>
+	</select>
+
+</sqlMap>

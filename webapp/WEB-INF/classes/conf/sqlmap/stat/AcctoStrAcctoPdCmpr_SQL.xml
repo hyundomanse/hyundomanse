@@ -1,0 +1,797 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.AcctoStrAcctoPdCmpr">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 공급업체 검색 팝업 리스트 카운트 -->
+	<select id="selectSuppCompSearchPopupListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT 
+			COUNT(*) AS CNT
+		  FROM (
+				SELECT SUPP_COMP_DIV_CD
+					  ,SUPP_COMP_DIV_NM
+					  ,BCNC_NM
+					  ,SUPP_COMP_ID
+					  ,PRSDT_NM
+					  ,COMPREG_NO
+					  ,ENTRPS
+					  ,INDUTY
+					  ,TELNO
+					  ,FAXNO
+					  ,SUPP_COMP_STUS_CD
+					  ,SUPP_COMP_STUS_NM
+				  FROM (
+						SELECT SUPP_COMP_DIV_CD																									/* 공급업체 분류코드 */
+							  ,F_GET_COMN_CD_NM('SUPP_COMP_DIV_CD', SUPP_COMP_DIV_CD) SUPP_COMP_DIV_NM											/* 공급업체 분류 */
+							  ,BCNC_NM																											/* 공급업체 명 */
+							  ,SUPP_COMP_ID																										/* 공급 업체 ID */
+							  ,PRSDT_NM																											/* 대표자 명 */
+							  ,COMPREG_NO																										/* 사업자번호 */
+							  ,ENTRPS																											/* 업태 */
+							  ,INDUTY																											/* 종목 */
+							  ,NVL2(TELNO,F_DIV_TELNO(REPLACE(TELNO,'-'),'F') || '-' || F_DIV_TELNO(REPLACE(TELNO,'-'),'M') || '-' || F_DIV_TELNO(REPLACE(TELNO,'-'),'L'),'') TELNO	/* 전화번호 */
+							  ,NVL2(FAXNO,F_DIV_TELNO(REPLACE(FAXNO,'-'),'F') || '-' || F_DIV_TELNO(REPLACE(FAXNO,'-'),'M') || '-' || F_DIV_TELNO(REPLACE(FAXNO,'-'),'L'),'') FAXNO	/* 팩스번호 */
+							  ,SUPP_COMP_STUS_CD																								/* 공급업체 상태코드 */
+							  ,F_GET_COMN_CD_NM('SUPP_COMP_STUS_CD', SUPP_COMP_STUS_CD) SUPP_COMP_STUS_NM										/* 공급업체 상태 */
+						  FROM CO_SUPP_COMP_MAST
+						 WHERE 1=1
+						<isNotEmpty property="searchSuppCompDivCds" prepend="AND">
+								SUPP_COMP_DIV_CD IN
+								<iterate property="searchSuppCompDivCds" open="("	close=")" conjunction=",">
+									#searchSuppCompDivCds[]#
+								</iterate>
+							</isNotEmpty>
+						<isNotEmpty property="searchSuppCompStusCds" prepend="AND">
+								SUPP_COMP_STUS_CD IN
+								<iterate property="searchSuppCompStusCds" open="("	close=")" conjunction=",">
+									#searchSuppCompStusCds[]#
+								</iterate>
+							</isNotEmpty>
+						<isNotEmpty property="searchText">
+							<isNotEmpty property="searchType" prepend="AND">
+								<isEqual property="searchType" compareValue="01">
+									SUPP_COMP_ID LIKE '%'||#searchText#||'%'
+								</isEqual>
+								<isEqual property="searchType" compareValue="02">
+									BCNC_NM LIKE '%'||#searchText#||'%'
+								</isEqual>
+								<isEqual property="searchType" compareValue="03">
+									COMPREG_NO LIKE '%'||#searchText#||'%'
+								</isEqual>
+							</isNotEmpty>
+							<isEmpty property="searchType" prepend="AND">
+								(	SUPP_COMP_ID LIKE '%'||#searchText#||'%'
+								OR	BCNC_NM		 LIKE '%'||#searchText#||'%'
+								OR	COMPREG_NO	 LIKE '%'||#searchText#||'%')
+							</isEmpty>
+						</isNotEmpty>
+						<isNotEmpty property="searchTexts">
+							<isNotEmpty property="searchType" prepend="AND">
+								<isEqual property="searchType" compareValue="01">
+									<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+										SUPP_COMP_STUS_CD LIKE '%'||#searchTexts[]#||'%'
+									</iterate>
+								</isEqual>
+								<isEqual property="searchType" compareValue="02">
+									<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+										BCNC_NM LIKE '%'||#searchTexts[]#||'%'
+									</iterate>
+								</isEqual>
+								<isEqual property="searchType" compareValue="03">
+									<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+										COMPREG_NO LIKE '%'||#searchTexts[]#||'%'
+									</iterate>
+								</isEqual>
+							</isNotEmpty>
+							<isEmpty property="searchType" prepend="AND">
+								(
+								<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+									SUPP_COMP_ID LIKE '%'||#searchTexts[]#||'%'
+								</iterate>
+								OR
+								<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+									BCNC_NM LIKE '%'||#searchTexts[]#||'%'
+								</iterate>
+								OR
+								<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+									COMPREG_NO LIKE '%'||#searchTexts[]#||'%'
+								</iterate>
+								)
+							</isEmpty>
+						</isNotEmpty>
+						)
+				)
+	</select>
+	
+	<!-- 공급업체 검색 팝업 리스트 -->
+	<select id="selectSuppCompSearchPopupList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT T1.RNUM
+			  ,T1.SUPP_COMP_DIV_CD
+			  ,T1.SUPP_COMP_DIV_NM
+			  ,T1.BCNC_NM
+			  ,T1.SUPP_COMP_ID
+			  ,T1.PRSDT_NM
+			  ,T1.COMPREG_NO
+			  ,T1.ENTRPS
+			  ,T1.INDUTY
+			  ,T1.TELNO
+			  ,T1.FAXNO
+			  ,T1.SUPP_COMP_STUS_CD
+			  ,T1.SUPP_COMP_STUS_NM
+		FROM ( 
+				SELECT ROW_NUMBER () OVER (ORDER BY SUPP_COMP_ID DESC) RNUM
+					  ,T.SUPP_COMP_DIV_CD
+					  ,T.SUPP_COMP_DIV_NM
+					  ,T.BCNC_NM
+					  ,T.SUPP_COMP_ID
+					  ,T.PRSDT_NM
+					  ,T.COMPREG_NO
+					  ,T.ENTRPS
+					  ,T.INDUTY
+					  ,T.TELNO
+					  ,T.FAXNO
+					  ,T.SUPP_COMP_STUS_CD
+					  ,T.SUPP_COMP_STUS_NM
+				FROM (
+						SELECT SUPP_COMP_DIV_CD
+							  ,SUPP_COMP_DIV_NM
+							  ,BCNC_NM
+							  ,SUPP_COMP_ID
+							  ,PRSDT_NM
+							  ,COMPREG_NO
+							  ,ENTRPS
+							  ,INDUTY
+							  ,TELNO
+							  ,FAXNO
+							  ,SUPP_COMP_STUS_CD
+							  ,SUPP_COMP_STUS_NM
+						FROM(
+							SELECT SUPP_COMP_DIV_CD																									/* 공급업체 분류코드 */
+								  ,F_GET_COMN_CD_NM('SUPP_COMP_DIV_CD', SUPP_COMP_DIV_CD) SUPP_COMP_DIV_NM											/* 공급업체 분류 */
+								  ,BCNC_NM																											/* 공급업체 명 */
+								  ,SUPP_COMP_ID																										/* 공급 업체 ID */
+								  ,PRSDT_NM																											/* 대표자 명 */
+								  ,COMPREG_NO																										/* 사업자번호 */
+								  ,ENTRPS																											/* 업태 */
+								  ,INDUTY																											/* 종목 */
+								  ,NVL2(TELNO,F_DIV_TELNO(REPLACE(TELNO,'-'),'F') || '-' || F_DIV_TELNO(REPLACE(TELNO,'-'),'M') || '-' || F_DIV_TELNO(REPLACE(TELNO,'-'),'L'),'') TELNO	/* 전화번호 */
+								  ,NVL2(FAXNO,F_DIV_TELNO(REPLACE(FAXNO,'-'),'F') || '-' || F_DIV_TELNO(REPLACE(FAXNO,'-'),'M') || '-' || F_DIV_TELNO(REPLACE(FAXNO,'-'),'L'),'') FAXNO	/* 팩스번호 */
+								  ,SUPP_COMP_STUS_CD																								/* 공급업체 상태코드 */
+								  ,F_GET_COMN_CD_NM('SUPP_COMP_STUS_CD', SUPP_COMP_STUS_CD) SUPP_COMP_STUS_NM										/* 공급업체 상태 */
+							  FROM CO_SUPP_COMP_MAST
+							 WHERE 1=1
+							<isNotEmpty property="searchSuppCompDivCds" prepend="AND">
+								SUPP_COMP_DIV_CD IN
+								<iterate property="searchSuppCompDivCds" open="("	close=")" conjunction=",">
+									#searchSuppCompDivCds[]#
+								</iterate>
+							</isNotEmpty>
+							<isNotEmpty property="searchSuppCompStusCds" prepend="AND">
+								SUPP_COMP_STUS_CD IN
+								<iterate property="searchSuppCompStusCds" open="("	close=")" conjunction=",">
+									#searchSuppCompStusCds[]#
+								</iterate>
+							</isNotEmpty>
+							<isNotEmpty property="searchText">
+								<isNotEmpty property="searchType" prepend="AND">
+									<isEqual property="searchType" compareValue="01">
+										SUPP_COMP_ID LIKE '%'||#searchText#||'%'
+									</isEqual>
+									<isEqual property="searchType" compareValue="02">
+										BCNC_NM LIKE '%'||#searchText#||'%'
+									</isEqual>
+									<isEqual property="searchType" compareValue="03">
+										COMPREG_NO LIKE '%'||#searchText#||'%'
+									</isEqual>
+								</isNotEmpty>
+								<isEmpty property="searchType" prepend="AND">
+									(	SUPP_COMP_ID LIKE '%'||#searchText#||'%'
+									OR	BCNC_NM		 LIKE '%'||#searchText#||'%'
+									OR	COMPREG_NO	 LIKE '%'||#searchText#||'%'
+									)
+								</isEmpty>
+							</isNotEmpty>
+							<isNotEmpty property="searchTexts">
+							<isNotEmpty property="searchType" prepend="AND">
+								<isEqual property="searchType" compareValue="01">
+									<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+										SUPP_COMP_STUS_CD LIKE '%'||#searchTexts[]#||'%'
+									</iterate>
+								</isEqual>
+								<isEqual property="searchType" compareValue="02">
+									<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+										BCNC_NM LIKE '%'||#searchTexts[]#||'%'
+									</iterate>
+								</isEqual>
+								<isEqual property="searchType" compareValue="03">
+									<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+										COMPREG_NO LIKE '%'||#searchTexts[]#||'%'
+									</iterate>
+								</isEqual>
+							</isNotEmpty>
+							<isEmpty property="searchType" prepend="AND">
+								(
+								<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+									SUPP_COMP_ID LIKE '%'||#searchTexts[]#||'%'
+								</iterate>
+								OR
+								<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+									BCNC_NM LIKE '%'||#searchTexts[]#||'%'
+								</iterate>
+								OR
+								<iterate property="searchTexts" open="("	close=")" conjunction="OR">
+									COMPREG_NO LIKE '%'||#searchTexts[]#||'%'
+								</iterate>
+								)
+							</isEmpty>
+						</isNotEmpty>
+						)
+				) T
+			) T1
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	
+	<!-- 매장별/기간별 비교조회-청별조회 - 우정청 검색 팝업 리스트 -->
+	<select id="selectGrcSearchPopupList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT PONM
+			  ,MPOPOSTCD
+			  ,EDPSCD
+			  ,REGIPOCD
+		  FROM PICMT0060
+		 WHERE USEYN = 'Y'
+		   AND DSCDPOYN = 'N'
+		   AND PODIVCD = '02'
+		 ORDER BY REGIPOCD
+	</select>
+	
+	<!-- 매장별/기간별 비교조회-청별조회 리스트 -->
+	<select id="selectAcctoGrcInqireList" parameterClass="java.util.HashMap" resultClass="commMap">
+		WITH A1 AS
+			(
+			SELECT GRC.PONM
+				  ,GRC.UPPER_REGIPOCD
+				  ,A.CNT AS TOTAL_CNT1
+				  ,A.SETL_APPR_AMT AS TOTAL_SETL_APPR_AMT1
+				  ,A.PRCLTAXIN AS TOTAL_PRCLTAXIN1
+				  ,B.CNT AS WEB_CNT1
+				  ,B.SETL_APPR_AMT AS WEB_SETL_APPR_AMT1
+				  ,B.PRCLTAXIN AS WEB_PRCLTAXIN1
+				  ,C.CNT AS PO_CNT1
+				  ,C.SETL_APPR_AMT AS PO_SETL_APPR_AMT1
+				  ,C.PRCLTAXIN AS PO_PRCLTAXIN1
+				  ,D.CNT AS MO_CNT1
+				  ,D.SETL_APPR_AMT AS MO_SETL_APPR_AMT1
+				  ,D.PRCLTAXIN AS MO_PRCLTAXIN1
+				  ,E.CNT AS TOTAL_CNT2
+				  ,E.SETL_APPR_AMT AS TOTAL_SETL_APPR_AMT2
+				  ,E.PRCLTAXIN AS TOTAL_PRCLTAXIN2
+				  ,F.CNT AS WEB_CNT2
+				  ,F.SETL_APPR_AMT AS WEB_SETL_APPR_AMT2
+				  ,F.PRCLTAXIN AS WEB_PRCLTAXIN2
+				  ,G.CNT AS PO_CNT2
+				  ,G.SETL_APPR_AMT AS PO_SETL_APPR_AMT2
+				  ,G.PRCLTAXIN AS PO_PRCLTAXIN2
+				  ,H.CNT AS MO_CNT2
+				  ,H.SETL_APPR_AMT AS MO_SETL_APPR_AMT2
+				  ,H.PRCLTAXIN AS MO_PRCLTAXIN2
+			  FROM (
+					SELECT AB.PONM
+						  ,AA.REGIPOCD
+						  ,AB.REGIPOCD UPPER_REGIPOCD
+					  FROM PICMT0060 AA
+						  ,(SELECT PONM
+								  ,RCOCD
+								  ,REGIPOCD
+							  FROM PICMT0060
+							 WHERE USEYN = 'Y'
+							   AND DSCDPOYN = 'N'
+							   AND PODIVCD = '02'
+							<isNotEmpty property="suppoRgistPocdArr" prepend="AND">
+							   REGIPOCD IN 
+								<iterate property="suppoRgistPocdArr" open="("  close=")" conjunction=",">
+									#suppoRgistPocdArr[]#
+								</iterate>
+							</isNotEmpty>
+							) AB
+					 WHERE AA.USEYN = 'Y'
+					   AND AA.DSCDPOYN = 'N'
+					   AND AA.PODIVCD IN ('05', '06', '10', '18')
+					   AND AA.RCOCD = AB.RCOCD
+					) GRC
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) A
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD = '01'
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) B
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) C
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) D
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) E
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD = '01'
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) F
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) G
+				  ,(SELECT OOI.SUPPO_RGIST_POCD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.SUPPO_RGIST_POCD
+					 ORDER BY OOI.SUPPO_RGIST_POCD
+					) H
+			 WHERE GRC.REGIPOCD = A.SUPPO_RGIST_POCD(+)
+			   AND GRC.REGIPOCD = B.SUPPO_RGIST_POCD(+)
+			   AND GRC.REGIPOCD = C.SUPPO_RGIST_POCD(+)
+			   AND GRC.REGIPOCD = D.SUPPO_RGIST_POCD(+)
+			   AND GRC.REGIPOCD = E.SUPPO_RGIST_POCD(+)
+			   AND GRC.REGIPOCD = F.SUPPO_RGIST_POCD(+)
+			   AND GRC.REGIPOCD = G.SUPPO_RGIST_POCD(+)
+			   AND GRC.REGIPOCD = H.SUPPO_RGIST_POCD(+)
+			)
+		SELECT PONM
+			  ,TOTAL_CNT1
+			  ,TOTAL_SETL_APPR_AMT1
+			  ,TOTAL_PRCLTAXIN1
+			  ,WEB_CNT1
+			  ,WEB_SETL_APPR_AMT1
+			  ,WEB_PRCLTAXIN1
+			  ,PO_CNT1
+			  ,PO_SETL_APPR_AMT1
+			  ,PO_PRCLTAXIN1
+			  ,MO_CNT1
+			  ,MO_SETL_APPR_AMT1
+			  ,MO_PRCLTAXIN1
+			  ,TOTAL_CNT2
+			  ,TOTAL_SETL_APPR_AMT2
+			  ,TOTAL_PRCLTAXIN2
+			  ,WEB_CNT2
+			  ,WEB_SETL_APPR_AMT2
+			  ,WEB_PRCLTAXIN2
+			  ,PO_CNT2
+			  ,PO_SETL_APPR_AMT2
+			  ,PO_PRCLTAXIN2
+			  ,MO_CNT2
+			  ,MO_SETL_APPR_AMT2
+			  ,MO_PRCLTAXIN2
+		  FROM (
+				SELECT MAX(PONM) PONM
+					  ,SUM(NVL(TOTAL_CNT1,0)) AS TOTAL_CNT1
+					  ,SUM(NVL(TOTAL_SETL_APPR_AMT1,0)) AS TOTAL_SETL_APPR_AMT1
+					  ,SUM(NVL(TOTAL_PRCLTAXIN1,0)) AS TOTAL_PRCLTAXIN1
+					  ,SUM(NVL(WEB_CNT1,0)) AS WEB_CNT1
+					  ,SUM(NVL(WEB_SETL_APPR_AMT1,0)) AS WEB_SETL_APPR_AMT1
+					  ,SUM(NVL(WEB_PRCLTAXIN1,0)) AS WEB_PRCLTAXIN1
+					  ,SUM(NVL(PO_CNT1,0)) AS PO_CNT1
+					  ,SUM(NVL(PO_SETL_APPR_AMT1,0)) AS PO_SETL_APPR_AMT1
+					  ,SUM(NVL(PO_PRCLTAXIN1,0)) AS PO_PRCLTAXIN1
+					  ,SUM(NVL(MO_CNT1,0)) AS MO_CNT1
+					  ,SUM(NVL(MO_SETL_APPR_AMT1,0)) AS MO_SETL_APPR_AMT1
+					  ,SUM(NVL(MO_PRCLTAXIN1,0)) AS MO_PRCLTAXIN1
+					  ,SUM(NVL(TOTAL_CNT2,0)) AS TOTAL_CNT2
+					  ,SUM(NVL(TOTAL_SETL_APPR_AMT2,0)) AS TOTAL_SETL_APPR_AMT2
+					  ,SUM(NVL(TOTAL_PRCLTAXIN2,0)) AS TOTAL_PRCLTAXIN2
+					  ,SUM(NVL(WEB_CNT2,0)) AS WEB_CNT2
+					  ,SUM(NVL(WEB_SETL_APPR_AMT2,0)) AS WEB_SETL_APPR_AMT2
+					  ,SUM(NVL(WEB_PRCLTAXIN2,0)) AS WEB_PRCLTAXIN2
+					  ,SUM(NVL(PO_CNT2,0)) AS PO_CNT2
+					  ,SUM(NVL(PO_SETL_APPR_AMT2,0)) AS PO_SETL_APPR_AMT2
+					  ,SUM(NVL(PO_PRCLTAXIN2,0)) AS PO_PRCLTAXIN2
+					  ,SUM(NVL(MO_CNT2,0)) AS MO_CNT2
+					  ,SUM(NVL(MO_SETL_APPR_AMT2,0)) AS MO_SETL_APPR_AMT2
+					  ,SUM(NVL(MO_PRCLTAXIN2,0)) AS MO_PRCLTAXIN2
+				  FROM A1
+				 GROUP BY A1.UPPER_REGIPOCD
+				 ORDER BY A1.UPPER_REGIPOCD
+				)
+		UNION ALL
+		SELECT '합계'
+			  ,SUM(NVL(TOTAL_CNT1,0)) AS TOTAL_CNT1
+			  ,SUM(NVL(TOTAL_SETL_APPR_AMT1,0)) AS TOTAL_SETL_APPR_AMT1
+			  ,SUM(NVL(TOTAL_PRCLTAXIN1,0)) AS TOTAL_PRCLTAXIN1
+			  ,SUM(NVL(WEB_CNT1,0)) AS WEB_CNT1
+			  ,SUM(NVL(WEB_SETL_APPR_AMT1,0)) AS WEB_SETL_APPR_AMT1
+			  ,SUM(NVL(WEB_PRCLTAXIN1,0)) AS WEB_PRCLTAXIN1
+			  ,SUM(NVL(PO_CNT1,0)) AS PO_CNT1
+			  ,SUM(NVL(PO_SETL_APPR_AMT1,0)) AS PO_SETL_APPR_AMT1
+			  ,SUM(NVL(PO_PRCLTAXIN1,0)) AS PO_PRCLTAXIN1
+			  ,SUM(NVL(MO_CNT1,0)) AS MO_CNT1
+			  ,SUM(NVL(MO_SETL_APPR_AMT1,0)) AS MO_SETL_APPR_AMT1
+			  ,SUM(NVL(MO_PRCLTAXIN1,0)) AS MO_PRCLTAXIN1
+			  ,SUM(NVL(TOTAL_CNT2,0)) AS TOTAL_CNT2
+			  ,SUM(NVL(TOTAL_SETL_APPR_AMT2,0)) AS TOTAL_SETL_APPR_AMT2
+			  ,SUM(NVL(TOTAL_PRCLTAXIN2,0)) AS TOTAL_PRCLTAXIN2
+			  ,SUM(NVL(WEB_CNT2,0)) AS WEB_CNT2
+			  ,SUM(NVL(WEB_SETL_APPR_AMT2,0)) AS WEB_SETL_APPR_AMT2
+			  ,SUM(NVL(WEB_PRCLTAXIN2,0)) AS WEB_PRCLTAXIN2
+			  ,SUM(NVL(PO_CNT2,0)) AS PO_CNT2
+			  ,SUM(NVL(PO_SETL_APPR_AMT2,0)) AS PO_SETL_APPR_AMT2
+			  ,SUM(NVL(PO_PRCLTAXIN2,0)) AS PO_PRCLTAXIN2
+			  ,SUM(NVL(MO_CNT2,0)) AS MO_CNT2
+			  ,SUM(NVL(MO_SETL_APPR_AMT2,0)) AS MO_SETL_APPR_AMT2
+			  ,SUM(NVL(MO_PRCLTAXIN2,0)) AS MO_PRCLTAXIN2
+		  FROM A1
+	</select>
+	
+	<!-- 매장별/기간별 비교조회-품목별 조회 품목 검색 팝업  카테고리 콤보박스 리스트 조회 -->
+	<select id="selectPrdlstSearchPopupList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT MAX(CTGRY_CD) VALUE
+			 , MAX(CTGRY_NM) NAME
+			 , MAX(SORT_ORDER) SORT_ORDER
+		  FROM GD_CTGRY_MAST
+		 WHERE USE_YN = 'Y'
+		   AND POSTNET_CTGRY_YN = 'N'
+		   AND CTGRY_LEVEL = #depth#
+		<isNotEmpty property="searchCtgryCd">
+		   AND HRNK_CTGRY_CD = #searchCtgryCd#
+		</isNotEmpty>
+		 GROUP BY CTGRY_CD
+		 ORDER BY SORT_ORDER
+	</select>
+	
+		
+	<!-- 매장별/기간별 비교조회-품목별조회 리스트 -->
+	<select id="selectAcctoPrdlstInqireList" parameterClass="java.util.HashMap" resultClass="commMap">
+		WITH A1 AS
+			(
+			SELECT PRD.CTGRY_CD
+				  ,PRD.CTGRY_NM
+				  ,A.CNT AS TOTAL_CNT1
+				  ,A.SETL_APPR_AMT AS TOTAL_SETL_APPR_AMT1
+				  ,A.PRCLTAXIN AS TOTAL_PRCLTAXIN1
+				  ,B.CNT AS WEB_CNT1
+				  ,B.SETL_APPR_AMT AS WEB_SETL_APPR_AMT1
+				  ,B.PRCLTAXIN AS WEB_PRCLTAXIN1
+				  ,C.CNT AS PO_CNT1
+				  ,C.SETL_APPR_AMT AS PO_SETL_APPR_AMT1
+				  ,C.PRCLTAXIN AS PO_PRCLTAXIN1
+				  ,D.CNT AS MO_CNT1
+				  ,D.SETL_APPR_AMT AS MO_SETL_APPR_AMT1
+				  ,D.PRCLTAXIN AS MO_PRCLTAXIN1
+				  ,E.CNT AS TOTAL_CNT2
+				  ,E.SETL_APPR_AMT AS TOTAL_SETL_APPR_AMT2
+				  ,E.PRCLTAXIN AS TOTAL_PRCLTAXIN2
+				  ,F.CNT AS WEB_CNT2
+				  ,F.SETL_APPR_AMT AS WEB_SETL_APPR_AMT2
+				  ,F.PRCLTAXIN AS WEB_PRCLTAXIN2
+				  ,G.CNT AS PO_CNT2
+				  ,G.SETL_APPR_AMT AS PO_SETL_APPR_AMT2
+				  ,G.PRCLTAXIN AS PO_PRCLTAXIN2
+				  ,H.CNT AS MO_CNT2
+				  ,H.SETL_APPR_AMT AS MO_SETL_APPR_AMT2
+				  ,H.PRCLTAXIN AS MO_PRCLTAXIN2
+			  FROM (SELECT CTGRY_CD
+						  ,CTGRY_NM
+						  ,SORT_ORDER
+					  FROM (
+							SELECT MAX(CTGRY_CD) CTGRY_CD
+								 , MAX(CTGRY_NM) CTGRY_NM
+								 , MAX(SORT_ORDER) SORT_ORDER
+							  FROM GD_CTGRY_MAST
+							 WHERE USE_YN = 'Y'
+							   AND POSTNET_CTGRY_YN = 'N'
+							   AND CTGRY_LEVEL = '3'
+							 GROUP BY CTGRY_CD
+							)
+					 WHERE 1=1
+					<isNotEmpty property="ctgryCdArr" prepend="AND">
+					   CTGRY_CD IN 
+						<iterate property="ctgryCdArr" open="("  close=")" conjunction=",">
+							#ctgryCdArr[]#
+						</iterate>
+					</isNotEmpty>
+					 ORDER BY SORT_ORDER
+					) PRD
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) A
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD = '01'
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) B
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) C
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt1#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt1#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) D
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) E
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD = '01'
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) F
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) G
+				  ,(SELECT OOI.CTGRY_CD
+						  ,COUNT(*) CNT
+						  ,SUM(NVL(OOS.SETL_APPR_AMT,0)) SETL_APPR_AMT
+						  ,SUM(NVL(OOI.PRCLTAXIN,0)) PRCLTAXIN
+					  FROM OD_ORDER_MAST OOM
+						  ,OD_ORDER_SETL OOS
+						  ,OD_ORDER_ITM OOI
+					 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+					   AND OOM.ORDER_ID = OOI.ORDER_ID
+					   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+					   AND OOS.SETL_APPR_DATE BETWEEN TO_DATE(#searchFromDt2#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt2#||'235959','YYYYMMDDHH24MISS')
+					   AND OOS.USE_YN='Y'
+					 GROUP BY OOI.CTGRY_CD
+					 ORDER BY OOI.CTGRY_CD
+					) H
+			 WHERE PRD.CTGRY_CD = A.CTGRY_CD(+)
+			   AND PRD.CTGRY_CD = B.CTGRY_CD(+)
+			   AND PRD.CTGRY_CD = C.CTGRY_CD(+)
+			   AND PRD.CTGRY_CD = D.CTGRY_CD(+)
+			   AND PRD.CTGRY_CD = E.CTGRY_CD(+)
+			   AND PRD.CTGRY_CD = F.CTGRY_CD(+)
+			   AND PRD.CTGRY_CD = G.CTGRY_CD(+)
+			   AND PRD.CTGRY_CD = H.CTGRY_CD(+)
+			)
+		SELECT CTGRY_NM
+			  ,CTGRY_CD
+			  ,TOTAL_CNT1
+			  ,TOTAL_SETL_APPR_AMT1
+			  ,TOTAL_PRCLTAXIN1
+			  ,WEB_CNT1
+			  ,WEB_SETL_APPR_AMT1
+			  ,WEB_PRCLTAXIN1
+			  ,PO_CNT1
+			  ,PO_SETL_APPR_AMT1
+			  ,PO_PRCLTAXIN1
+			  ,MO_CNT1
+			  ,MO_SETL_APPR_AMT1
+			  ,MO_PRCLTAXIN1
+			  ,TOTAL_CNT2
+			  ,TOTAL_SETL_APPR_AMT2
+			  ,TOTAL_PRCLTAXIN2
+			  ,WEB_CNT2
+			  ,WEB_SETL_APPR_AMT2
+			  ,WEB_PRCLTAXIN2
+			  ,PO_CNT2
+			  ,PO_SETL_APPR_AMT2
+			  ,PO_PRCLTAXIN2
+			  ,MO_CNT2
+			  ,MO_SETL_APPR_AMT2
+			  ,MO_PRCLTAXIN2
+		  FROM (
+				SELECT MAX(CTGRY_NM) CTGRY_NM
+					  ,MAX(CTGRY_CD) CTGRY_CD
+					  ,SUM(NVL(TOTAL_CNT1,0)) AS TOTAL_CNT1
+					  ,SUM(NVL(TOTAL_SETL_APPR_AMT1,0)) AS TOTAL_SETL_APPR_AMT1
+					  ,SUM(NVL(TOTAL_PRCLTAXIN1,0)) AS TOTAL_PRCLTAXIN1
+					  ,SUM(NVL(WEB_CNT1,0)) AS WEB_CNT1
+					  ,SUM(NVL(WEB_SETL_APPR_AMT1,0)) AS WEB_SETL_APPR_AMT1
+					  ,SUM(NVL(WEB_PRCLTAXIN1,0)) AS WEB_PRCLTAXIN1
+					  ,SUM(NVL(PO_CNT1,0)) AS PO_CNT1
+					  ,SUM(NVL(PO_SETL_APPR_AMT1,0)) AS PO_SETL_APPR_AMT1
+					  ,SUM(NVL(PO_PRCLTAXIN1,0)) AS PO_PRCLTAXIN1
+					  ,SUM(NVL(MO_CNT1,0)) AS MO_CNT1
+					  ,SUM(NVL(MO_SETL_APPR_AMT1,0)) AS MO_SETL_APPR_AMT1
+					  ,SUM(NVL(MO_PRCLTAXIN1,0)) AS MO_PRCLTAXIN1
+					  ,SUM(NVL(TOTAL_CNT2,0)) AS TOTAL_CNT2
+					  ,SUM(NVL(TOTAL_SETL_APPR_AMT2,0)) AS TOTAL_SETL_APPR_AMT2
+					  ,SUM(NVL(TOTAL_PRCLTAXIN2,0)) AS TOTAL_PRCLTAXIN2
+					  ,SUM(NVL(WEB_CNT2,0)) AS WEB_CNT2
+					  ,SUM(NVL(WEB_SETL_APPR_AMT2,0)) AS WEB_SETL_APPR_AMT2
+					  ,SUM(NVL(WEB_PRCLTAXIN2,0)) AS WEB_PRCLTAXIN2
+					  ,SUM(NVL(PO_CNT2,0)) AS PO_CNT2
+					  ,SUM(NVL(PO_SETL_APPR_AMT2,0)) AS PO_SETL_APPR_AMT2
+					  ,SUM(NVL(PO_PRCLTAXIN2,0)) AS PO_PRCLTAXIN2
+					  ,SUM(NVL(MO_CNT2,0)) AS MO_CNT2
+					  ,SUM(NVL(MO_SETL_APPR_AMT2,0)) AS MO_SETL_APPR_AMT2
+					  ,SUM(NVL(MO_PRCLTAXIN2,0)) AS MO_PRCLTAXIN2
+				  FROM A1
+				 GROUP BY A1.CTGRY_CD
+				 ORDER BY A1.CTGRY_CD
+				)
+		UNION ALL
+		SELECT '합계' CTGRY_NM
+			  ,'' CTGRY_CD
+			  ,SUM(NVL(TOTAL_CNT1,0)) AS TOTAL_CNT1
+			  ,SUM(NVL(TOTAL_SETL_APPR_AMT1,0)) AS TOTAL_SETL_APPR_AMT1
+			  ,SUM(NVL(TOTAL_PRCLTAXIN1,0)) AS TOTAL_PRCLTAXIN1
+			  ,SUM(NVL(WEB_CNT1,0)) AS WEB_CNT1
+			  ,SUM(NVL(WEB_SETL_APPR_AMT1,0)) AS WEB_SETL_APPR_AMT1
+			  ,SUM(NVL(WEB_PRCLTAXIN1,0)) AS WEB_PRCLTAXIN1
+			  ,SUM(NVL(PO_CNT1,0)) AS PO_CNT1
+			  ,SUM(NVL(PO_SETL_APPR_AMT1,0)) AS PO_SETL_APPR_AMT1
+			  ,SUM(NVL(PO_PRCLTAXIN1,0)) AS PO_PRCLTAXIN1
+			  ,SUM(NVL(MO_CNT1,0)) AS MO_CNT1
+			  ,SUM(NVL(MO_SETL_APPR_AMT1,0)) AS MO_SETL_APPR_AMT1
+			  ,SUM(NVL(MO_PRCLTAXIN1,0)) AS MO_PRCLTAXIN1
+			  ,SUM(NVL(TOTAL_CNT2,0)) AS TOTAL_CNT2
+			  ,SUM(NVL(TOTAL_SETL_APPR_AMT2,0)) AS TOTAL_SETL_APPR_AMT2
+			  ,SUM(NVL(TOTAL_PRCLTAXIN2,0)) AS TOTAL_PRCLTAXIN2
+			  ,SUM(NVL(WEB_CNT2,0)) AS WEB_CNT2
+			  ,SUM(NVL(WEB_SETL_APPR_AMT2,0)) AS WEB_SETL_APPR_AMT2
+			  ,SUM(NVL(WEB_PRCLTAXIN2,0)) AS WEB_PRCLTAXIN2
+			  ,SUM(NVL(PO_CNT2,0)) AS PO_CNT2
+			  ,SUM(NVL(PO_SETL_APPR_AMT2,0)) AS PO_SETL_APPR_AMT2
+			  ,SUM(NVL(PO_PRCLTAXIN2,0)) AS PO_PRCLTAXIN2
+			  ,SUM(NVL(MO_CNT2,0)) AS MO_CNT2
+			  ,SUM(NVL(MO_SETL_APPR_AMT2,0)) AS MO_SETL_APPR_AMT2
+			  ,SUM(NVL(MO_PRCLTAXIN2,0)) AS MO_PRCLTAXIN2
+		  FROM A1
+	</select>
+</sqlMap>

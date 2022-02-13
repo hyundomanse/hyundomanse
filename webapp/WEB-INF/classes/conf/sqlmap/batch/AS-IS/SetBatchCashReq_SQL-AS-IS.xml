@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http#//ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchCashReq">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="fMakeCashReq_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select distinct aa.purchase_id 
+			from (
+				select a.purchase_id,a.biz_code,
+				       sum(a.amount - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0))) amt,
+				       b.purchase_id  cash_purchase_id
+				from txorder a, cashreq b
+				where a.purchase_id = b.purchase_id(+)
+				  and a.ORDER_DATE >= '20070701'           
+				  and a.ORDER_DATE >= to_char(sysdate - 4,'yyyymmddhh24')           
+				  and a.ORDER_DATE <= to_char(sysdate ,'yyyymmddhh24') || '9999999'					         
+				  and a.PAYMETHOD IN ('B','O')
+				  and a.cancel_state = 'N'
+				  and a.RECEV_PO_REGIPOCD in('89903','85414')
+				group by a.purchase_id,a.biz_code,b.purchase_id
+			) aa
+			where aa.amt > 0
+			  and aa.cash_purchase_id is null
+		]]>	 
+	</select>
+	
+	<insert id="insert_CASHREQ_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO  CASHREQ
+  					(PURCHASE_ID,GBN,JUMIN_SEED_1,JUMIN_SEED_2,JUMIN_SEED_3,NAME,SEND_CHK)
+ 			VALUES (#sPurchaseid#,'3','fVwIE/6IR/FZdpEiBdqbZw==','XgmJlH2ZGwcoi8lXswdcrg==','rI0H8xfX+6tOAkJaswYs5A==','국세청','00')
+		]]>	 
+	</insert>
+	
+</sqlMap>

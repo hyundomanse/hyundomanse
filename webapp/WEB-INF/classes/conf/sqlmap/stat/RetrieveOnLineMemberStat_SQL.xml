@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.RetrieveOnLineMemberStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="retrieveAllMemberStat" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT
+        	M.ACCESS_NAME
+        	,MAX(
+	             CASE
+	                 WHEN C.IPIN_USERBIRTH IS NULL THEN '99'
+	                 ELSE SUBSTR( TRIM(TO_CHAR( TO_NUMBER(TO_CHAR( SYSDATE, 'YYYY')) - TO_NUMBER(SUBSTR( IPIN_USERBIRTH, 1, 4)), '00')), 1, 1) || '0'
+	             END
+	            ) AS YA
+        	,MAX(
+	            CASE
+	                 WHEN C.IPIN_USERBIRTH IS NULL THEN '99'
+	                 ELSE SUBSTR( TRIM(TO_CHAR( TO_NUMBER(TO_CHAR( SYSDATE, 'YYYY')) - TO_NUMBER(SUBSTR( IPIN_USERBIRTH, 1, 4)), '00')), 1, 1) || '0'
+	             END
+	            ) AS YA1
+	        ,MAX(DECODE(C.MEMBER_TYPE, '2', '-', DECODE(SUBSTR( C.PEOPLENUM, 7, 1),  '1', '남',  '3', '남',  '5', '남',  '여'))) SEX
+	        ,MAX(DECODE(C.MEMBER_TYPE,  '1', '개인',  '2', '법인',  '3', '청소년',  '7', '콜센터',  '기타')) MEMBER_TYPE
+	        ,MAX(SUBSTR( C.CREATE_DATE, 1, 8)) CREATE_DATE
+	        ,MAX(D.NAME) NAME
+	        ,MAX(SC.COMN_CD_NM) CHUNGNAME
+	        ,SUM(M.TOT_DC_APPLY_PRC) AMOUNT
+	        ,COUNT(M.ORDER_ID) TXORDER_ID
+	        ,COUNT(DISTINCT M.ORDER_ID) PURCHASE_ID
+    	FROM OD_ORDER_MAST M
+        	,OD_ORDER_ITM I
+        	,MEMINFO C
+        	,POSTOFFICE_MASTER D
+        	,(   SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'RCO_CD') SC
+   		WHERE M.ACCESS_NAME = C.ACCESS_NAME
+    		AND C.POSTOFFICE = D.PCODE(+)
+		    AND M.ORDER_ID = I.ORDER_ID(+)
+		    AND M.ORDER_DATE >= #search_strt_ymd#
+		    AND M.ORDER_DATE <= #search_end_ymd#
+     		--AND M.SETL_STUS_CD NOT IN ('1', '9')   -- 투비 코드로 매칭
+     		AND I.ORDER_DTAIL_STUS_CD NOT IN ('O01', 'O10') --O10(주문실패) 은 삭제될예정
+     		AND I.ORDER_CANCEL_ADJ_YN = 'N'
+     		AND C.STATUS IN ('1', '2')     -- 투비코드로 매
+     		AND D.CHUNG_CODE = SC.COMN_CD_ID
+	]]>  	
+		<isNotEqual property="shopType" compareValue="P">
+			<isEqual property="shopId" compareValue="B">
+				<![CDATA[AND    I.PAVLN_DIV_CD in ('01','04') ]]>  
+			</isEqual>
+		</isNotEqual>
+		<isEqual property="shopType" compareValue="P">
+			<![CDATA[AND    I.PAVLN_DIV_CD = #shopId# ]]>  
+		</isEqual>
+    	GROUP BY M.ACCESS_NAME
+   		ORDER BY M.ACCESS_NAME
+	</select>
+	
+	<select id="retrieveOnLineMemberStat" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT
+        	M.ACCESS_NAME
+        	,MAX(
+	             CASE
+	                 WHEN C.IPIN_USERBIRTH IS NULL THEN '99'
+	                 ELSE SUBSTR( TRIM(TO_CHAR( TO_NUMBER(TO_CHAR( SYSDATE, 'YYYY')) - TO_NUMBER(SUBSTR( IPIN_USERBIRTH, 1, 4)), '00')), 1, 1) || '0'
+	             END
+	            ) AS YA
+        	,MAX(
+	            CASE
+	                 WHEN C.IPIN_USERBIRTH IS NULL THEN '99'
+	                 ELSE SUBSTR( TRIM(TO_CHAR( TO_NUMBER(TO_CHAR( SYSDATE, 'YYYY')) - TO_NUMBER(SUBSTR( IPIN_USERBIRTH, 1, 4)), '00')), 1, 1) || '0'
+	             END
+	            ) AS YA1
+	        ,MAX(DECODE(C.MEMBER_TYPE, '2', '-', DECODE(SUBSTR( C.PEOPLENUM, 7, 1),  '1', '남',  '3', '남',  '5', '남',  '여'))) SEX
+	        ,MAX(DECODE(C.MEMBER_TYPE,  '1', '개인',  '2', '법인',  '3', '청소년',  '7', '콜센터',  '기타')) MEMBER_TYPE
+	        ,MAX(SUBSTR( C.CREATE_DATE, 1, 8)) CREATE_DATE
+	        ,MAX(D.NAME) NAME
+	        ,MAX(SC.COMN_CD_NM) CHUNGNAME
+	        ,SUM(M.TOT_DC_APPLY_PRC) AMOUNT
+	        ,COUNT(M.ORDER_ID) TXORDER_ID
+	        ,COUNT(DISTINCT M.ORDER_ID) PURCHASE_ID
+    	FROM OD_ORDER_MAST M
+        	,OD_ORDER_ITM I
+        	,MEMINFO C
+        	,POSTOFFICE_MASTER D
+        	,(   SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'RCO_CD') SC
+   		WHERE NOT EXISTS (SELECT 1 FROM CALLCENTER_ORDER B WHERE B.PURCHASE_ID = M.ORDER_ID)
+   			AND M.ACCESS_NAME = C.ACCESS_NAME
+    		AND C.POSTOFFICE = D.PCODE(+)
+		    AND M.ORDER_ID = I.ORDER_ID(+)
+		    AND M.ORDER_DATE >= #search_strt_ymd#
+		    AND M.ORDER_DATE <= #search_end_ymd#
+     		--AND M.SETL_STUS_CD NOT IN ('1', '9')   -- 투비 코드로 매칭
+     		AND I.ORDER_DTAIL_STUS_CD NOT IN ('O01', 'O10') --O10(주문실패) 은 삭제될예정
+     		AND I.ORDER_CANCEL_ADJ_YN = 'N'
+     		AND C.STATUS IN ('1', '2')     -- 투비코드로 매
+     		AND D.CHUNG_CODE = SC.COMN_CD_ID
+	]]>  	
+		<isNotEqual property="shopType" compareValue="P">
+			<isEqual property="shopId" compareValue="B">
+				<![CDATA[AND    I.PAVLN_DIV_CD in ('01','04') ]]>  
+			</isEqual>
+		</isNotEqual>
+		<isEqual property="shopType" compareValue="P">
+			<![CDATA[AND    I.PAVLN_DIV_CD = #shopId# ]]>  
+		</isEqual>
+    	GROUP BY M.ACCESS_NAME
+   		ORDER BY M.ACCESS_NAME
+	</select>	
+	
+	<select id="retrieveCallCenterMemberStat" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT
+        	M.ACCESS_NAME
+        	,MAX(
+	             CASE
+	                 WHEN C.IPIN_USERBIRTH IS NULL THEN '99'
+	                 ELSE SUBSTR( TRIM(TO_CHAR( TO_NUMBER(TO_CHAR( SYSDATE, 'YYYY')) - TO_NUMBER(SUBSTR( IPIN_USERBIRTH, 1, 4)), '00')), 1, 1) || '0'
+	             END
+	            ) AS YA
+        	,MAX(
+	            CASE
+	                 WHEN C.IPIN_USERBIRTH IS NULL THEN '99'
+	                 ELSE SUBSTR( TRIM(TO_CHAR( TO_NUMBER(TO_CHAR( SYSDATE, 'YYYY')) - TO_NUMBER(SUBSTR( IPIN_USERBIRTH, 1, 4)), '00')), 1, 1) || '0'
+	             END
+	            ) AS YA1
+	        ,MAX(DECODE(C.MEMBER_TYPE, '2', '-', DECODE(SUBSTR( C.PEOPLENUM, 7, 1),  '1', '남',  '3', '남',  '5', '남',  '여'))) SEX
+	        ,MAX(DECODE(C.MEMBER_TYPE,  '1', '개인',  '2', '법인',  '3', '청소년',  '7', '콜센터',  '기타')) MEMBER_TYPE
+	        ,MAX(SUBSTR( C.CREATE_DATE, 1, 8)) CREATE_DATE
+	        ,MAX(D.NAME) NAME
+	        ,MAX(SC.COMN_CD_NM) CHUNGNAME
+	        ,SUM(M.TOT_DC_APPLY_PRC) AMOUNT
+	        ,COUNT(M.ORDER_ID) TXORDER_ID
+	        ,COUNT(DISTINCT M.ORDER_ID) PURCHASE_ID
+    	FROM OD_ORDER_MAST M
+        	,OD_ORDER_ITM I
+        	,CALLCENTER_ORDER B
+        	,MEMINFO C
+        	,POSTOFFICE_MASTER D
+        	,(   SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'RCO_CD') SC
+   		WHERE  M.ORDER_ID = B.PURCHASE_ID
+   			AND M.ACCESS_NAME = C.ACCESS_NAME
+    		AND C.POSTOFFICE = D.PCODE(+)
+		    AND M.ORDER_ID = I.ORDER_ID(+)
+		    AND M.ORDER_DATE >= #search_strt_ymd#
+		    AND M.ORDER_DATE <= #search_end_ymd#
+     		--AND M.SETL_STUS_CD NOT IN ('1', '9')   -- 투비 코드로 매칭
+     		AND I.ORDER_DTAIL_STUS_CD NOT IN ('O01', 'O10') --O10(주문실패) 은 삭제될예정
+     		AND I.ORDER_CANCEL_ADJ_YN = 'N'
+     		AND C.STATUS IN ('1', '2')     -- 투비코드로 매
+     		AND D.CHUNG_CODE = SC.COMN_CD_ID
+	]]>  	
+		<isNotEqual property="shopType" compareValue="P">
+			<isEqual property="shopId" compareValue="B">
+				<![CDATA[AND    I.PAVLN_DIV_CD in ('01','04') ]]>  
+			</isEqual>
+		</isNotEqual>
+		<isEqual property="shopType" compareValue="P">
+			<![CDATA[AND    AND I.PAVLN_DIV_CD = #shopId# ]]>  
+		</isEqual>
+    	GROUP BY M.ACCESS_NAME
+   		ORDER BY M.ACCESS_NAME
+	</select>
+	
+</sqlMap>

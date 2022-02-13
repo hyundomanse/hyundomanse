@@ -1,0 +1,1395 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Voc">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>				
+
+	<resultMap id="faqInfodMap" class="commMap" >
+		<result	property="SEQNO"					column="SEQNO" />                  
+		<result	property="SYSDIVCD"					column="SYSDIVCD" />                   
+		<result	property="BIZDIVCD"					column="BIZDIVCD" />  
+		<result	property="FAQTITLE"					column="FAQTITLE" />  
+		<result	property="DISPYN"					column="DISPYN" />              
+		<result	property="FAQCONT2"					column="FAQCONT2" javaType="java.lang.String" jdbcType="CLOB"/>                
+		<result	property="LASTCHGDATE"				column="LASTCHGDATE" />            
+		<result	property="LASTCHGPRSNID"			column="LASTCHGPRSNID" />        
+		<result	property="NOTICESEQ"				column="NOTICESEQ" />             
+	</resultMap>
+	
+	<resultMap id="useInfodMap" class="commMap" >
+		<result	property="SEQNO"					column="SEQNO" />                  
+		<result	property="SYSDIVCD"					column="SYSDIVCD" />                   
+		<result	property="BIZDIVCD"					column="BIZDIVCD" />  
+		<result	property="FAQTITLE"					column="FAQTITLE" />  
+		<result	property="DISPYN"					column="DISPYN" />              
+		<result	property="FAQCONT2"					column="FAQCONT2" javaType="java.lang.String" jdbcType="CLOB"/>                
+		<result	property="LASTCHGDATE"				column="LASTCHGDATE" />            
+		<result	property="LASTCHGPRSNID"			column="LASTCHGPRSNID" />        
+	</resultMap>	
+
+	<!-- VOC관리 FAQ&이용안내 코드 불러오기 -->
+	<select id="selectFaqUseCodeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT CODE
+				, NAME
+		    FROM
+		        (
+		        SELECT CODE
+		             , NAME
+		             , CODE_TYPE
+		        FROM QNABBS_CODE
+		        WHERE 1=1       
+		                AND LENGTH(CODE) =1
+		                AND CODE_TYPE = #code_type#         
+		        UNION                
+		        SELECT CODE
+		             , NAME
+		             , CODE_TYPE
+		        FROM QNABBS_CODE
+		        WHERE 1=1
+		                and code_type IN ( SELECT CODE FROM QNABBS_CODE WHERE  Length(code) =1 and CODE_TYPE = #code_type# )
+		                and length(code)>1
+		                order by code
+		        )                        
+		        ORDER BY length(code), code	
+	</select>		
+	
+	<!-- VOC관리 FAQ 리스트 카운트 -->
+	<select id="selectFaqMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT DISTINCT COUNT(*) OVER() TOTCNT
+           FROM MEM_FAQINFO A
+          WHERE 1=1
+								<isNotEmpty property="sysDivCd">	
+								AND SYSDIVCD = #sysDivCd#
+								</isNotEmpty>	                    
+								<isEmpty property="bizDivCd">
+				            		AND A.BIZDIVCD IN ('O01','N01','N02','O02','N04','O04','O05','N03', 'V01')
+				            	</isEmpty>
+				            	<isNotEmpty property="bizDivCd">
+				            		<isEqual property="bizDivCd" compareValue="01">
+				            		AND A.BIZDIVCD IN ('O01')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="02">
+				            		AND A.BIZDIVCD IN ('N01','N02','O02')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="03">
+				            		AND A.BIZDIVCD IN ('N04','O04')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="04">
+				            		AND A.BIZDIVCD IN ('O05')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="05">
+				            		AND A.BIZDIVCD IN ('N03')
+				            		</isEqual>
+				            	</isNotEmpty>
+				<!-- 검색구분 -->
+				<isNotEmpty property="searchTxt">
+					<isEqual property="searchCondition" compareValue="ttl">
+					AND FAQTITLE LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchCondition" compareValue="cont">
+					AND FAQCONT2 LIKE '%'||#searchTxt#||'%'
+					</isEqual>	
+					<isEqual property="searchCondition" compareValue="all">
+					AND ( FAQTITLE LIKE '%'||#searchTxt#||'%' OR FAQCONT2 LIKE '%'||#searchTxt#||'%' )
+					</isEqual>																		
+				</isNotEmpty>	
+				<!-- 검색구분 END -->	                 		              
+          GROUP BY SEQNO	
+	</select>	
+	
+	<!--  VOC관리 FAQ 데이터 불러오기 -->
+	<select id="selectFaqMgrView" parameterClass="java.util.HashMap"  resultMap="faqInfodMap">
+		SELECT SEQNO 
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=A.SYSDIVCD AND CODE_TYPE = #code_type#) SYSDIVCD
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=A.BIZDIVCD AND BIZDIVCD IS NOT NULL) BIZDIVCD
+				, BIZDIVCD 
+				, FAQTITLE
+				, DECODE(DISPYN, 'Y', '게시', 'N', '미게시', '미게시') AS DISPYN
+				, TO_CHAR(LASTCHGDATE, 'YYYY.MM.DD HH24:MI') LASTCHGDATE
+				, LASTCHGPRSNID
+				, DECODE(NOTICESEQ, NULL, ' ', NOTICESEQ) NOTICESEQ
+				, FAQCONT2
+			FROM MEM_FAQINFO A  
+		WHERE 1=1  
+        <isNotEmpty property="seqNo">
+       		AND SEQNO = #seqNo#
+        </isNotEmpty>			                
+	</select>
+	
+	<!--  VOC관리 FAQ 데이터 불러오기(수정용) -->
+	<select id="selectFaqMgrViewM" parameterClass="java.util.HashMap"  resultMap="faqInfodMap">
+		SELECT SEQNO 
+				, SYSDIVCD
+				, BIZDIVCD
+				, FAQTITLE
+				, DECODE(DISPYN, 'Y', 'Y', 'N', 'N', 'N') AS DISPYN
+				, TO_CHAR(LASTCHGDATE, 'YYYY.MM.DD HH24:MI') LASTCHGDATE
+				, LASTCHGPRSNID
+				, DECODE(NOTICESEQ, NULL, ' ', NOTICESEQ) NOTICESEQ
+				, FAQCONT2
+			FROM MEM_FAQINFO A  
+		WHERE 1=1  
+        <isNotEmpty property="seqNo">
+       		AND SEQNO = #seqNo#
+        </isNotEmpty>			                
+	</select>	
+	
+	<!-- VOC관리 FAQ 리스트 목록 -->
+	<select id="selectFaqMgrList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+         SELECT ONUM
+				, SEQNO
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=SYSDIVCD AND CODE_TYPE='33') SYSDIVCD
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=BIZDIVCD AND BIZDIVCD IS NOT NULL AND LENGTH(BIZDIVCD)>1) BIZDIVCD				
+				, FAQTITLE
+				/*, READCNT */
+				, DECODE(DISPYN, 'Y', '게시', 'N', '미게시', '미게시') AS DISPYN
+				, LASTCHGDATE
+				, LASTCHGPRSNID
+				/*, FAQCONT2 */
+				, 'faqinfo' AS BBSTYPE
+				, REPLYCNT --고객의견유무
+            FROM 
+				(
+				SELECT
+			            ROW_NUMBER() OVER(ORDER BY T1.SEQNO DESC) AS ONUM    
+			            -- ROW_NUMBER() OVER(ORDER BY T1.SEQNO DESC) AS ONUM
+			            , ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM
+			            , T1.SEQNO
+			            , T1.SYSDIVCD
+			            , T1.BIZDIVCD
+			            , T1.FAQTITLE
+			            , T1.READCNT
+			            , T1.DISPYN
+			            , T1.LASTCHGDATE
+			            , T1.LASTCHGPRSNID
+			            --, T1.FAQCONT2
+			            , T1.REPLYCNT
+				    FROM
+			            (
+			            SELECT
+			                        ROW_NUMBER() OVER(ORDER BY SEQNO DESC) AS TNUM    
+			                        , SEQNO
+			                        , SYSDIVCD
+			                        , BIZDIVCD
+			                        , FAQTITLE
+			                        , READCNT
+			                        , DISPYN
+			                        , TO_CHAR(LASTCHGDATE, 'YYYY.MM.DD HH24:MI') LASTCHGDATE
+			                        , LASTCHGPRSNID
+			                        , FAQCONT2  /* 주석 */ 
+			                        , (SELECT COUNT(M.REGNO) FROM MEM_COMMENT M WHERE M.SEQNO=MEM_FAQINFO.SEQNO AND BBSDIVCD='F') AS REPLYCNT
+			                FROM MEM_FAQINFO  
+			                WHERE 1=1                                                                                                          
+				            ) T1
+				            WHERE 1=1
+		                        AND T1.SYSDIVCD IS NOT NULL
+		                        AND T1.BIZDIVCD IS NOT NULL
+								<isNotEmpty property="sysDivCd">	
+								AND T1.SYSDIVCD = #sysDivCd#
+								</isNotEmpty>		            
+				            	<isEmpty property="bizDivCd">
+				            		AND T1.BIZDIVCD IN ('O01','N01','N02','O02','N04','O04','O05','N03', 'V01')
+				            	</isEmpty>
+				            	<isNotEmpty property="bizDivCd">
+				            		<isEqual property="bizDivCd" compareValue="01">
+				            		AND T1.BIZDIVCD IN ('O01')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="02">
+				            		AND T1.BIZDIVCD IN ('N01','N02','O02')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="03">
+				            		AND T1.BIZDIVCD IN ('N04','O04')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="04">
+				            		AND T1.BIZDIVCD IN ('O05')
+				            		</isEqual>
+				            		<isEqual property="bizDivCd" compareValue="05">
+				            		AND T1.BIZDIVCD IN ('N03')
+				            		</isEqual>
+				            	</isNotEmpty>
+								<!-- 검색구분 -->
+								<isNotEmpty property="searchTxt">
+									<isEqual property="searchCondition" compareValue="ttl">
+									AND T1.FAQTITLE LIKE '%'||#searchTxt#||'%'
+									</isEqual>
+									<isEqual property="searchCondition" compareValue="cont">
+									AND T1.FAQCONT2 LIKE '%'||#searchTxt#||'%'
+									</isEqual>	
+									<isEqual property="searchCondition" compareValue="all">
+									AND ( T1.FAQTITLE LIKE '%'||#searchTxt#||'%' OR T1.FAQCONT2 LIKE '%'||#searchTxt#||'%' )
+									</isEqual>																		
+								</isNotEmpty>	
+								<!-- 검색구분 END -->																                    
+				) T2
+				WHERE 1=1
+						AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+				ORDER BY T2.RNUM DESC     
+	</select>		
+			
+	
+	<!-- VOC관리 FAQ 글등록 -->
+	<insert id="insertFaq" parameterClass="java.util.HashMap">
+		<![CDATA[   
+		INSERT INTO MEM_FAQINFO 
+			(SEQNO
+			, SYSDIVCD
+			, BIZDIVCD
+			, FAQTITLE
+			, FAQCONT2
+			, READCNT
+			, DISPYN
+			, WRITEDATE
+			, WRITEPRSNID
+			, LASTCHGDATE
+			, LASTCHGPRSNID
+			, NOTICESEQ)
+		VALUES
+			( (SELECT NVL(MAX(SEQNO),0)+1 FROM MEM_FAQINFO) 			/* SEQNO */
+			    , #sysDivCdForm#			/* SYSDIVCD */
+			    , #bizDivCdForm#			/* BIZDIVCD */
+			    , #bbsTtl#			/* FAQTITLE */
+			    , #bbsCont#  			/* FAQCONT */
+			    , 0			/* READCNT */
+			    , #expsrYn#		/* DISPYN */
+			    , SYSDATE 	/* WRITEDATE */
+			    , #reger_id#			/* WRITEPRSNID */
+			    , SYSDATE 	/* LASTCHGDATE */
+			    , #reger_id#			/* LASTCHGPRSNID */
+				, #imprtncNoticOrder#         /* NOTICESEQ */
+			)		
+            ]]>
+	</insert>		
+	
+	<!-- VOC관리 FAQ 글수정 -->
+	<update id="modifyFaq" parameterClass="java.util.HashMap">
+		<![CDATA[   
+		UPDATE MEM_FAQINFO SET
+			SYSDIVCD = #sysDivCdForm#
+			, BIZDIVCD = #bizDivCdForm#
+			, FAQTITLE = #bbsTtl#
+			, FAQCONT2 = #bbsCont#
+			, DISPYN = #expsrYn#
+			, LASTCHGDATE = SYSDATE
+			, LASTCHGPRSNID = #reger_id#
+			, NOTICESEQ = #imprtncNoticOrder#
+    		WHERE  SEQNO = #seqNo#		
+            ]]>
+	</update>			
+	
+	<!-- VOC관리 FAQ 글삭제 -->
+	<update id="deleteFaqinfo" parameterClass="java.util.HashMap">
+		DELETE 
+		  FROM MEM_FAQINFO
+		 WHERE SEQNO   = #seqNo#        
+	</update>		
+	
+	<!-- VOC관리 이용안내 글삭제 -->
+	<update id="deleteUseInfo" parameterClass="java.util.HashMap">
+		DELETE 
+		  FROM MEM_USEINFO
+		 WHERE SEQNO   = #seqNo#        
+	</update>			
+	
+	
+	<!-- VOC관리 이용안내 리스트 카운트 -->
+	<select id="selectUseinfoMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT DISTINCT COUNT(*) OVER() TOTCNT
+           FROM MEM_USEINFO A
+          WHERE 1=1
+		        AND SYSDIVCD IS NOT NULL
+		        AND BIZDIVCD IS NOT NULL    
+                AND SYSDIVCD IN (SELECT CODE FROM QNABBS_CODE B  WHERE B.CODE=A.SYSDIVCD AND CODE_TYPE= #code_type#)   
+                AND BIZDIVCD IN (SELECT CODE FROM QNABBS_CODE B  WHERE B.CODE=A.BIZDIVCD AND BIZDIVCD IS NOT NULL) 
+				<isNotEmpty property="sysDivCd">	
+				AND SYSDIVCD = #sysDivCd#
+				</isNotEmpty>	                        
+				<isNotEmpty property="bizDivCd">	
+				AND BIZDIVCD = #bizDivCd#
+				</isNotEmpty>	   
+				<!-- 검색구분 -->
+				<isNotEmpty property="searchTxt">
+					<isEqual property="searchCondition" compareValue="ttl">
+					AND USETITLE LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchCondition" compareValue="cont">
+					AND USECONT2 LIKE '%'||#searchTxt#||'%'
+					</isEqual>	
+					<isEqual property="searchCondition" compareValue="all">
+					AND ( USETITLE LIKE '%'||#searchTxt#||'%' OR USECONT2 LIKE '%'||#searchTxt#||'%' )
+					</isEqual>																		
+				</isNotEmpty>	
+				<!-- 검색구분 END -->	                 		              
+          GROUP BY SEQNO	
+	</select>		
+	
+	<!-- VOC관리 이용안내 리스트 목록 -->
+	<select id="selectUseinfoMgrList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+         SELECT ONUM
+				, SEQNO
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=SYSDIVCD AND CODE_TYPE='33') SYSDIVCD
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=BIZDIVCD AND BIZDIVCD IS NOT NULL AND LENGTH(BIZDIVCD)>1) BIZDIVCD				
+				, USETITLE AS FAQTITLE
+				/* , READCNT */
+				, DECODE(DISPYN, 'Y', '게시', 'N', '미게시', '미게시') AS DISPYN
+				, LASTCHGDATE
+				, LASTCHGPRSNID		
+				/* , USECONT2 */
+				, 'useinfo' AS BBSTYPE
+				, REPLYCNT
+            FROM 
+				(
+				SELECT
+			            ROW_NUMBER() OVER(ORDER BY T1.SEQNO DESC) AS ONUM    
+			            , ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM
+			            , T1.SEQNO
+			            , T1.SYSDIVCD
+			            , T1.BIZDIVCD
+			            , T1.USETITLE
+			            , T1.READCNT
+			            , T1.DISPYN
+			            , T1.LASTCHGDATE
+			            , T1.LASTCHGPRSNID
+			            /* , T1.USECONT2 */
+			            , T1.REPLYCNT
+				    FROM
+			            (
+			            SELECT
+			                        ROW_NUMBER() OVER(ORDER BY SEQNO DESC) AS TNUM    
+			                        , SEQNO
+			                        , SYSDIVCD
+			                        , BIZDIVCD
+			                        , USETITLE
+			                        , READCNT
+			                        , DISPYN
+			                        , TO_CHAR(LASTCHGDATE, 'YYYY.MM.DD HH24:MI') LASTCHGDATE
+			                        , LASTCHGPRSNID
+			                        , USECONT2   
+			                        , (SELECT COUNT(M.REGNO) FROM MEM_COMMENT M WHERE M.SEQNO=MEM_USEINFO.SEQNO AND BBSDIVCD='U') AS REPLYCNT
+			                FROM MEM_USEINFO  
+			                WHERE 1=1                                                                                                          
+				            ) T1
+				            WHERE 1=1
+		                        AND T1.SYSDIVCD IS NOT NULL
+		                        AND T1.BIZDIVCD IS NOT NULL
+								<isNotEmpty property="sysDivCd">	
+								AND T1.SYSDIVCD = #sysDivCd#
+								</isNotEmpty>	                        
+								<isNotEmpty property="bizDivCd">	
+								AND T1.BIZDIVCD = #bizDivCd#
+								</isNotEmpty>	   
+								<!-- 검색구분 -->
+								<isNotEmpty property="searchTxt">
+									<isEqual property="searchCondition" compareValue="ttl">
+									AND T1.USETITLE LIKE '%'||#searchTxt#||'%'
+									</isEqual>
+									<isEqual property="searchCondition" compareValue="cont">
+									AND T1.USECONT2 LIKE '%'||#searchTxt#||'%'
+									</isEqual>	
+									<isEqual property="searchCondition" compareValue="all">
+									AND ( T1.USETITLE LIKE '%'||#searchTxt#||'%' OR T1.USECONT2 LIKE '%'||#searchTxt#||'%' )
+									</isEqual>																		
+								</isNotEmpty>	
+								<!-- 검색구분 END -->																                    
+				) T2
+				WHERE 1=1
+						AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+				ORDER BY T2.RNUM DESC     
+	</select>			
+	
+	<!--  VOC관리 이용안내 데이터 불러오기 -->
+	<select id="selectUseinfoMgrView" parameterClass="java.util.HashMap"  resultMap="useInfodMap">
+		SELECT SEQNO 
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=A.SYSDIVCD AND CODE_TYPE = #code_type#) SYSDIVCD
+				, (SELECT NAME FROM QNABBS_CODE B  WHERE B.CODE=A.BIZDIVCD AND BIZDIVCD IS NOT NULL) BIZDIVCD
+				, USETITLE AS FAQTITLE
+				, DECODE(DISPYN, 'Y', '게시', 'N', '미게시', '미게시') AS DISPYN
+				, TO_CHAR(LASTCHGDATE, 'YYYY.MM.DD HH24:MI') LASTCHGDATE
+				, LASTCHGPRSNID
+				/* , DECODE(NOTICESEQ, NULL, ' ', NOTICESEQ) NOTICESEQ */
+				, USECONT2 AS FAQCONT2
+			FROM MEM_USEINFO A  
+		WHERE 1=1  
+        <isNotEmpty property="seqNo">
+       		AND SEQNO = #seqNo#
+        </isNotEmpty>			                
+	</select>
+	
+	<!--  VOC관리 이용안내 데이터 불러오기(수정용) -->
+	<select id="selectUseinfoMgrViewM" parameterClass="java.util.HashMap"  resultMap="useInfodMap">
+		SELECT SEQNO 
+				, SYSDIVCD
+				, BIZDIVCD
+				, USETITLE AS FAQTITLE
+				, DECODE(DISPYN, 'Y', 'Y', 'N', 'N', 'N') AS DISPYN
+				, TO_CHAR(LASTCHGDATE, 'YYYY.MM.DD HH24:MI') LASTCHGDATE
+				, LASTCHGPRSNID
+				/*, DECODE(NOTICESEQ, NULL, ' ', NOTICESEQ) NOTICESEQ */
+				, USECONT2 AS FAQCONT2
+			FROM MEM_USEINFO A  
+		WHERE 1=1  
+        <isNotEmpty property="seqNo">
+       		AND SEQNO = #seqNo#
+        </isNotEmpty>			                
+	</select>		
+	
+	
+	<!-- VOC관리 FAQ 고객의견 카운트 -->
+	<select id="selectFaqMgrReplyListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT DISTINCT COUNT(*) OVER() TOTCNT
+           FROM MEM_COMMENT
+          WHERE 1=1
+				AND BBSDIVCD = #bbsDivCd#
+				AND SEQNO = #seqNo#       
+          GROUP BY REGNO	
+	</select>		
+	
+	<!-- VOC관리 FAQ 고객의견 리스트 -->
+	<select id="selectFaqMgrReplyList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap"> 	
+         SELECT ONUM
+                , REGNO
+                , SEQNO
+                , BBSDIVCD
+                , WRITETEXT
+                , WRITEDATE             
+                , WRITEID
+            FROM 
+                (
+                SELECT
+                        ROW_NUMBER() OVER(ORDER BY T1.WRITEDATE DESC) AS ONUM    
+                        , ROW_NUMBER() OVER(ORDER BY WRITEDATE DESC) AS RNUM
+                        , T1.REGNO
+                        , T1.BBSDIVCD
+                        , T1.SYSDIVCD
+                        , T1.BIZDIVCD
+                        , T1.SEQNO
+                        , T1.WRITEDATE
+                        , T1.WRITEID                        
+                        , T1.WRITETEXT
+                    FROM
+                        (
+                        SELECT ROW_NUMBER() OVER (ORDER BY WRITEDATE) TNUM
+                                    , REGNO
+                                    , BBSDIVCD
+                                    , SYSDIVCD
+                                    , BIZDIVCD
+                                    , SEQNO
+                                    , TO_CHAR(WRITEDATE,'YYYY/MM/DD HH24:MI:SS') WRITEDATE
+                                    , WRITEID
+                                    /* , WRITETEXT */
+                                    , REGEXP_REPLACE( REPLACE(REPLACE(WRITETEXT, CHR(10), ''), CHR(13), ''), '<![CDATA[<[^>]*>]]> ', '') WRITETEXT 
+                            FROM MEM_COMMENT 
+                            WHERE 1=1                        
+                            ) T1
+                            WHERE 1=1            
+                           		<isEmpty property="bbsDivCd">
+                           		AND T1.BBSDIVD IS NULL
+                           		</isEmpty>           
+                                <isNotEmpty property="bbsDivCd">    
+                                AND T1.BBSDIVCD = #bbsDivCd#
+                                </isNotEmpty>                            
+                                <isNotEmpty property="seqNo">    
+                                AND T1.SEQNO = #seqNo#
+                                </isNotEmpty>                                                                                        
+                ) T2
+                WHERE 1=1
+                        AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+                ORDER BY T2.REGNO DESC      
+	</select>		
+	
+	<!--  VOC관리 FAQ 고객의견 데이터 불러오기 -->
+	<select id="selectFaqMgrReplyView" parameterClass="java.util.HashMap" resultClass="java.util.HashMap"> 	
+		SELECT B.FAQTITLE FAQTITLE
+            	, A.WRITETEXT WRITETEXT
+			FROM MEM_COMMENT A
+				, MEM_FAQINFO B
+			WHERE 1=1       
+        <isNotEmpty property="regNo">	
+       		AND A.REGNO = #regNo# 
+        </isNotEmpty>   			
+        <isNotEmpty property="seqNo">
+       		AND B.SEQNO = #seqNo#
+        </isNotEmpty>		
+	</select>		
+	
+	<!-- VOC관리 FAQ 고객의견 글삭제 -->
+	<update id="deleteFaqReply" parameterClass="java.util.HashMap">
+		DELETE 
+		  FROM MEM_COMMENT
+		 WHERE REGNO   = #regNo#        
+	</update>		
+	
+	
+	<!-- VOC관리 이용안내 글등록 -->
+	<insert id="insertUseInfo" parameterClass="java.util.HashMap">
+		<![CDATA[   
+		INSERT INTO MEM_USEINFO 
+			(SEQNO
+			, SYSDIVCD
+			, BIZDIVCD
+			, USETITLE
+			, USECONT2
+			, READCNT
+			, DISPYN
+			, WRITEDATE
+			, WRITEPRSNID
+			, LASTCHGDATE
+			, LASTCHGPRSNID
+			)
+		VALUES
+			( (SELECT NVL(MAX(SEQNO),0)+1 FROM MEM_USEINFO) 		
+			    , #sysDivCdForm#			
+			    , #bizDivCdForm#			
+			    , #bbsTtl#			/* FAQTITLE */
+			    , #bbsCont#  		/* FAQCONT */
+			    , 0			/* READCNT */
+			    , #expsrYn#		/* DISPYN */
+			    , SYSDATE 	/* WRITEDATE */
+			    , #reger_id#			/* WRITEPRSNID */
+			    , SYSDATE 	/* LASTCHGDATE */
+			    , #reger_id#			/* LASTCHGPRSNID */
+			)		
+            ]]>
+	</insert>		
+	
+	<!-- VOC관리 이용안내 글수정 -->
+	<update id="modifyUseInfo" parameterClass="java.util.HashMap">
+		<![CDATA[   
+		UPDATE MEM_USEINFO SET
+			SYSDIVCD = #sysDivCdForm#
+			, BIZDIVCD = #bizDivCdForm#
+			, USETITLE = #bbsTtl#
+			, USECONT2 = #bbsCont#
+			, DISPYN = #expsrYn#
+			, LASTCHGDATE = SYSDATE
+			, LASTCHGPRSNID = #reger_id#
+    		WHERE  SEQNO = #seqNo#		
+            ]]>
+	</update>					
+		
+	<!-- VOC관리 FAQ 글등록 -->
+	<insert id="insertFaqNew" parameterClass="java.util.HashMap">
+		<![CDATA[   
+		INSERT INTO CM_CUST_BBS(
+                BBS_NO              
+                , BBS_TYP              
+                , STR_DIV_CD            
+                , BIZ_DIV_CD               
+                , BBS_TTL                
+                , BBS_CONT            
+                , EXPSR_YN 
+                , IMPRTNC_NOTIC_ORDER   
+                , REG_DATE        
+                , REGER_ID     
+                , BBS_SORT_ORDER     
+            ) VALUES (
+                SEQ_CM_CUST_BBS$$BBS_NO.nextval
+                , #bbsTypeForm#
+                , #strDivCdForm#
+                , #bizDivCdForm#
+                , #bbsTtl#
+                , #bbsCont#                                                
+                , #expsrYn#
+                , #imprtncNoticOrder#    
+                , SYSDATE
+                , #reger_id#
+                , (SELECT NVL(MAX(BBS_SORT_ORDER), 0)+1 FROM CM_CUST_BBS) /*  임시로 */
+            )
+            ]]>
+	</insert>		
+		
+	<!-- QNA관리 리스트 조회 -->
+	<select id="selectQnaMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+         SELECT T2.ONUM
+ 	         , T2.SEQ_NO    
+	         , T2.Q_CODE
+	         , T2.Q2_CODE    
+	         , T2.Q_NAME    
+	         , T2.WRITE_DATE    
+	         , T2.WRITER_NAME    
+	         , T2.WRITE_TITLE    
+	         , T2.ANSWER_NAME    
+	         , T2.ANSWER_DATE
+	         , T2.STATUS_TYPE
+        FROM(
+            SELECT ROW_NUMBER() OVER(ORDER BY T1.SEQ_NO DESC, T1.CODE ASC, T1.CODE_TYPE ASC) AS ONUM	
+                 , ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM
+ 		         , T1.SEQ_NO
+		         , T1.Q_CODE
+		         , T1.Q2_CODE
+		         , T1.Q_NAME
+		         , T1.WRITE_DATE
+		         , T1.WRITER_NAME
+		         , T1.WRITE_TITLE
+		         , T1.ANSWER_NAME
+		         , T1.ANSWER_DATE
+		         , T1.STATUS_TYPE
+
+            FROM(
+                SELECT
+			        	ROW_NUMBER() OVER(ORDER BY A.SEQ_NO, B.CODE, B.CODE_TYPE DESC) AS TNUM
+			         , A.SEQ_NO
+			         , A.Q1_CODE AS Q_CODE
+			         , A.Q2_CODE
+					 , B.NAME AS Q_NAME
+                     , CASE WHEN LENGTH(NVL(A.WRITE_DATE, '')) = '14' 
+                            THEN SUBSTR(A.WRITE_DATE,1,4) || '.' || SUBSTR(A.WRITE_DATE,5,2) || '.' || SUBSTR(A.WRITE_DATE,7,2) || ' ' || SUBSTR(A.WRITE_DATE,9,2) || ':' || SUBSTR(A.WRITE_DATE,11,2)
+                            ELSE ''
+                       		END AS WRITE_DATE          
+			         , A.WRITER_NAME 
+			         , A.WRITE_TITLE
+			         , A.ANSWER_NAME
+                     , CASE WHEN LENGTH(NVL(A.ANSWER_DATE, '')) = '14' 
+                            THEN SUBSTR(A.ANSWER_DATE,1,4) || '.' || SUBSTR(A.ANSWER_DATE,5,2) || '.' || SUBSTR(A.ANSWER_DATE,7,2) || ' ' || SUBSTR(A.ANSWER_DATE,9,2) || ':' || SUBSTR(A.ANSWER_DATE,11,2)
+                            ELSE ''
+                       		END AS ANSWER_DATE          
+			         , DECODE(A.STATUS_TYPE,'S','미확인','D','처리중','C','전화','E','이메일','R','답변거부','F','처리완료','X','삭제','') AS STATUS_TYPE
+			         , B.CODE
+                     , B.CODE_TYPE  					 
+                FROM QNABBS_Q_NEW A
+                   , QNABBS_CODE B
+                WHERE 1=1
+				AND A.Q1_CODE = B.CODE
+				AND B.CODE_TYPE = '11'
+
+				<!-- 조회기간 -->			            
+				<isNotEmpty property="searchFromDt">
+					<isNotEmpty property="searchToDt">
+						AND TO_CHAR (A.WRITE_DATE) BETWEEN #searchFromDt#||'000000'  AND #searchToDt#||'235959'
+				    </isNotEmpty>
+				</isNotEmpty>
+				
+				<!-- 처리상태 -->
+				<isNotEmpty property="searchStatusType">
+					<isEqual property="searchStatusType" compareValue="01">
+						<![CDATA[ AND A.STATUS_TYPE <> 'X']]>
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="02">
+						AND A.STATUS_TYPE = DECODE('S','',A.STATUS_TYPE,'S')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="03">
+						AND A.STATUS_TYPE = DECODE('D','',A.STATUS_TYPE,'D')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="04">
+						AND A.STATUS_TYPE = DECODE('R','',A.STATUS_TYPE,'R')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="05">
+						AND A.STATUS_TYPE = DECODE('E','',A.STATUS_TYPE,'E')
+					</isEqual>																
+					<isEqual property="searchStatusType" compareValue="06">
+						AND A.STATUS_TYPE = DECODE('C','',A.STATUS_TYPE,'C')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="07">
+						AND A.STATUS_TYPE = DECODE('F','',A.STATUS_TYPE,'F')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="08">
+						AND A.STATUS_TYPE = DECODE('X','',A.STATUS_TYPE,'X')
+					</isEqual>				
+				</isNotEmpty>
+                
+				<!-- 업무구분 -->
+				<isNotEmpty property="searchQ1Code">
+					<isEqual property="searchQ1Code" compareValue="01">
+						AND A.Q1_CODE IN ('AA','BB','CC','DD','EE','FF','GG','HH','II','JJ')					
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="02">
+						AND A.Q1_CODE = 'AA'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="03">
+						AND A.Q1_CODE = 'BB'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="04">
+						AND A.Q1_CODE = 'CC'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="05">
+						AND A.Q1_CODE = 'DD'
+					</isEqual>																
+					<isEqual property="searchQ1Code" compareValue="06">
+						AND A.Q1_CODE = 'EE'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="07">
+						AND A.Q1_CODE = 'FF'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="08">
+						AND A.Q1_CODE = 'GG'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="09">
+						AND A.Q1_CODE = 'HH'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="10">
+						AND A.Q1_CODE = 'II'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="11">
+						AND A.Q1_CODE = 'JJ'
+					</isEqual>
+				</isNotEmpty>
+			                
+				<!-- 검색구분 -->
+				<isNotEmpty property="searchTxt">
+					<isEqual property="searchType" compareValue="01">
+						AND A.WRITE_TITLE LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="02">
+						AND A.WRITE_TEXT LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="03">
+						AND A.WRITER_NAME LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="04">
+						AND A.WRITER_TEL LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="05">
+						AND A.WRITER_MOBILE LIKE '%'||#searchTxt#||'%'
+					</isEqual>																
+					<isEqual property="searchType" compareValue="06">
+						AND A.WRITER_ID LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="07">
+						AND A.ANSWER_NAME LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="08">
+						AND A.CLOB_ANSTEXT LIKE '%'||#searchTxt#||'%'
+					</isEqual>				
+				</isNotEmpty>                
+			                
+            )T1
+            WHERE 1=1
+			            
+        )T2
+        WHERE 1=1
+        <isNotNull property="firstIndex">
+        	<isNotNull property="lastIndex">
+        		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+        	</isNotNull>
+        </isNotNull>           
+		ORDER BY T2.ONUM ASC
+		
+	</select>		
+		
+	<!-- QNA관리 리스트 카운트 -->
+	<select id="selectQnaMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT DISTINCT COUNT(*) OVER() TOTCNT
+		  FROM QNABBS_Q_NEW A
+		     , QNABBS_CODE B
+		 WHERE 1=1
+		   AND A.Q1_CODE = B.CODE
+		   AND B.CODE_TYPE = '11'
+
+		<!-- 조회기간 -->			            
+		<isNotEmpty property="searchFromDt">
+			<isNotEmpty property="searchToDt">
+				AND TO_CHAR (A.WRITE_DATE) BETWEEN #searchFromDt#||'000000'  AND #searchToDt#||'235959'
+		    </isNotEmpty>
+		</isNotEmpty>
+		
+		<!-- 처리상태 -->
+		<isNotEmpty property="searchStatusType">
+			<isEqual property="searchStatusType" compareValue="01">
+				<![CDATA[ AND A.STATUS_TYPE <> 'X']]>
+			</isEqual>
+			<isEqual property="searchStatusType" compareValue="02">
+				AND A.STATUS_TYPE = DECODE('S','',A.STATUS_TYPE,'S')
+			</isEqual>
+			<isEqual property="searchStatusType" compareValue="03">
+				AND A.STATUS_TYPE = DECODE('D','',A.STATUS_TYPE,'D')
+			</isEqual>
+			<isEqual property="searchStatusType" compareValue="04">
+				AND A.STATUS_TYPE = DECODE('R','',A.STATUS_TYPE,'R')
+			</isEqual>
+			<isEqual property="searchStatusType" compareValue="05">
+				AND A.STATUS_TYPE = DECODE('E','',A.STATUS_TYPE,'E')
+			</isEqual>																
+			<isEqual property="searchStatusType" compareValue="06">
+				AND A.STATUS_TYPE = DECODE('C','',A.STATUS_TYPE,'C')
+			</isEqual>
+			<isEqual property="searchStatusType" compareValue="07">
+				AND A.STATUS_TYPE = DECODE('F','',A.STATUS_TYPE,'F')
+			</isEqual>
+			<isEqual property="searchStatusType" compareValue="08">
+				AND A.STATUS_TYPE = DECODE('X','',A.STATUS_TYPE,'X')
+			</isEqual>				
+		</isNotEmpty>
+              
+		<!-- 업무구분 -->
+		<isNotEmpty property="searchQ1Code">
+			<isEqual property="searchQ1Code" compareValue="01">
+				AND A.Q1_CODE IN ('AA','BB','CC','DD','EE','FF','GG','HH','II','JJ')					
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="02">
+				AND A.Q1_CODE = 'AA'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="03">
+				AND A.Q1_CODE = 'BB'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="04">
+				AND A.Q1_CODE = 'CC'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="05">
+				AND A.Q1_CODE = 'DD'
+			</isEqual>																
+			<isEqual property="searchQ1Code" compareValue="06">
+				AND A.Q1_CODE = 'EE'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="07">
+				AND A.Q1_CODE = 'FF'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="08">
+				AND A.Q1_CODE = 'GG'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="09">
+				AND A.Q1_CODE = 'HH'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="10">
+				AND A.Q1_CODE = 'II'
+			</isEqual>
+			<isEqual property="searchQ1Code" compareValue="11">
+				AND A.Q1_CODE = 'JJ'
+			</isEqual>
+		</isNotEmpty>
+	                
+		<!-- 검색구분 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchType" compareValue="01">
+				AND A.WRITE_TITLE LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="02">
+				AND A.WRITE_TEXT LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="03">
+				AND A.WRITER_NAME LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="04">
+				AND A.WRITER_TEL LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="05">
+				AND A.WRITER_MOBILE LIKE '%'||#searchTxt#||'%'
+			</isEqual>																
+			<isEqual property="searchType" compareValue="06">
+				AND A.WRITER_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="07">
+				AND A.ANSWER_NAME LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="08">
+				AND A.CLOB_ANSTEXT LIKE '%'||#searchTxt#||'%'
+			</isEqual>				
+		</isNotEmpty>    		   
+	</select>		
+		
+	<!-- QNA관리 상세 조회 -->
+	<select id="selectQnaMgrDtlInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    SELECT A.Q1_CODE AS Q_CODE
+         , A.Q2_CODE
+         , A.SEQ_NO 
+         , B.NAME Q_NAME 
+         , NVL(BB.NAME, ' ') AS Q2_NAME 
+         , A.WRITER_NAME
+         , A.WRITER_ID
+         , A.WRITER_PSWD
+ 		 , CASE WHEN LENGTH(NVL(A.WRITE_DATE, '')) = '14' 
+		        THEN SUBSTR(A.WRITE_DATE,1,4) || '.' || SUBSTR(A.WRITE_DATE,5,2) || '.' || SUBSTR(A.WRITE_DATE,7,2) || ' ' || SUBSTR(A.WRITE_DATE,9,2) || ':' || SUBSTR(A.WRITE_DATE,11,2)
+		        ELSE ''
+		  	 	END AS WRITE_DATE          
+         , A.WRITE_TITLE
+         , A.WRITE_TEXT 
+         , A.WRITER_IP
+         , A.WRITER_TEL
+         , A.WRITER_MOBILE
+         , A.WRITER_EMAIL
+         , A.ORDER_NO
+         , A.ANSWER_NAME 
+         , A.ANSWER_ID
+         , CASE WHEN LENGTH(NVL(A.ANSWER_DATE, '')) = '14' 
+                THEN SUBSTR(A.ANSWER_DATE,1,4) || '.' || SUBSTR(A.ANSWER_DATE,5,2) || '.' || SUBSTR(A.ANSWER_DATE,7,2) || ' ' || SUBSTR(A.ANSWER_DATE,9,2) || ':' || SUBSTR(A.ANSWER_DATE,11,2)
+                ELSE ''
+           		END AS ANSWER_DATE                     
+         , A.ANSWER_TEXT 
+         , A.ANSWER_TEXT2
+         , A.ANSWER_IP
+         , A.STATUS_TYPE
+		 , DECODE( A.STATUS_TYPE, 'C', '전화처리', 'E', '이메일처리', 'R', '답변거부', 'F', '처리완료', 'X', '삭제',  ''  ) AS ANSWER_TYPE              
+         , A.SEQ_PTL
+         , A.TX_ID
+         , A.REG_NO
+         , A.CLOB_ANSTEXT
+         , A.CLOB_WORKTEXT
+         , A.EMAIL_AGREE_YN
+    FROM QNABBS_Q_NEW A 
+       , QNABBS_CODE B 
+       , QNABBS_CODE BB
+    WHERE A.SEQ_NO  = #searchSeqNo#
+    AND A.Q1_CODE = B.CODE 
+    AND A.Q2_CODE = BB.CODE(+)
+    ]]>
+	</select>	
+	
+	<!-- QNA관리 상세 이전/ 다음글 조회 -->
+	<select id="selectQnaPreNextList" parameterClass ="java.util.HashMap" resultClass="commMap">
+    SELECT SEQ_NO
+           , Q1_CODE
+           , WRITE_DATE
+           , WRITE_TITLE
+           , 'PRE' AS SEQ_TYPE
+
+    FROM QNABBS_Q_NEW
+    WHERE WRITE_DATE IN((
+            SELECT /*+ index_asc(QNABBS_Q_NEW IX_QNABBS_Q_NEW_IX05) */WRITE_DATE
+
+            FROM QNABBS_Q_NEW
+            WHERE WRITE_DATE <![CDATA[>]]> (
+                SELECT WRITE_DATE
+                FROM QNABBS_Q_NEW
+                WHERE SEQ_NO = #searchSeqNo#)
+
+				<!-- 조회기간 -->			            
+				<isNotEmpty property="searchFromDt">
+					<isNotEmpty property="searchToDt">
+						AND TO_CHAR (WRITE_DATE) BETWEEN #searchFromDt#||'000000'  AND #searchToDt#||'235959'
+				    </isNotEmpty>
+				</isNotEmpty>
+				
+				<!-- 처리상태 -->
+				<isNotEmpty property="searchStatusType">
+					<isEqual property="searchStatusType" compareValue="01">
+						<![CDATA[ AND STATUS_TYPE <> 'X']]>
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="02">
+						AND STATUS_TYPE = DECODE('S','',STATUS_TYPE,'S')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="03">
+						AND STATUS_TYPE = DECODE('D','',STATUS_TYPE,'D')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="04">
+						AND STATUS_TYPE = DECODE('R','',STATUS_TYPE,'R')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="05">
+						AND STATUS_TYPE = DECODE('E','',STATUS_TYPE,'E')
+					</isEqual>																
+					<isEqual property="searchStatusType" compareValue="06">
+						AND STATUS_TYPE = DECODE('C','',STATUS_TYPE,'C')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="07">
+						AND STATUS_TYPE = DECODE('F','',STATUS_TYPE,'F')
+					</isEqual>
+					<isEqual property="searchStatusType" compareValue="08">
+						AND STATUS_TYPE = DECODE('X','',STATUS_TYPE,'X')
+					</isEqual>				
+				</isNotEmpty>
+                
+				<!-- 업무구분 -->
+				<isNotEmpty property="searchQ1Code">
+					<isEqual property="searchQ1Code" compareValue="01">
+						AND Q1_CODE IN ('AA','BB','CC','DD','EE','FF','GG','HH','II','JJ')					
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="02">
+						AND Q1_CODE = 'AA'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="03">
+						AND Q1_CODE = 'BB'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="04">
+						AND Q1_CODE = 'CC'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="05">
+						AND Q1_CODE = 'DD'
+					</isEqual>																
+					<isEqual property="searchQ1Code" compareValue="06">
+						AND Q1_CODE = 'EE'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="07">
+						AND Q1_CODE = 'FF'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="08">
+						AND Q1_CODE = 'GG'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="09">
+						AND Q1_CODE = 'HH'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="10">
+						AND Q1_CODE = 'II'
+					</isEqual>
+					<isEqual property="searchQ1Code" compareValue="11">
+						AND Q1_CODE = 'JJ'
+					</isEqual>
+				</isNotEmpty>
+			                
+				<!-- 검색구분 -->
+				<isNotEmpty property="searchTxt">
+					<isEqual property="searchType" compareValue="01">
+						AND WRITE_TITLE LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="02">
+						AND WRITE_TEXT LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="03">
+						AND WRITER_NAME LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="04">
+						AND WRITER_TEL LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="05">
+						AND WRITER_MOBILE LIKE '%'||#searchTxt#||'%'
+					</isEqual>																
+					<isEqual property="searchType" compareValue="06">
+						AND WRITER_ID LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="07">
+						AND ANSWER_NAME LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="08">
+						AND CLOB_ANSTEXT LIKE '%'||#searchTxt#||'%'
+					</isEqual>				
+				</isNotEmpty>    
+				
+              AND ROWNUM = 1)
+    )
+    UNION ALL
+
+    SELECT SEQ_NO
+           , Q1_CODE
+           , WRITE_DATE
+           , WRITE_TITLE
+           , SEQ_TYPE
+    FROM(
+	    SELECT SEQ_NO
+	           , Q1_CODE
+	           , WRITE_DATE
+	           , WRITE_TITLE
+	           , 'NEXT' AS SEQ_TYPE
+	
+	    FROM QNABBS_Q_NEW
+	    WHERE WRITE_DATE IN((
+	            SELECT /*+ index_asc(QNABBS_Q_NEW IX_QNABBS_Q_NEW_IX05) */WRITE_DATE
+	
+	            FROM QNABBS_Q_NEW
+	            WHERE WRITE_DATE <![CDATA[<]]> (
+	                SELECT WRITE_DATE
+	                FROM QNABBS_Q_NEW
+	                WHERE SEQ_NO = #searchSeqNo#)
+	
+					<!-- 조회기간 -->			            
+					<isNotEmpty property="searchFromDt">
+						<isNotEmpty property="searchToDt">
+							AND TO_CHAR (WRITE_DATE) BETWEEN #searchFromDt#||'000000'  AND #searchToDt#||'235959'
+					    </isNotEmpty>
+					</isNotEmpty>
+					
+					<!-- 처리상태 -->
+					<isNotEmpty property="searchStatusType">
+						<isEqual property="searchStatusType" compareValue="01">
+							<![CDATA[ AND STATUS_TYPE <> 'X']]>
+						</isEqual>
+						<isEqual property="searchStatusType" compareValue="02">
+							AND STATUS_TYPE = DECODE('S','',STATUS_TYPE,'S')
+						</isEqual>
+						<isEqual property="searchStatusType" compareValue="03">
+							AND STATUS_TYPE = DECODE('D','',STATUS_TYPE,'D')
+						</isEqual>
+						<isEqual property="searchStatusType" compareValue="04">
+							AND STATUS_TYPE = DECODE('R','',STATUS_TYPE,'R')
+						</isEqual>
+						<isEqual property="searchStatusType" compareValue="05">
+							AND STATUS_TYPE = DECODE('E','',STATUS_TYPE,'E')
+						</isEqual>																
+						<isEqual property="searchStatusType" compareValue="06">
+							AND STATUS_TYPE = DECODE('C','',STATUS_TYPE,'C')
+						</isEqual>
+						<isEqual property="searchStatusType" compareValue="07">
+							AND STATUS_TYPE = DECODE('F','',STATUS_TYPE,'F')
+						</isEqual>
+						<isEqual property="searchStatusType" compareValue="08">
+							AND STATUS_TYPE = DECODE('X','',STATUS_TYPE,'X')
+						</isEqual>				
+					</isNotEmpty>
+	                
+					<!-- 업무구분 -->
+					<isNotEmpty property="searchQ1Code">
+						<isEqual property="searchQ1Code" compareValue="01">
+							AND Q1_CODE IN ('AA','BB','CC','DD','EE','FF','GG','HH','II','JJ')					
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="02">
+							AND Q1_CODE = 'AA'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="03">
+							AND Q1_CODE = 'BB'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="04">
+							AND Q1_CODE = 'CC'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="05">
+							AND Q1_CODE = 'DD'
+						</isEqual>																
+						<isEqual property="searchQ1Code" compareValue="06">
+							AND Q1_CODE = 'EE'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="07">
+							AND Q1_CODE = 'FF'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="08">
+							AND Q1_CODE = 'GG'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="09">
+							AND Q1_CODE = 'HH'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="10">
+							AND Q1_CODE = 'II'
+						</isEqual>
+						<isEqual property="searchQ1Code" compareValue="11">
+							AND Q1_CODE = 'JJ'
+						</isEqual>
+					</isNotEmpty>
+				                
+					<!-- 검색구분 -->
+					<isNotEmpty property="searchTxt">
+						<isEqual property="searchType" compareValue="01">
+							AND WRITE_TITLE LIKE '%'||#searchTxt#||'%'
+						</isEqual>
+						<isEqual property="searchType" compareValue="02">
+							AND WRITE_TEXT LIKE '%'||#searchTxt#||'%'
+						</isEqual>
+						<isEqual property="searchType" compareValue="03">
+							AND WRITER_NAME LIKE '%'||#searchTxt#||'%'
+						</isEqual>
+						<isEqual property="searchType" compareValue="04">
+							AND WRITER_TEL LIKE '%'||#searchTxt#||'%'
+						</isEqual>
+						<isEqual property="searchType" compareValue="05">
+							AND WRITER_MOBILE LIKE '%'||#searchTxt#||'%'
+						</isEqual>																
+						<isEqual property="searchType" compareValue="06">
+							AND WRITER_ID LIKE '%'||#searchTxt#||'%'
+						</isEqual>
+						<isEqual property="searchType" compareValue="07">
+							AND ANSWER_NAME LIKE '%'||#searchTxt#||'%'
+						</isEqual>
+						<isEqual property="searchType" compareValue="08">
+							AND CLOB_ANSTEXT LIKE '%'||#searchTxt#||'%'
+						</isEqual>				
+					</isNotEmpty>
+	
+	              )
+				)
+			ORDER BY WRITE_DATE DESC
+		) 
+		WHERE ROWNUM =1
+	</select>
+		
+	<!-- QNA관리 분류 리스트 조회 -->
+	<select id="selectQ2CodeList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT CODE
+	     , CODE_TYPE
+	     , NAME 
+	FROM QNABBS_CODE
+	WHERE CODE <![CDATA[<>]]> 'E01'
+	AND CODE_TYPE = #codeType#
+	ORDER BY CODE_TYPE
+	       , CODE
+	</select>	
+
+	<!-- QNA관리 답변완료 처리 -->
+	<update id="modifyQnaAnswer" parameterClass="java.util.HashMap" >
+    UPDATE QNABBS_Q_NEW
+    SET ANSWER_DATE  = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')   
+	    <isNotNull property="searchAnswerId">
+	    	, ANSWER_ID    = #searchAnswerId#
+	    </isNotNull>
+    	
+    	<isNotNull property="searchAnswerName">
+    		, ANSWER_NAME  = #searchAnswerName#
+    	</isNotNull>
+    	
+    	<isNotNull property="clobWorktext">
+    		, CLOB_WORKTEXT  = #clobWorktext#
+    	</isNotNull>
+    	    	
+    	<isNotNull property="clobAnstext">
+    		, CLOB_ANSTEXT = #clobAnstext#
+    	</isNotNull>
+    	
+    	<isNotNull property="statusType">
+    		, STATUS_TYPE  = #statusType#
+    	</isNotNull>
+    	
+    	<isNotNull property="searchQcode">
+    		, Q1_CODE       = #searchQcode#
+    	</isNotNull>
+    	
+    	<isNotNull property="searchQ2code">
+    		, Q2_CODE      = DECODE(LENGTH(#searchQ2code#), 3, #searchQ2code#, Q2_CODE)
+    	</isNotNull>    	
+    WHERE  SEQ_NO       = #searchSeqNo#
+    </update> 
+
+	<!-- QNA관리 이관작업 처리(구) -->
+	<update id="modifyQnaInfoQname" parameterClass="java.util.HashMap" >
+    UPDATE QNABBS_Q 
+       SET STATUS_TYPE = 'S'
+       
+       	<isNotNull property="qCode">
+       	, Q_CODE  = #qCode#
+       	</isNotNull>
+       
+       	<isNotNull property="q2Code">
+        , Q2_CODE = DECODE(LENGTH(#q2Code#), 3, #q2Code#, Q2_CODE)
+		</isNotNull>
+
+		<isNotNull property="clobAnstext">
+		, ANSWER_TEXT = #clobAnstext#
+		</isNotNull>            
+     WHERE SEQ_NO  = #searchSeqNo#	
+    </update> 
+
+	<!-- QNA관리 이관작업 처리(신) -->
+	<update id="modifyQnaNewInfoQname" parameterClass="java.util.HashMap" >
+    UPDATE QNABBS_Q_NEW
+       SET STATUS_TYPE = 'S'
+       	<isNotNull property="qCode">
+         , Q1_CODE  = #qCode#
+		</isNotNull>
+		
+		<isNotNull property="q2Code">
+    	 , Q2_CODE = DECODE(LENGTH(#q2Code#), 3, #q2Code#, Q2_CODE)
+		</isNotNull>
+		
+		<isNotNull property="clobAnstext">
+		 , ANSWER_TEXT = #clobAnstext#
+		</isNotNull>
+     WHERE SEQ_NO  = #searchSeqNo#	
+	</update>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 공지사항 조회 LIST -->
+	<select id="selectNoticeList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT	BBS_NO
+				, BBS_TYP_CD
+				, F_GET_COMN_CD_NM('BBS_TYP_CD',BBS_TYP_CD) AS BBS_TYP_NM
+				, BBS_TTL
+				, USE_YN
+				, EXPSR_YN
+				, REG_DATE
+				, REGER_ID
+				, CHG_DATE
+				, CHGER_ID
+		FROM	CM_CUST_BBS
+		WHERE	BBS_TYP_CD = 'fre'
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue="01">
+			AND 	BBS_TTL LIKE '%'|| #searchWord# ||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="02">
+			AND 	REGER_ID LIKE '%'|| #searchWord# ||'%'
+			</isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchFromDt">
+			<isNotEmpty property="searchToDt">
+				REG_DATE BETWEEN #searchFromDt# AND #searchToDt#
+			</isNotEmpty>
+		</isNotEmpty>
+		ORDER BY BBS_NO DESC
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 공지사항 조회 COUNT -->
+	<select id="selectNoticeListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(*)
+		FROM	CM_CUST_BBS
+		WHERE	BBS_TYP_CD = 'fre'
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue="01">
+			AND 	BBS_TTL LIKE '%'|| #searchWord# ||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="02">
+			AND 	REGER_ID LIKE '%'|| #searchWord# ||'%'
+			</isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchFromDt">
+			<isNotEmpty property="searchToDt">
+				REG_DATE BETWEEN #searchFromDt# AND #searchToDt#
+			</isNotEmpty>
+		</isNotEmpty>
+	</select>
+	<resultMap id="noticeInfoMap" class="commMap">
+		<result property="BBS_NO"			column="BBS_NO" 		/>
+		<result property="BBS_TYP_CD"		column="BBS_TYP_CD"		/>
+		<result property="BBS_TYP_NM"		column="BBS_TYP_NM"		/>
+		<result property="BBS_TTL"			column="BBS_TTL"		/>
+		<result property="BBS_CONT"			column="BBS_CONT"		javaType="java.lang.String" jdbcType="CLOB"/>
+		<result property="USE_YN"			column="USE_YN"			/>
+		<result property="EXPSR_YN"			column="EXPSR_YN"		/>
+		<result property="REG_DATE"			column="REG_DATE"		/>
+		<result property="REGER_ID"			column="REGER_ID"		/>
+		<result property="CHG_DATE"			column="CHG_DATE"		/>
+		<result property="CHGER_ID"			column="CHGER_ID"		/>
+	</resultMap>
+	<!-- 공지사항 상세조회 -->
+	<select id="selectNoticeInfo" parameterClass="java.util.HashMap" resultMap="noticeInfoMap">
+		SELECT	BBS_NO
+				, BBS_TYP_CD
+				, F_GET_COMN_CD_NM('BBS_TYP_CD',BBS_TYP_CD) AS BBS_TYP_NM
+				, BBS_TTL
+				, BBS_CONT
+				, USE_YN
+				, EXPSR_YN
+				, REG_DATE
+				, REGER_ID
+				, CHG_DATE
+				, CHGER_ID
+		FROM	CM_CUST_BBS
+		WHERE	BBS_NO = #bbsNo#
+		AND 	BBS_TYP_CD = 'fre'
+	</select>
+	<!-- 공지사항 등록 -->
+	<insert id="registNoticeInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CM_CUST_BBS
+			(
+				BBS_NO
+				, BBS_TYP_CD
+				, BBS_TTL
+				, BBS_CONT
+				, USE_YN
+				, EXPSR_YN
+				, REG_DATE
+				, REGER_ID
+			)
+		VALUES
+			(
+				(SELECT MAX(NVL(BBS_NO, 0))+1 FROM CM_CUST_BBS)
+				,'fre'
+				, #ttl#
+				, #cont#
+				, #useYn#
+				, #expsrYn#
+				, SYSDATE
+				, #loginId#
+			)
+	</insert>
+	<update id="modifyNoticeInfo" parameterClass="java.util.HashMap">
+		UPDATE CM_CUST_BBS SET
+			BBS_TTL = #ttl#
+			,BBS_CONT = #cont#
+			,USE_YN = #useYn#
+			,EXPSR_YN = #expsrYn#
+			,CHG_DATE = SYSDATE
+			,CHGER_ID = #loginId#
+		WHERE	BBS_NO = #bbsNo#
+		AND 	BBS_TYP_CD = 'fre'
+	</update>
+	
+</sqlMap>

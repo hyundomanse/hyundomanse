@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http#//ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchGoodsMasterOverseaSort">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  GOODS_IDN as iGoodsIdn
+	      	FROM GOODS_MASTER
+	      	WHERE NVL(GOODS_AMT_OVERSEA_RANK,1)  <>  9999
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			   SET GOODS_AMT_OVERSEA_RANK = 9999 , GOODS_CNT_OVERSEA_RANK = 9999 ,GOODS_AMT_OVERSEA_RANK1 = 9999 , GOODS_CNT_OVERSEA_RANK1 = 9999 
+			WHERE GOODS_IDN   = #iGoodsIdn#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			   SET GOODS_AMT_OVERSEA_RANK = 9999 , GOODS_CNT_OVERSEA_RANK = 9999 ,GOODS_AMT_OVERSEA_RANK1 = 9999 , GOODS_CNT_OVERSEA_RANK1 = 9999
+			WHERE GOODS_IDN   = #iGoodsIdn#
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ leading(a) use_nl(a b) index(c IDX_GOODS_MASTER_03) */
+				NVL(C.CATEGORY_CODE,'1') as sCateGory_Code, 
+				C.GOODS_CODE as sGoodsCode,  
+				SUM(B.PRICE) as iNum
+	   	  	FROM TXORDER A,
+	   	         TXORDER_ITEM B,
+	   	         GOODS_MASTER C
+	   	    WHERE A.COMPLETE_DATE >= to_char(sysdate-30,'yyyymmdd')
+	   	      AND A.COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '9999'
+	   	      AND A.TXORDER_ID    = B.TXORDER_ID
+	   	      AND B.GOODS_IDN     = C.GOODS_IDN
+	   	      AND B.GOODS_CODE    = C.GOODS_CODE
+	   	      AND A.SHOP_ID IN ('5','6','7','10')
+	   	      AND A.STATUS NOT IN ('1','9')
+	          AND A.CANCEL_STATE  = 'N'
+		      AND B.GOODS_IDN > 0
+			  AND B.PRICE > 0
+			  and a.RECEV_PO_REGIPOCD in('89903','85414')
+	        GROUP BY C.CATEGORY_CODE , C.GOODS_CODE
+	        ORDER BY C.CATEGORY_CODE , PRICE DESC
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			   SET GOODS_AMT_OVERSEA_RANK   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			   SET GOODS_AMT_OVERSEA_RANK   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ leading(a) use_nl(a b) index(c IDX_GOODS_MASTER_03) */
+			     nvl(C.CATEGORY_CODE,'1') as sCateGory_Code, 
+			     C.GOODS_CODE as sGoodsCode, 
+			     SUM(B.QUANTITY) as iNum
+			FROM TXORDER A,
+		         TXORDER_ITEM B,
+		         GOODS_MASTER C
+		    WHERE A.COMPLETE_DATE >= to_char(sysdate-30,'yyyymmdd')
+		      AND A.COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '9999'
+		      AND A.TXORDER_ID    = B.TXORDER_ID
+		      AND B.GOODS_IDN     = C.GOODS_IDN
+		      AND B.GOODS_CODE    = C.GOODS_CODE
+		      AND A.SHOP_ID IN ('5','6','7','10')
+		      AND A.STATUS NOT IN ('1','9')
+		      AND A.CANCEL_STATE  = 'N'
+		      AND B.GOODS_IDN > 0
+		      AND B.PRICE > 0
+		      and a.RECEV_PO_REGIPOCD in('89903','85414')
+		    GROUP BY C.CATEGORY_CODE , C.GOODS_CODE
+		    ORDER BY C.CATEGORY_CODE , QTY DESC
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			   SET GOODS_CNT_OVERSEA_RANK   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			   SET GOODS_CNT_OVERSEA_RANK   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ leading(a) use_nl(a b) index(c IDX_GOODS_MASTER_03) */
+		         nvl(C.CATEGORY_AREA,'1') as sCateGory_Code, 
+		         C.GOODS_CODE as sGoodsCode,  
+		         SUM(B.PRICE)  as iNum
+		   	FROM TXORDER A,
+		   	     TXORDER_ITEM B,
+		   	     GOODS_MASTER C
+		   	WHERE A.COMPLETE_DATE >= to_char(sysdate-30,'yyyymmdd')
+		   	  AND A.COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '9999'
+		   	  AND A.TXORDER_ID    = B.TXORDER_ID
+		   	  AND B.GOODS_IDN     = C.GOODS_IDN
+		   	  AND B.GOODS_CODE    = C.GOODS_CODE
+		      AND A.SHOP_ID IN ('5','6','7','10')
+		   	  AND A.STATUS NOT IN ('1','9')
+		      AND A.CANCEL_STATE  = 'N'
+			  AND B.GOODS_IDN > 0
+			  AND B.PRICE > 0
+			  and a.RECEV_PO_REGIPOCD in('89903','85414')
+		    GROUP BY C.CATEGORY_AREA , C.GOODS_CODE
+		    ORDER BY C.CATEGORY_AREA , PRICE DESC
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			   SET GOODS_AMT_OVERSEA_RANK1   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			   SET GOODS_AMT_OVERSEA_RANK1   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ leading(a) use_nl(a b) index(c IDX_GOODS_MASTER_03) */
+		         nvl(C.CATEGORY_AREA,'1') as sCateGory_Code, 
+		         C.GOODS_CODE as sGoodsCode, 
+		         SUM(B.QUANTITY) as iNum
+		   	FROM TXORDER A,
+		   	     TXORDER_ITEM B,
+		   	     GOODS_MASTER C
+		   	WHERE A.COMPLETE_DATE >= to_char(sysdate-30,'yyyymmdd')
+		   	  AND A.COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '9999'
+		   	  AND A.TXORDER_ID    = B.TXORDER_ID
+		   	  AND B.GOODS_IDN     = C.GOODS_IDN
+		   	  AND B.GOODS_CODE    = C.GOODS_CODE
+		      AND A.SHOP_ID IN ('5','6','7','10')
+		   	  AND A.STATUS NOT IN ('1','9')
+		      AND A.CANCEL_STATE  = 'N'
+			  AND B.GOODS_IDN > 0
+			  AND B.PRICE > 0
+			  and a.RECEV_PO_REGIPOCD in('89903','85414')
+		    GROUP BY C.CATEGORY_AREA , C.GOODS_CODE
+		    ORDER BY C.CATEGORY_AREA , QTY DESC
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			   SET GOODS_CNT_OVERSEA_RANK1   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			   SET GOODS_CNT_OVERSEA_RANK1   = #iRank#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  GOODS_CODE as sGoodsCode, 
+					GOODS_POINT as iGoods_point
+			  FROM GOODS_MASTER
+			 WHERE NVL(goods_point,0)  >  0
+			   AND language ='KO'
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_06" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			   SET goods_point   = #iGoodspoint#
+			 WHERE GOODS_CODE  = #sGoodsCode#
+			   and language <> 'KO'
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_06" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			   SET goods_point   = #iGoodspoint#
+			 WHERE GOODS_CODE    = #sGoodsCode# 
+			   and language <> 'KO'
+		]]>	 
+	</update>
+	
+</sqlMap>

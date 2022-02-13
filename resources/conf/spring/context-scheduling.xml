@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+	
+	<!-- cronExpression 시간설정
+		ex)
+		"0 0 12 * * ?"				아무 요일, 매월, 매일 12:00:00
+		"0 15 10 ? * *"				모든 요일, 매월, 아무 날이나 10:15:00 
+		"0 15 10 * * ?"				아무 요일, 매월, 매일 10:15:00 
+		"0 15 10 * * ? *"			모든 연도, 아무 요일, 매월, 매일 10:15 
+		"0 15 10 * * ? 2005"		2005년 아무 요일이나 매월, 매일 10:15 
+		"0 * 14 * * ?"				아무 요일, 매월, 매일, 14시 매분 0초 
+		"0 0/5 14 * * ?"			아무 요일, 매월, 매일, 14시 매 5분마다 0초 
+		"0 0/5 14,18 * * ?"			아무 요일, 매월, 매일, 14시, 18시 매 5분마다 0초 
+		"0 0-5 14 * * ?"			아무 요일, 매월, 매일, 14:00 부터 매 14:05까지 매 분 0초 
+		"0 10,44 14 ? 3 WED"		3월의 매 주 수요일, 아무 날짜나 14:10:00, 14:44:00 
+		"0 15 10 ? * MON-FRI"		월~금, 매월, 아무 날이나 10:15:00 
+		"0 15 10 15 * ?"			아무 요일, 매월 15일 10:15:00 
+		"0 15 10 L * ?"				아무 요일, 매월 마지막 날 10:15:00 
+		"0 15 10 ? * 6L"			매월 마지막 금요일 아무 날이나 10:15:00 
+		"0 15 10 ? * 6L 2002-2005"	2002년부터 2005년까지 매월 마지막 금요일 아무 날이나 10:15:00 
+		"0 15 10 ? * 6#3"			매월 3번째 금요일 아무 날이나 10:15:00
+	 -->
+			 
+	<!-- batchAdjGoodsService START -->
+	<!-- 
+	<bean id="batchAdjGoodsSchedule" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject" ref="batchAdjGoodsService" />
+		<property name="targetMethod" value="batchJob" />
+		<property name="concurrent" value="false" />
+	</bean>
+	
+	<bean id="batchAdjGoodsScheduleTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="batchAdjGoodsSchedule" />
+		<property name="cronExpression">
+			<value>0 0 1 * * ?</value>
+		</property>
+	</bean>
+
+	<bean id="batchAdjGoodsScheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="batchAdjGoodsScheduleTrigger" />
+			</list>
+		</property>
+	</bean>
+	 -->
+	<!-- batchAdjGoodsService END -->
+		
+	<!-- BatchIncommSettleService START -->
+	<!-- 
+	<bean id="batchIncommSettleSchedule" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject" ref="batchIncommSettleService" />
+		<property name="targetMethod" value="batchJob" />
+		<property name="concurrent" value="false" />
+		<property name="arguments">
+			<map>
+				<entry key="aa" value="aa1"></entry>
+			</map>
+		</property>	
+	</bean>
+	
+	<bean id="batchIncommSettleScheduleTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="batchIncommSettleSchedule" />
+		<property name="cronExpression">
+			<value>0 0 1 * * ?</value>
+		</property>
+	</bean>
+
+	<bean id="batchIncommSettleScheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="batchIncommSettleScheduleTrigger" />
+			</list>
+		</property>
+	</bean>
+	 -->
+	<!-- BatchIncommSettleService END -->
+		
+	<!-- BuyCompDanalpayService START -->
+	<!-- 
+	<bean id="buyCompDanalpaySchedule" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject" ref="batchBuyCompDanalpayService" />
+		<property name="targetMethod" value="batchJob" />
+		<property name="concurrent" value="false" />
+		<property name="arguments">
+			<map>
+				<entry key="aa" value="aa1"></entry>
+			</map>
+		</property>	
+	</bean>
+	
+	<bean id="buyCompDanalpayScheduleTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="buyCompDanalpaySchedule" />
+		<property name="cronExpression">
+			<value>0 * * * * ?</value>
+		</property>
+	</bean>
+
+	<bean id="buyCompDanalpayScheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="buyCompDanalpayScheduleTrigger" />
+			</list>
+		</property>
+	</bean>
+	 -->
+	<!-- BuyCompDanalpayService END -->
+		
+</beans>

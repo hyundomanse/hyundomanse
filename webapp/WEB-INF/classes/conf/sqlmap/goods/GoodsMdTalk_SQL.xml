@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.GoodsMdTalk">
+
+	<sql id="mdTalk_list">
+        SELECT
+			  A.GOODS_CD
+			, A.GOODS_NM
+			, A.GOODS_STUS_CD
+			, A.SUPP_COMP_ID
+			, (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.SUPP_COMP_ID) AS SUPP_COMP_NM
+			, F_GET_COMN_CD_NM('GOODS_STUS_CD', A.GOODS_STUS_CD) AS GOODS_STUS_NM
+			, F_GET_COMN_CD_NM('PAVLN_DIV_CD', S.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+			, S.CTGRY_CD
+			, ( SELECT B.CTGRY_CD
+				  FROM GD_CTGRY_MAST B
+				 WHERE CONNECT_BY_ISLEAF = 1
+				 START WITH B.CTGRY_CD = S.CTGRY_CD
+			   CONNECT BY PRIOR B.HRNK_CTGRY_CD = B.CTGRY_CD ) TOP_CTGRY_CD
+		 FROM GD_MGT_GOODS_MAST A
+			, (SELECT DISTINCT GOODS_CD FROM GD_GOODS_MD_TALK_MGT) C
+			, GD_MGT_GOODS_CTGRY S
+			, GD_CTGRY_PAVLN_MAPP T
+		WHERE A.GOODS_CD = C.GOODS_CD
+		  AND S.GOODS_CD = A.GOODS_CD
+		  AND S.BASIC_CTGRY_YN = 'Y'
+		  AND S.USE_YN = 'Y'
+		  AND T.PAVLN_DIV_CD = S.PAVLN_DIV_CD
+		  AND T.CTGRY_CD = S.CTGRY_CD
+		<isNotEmpty property="search_supp_comp_id" prepend="AND">
+			A.SUPP_COMP_ID = #search_supp_comp_id#
+		</isNotEmpty>
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="goods_cd">
+					A.GOODS_CD LIKE #search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					A.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.GOODS_CD LIKE #search_text#||'%' OR A.GOODS_NM LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="str_div" prepend="AND">
+			A.GOODS_CD IN ( SELECT X.GOODS_CD 
+							  FROM GD_CTGRY_PAVLN_MAPP B, GD_MGT_GOODS_CTGRY X
+							 WHERE X.USE_YN = 'Y'
+							   AND X.PAVLN_DIV_CD = B.PAVLN_DIV_CD
+							   AND X.CTGRY_CD = B.CTGRY_CD
+							   AND B.PAVLN_DIV_CD = #str_div#
+							   AND B.CTGRY_CD IN ( SELECT A.CTGRY_CD
+													 FROM GD_CTGRY_MAST A
+													WHERE A.USE_YN = 'Y'
+											<isNotEmpty property="search_ctgry_cd" >
+													START WITH A.CTGRY_CD = #search_ctgry_cd#
+												  CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD
+											 </isNotEmpty>
+												 )
+						  )
+		</isNotEmpty>
+	</sql>
+	
+	<select id="selectMdTalkList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT * 
+				FROM ( SELECT 
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY GOODS_CD DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT A.*
+							 , A.PAVLN_DIV_NM ||
+							   ( SELECT SYS_CONNECT_BY_PATH(B.CTGRY_NM, '▶')
+							   	   FROM GD_CTGRY_MAST B
+								  WHERE B.CTGRY_CD = A.CTGRY_CD
+								  START WITH B.CTGRY_CD = A.TOP_CTGRY_CD
+								CONNECT BY PRIOR B.CTGRY_CD = B.HRNK_CTGRY_CD) BASIC_CTGRY_NM 
+							FROM(
+							<include refid="mdTalk_list" />
+							)A
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectMdTalkCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="mdTalk_list" />)
+	</select>
+	
+	<sql id="mdTalkGoods_list">
+		SELECT A.GOODS_CD
+			 , A.GOODS_NM
+		  FROM GD_MGT_GOODS_MAST A
+		 WHERE A.GOODS_CD = #goods_cd#
+	</sql>
+	
+	<select id="selectMdTalkGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT * 
+				FROM ( SELECT 
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY GOODS_CD DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT A.*
+							FROM(
+							<include refid="mdTalkGoods_list" />
+							)A
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectMdTalkGoodsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="mdTalkGoods_list" />)
+	</select>
+
+	<select id="selectMdTalkSeq" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT NVL(MAX(TALK_SEQ),0)+1 FROM GD_GOODS_MD_TALK_MGT WHERE GOODS_CD = #goods_cd#
+	</select>
+	
+	<insert id="insertMdTalk" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_MD_TALK_MGT
+		     ( GOODS_CD
+		     , TALK_SEQ
+		     , TALK_CONT
+		     , TALK_LEVEL
+		     , TALK_HRNK_SEQ
+		     , REG_DATE
+		     , CHG_DATE
+		     , REGER_ID
+		     , CHGER_ID )
+	  VALUES ( #goods_cd#
+		<isNotEmpty property="talk_seq">
+		     , #talk_seq#
+		</isNotEmpty>
+		<isEmpty property="talk_seq">
+		     , (SELECT NVL(MAX(TALK_SEQ), 0)+1 FROM GD_GOODS_MD_TALK_MGT WHERE GOODS_CD = #goods_cd# )
+		</isEmpty>
+		     , #talk_cont#
+		     , #talk_level#
+		     , #talk_hrnk_seq#
+		     , SYSDATE
+		     , SYSDATE
+		     , NVL(#login_usr_id#, 'ADMIN')
+		     , NVL(#login_usr_id#, 'ADMIN') )
+	</insert>
+	
+	<delete id="deleteMdTalk" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_MD_TALK_MGT WHERE GOODS_CD = #goods_cd#
+	</delete>
+	
+	<select id="selectMdTalkDtailInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.GOODS_CD
+			 , A.TALK_SEQ
+			 , A.TALK_CONT
+			 , A.TALK_LEVEL
+			 , A.TALK_HRNK_SEQ
+			 , B.CNT
+			 , C.MIN_TALK_SEQ
+		  FROM GD_GOODS_MD_TALK_MGT A
+		  	 , (SELECT GOODS_CD, TALK_HRNK_SEQ, COUNT(*) AS CNT FROM GD_GOODS_MD_TALK_MGT GROUP BY GOODS_CD, TALK_HRNK_SEQ) B
+		  	 , (SELECT GOODS_CD, TALK_HRNK_SEQ, MIN(TALK_SEQ) AS MIN_TALK_SEQ FROM GD_GOODS_MD_TALK_MGT WHERE TALK_HRNK_SEQ IS NOT NULL GROUP BY GOODS_CD, TALK_HRNK_SEQ) C
+		 WHERE A.GOODS_CD = B.GOODS_CD(+)
+		   AND A.TALK_SEQ = B.TALK_HRNK_SEQ(+)
+		   AND A.GOODS_CD = C.GOODS_CD(+)
+		   AND A.TALK_HRNK_SEQ = C.TALK_HRNK_SEQ(+)
+		   AND A.GOODS_CD = #goods_cd#
+		<isNotEmpty property="talk_level">
+			AND TALK_LEVEL = #talk_level#
+		</isNotEmpty>
+		ORDER BY TALK_SEQ, TALK_HRNK_SEQ
+	</select>
+	
+</sqlMap>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.EpostDayOrderStat">
+
+	<sql id="selectEpostDayOrderStatListQry">
+		SELECT TO_CHAR(OOM.ORDER_DATE, 'YYYY.MM.DD') AS ORDER_DATE
+				, COUNT(OOM.ORDER_DATE) AS MEM_CNT
+			FROM OD_ORDER_MAST OOM
+		WHERE 1=1
+				AND ACCESS_NAME != 'NOMEMBER'
+				<isNotEmpty property="searchStrtYmd">
+					<isNotEmpty property="searchEndYmd">
+				AND OOM.ORDER_DATE BETWEEN TO_DATE(#searchStrtYmd#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchEndYmd#||'235959','YYYYMMDDHH24MISS')
+					</isNotEmpty>
+				</isNotEmpty>
+				<!-- 채널조건 -->
+				<isNotEmpty property="chnl_gbn">
+				AND OOM.ORDER_MDA_DIV_CD = #chnl_gbn#
+				</isNotEmpty>
+				<!-- 채널조건 END -->	
+				/* AND NVL(OOM.SITE_DIV_CD,'01') <![CDATA[<>]]> '05' */ /* 동대문 제외 */			
+		GROUP BY TO_CHAR(OOM.ORDER_DATE, 'YYYY.MM.DD')	
+		ORDER BY TO_CHAR(OOM.ORDER_DATE, 'YYYY.MM.DD')
+	</sql>
+
+	<!-- 일별 주문 고객수 리포트  -->
+	<select id="selectEpostDayOrderStatList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		
+		<include refid="selectEpostDayOrderStatListQry"/> /* 일별 주문고객수 */	
+	</select>
+	
+	
+	<!-- 일별 주문 고객수 리포트 total -->
+	<select id="selectEpostDayOrderStatTotal" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT NVL(SUM(MEM_CNT), 0) AS SUM_MEM_CNT
+			FROM
+		        (
+				<include refid="selectEpostDayOrderStatListQry"/> /* 일별 주문고객수 카운트 */		        
+		        )
+	</select>	
+
+</sqlMap>

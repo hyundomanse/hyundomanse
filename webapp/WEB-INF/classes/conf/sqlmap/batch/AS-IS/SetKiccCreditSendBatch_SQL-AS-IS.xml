@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetKiccCreditSendBatch">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				NAME as sTerminal,
+				code_relative as sGbnCode,
+				to_char(sysdate-1,'yyyymmdd') as BeforeDate,
+				to_char(sysdate,'yyyymmdd') as ToDate
+			FROM   SYSTEM_CODE
+			WHERE class = 'D2' 
+			AND code_relative = '001'
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					APPROVAL_NO as sAPPROVAL_NO,
+					BIGO3 as sBigo3       
+			FROM KICC_CREDIT_ORIGIN  a
+			WHERE a.APPROVAL_TIME like to_char(sysdate - 1,'yyyymmdd') || '%'  
+			  AND  nvl(a.result,'E') = 'E' 
+			  AND a.terminal_id ='99999900'
+			UNION ALL
+			SELECT APPROVAL_NO,BIGO3        
+			FROM KICC_CREDIT_ORIGIN  a
+			WHERE a.APPROVAL_TIME like to_char(sysdate,'yyyymmdd') || '%'  
+			  AND  nvl(a.result,'E') = 'E'
+			  AND a.terminal_id ='99999900'
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ index( a IDX_KICC_CREDIT_03)*/  
+					MAX(a.purchase_id) as sPURCHASE_ID, 
+					count(*) as iCnt
+            FROM KICC_CREDIT a
+            WHERE a.APPROVAL_NO = #sAPPROVALNO# 
+            AND replace(a.RESERVED2,' ','')   = #sBigo3#
+		]]>	 
+	</select>
+	
+	<update id="update_KICC_CREDIT_ORIGIN_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE KICC_CREDIT_ORIGIN
+			SET result = 'S',PURCHASE_ID= #sPURCHASEID#
+			WHERE APPROVAL_NO = #sAPPROVAL_NO# 
+			AND BIGO3 = #sBigo3#
+			AND terminal_id ='99999900'
+		]]>	 
+	</update>
+	
+	<update id="update_KICC_CREDIT_ORIGIN_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE KICC_CREDIT_ORIGIN
+			SET result = 'E'
+			WHERE APPROVAL_NO = #sAPPROVALNO# 
+				AND BIGO3 = #sBigo3#
+				AND terminal_id ='99999900'
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT a.purchase_id 
+	        FROM kicc_credit_origin a, kicc_credit b
+	        WHERE 1=1
+	          and a.purchase_id = b.purchase_id
+	          AND a.APPROVAL_TIME >= to_char(sysdate - 0.2,'yyyymmddhh24miss')  and  a.APPROVAL_TIME <= to_char(sysdate - 0.1 ,'yyyymmddhh24miss')
+	          AND a.result ='S'
+	          and b.status = 'D1'
+	        MINUS 
+	        SELECT purchase_id 
+	        FROM txorder
+	        WHERE 1=1
+	          AND complete_date >= to_char(sysdate -0.4,'yyyymmddhh24miss')  and complete_date <= to_char(sysdate,'yyyymmdd') || '999999'
+		]]>	 
+	</select>
+	
+	<update id="update_KICC_CREDIT_ORIGIN_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE KICC_CREDIT_ORIGIN
+            SET result = 'E'
+            WHERE PURCHASE_ID  = #sPURCHASEID#
+		]]>	 
+	</update>
+	
+		
+</sqlMap>

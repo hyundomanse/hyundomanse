@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.BoardManager">
+	<typeAlias  alias="commonMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<select id="selectBoardManagerList" parameterClass ="java.util.HashMap" resultClass="commonMap">
+		<include refid="pagingHeader"/>
+		SELECT	BOARD_ID				/* 게시판아이디 */
+			  , BOARD_TYPE				/* 게시판종류 */
+              , BOARD_NAME				/* 게시판명 */
+              , BOARD_READ				/* 읽기권한 */
+              , BOARD_WRITE				/* 쓰기권한 */
+              , BOARD_DELETE			/* 삭제권한 */
+              , BOARD_REPLY				/* 덧글쓰기권한 */
+              , BOARD_ATTACH			/* 첨파일권한 */
+              , USE_YN					/* 사용여부 */
+              , REG_ID					/* 등록자아이디 */
+              , REG_DT					/* 등록일시 */
+              , MOD_ID					/* 수정자아이디 */
+              , MOD_DT					/* 수정일시 */
+        FROM	TB_COMM_BOARD_M			/* 어드민_관리 */         		
+		WHERE	1=1
+
+		<!-- 조회기간 -->			            
+		<isNotEmpty property="searchFromDate">
+			<isNotEmpty property="searchToDate">
+				AND TO_CHAR(REG_DT, 'YYYYMMDD') BETWEEN #searchFromDate# AND #searchToDate#
+		    </isNotEmpty>
+		</isNotEmpty>
+		
+		<!-- 검색구분 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchType" compareValue="01">
+				AND (BOARD_NAME LIKE '%'||#searchTxt#||'%' OR REG_ID LIKE '%'||#searchTxt#||'%')
+			</isEqual>
+			<isEqual property="searchType" compareValue="02">
+				AND BOARD_NAME LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="03">
+				AND REG_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+		</isNotEmpty>		
+						
+		ORDER BY MOD_DT DESC
+		<include refid="pagingFooter"/>
+	</select>		
+	
+	<select id="selectBoardManagerListTotCnt" resultClass="int">
+		SELECT	COUNT(*)
+		FROM	TB_COMM_BOARD_M
+		WHERE 	1=1
+		<!-- 조회기간 -->			            
+		<isNotEmpty property="searchFromDate">
+			<isNotEmpty property="searchToDate">
+				AND TO_CHAR(REG_DT, 'YYYYMMDD') BETWEEN #searchFromDate# AND #searchToDate#
+		    </isNotEmpty>
+		</isNotEmpty>
+			
+		<!-- 검색구분 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchType" compareValue="01">
+				AND (BOARD_NAME LIKE '%'||#searchTxt#||'%' OR REG_ID LIKE '%'||#searchTxt#||'%')
+			</isEqual>
+			<isEqual property="searchType" compareValue="02">
+				AND BOARD_NAME LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="03">
+				AND REG_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+		</isNotEmpty>
+	</select>	
+		
+	<insert id="insertBoardManager" parameterClass="java.util.HashMap">
+	<![CDATA[
+	INSERT INTO TB_COMM_BOARD_M(
+		  BOARD_ID
+		, BOARD_TYPE
+		, BOARD_NAME
+		, BOARD_READ
+		, BOARD_WRITE
+		, BOARD_DELETE
+		, BOARD_REPLY
+		, BOARD_ATTACH
+		, USE_YN
+		, REG_ID
+		, REG_DT
+		, MOD_ID
+		, MOD_DT
+	)VALUES(
+		  #searchboardId#
+		, #searchboardType#
+		, #searchboardName#
+		, #searchboardRead#
+		, #searchboardWrite#
+		, #searchboardDelete#
+		, #searchboardReply#
+		, #searchboardAttach#
+		, 'Y'
+		, #sessionAdminId#
+		, SYSDATE
+		, #sessionAdminId#
+		, SYSDATE	
+	)
+	]]>
+	</insert>	
+	
+	<update id="updateBoardManager" parameterClass="java.util.HashMap">
+	<![CDATA[
+	UPDATE	TB_COMM_BOARD_M
+	SET		MOD_ID 			= #sessionAdminId#
+		  , MOD_DT 			= SYSDATE
+		  , BOARD_TYPE		= #searchboardType#
+		  , BOARD_NAME		= #searchboardName#
+		  , BOARD_READ 		= #searchboardRead#
+		  , BOARD_WRITE 	= #searchboardWrite#
+		  , BOARD_DELETE 	= #searchboardDelete#
+		  , BOARD_REPLY 	= #searchboardReply#
+		  , BOARD_ATTACH 	= #searchboardAttach#
+		  , USE_YN 			= #searchUseYn#
+		  		  
+	WHERE	1=1
+	AND		ADMIN_ID 		= #searchAdminId#
+	]]>
+	</update>	
+
+</sqlMap>

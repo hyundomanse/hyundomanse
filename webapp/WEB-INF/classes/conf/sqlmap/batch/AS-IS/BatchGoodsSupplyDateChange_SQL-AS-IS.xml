@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchGoodsSupplyDateChange">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_f_goods_master_update_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT goods_code
+                   ,to_char(sysdate,'yyyy') || substr(supply_s_date,5,4) new_supply_s_date 
+                   ,to_char(add_months(sysdate,12),'yyyy')  || substr(supply_e_date,5,4) new_supply_e_date
+            FROM goods_master
+            WHERE supply_s_date between to_char(add_months(sysdate,-12),'yyyy') || to_char(sysdate-30,'mmdd')  and to_char(add_months(sysdate,-12),'yyyy') || to_char(sysdate,'mmdd')  
+              AND status = '01' and shop_id = '1' 
+              AND supply_e_date < to_char(sysdate,'yyyymmdd')
+              AND substr(supply_s_date,1,4) <> substr(supply_e_date,1,4) 
+              AND substr(supply_s_date,5,4) || substr(supply_e_date,5,4) <> '01011231' 
+              AND language = 'KO'
+            UNION ALL
+            SELECT goods_code
+                   ,to_char(sysdate,'yyyy') || substr(supply_s_date,5,4) new_supply_s_date 
+                   ,to_char(sysdate,'yyyy') || substr(supply_e_date,5,4) new_supply_e_date
+            FROM goods_master
+            WHERE supply_s_date between to_char(add_months(sysdate,-12),'yyyy') || to_char(sysdate-30,'mmdd')  and to_char(add_months(sysdate,-12),'yyyy') || to_char(sysdate,'mmdd') 
+              AND status = '01' and shop_id = '1'  
+              AND supply_e_date < to_char(sysdate,'yyyymmdd')
+              AND substr(supply_s_date,1,4) = substr(supply_e_date,1,4) 
+              AND substr(supply_s_date,5,4) || substr(supply_e_date,5,4) <> '01011231' 
+              AND language = 'KO'
+		]]>	 
+	</select>
+	
+	<update id="update_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+           	   SET supply_s_date = #sSupplySDate# , supply_e_date = #sSupplyEDate# , LASTCHANGE = to_char(sysdate,'yyyymmdd')
+           	 WHERE GOODS_CODE   = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<update id="update_ST_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+           	   SET supply_s_date = #sSupplySDate# , supply_e_date = #sSupplyEDate# , LASTCHANGE = to_char(sysdate,'yyyymmdd')
+           	 WHERE GOODS_CODE   = #sGoodsCode#
+		]]>	 
+	</update>
+	
+</sqlMap>

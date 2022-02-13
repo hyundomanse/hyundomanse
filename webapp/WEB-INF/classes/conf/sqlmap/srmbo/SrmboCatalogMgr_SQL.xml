@@ -1,0 +1,1291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboCatalogMgr">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 캍탈로그 규격 건수조회 -->
+	<select id="selectCatalogStandardTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)  CNT
+          FROM SC_ADCATEGORY
+         WHERE CODE_GB = #srchCodeGb#
+	</select>
+
+	<!-- 캍탈로그 규격 목록조회 -->
+	<select id="selectCatalogStandardList" parameterClass="java.util.HashMap" resultClass="commMap">
+		 <include refid="pagingHeader"/>
+
+		 SELECT CODE_VALU
+              , CODE_NM
+              , STATUS
+              , CODE_ORD
+              , CODE_GB
+              , MAX(CODE_ORD)OVER(PARTITION BY '') AS MAX_CODE_ORD
+              , MIN(CODE_ORD)OVER(PARTITION BY '') AS MIN_CODE_ORD
+           FROM  SC_ADCATEGORY
+          WHERE CODE_GB = #srchCodeGb#
+          ORDER BY CODE_ORD
+
+          <include refid="pagingFooter"/>
+	</select>
+
+	<!-- 캍탈로그 규격 상세조회 -->
+	<select id="selectCatalogStandardDetail" parameterClass="java.util.HashMap" resultClass="commMap">
+		 SELECT CODE_GB
+              , CODE_GB_NM
+              , CODE_VALU
+              , CODE_NM
+              , REG_TYPE
+              , STATUS
+              , NOTE
+              , IN_ADMIN_ID
+              , IN_YMDH
+              , UPD_ADMIN_ID
+              , UPD_YMDH
+              , (SELECT NVL(NAME,'') FROM SC_MONITOREMP WHERE EMPID= IN_ADMIN_ID )  IN_NAME
+              , (SELECT NVL(NAME,'') FROM SC_MONITOREMP WHERE EMPID= UPD_ADMIN_ID ) UPD_NAME
+              , 'Y' AS DATA_YN
+        FROM SC_ADCATEGORY
+        WHERE CODE_GB = #codeGb# AND CODE_VALU = #codeValu#
+	</select>
+
+	<!-- 정렬변경 STEP1 -->
+	<update id="updateSortFirst" parameterClass="java.util.HashMap" >
+		UPDATE SC_ADCATEGORY
+		   SET CODE_ORD = -1
+		 WHERE CODE_GB  = #codeGb#
+		   AND CODE_ORD = #codeOrd#
+	</update>
+
+	<!-- 정렬변경 STEP2 -->
+	<update id="updateSortSecond" parameterClass="java.util.HashMap" >
+		<![CDATA[
+			UPDATE SC_ADCATEGORY
+			   SET CODE_ORD = #codeOrd#
+			 WHERE CODE_GB  = #codeGb#
+			   AND CODE_ORD = DECODE(#pos#, 'D', #codeOrd# + 1 , 'U', #codeOrd# - 1)
+		]]>
+	</update>
+
+	<!-- 정렬변경 STEP3 -->
+	<update id="updateSortThird" parameterClass="java.util.HashMap" >
+		<![CDATA[
+			UPDATE SC_ADCATEGORY
+			   SET CODE_ORD = DECODE(#pos#, 'D', #codeOrd# + 1 , 'U', #codeOrd# - 1)
+			 WHERE CODE_GB  = #codeGb#
+			   AND CODE_ORD = -1
+		]]>
+	</update>
+
+	<!-- 카탈로그 규격 등록 -->
+	<insert id="insertCatalogStandard" parameterClass="java.util.HashMap">
+		INSERT INTO SC_ADCATEGORY (
+               CODE_GB
+             , CODE_VALU
+             , CODE_NM
+             , CODE_GB_NM
+             , NOTE
+             , CODE_ORD
+             , REG_TYPE
+             , STATUS
+             , IN_ADMIN_ID
+             , IN_YMDH
+        )
+        SELECT #codeGb#
+             , #codeValu#
+             , #codeNm#
+             , #codeGbNm#
+             , #note#
+             , NVL(MAX(CODE_ORD), 0) + 1
+             , '1'
+             , #status#
+             , #loginId#
+             , TO_CHAR(sysdate,'yyyy-mm-dd hh12:mi')
+        FROM   SC_ADCATEGORY
+        WHERE  CODE_GB = #codeGb#
+	</insert>
+
+	<!-- 카탈로그 규격 업데이트 -->
+	<update id="updateCatalogStandard" parameterClass="java.util.HashMap">
+		UPDATE SC_ADCATEGORY
+		   SET CODE_NM      = #codeNm#
+             , STATUS       = #status#
+             , NOTE         = #note#
+             , UPD_ADMIN_ID = #loginId#
+             , UPD_YMDH     = TO_CHAR(sysdate,'yyyy-mm-dd hh12:mi')
+        WHERE CODE_GB   = #codeGb#
+          AND CODE_VALU = #codeValu#
+	</update>
+
+	<!-- 카탈로그기획 건수 조회 -->
+	<select id="selectCatalogPlnTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+
+		<![CDATA[
+			SELECT COUNT( ADIDX ) AS CNT
+              FROM SC_ADVERTISE T
+             WHERE DELFLAG    = 'Y'
+        ]]>
+             <isNotEmpty property="adType">
+               AND AD_TYPE = #schAdType#
+             </isNotEmpty>
+        <![CDATA[
+               AND TO_CHAR(AD_PUBLISH_DATE,'YYYY/MM/DD') >= #calFromPublishedDate#
+               AND TO_CHAR(AD_PUBLISH_DATE,'YYYY/MM/DD') <= #calToPublishedDate#
+             ORDER BY AD_PUBLISH_DATE DESC
+		]]>
+
+	</select>
+
+	<!-- 카탈로그기획 목록 조회 -->
+	<select id="selectCatalogPlnList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+
+		<![CDATA[
+			SELECT ADIDX
+                 , AD_NAME
+                 , AD_TYPE
+                 , F_GET_COMN_CD_NM( 'AD_TYPE_CD', AD_TYPE ) AS AD_TYPE_NAME
+                 , TO_CHAR(AD_PUBLISH_DATE,'YYYY-MM-DD') AS AD_PUBLISH_DATE
+                 , NVL((SELECT CODE_GB FROM SC_ADVERTISESTD S  WHERE ADIDX = ADIDX GROUP BY CODE_GB),'A001') AS CODE_GB
+              FROM SC_ADVERTISE T
+             WHERE DELFLAG    = 'Y'
+        ]]>
+             <isNotEmpty property="adType">
+               AND AD_TYPE = #schAdType#
+             </isNotEmpty>
+        <![CDATA[
+               AND AD_PUBLISH_DATE BETWEEN  #calFromPublishedDate# AND  #calToPublishedDate#
+             ORDER BY AD_PUBLISH_DATE DESC
+		]]>
+
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 카탈로그 기획목록 조회 -->
+	<select id="selectCatalogPlnDetail" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT ADIDX
+                  , TO_CHAR( AD_PUBLISH_DATE, 'YYYY-MM-DD') AS AD_PUBLISH_DATE
+                  , AD_TYPE
+                  , AD_NAME
+                  , TO_CHAR(AD_PAY_SDATE,'YYYY-MM-DD') AS AD_PAY_SDATE
+                  , TO_CHAR(AD_PAY_EDATE,'YYYY-MM-DD') AS AD_PAY_EDATE
+                  , TRIM(TO_CHAR(TOTAL, '9,999,999,999')) AS TOTAL
+                  , TRIM(TO_CHAR(AD_UNITPRICE,'9,999,999,999')) AS AD_UNITPRICE
+                  , AD_DESC
+                  , (SELECT DISTINCT B.CODE_GB FROM SC_ADVERTISESTD B WHERE ADIDX = B.ADIDX) AS CODE_GB
+               FROM SC_ADVERTISE
+              WHERE ADIDX = #adidx#
+		]]>
+	</select>
+
+	<!-- 선택된 규격 조회 -->
+	<select id="selectSelectedStandardList" parameterClass="java.util.HashMap" resultClass="commMap">
+	 <![CDATA[
+	 	SELECT ROWNUM AS RNUM
+          , A.* FROM (
+             SELECT CASE WHEN NVL(T1.adidx, 0) > 0 THEN 'Y' ELSE 'N' END AS CHK_BOX
+                 , T1.ADIDX
+                 , T2.CODE_GB
+                 , T2.CODE_VALU
+                 , T2.CODE_NM
+                 , TRIM(TO_CHAR(  CASE WHEN T2.CODE_VALU = T1.CODE_VALU THEN T1.AMOUNT ELSE 0 END, '9,999,999,999')) AS AMOUNT
+              FROM SC_ADCATEGORY T2
+                     , ( SELECT ADIDX
+                              , CODE_GB
+                              , CODE_VALU
+                              , AMOUNT
+                           FROM SC_ADVERTISESTD
+                         WHERE adidx = #adidx# )T1
+             WHERE T2.CODE_GB   = T1.CODE_GB(+)
+                  AND T2.CODE_VALU = T1.CODE_VALU(+)
+             ORDER BY T2.CODE_ORD
+         ) A
+	 ]]>
+	</select>
+
+  	<!-- 카탈로그 종류 조회 -->
+  	<select id="selectCatalogKind" parameterClass="java.util.HashMap" resultClass="commMap">
+  		<![CDATA[
+  			 SELECT CODE_GB AS CODE, CODE_GB_NM AS NAME
+               FROM  SC_ADCATEGORY
+              GROUP BY CODE_GB, CODE_GB_NM
+              ORDER BY CODE_GB
+  		]]>
+  	</select>
+
+  	<!-- 기획ADIDX 키 채번 -->
+  	<select id="selectKeyForScAdvertise" resultClass="int">
+  		SELECT SC_ADVERTISE_SEQ.NEXTVAL FROM DUAL
+  	</select>
+
+
+  	<!-- 카탈로그 기획등록 및 수정-->
+  	<insert id="insertCatalogPln" parameterClass="java.util.HashMap">
+  		/*MERGE*/
+  		MERGE INTO SC_ADVERTISE T1
+		         USING (
+		           SELECT   #adidx#              AS ADIDX
+                          , #adPublishDate#      AS AD_PUBLISH_DATE
+                          , #adType#             AS AD_TYPE
+                          , #adName#             AS AD_NAME
+                          , #adPaySdate#         AS AD_PAY_SDATE
+                          , #adPayEdate#         AS AD_PAY_EDATE
+                          , REPLACE( #total#, ',', '')              AS TOTAL
+                          , REPLACE( #adUnitprice#,',', '')         AS AD_UNITPRICE
+                          , #adDesc#             AS AD_DESC
+                          , #partidx#            AS PARTIDX
+                          , #empidx#             AS EMPIDX
+                          , 'Y'                  AS DELFLAG
+		             FROM DUAL
+		          ) T2
+		         ON ( T1.ADIDX = T2.ADIDX )
+		         WHEN MATCHED THEN
+		         UPDATE
+		               SET  T1.AD_PUBLISH_DATE = T2.AD_PUBLISH_DATE
+                          , T1.AD_TYPE	       = T2.AD_TYPE
+                          , T1.AD_NAME	       = T2.AD_NAME
+                          , T1.AD_PAY_SDATE    = T2.AD_PAY_SDATE
+                          , T1.AD_PAY_EDATE    = T2.AD_PAY_EDATE
+                          , T1.TOTAL	       = T2.TOTAL
+                          , T1.AD_UNITPRICE    = T2.AD_UNITPRICE
+                          , T1.AD_DESC	       = T2.AD_DESC
+                          , T1.PARTIDX	       = T2.PARTIDX
+                          , T1.EMPIDX	       = T2.EMPIDX
+                          , T1.DELFLAG	       = T2.DELFLAG
+		          WHEN NOT MATCHED THEN
+					       INSERT(
+						        T1.ADIDX
+                              , T1.AD_PUBLISH_DATE
+                              , T1.AD_TYPE
+                              , T1.AD_NAME
+                              , T1.AD_PAY_SDATE
+                              , T1.AD_PAY_EDATE
+                              , T1.TOTAL
+                              , T1.AD_UNITPRICE
+                              , T1.AD_DESC
+                              , T1.PARTIDX
+                              , T1.EMPIDX
+                              , T1.DELFLAG
+					       )VALUES(
+                              	T2.ADIDX
+                              , T2.AD_PUBLISH_DATE
+                              , T2.AD_TYPE
+                              , T2.AD_NAME
+                              , T2.AD_PAY_SDATE
+                              , T2.AD_PAY_EDATE
+                              , T2.TOTAL
+                              , T2.AD_UNITPRICE
+                              , T2.AD_DESC
+                              , T2.PARTIDX
+                              , T2.EMPIDX
+                              , T2.DELFLAG
+					       )
+  	</insert>
+
+  	<!-- 카탈로그 기획규격등록 및 수정-->
+  	<insert id="insertCatalogPlnSs" parameterClass="java.util.HashMap">
+  		/*MERGE*/
+  		MERGE INTO SC_ADVERTISESTD T1
+		         USING (
+		           SELECT #adidx#    AS ADIDX
+		                , #codeGb#   AS CODE_GB
+		                , #codeValu# AS CODE_VALU
+		                , REPLACE( #amount#, ',', '')      AS AMOUNT
+		             FROM DUAL
+		          ) T2
+		         ON (
+		                  T1.ADIDX     = T2.ADIDX
+		              AND T1.CODE_GB   = T2.CODE_GB
+		              AND T1.CODE_VALU = T2.CODE_VALU
+		             )
+		         WHEN MATCHED THEN
+		         UPDATE
+		               SET T1.AMOUNT = T2.AMOUNT
+		          WHEN NOT MATCHED THEN
+			       INSERT(
+				       T1.ADIDX
+				     , T1.CODE_GB
+				     , T1.CODE_VALU
+				     , T1.AMOUNT
+			       )VALUES(
+			       	   T2.ADIDX
+			       	 , T2.CODE_GB
+			       	 , T2.CODE_VALU
+			       	 , T2.AMOUNT
+			       )
+  	</insert>
+
+  	<!-- 캍탈로그 규격 목록조회 -->
+	<select id="selectCatalogAppTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		 SELECT COUNT(*) AS CNT
+           FROM SC_AD_BIZ_PAY       T1
+              , CO_SUPP_COMP_MAST   T2
+              , SC_ADVERTISE        T3
+        WHERE T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+          AND T1.ADIDX    = T3.ADIDX
+          AND T3.DELFLAG = 'Y'
+          <isNotEmpty property="schBcncNm">
+          	AND T2.BCNC_NM like '%' || #schBcncNm# || '%'
+          </isNotEmpty>
+
+          <isNotEmpty property="schAdidx">
+          	AND T3.ADIDX = #schAdidx#
+          </isNotEmpty>
+
+          <isEmpty property="schAdidx">
+	          <isNotEmpty property="schAdName">
+	          	AND T3.AD_NAME like '%' || #schAdName# || '%'
+	          </isNotEmpty>
+          </isEmpty>
+	</select>
+
+  	<!-- 캍탈로그 규격 목록조회 -->
+	<select id="selectCatalogAppList" parameterClass="java.util.HashMap" resultClass="commMap">
+		 <include refid="pagingHeader"/>
+
+		SELECT T1.ADIDX     AS ADIDX
+				, T1.SUPP_COMP_ID
+				, NVL((SELECT CODE_GB FROM SC_ADVERTISESTD  WHERE ADIDX = T1.ADIDX GROUP BY CODE_GB),'A001') AS CODE_GB
+				, T3.AD_NAME AS AD_NAME
+				, TO_CHAR(T3.AD_PUBLISH_DATE,'YYYY-MM-DD') AS AD_PUBLISH_DATE
+				, T1.UNITCOUNT AS UNITCOUNT
+				, T2.BCNC_NM   AS BCNC_NM
+		FROM SC_AD_BIZ_PAY       T1
+				, CO_SUPP_COMP_MAST   T2
+				, SC_ADVERTISE        T3
+		WHERE  T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+		AND 	T1.ADIDX    = T3.ADIDX
+		AND 	T3.DELFLAG = 'Y'
+          <isNotEmpty property="searchSuppCompId">
+          	AND T2.SUPP_COMP_ID LIKE '%' || #searchSuppCompId# || '%'
+          </isNotEmpty>
+          <isNotEmpty property="schAdidx">
+          	AND T3.ADIDX = #schAdidx#
+          </isNotEmpty>
+
+          <isEmpty property="schAdidx">
+	          <isNotEmpty property="schAdName">
+	          	AND T3.AD_NAME like '%' || #schAdName# || '%'
+	          </isNotEmpty>
+          </isEmpty>
+		ORDER BY T1.ADIDX DESC, T1.SUPP_COMP_ID DESC
+          <include refid="pagingFooter"/>
+	</select>
+
+	<!-- 캍탈로그 신청서 상세조회1 -->
+	<select id="selectCatalogAppDetail1" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT T1.ADIDX
+             , T1.SUPP_COMP_ID AS BIZ_CODE
+             , T1.CODE_GB
+             , T1.CODE_VALU
+             , (SELECT CODE_NM FROM  SC_ADCATEGORY K WHERE K.CODE_GB = T1.CODE_GB AND TRIM(K.CODE_VALU) = T1.CODE_VALU ) AS CODE_NM
+             , TRIM(TO_CHAR(T1.AMOUNT, '9,999,999,999')) AS AMOUNT
+             , T1.CNT
+             , TRIM(TO_CHAR(NVL(T1.SUBTOTAL,0), '9,999,999,999')) AS  SUBTOTAL
+             , T2.UNITCOUNT
+             , TRIM(TO_CHAR(NVL(T2.TOTAL,0), '9,999,999,999')) AS TOTAL
+             , T2.ISINC
+             , (SELECT KK.AD_NAME FROM SC_ADVERTISE KK WHERE KK.ADIDX = T1.ADIDX)  AS ADNAME
+             , F_GET_COMN_CD_NM('AD_INC_CD', T2.ISINC) as ISINCNM
+        FROM SC_AD_BIZ_PAY_DETAIL T1,  SC_AD_BIZ_PAY T2
+       WHERE T1.ADIDX    = T2.ADIDX
+         AND T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+         AND T1.ADIDX    = #adidx#
+         AND T1.SUPP_COMP_ID = #suppCompId#
+	</select>
+
+	<!-- 캍탈로그 신청서 상세조회2 -->
+	<select id="selectCatalogAppDetail2" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT T1.UNITCOUNT AS UNITCOUNT
+             , TRIM(TO_CHAR(T1.TOTAL, '9,999,999,999'))     AS TOTAL
+             , F_GET_COMN_CD_NM('ISINCNM_CD',T1.ISINC) AS ISINCNM
+             , T3.AD_NAME
+          FROM SC_AD_BIZ_PAY T1
+             , CO_SUPP_COMP_MAST  T2
+             , SC_ADVERTISE T3
+         WHERE T1.SUPP_COMP_ID  = T2.SUPP_COMP_ID(+)
+           AND T1.ADIDX     = T3.ADIDX
+           AND T1.ADIDX     = #adidx#
+           AND T1.SUPP_COMP_ID  = #suppCompId#
+	</select>
+
+	<!-- 캍탈로그 신청서 상세조회3 -->
+	<select id="selectCatalogAppDetail3" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT ROWNUM AS RNUM
+				, A.ADIDX
+				, A.SUPP_COMP_ID AS BIZ_CODE
+				, A.CODE_GB
+				, A.CODE_VALU_CD
+				, (SELECT CODE_NM FROM  SC_ADCATEGORY K WHERE K.CODE_GB = A.CODE_GB AND TRIM(K.CODE_VALU) = TRIM(A.CODE_VALU_CD) ) AS CODENM
+				, A.SEQ
+				, A.CATALOG_TITLE
+				, A.PRE_DATE_PAGE
+				, REPLACE(A.MAIN_AD_CONTENTS,'^^','''') as MAIN_AD_CONTENTS
+				, REPLACE(A.SUB_AD_CONTENTS,'^^','''') as SUB_AD_CONTENTS
+				, A.PHOTO_GB
+				, F_GET_COMN_CD_NM('PHOTO_GB_CD',A.PHOTO_GB) as PHOTO_GB_NM
+				, A.CERT_YN
+				, A.DELI_GB
+				, A.SUPPLY_DATE_GB
+				, DECODE(A.SUPPLY_DATE_GB,'01','연중 공급','02','기간한정공급') AS SUPPLY_DATE_NM
+				, TO_CHAR(TO_DATE( A.SUPPLY_DATE_S, 'YYYYMMDD' ), 'YYYY-MM-DD') AS SUPPLY_DATE_S
+				, TO_CHAR(TO_DATE( A.SUPPLY_DATE_E, 'YYYYMMDD' ), 'YYYY-MM-DD') AS SUPPLY_DATE_E
+				, A.BIGO
+				, A.IMGFILENAME1
+				, (SELECT FILE_STRE_PATH||STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS FULL_FILE_PATH1
+				, (SELECT FILE_STRE_PATH FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS FILE_STRE_PATH1
+				, (SELECT STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS STRE_FILE_NM1
+				, (SELECT ORIG_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS ORIG_FILE_NM1
+				, A.CHG_REQ1
+				, A.CHG_LIMIT_DATE1
+				, A.IMGFILENAME2
+				, (SELECT FILE_STRE_PATH||STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS FULL_FILE_PATH2
+				, (SELECT FILE_STRE_PATH FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS FILE_STRE_PATH2
+				, (SELECT STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS STRE_FILE_NM2
+				, (SELECT ORIG_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS ORIG_FILE_NM2
+				, A.CHG_REQ2
+				, A.CHG_LIMIT_DATE2
+		FROM	SC_ADCATALOG_DTL A
+		WHERE 	A.ADIDX   = #adidx#
+		  AND 	A.SUPP_COMP_ID= #suppCompId#
+		  AND 	A.CODE_GB = #codeGb#
+	</select>
+
+	<!-- 카탈로그 총 개수 조회 -->
+	<select id="selectSrmCatalogTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(*)
+	          FROM SC_ADVERTISE
+	         WHERE DELFLAG='Y'
+		  ]]>
+		  <isNotEmpty property="adName">
+			   AND AD_NAME LIKE '%'|| #adName# ||'%'
+		  </isNotEmpty>
+		  <isNotEmpty property="adCode">
+			   AND adidx = #adidx#
+		  </isNotEmpty>
+	</select>
+
+
+	<!-- 카탈로그 팝업목록 조회 -->
+	<select id="selectSrmCatalogPopupList" parameterClass="java.util.HashMap" resultClass="commMap">
+
+		<include refid="pagingHeader"/>
+
+		<![CDATA[
+			SELECT ADIDX   AS IDX
+			     , AD_NAME AS NAME
+			  FROM SC_ADVERTISE
+			 WHERE DELFLAG='Y'
+		]]>
+			<isNotEmpty property="adName">
+				  AND AD_NAME LIKE '%'|| #adName# ||'%'
+			</isNotEmpty>
+			<isNotEmpty property="idx">
+				  AND ADIDX = #adidx#
+			</isNotEmpty>
+			ORDER BY IDX DESC
+
+		<include refid="pagingFooter"/>
+
+	</select>
+
+	<!-- 업체별 카탈로그비 조회 COUNT -->
+	<select id="selectCatalogPayListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM	SC_AD_BIZ_PAY A
+				,CO_SUPP_COMP_MAST B
+				,SC_ADVERTISE C
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	A.ADIDX = C.ADIDX
+		AND 	DELFLAG = 'Y'
+		<isNotEmpty property="adidx">
+		AND 	A.ADIDX = #adidx#
+		</isNotEmpty>
+		<isNotEmpty property="suppCompId">
+		AND 	A.SUPP_COMP_ID = #suppCompId#
+		</isNotEmpty>
+	</select>
+	<!-- 업체별 카탈로그비 조회 LIST -->
+	<select id="selectCatalogPayList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT	A.ADIDX
+				,A.SUPP_COMP_ID
+				,B.BCNC_NM
+				,TO_CHAR(A.TOTAL,'FM999,999,999,999,999,999,999,999,999,999') AS TOTAL
+				,A.UNITCOUNT
+				,TO_CHAR(C.AD_PUBLISH_DATE,'YYYY/MM/DD') AS AD_PUBLISH_DATE
+				,C.AD_NAME
+		FROM	SC_AD_BIZ_PAY A
+				,CO_SUPP_COMP_MAST B
+				,SC_ADVERTISE C
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	A.ADIDX = C.ADIDX
+		AND 	DELFLAG = 'Y'
+		<isNotEmpty property="schAdidx">
+		AND 	A.ADIDX = #schAdidx#
+		</isNotEmpty>
+		<isNotEmpty property="searchSuppCompId">
+		AND 	A.SUPP_COMP_ID = #searchSuppCompId#
+		</isNotEmpty>
+		ORDER BY A.ADIDX DESC, A.SUPP_COMP_ID ASC
+		<include refid="pagingFooter"/>
+	</select>
+		<!-- 업체별 카탈로그비 INFO -->
+	<select id="selectSrmboCatalogPayInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	A.ADIDX
+				,C.AD_NAME
+				,A.SUPP_COMP_ID
+				,B.BCNC_NM
+				,A.TOTAL
+				,A.UNITCOUNT
+				,A.ISINC
+				,F_GET_COMN_CD_NM('ISINC',A.ISINC) AS ISINC_NM
+				,A.NOTE		/*비고*/
+				,NVL(A.ETC_COST,0) AS ETC_COST
+		FROM	SC_AD_BIZ_PAY A
+				,CO_SUPP_COMP_MAST B
+				,SC_ADVERTISE C
+		WHERE	A.SUPP_COMP_ID(+)= B.SUPP_COMP_ID
+		AND 	A.ADIDX = C.ADIDX
+		AND 	A.ADIDX = #adidx#
+		AND 	A.SUPP_COMP_ID = #suppCompId#
+	</select>
+
+
+	<!-- 업체별 카탈로그 신청내역 조회 COUNT (해당 카탈로그에 공급업체가 신청했는지 체크)-->
+	<select id="selectScAdCatalogDtlCount" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) TOTCNT
+		FROM SC_ADCATALOG_DTL
+		WHERE SUPP_COMP_ID = #suppCompId#
+		AND ADIDX = #adidx#
+	</select>
+	<!-- 업체별 카탈로그 신청내역 조회 COUNT (이미 등록했는지 체크)-->
+	<select id="selectsAdBizPayCount" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) TOTCNT
+		FROM SC_AD_BIZ_PAY
+		WHERE SUPP_COMP_ID = #suppCompId#
+		AND ADIDX = #adidx#
+	</select>
+
+	<!-- 업체별 카탈로그비 납부 등록 -->
+	<insert id="insertSrmboCatalogPayInfo" parameterClass="java.util.HashMap">
+		INSERT INTO SC_AD_BIZ_PAY
+				(
+					ADIDX
+					,SUPP_COMP_ID
+					,UNITCOUNT
+					,UNIT
+					,PRICE
+					,TOTAL
+					,ISINC
+					,NOTE
+					,ETC_COST
+				)
+		VALUES (
+					#adidx#
+					,#suppCompId#
+					,REPLACE(#unitcount#,',','')
+					,#unit#
+					,REPLACE(#price#,',','')
+					,REPLACE(#total#,',','')
+					,#isinc#
+					,#note#
+					,REPLACE(#etcCost#,',','')
+				)
+	</insert>
+
+
+
+
+	<!-- 카탈로그비 팝업 상세 DELETE -->
+	<insert id="deleteSrmboCatalogPayInfo" parameterClass="java.util.HashMap">
+		DELETE	FROM SC_AD_BIZ_PAY
+		WHERE	ADIDX = #adidx#
+		AND 	SUPP_COMP_ID = #suppCompId#
+	</insert>
+	<!-- 카탈로그비 팝업 상세 UPDATE -->
+	<insert id="updateSrmboCatalogPayInfo" parameterClass="java.util.HashMap">
+		UPDATE	SC_AD_BIZ_PAY
+		SET		UNITCOUNT	= REPLACE(#unitcount#,',','')
+				,TOTAL		= REPLACE(#total#,',','')
+				,NOTE		= #note#
+				,ETC_COST	= REPLACE(#etcCost#,',','')
+		WHERE	ADIDX = #adidx#
+		AND 	SUPP_COMP_ID = #suppCompId#
+	</insert>
+
+	<!-- 수납총괄현황 , 목록상단 -->
+	<select id="selectPayTotal" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  NVL(COUNT(A),0) AS COMP_CNT
+			     ,  NVL(TRIM(TO_CHAR(SUM(F), '999,999,999,999,999,999,999,999')),0) AS CATALOG_AMT              /*   총 카탈로그비 */
+			     ,  NVL(TRIM(TO_CHAR(SUM(G), '999,999,999,999,999,999,999,999')),0) AS PAY_AMT                  /*   총 납부액     */
+			     ,  NVL(TRIM(TO_CHAR(SUM(H), '999,999,999,999,999,999,999,999')),0) AS UNPAY_AMT                /*   미수금        */
+			     ,  NVL(TRIM(TO_CHAR(SUM( CASE WHEN F<>0 THEN 1 ELSE 0 END), '999,999,999,999,999')),0)  AS APP_COMP_CNT         /*  현재카탈로그 진행업체수  */
+			     ,  NVL(TRIM(TO_CHAR(SUM( CASE WHEN F=0  THEN 1 ELSE 0 END), '999,999,999,999,999')),0)  AS CANCEL_COMP_CNT      /*  카탈로그 취소업체수      */
+			  FROM (
+	               SELECT  A.ADIDX A
+	                         ,  A.SUPP_COMP_ID B
+	                         ,  B.BCNC_NM C
+	                         ,  B.PRSDT_NM D
+	                         ,  C.PONM AS E
+	                         ,  NVL(SUM(A.TOTAL),0) F
+	                         ,  (SELECT NVL(SUM(PAY_AMOUNT),0)
+	                               FROM SC_AD_BIZ_PAYHISTORY
+	                              WHERE ADIDX = A.ADIDX
+	                                   AND SUPP_COMP_ID = A.SUPP_COMP_ID) G
+	                         ,  NVL(SUM(A.TOTAL),0) -
+	                            (SELECT NVL(SUM(PAY_AMOUNT),0)
+	                               FROM SC_AD_BIZ_PAYHISTORY
+	                              WHERE ADIDX = A.ADIDX
+	                                  AND SUPP_COMP_ID = A.SUPP_COMP_ID) H
+	                 FROM SC_AD_BIZ_PAY A,  CO_SUPP_COMP_MAST B,  PICMT0060 C
+	               WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+	                    AND B.PO_ECODE  = C.EDPSCD
+	                    AND C.USEYN     = 'Y'
+	                    AND C.DSCDPOYN  = 'N'
+	                ]]>
+			<isNotEmpty property="schAdidx">
+				      AND A.ADIDX = #schAdidx#
+			</isNotEmpty>
+			<isEmpty property="schGbn">
+				    GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+                    ORDER BY A.ADIDX, B.BCNC_NM
+			</isEmpty>
+			<isNotEmpty property="schGbn">
+				<isEqual property="schGbn" compareValue="01">
+					  AND A.ISINC = '02'
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="02">
+					  AND A.ISINC IN ('01','03','04')
+					GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+					ORDER BY A.ADIDX, B.BCNC_NM
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="03">
+			    	<![CDATA[
+					  AND A.ISINC = '02'
+					  AND A.TOTAL <= (SELECT NVL(SUM)Y_AMOUNT),0)
+					                   FROM SC_AD_BIZ_PAYHISTORY
+					                  WHERE ADIDX = A.ADIDX
+					                    AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="04">
+			    	<![CDATA[
+					  AND A.ISINC IN ('01','03','04')
+                      AND A.TOTAL <= (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="05">
+			    	<![CDATA[
+					  AND A.ISINC = '02'
+                      AND A.TOTAL >  (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="06">
+			    	<![CDATA[
+					  AND A.ISINC IN ('01','03','04')
+                      AND A.TOTAL >  (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="07">
+			    	<![CDATA[
+					  AND A.TOTAL <  (SELECT NVL(SUM(PAY_AMOUNT),0)
+					                   FROM SC_AD_BIZ_PAYHISTORY
+					                  WHERE ADIDX = A.ADIDX
+					                    AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			</isNotEmpty>
+	         ) SUB1
+
+         </select>
+
+
+
+	<!-- 수납총괄현황 , 목록건수 -->
+	<select id="selectPayTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(*) CNT
+			  FROM (
+					SELECT  A.ADIDX
+			   		     ,  ( SELECT AD_NAME  FROM SC_ADVERTISE WHERE ADIDX= A.ADIDX) AS AD_NAME
+			             ,  A.SUPP_COMP_ID
+			             ,  B.BCNC_NM
+			             ,  B.PRSDT_NM
+			             ,  C.PONM
+			             ,  TRIM(TO_CHAR( NVL(SUM(A.TOTAL),0), '999,999,999,999,999,999,999,999')) AS CATALOG_AMT
+			             ,  TRIM(TO_CHAR((SELECT NVL(SUM(PAY_AMOUNT),0)
+			                    FROM SC_AD_BIZ_PAYHISTORY
+			                  WHERE ADIDX        = A.ADIDX
+			                    AND SUPP_COMP_ID = A.SUPP_COMP_ID), '999,999,999,999,999,999,999,999')) AS PAY_AMT
+			             ,  TRIM(TO_CHAR(NVL(SUM(A.TOTAL),0) -
+			               (SELECT NVL(SUM(PAY_AMOUNT),0)
+			                   FROM SC_AD_BIZ_PAYHISTORY
+			                 WHERE ADIDX        = A.ADIDX
+			                   AND SUPP_COMP_ID = A.SUPP_COMP_ID), '999,999,999,999,999,999,999,999')) AS UNPAY_AMT
+				     FROM SC_AD_BIZ_PAY A,  CO_SUPP_COMP_MAST B, PICMT0060 C
+				    WHERE A.SUPP_COMP_ID   = B.SUPP_COMP_ID
+				      AND B.PO_ECODE       = C.EDPSCD
+				      AND C.USEYN = 'Y'
+		              AND C.DSCDPOYN = 'N'
+			]]>
+			<isNotEmpty property="schAdidx">
+				      AND A.ADIDX = #schAdidx#
+			</isNotEmpty>
+			<isNotEmpty property="searchSuppCompId">
+				AND 	A.SUPP_COMP_ID = #searchSuppCompId#
+			</isNotEmpty>
+			<isEmpty property="schGbn">
+				    GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+                    ORDER BY A.ADIDX, B.BCNC_NM
+			</isEmpty>
+			<isNotEmpty property="schGbn">
+				<isEqual property="schGbn" compareValue="01">
+					  AND A.ISINC = '02'
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="02">
+					  AND A.ISINC IN ('01','03','04')
+					GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+					ORDER BY A.ADIDX, B.BCNC_NM
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="03">
+			    	<![CDATA[
+					  AND A.ISINC = '02'
+					  AND A.TOTAL <= (SELECT NVL(SUM)Y_AMOUNT),0)
+					                   FROM SC_AD_BIZ_PAYHISTORY
+					                  WHERE ADIDX = A.ADIDX
+					                    AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="04">
+			    	<![CDATA[
+					  AND A.ISINC IN ('01','03','04')
+                      AND A.TOTAL <= (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="05">
+			    	<![CDATA[
+					  AND A.ISINC = '02'
+                      AND A.TOTAL >  (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="06">
+			    	<![CDATA[
+					  AND A.ISINC IN ('01','03','04')
+                      AND A.TOTAL >  (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="07">
+			    	<![CDATA[
+					  AND A.TOTAL <  (SELECT NVL(SUM(PAY_AMOUNT),0)
+					                   FROM SC_AD_BIZ_PAYHISTORY
+					                  WHERE ADIDX = A.ADIDX
+					                    AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			</isNotEmpty>
+		    		)
+ 	</select>
+
+
+	<!-- 수납총괄현황 , 목록조회 -->
+	<select id="selectPayTotalList" parameterClass="java.util.HashMap" resultClass="commMap">
+
+		<include refid="pagingHeader"/>
+		<![CDATA[
+	   		SELECT  A.ADIDX
+	   		     ,  ( SELECT AD_NAME  FROM SC_ADVERTISE WHERE ADIDX= A.ADIDX) AS AD_NAME
+	             ,  A.SUPP_COMP_ID
+	             ,  B.BCNC_NM
+	             ,  B.PRSDT_NM
+	             ,  C.PONM
+	             ,  TRIM(TO_CHAR( NVL(SUM(A.TOTAL),0), '999,999,999,999,999,999,999,999')) AS CATALOG_AMT
+	             ,  TRIM(TO_CHAR((SELECT NVL(SUM(PAY_AMOUNT),0)
+	                    FROM SC_AD_BIZ_PAYHISTORY
+	                  WHERE ADIDX        = A.ADIDX
+	                    AND SUPP_COMP_ID = A.SUPP_COMP_ID), '999,999,999,999,999,999,999,999')) AS PAY_AMT
+	             ,  TRIM(TO_CHAR(NVL(SUM(A.TOTAL),0) -
+	               (SELECT NVL(SUM(PAY_AMOUNT),0)
+	                   FROM SC_AD_BIZ_PAYHISTORY
+	                 WHERE ADIDX        = A.ADIDX
+	                   AND SUPP_COMP_ID = A.SUPP_COMP_ID), '999,999,999,999,999,999,999,999')) AS UNPAY_AMT
+		     FROM SC_AD_BIZ_PAY A,  CO_SUPP_COMP_MAST B, PICMT0060 C
+		    WHERE A.SUPP_COMP_ID   = B.SUPP_COMP_ID
+		      AND B.PO_ECODE       = C.EDPSCD
+		      AND C.USEYN = 'Y'
+              AND C.DSCDPOYN = 'N'
+		]]>
+			<isNotEmpty property="schAdidx">
+				      AND A.ADIDX = #schAdidx#
+			</isNotEmpty>
+			<isNotEmpty property="searchSuppCompId">
+				AND 	A.SUPP_COMP_ID = #searchSuppCompId#
+			</isNotEmpty>
+			<isEmpty property="schGbn">
+				    GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+                    ORDER BY A.ADIDX, B.BCNC_NM
+			</isEmpty>
+			<isNotEmpty property="schGbn">
+				<isEqual property="schGbn" compareValue="01">
+					  AND A.ISINC = '02'
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="02">
+					  AND A.ISINC IN ('01','03','04')
+					GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+					ORDER BY A.ADIDX, B.BCNC_NM
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="03">
+			    	<![CDATA[
+					  AND A.ISINC = '02'
+					  AND A.TOTAL <= (SELECT NVL(SUM)Y_AMOUNT),0)
+					                   FROM SC_AD_BIZ_PAYHISTORY
+					                  WHERE ADIDX = A.ADIDX
+					                    AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="04">
+			    	<![CDATA[
+					  AND A.ISINC IN ('01','03','04')
+                      AND A.TOTAL <= (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="05">
+			    	<![CDATA[
+					  AND A.ISINC = '02'
+                      AND A.TOTAL >  (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="06">
+			    	<![CDATA[
+					  AND A.ISINC IN ('01','03','04')
+                      AND A.TOTAL >  (SELECT NVL(SUM(PAY_AMOUNT),0)
+                                        FROM SC_AD_BIZ_PAYHISTORY
+                                       WHERE ADIDX = A.ADIDX
+                                         AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			    <isEqual property="schGbn" compareValue="07">
+			    	<![CDATA[
+					  AND A.TOTAL <  (SELECT NVL(SUM(PAY_AMOUNT),0)
+					                   FROM SC_AD_BIZ_PAYHISTORY
+					                  WHERE ADIDX = A.ADIDX
+					                    AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			        GROUP BY A.ADIDX, A.SUPP_COMP_ID, B.BCNC_NM, B.PRSDT_NM, C.PONM
+			        ORDER BY A.ADIDX, B.BCNC_NM
+			        ]]>
+			    </isEqual>
+			</isNotEmpty>
+
+		<isNull property="excelType">
+			<include refid="pagingFooter"/>
+		</isNull>
+		<isNotNull property="excelType">
+				)A
+			)
+		</isNotNull>
+	</select>
+	<!-- 업체 있는지 확인-->
+	<select id="selectSuppCompExist" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM	CO_SUPP_COMP_MAST
+		WHERE	SUPP_COMP_ID = #suppCompId#
+	</select>
+	<!-- 업체별 카탈로그 세금계산서 조회 COUNT -->
+	<select id="selectCatalogTaxPayAccountListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM SC_ADACCOUNT
+		WHERE	1=1
+			<isNotEmpty property="searchSuppCompId" prepend="AND">
+				SUPP_COMP_ID = #searchSuppCompId#
+			</isNotEmpty>
+			<isNotEmpty property="taxVolume" prepend="AND">
+				TAX_VOLUME = #taxVolume#
+			</isNotEmpty>
+			<isNotEmpty property="pYear">
+				<isNotEmpty property="pMonth" prepend="AND">
+				PAYMONTH = #pYear#||#pMonth#
+				</isNotEmpty>
+			</isNotEmpty>
+			<isNotEmpty property="taxUnitFrom">
+				<isNotEmpty property="taxUnitTo" prepend="AND">
+					TAX_UNIT BETWEEN #taxUnitFrom# AND #taxUnitTo#
+				</isNotEmpty>
+			</isNotEmpty>
+	</select>
+	<!-- 업체별 카탈로그 세금계산서 조회 LIST -->
+	<select id="selectCatalogTaxPayAccountList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			SELECT	ACCOUNTIDX
+					,SUPP_COMP_ID
+					,BIZNAME
+					,REGISTERNO
+					,TRIM(TO_CHAR( NVL((AMOUNT),0), '999,999,999,999,999,999,999,999')) AMOUNT
+					,TRIM(TO_CHAR( NVL((SUPPLYPRICE),0), '999,999,999,999,999,999,999,999')) SUPPLYPRICE
+					,TRIM(TO_CHAR( NVL((TAXPRICE),0), '999,999,999,999,999,999,999,999')) TAXPRICE
+					,TRIM(TO_CHAR( NVL(((SUPPLYPRICE+TAXPRICE)),0), '999,999,999,999,999,999,999,999')) TOTAL_PRICE
+					,BOSSNAME
+					,BIZCOND
+					,BIZCATE
+					,POSITIONS
+					,TAX_UNIT
+					,TAX_VOLUME
+					,TO_CHAR(UPDATE_DATE,'YYYY-MM-DD') UPDATE_DATE
+					,CREATEDATE
+					/*,TO_CHAR(to_DATE(PAYMONTH,'YYYY-MM'),'YYYY-MM') AS PAYMONTH 오류로 임시주석*/
+					,PAYMONTH AS PAYMONTH_TAX
+					,ADAC_STUS_CD
+					,F_GET_COMN_CD_NM('TAX_STATE',ADAC_STUS_CD) AS ADAC_STUS_NM
+			FROM SC_ADACCOUNT
+			WHERE	1=1
+			<isNotEmpty property="searchSuppCompId" prepend="AND">
+				SUPP_COMP_ID = #searchSuppCompId#
+			</isNotEmpty>
+			<isNotEmpty property="taxVolume" prepend="AND">
+				TAX_VOLUME = #taxVolume#
+			</isNotEmpty>
+			<isNotEmpty property="pYear">
+				<isNotEmpty property="pMonth" prepend="AND">
+				PAYMONTH = #pYear#||#pMonth#
+				</isNotEmpty>
+			</isNotEmpty>
+			<isNotEmpty property="taxUnitFrom">
+				<isNotEmpty property="taxUnitTo" prepend="AND">
+					TAX_UNIT BETWEEN #taxUnitFrom# AND #taxUnitTo#
+				</isNotEmpty>
+			</isNotEmpty>
+			<isNotEmpty property="">
+
+			</isNotEmpty>
+			ORDER BY CREATEDATE DESC
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 업체별 카탈로그 세금계산서 조회 info -->
+	<select id="selectCatalogTaxPayAccountInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+			SELECT	ACCOUNTIDX
+					,QTY
+					,SUPPLYPRICE
+					,TAXPRICE
+					,AMOUNT
+					,SUPPLYPRICE
+					,PAYMONTH
+					,CREATEDATE
+					,SUPP_COMP_ID
+					,TAX_VOLUME
+					,TAX_UNIT
+					,TO_CHAR(UPDATE_DATE,'YYYY-MM-DD') UPDATE_DATE
+					,REGISTERNO
+					,BIZNAME
+					,BIZCOND
+					,BIZCATE
+					,BOSSNAME
+					,POSITIONS
+					,(SUPPLYPRICE+TAXPRICE) TOTAL_PRICE
+			FROM	SC_ADACCOUNT
+			WHERE	1=1
+			AND 	ACCOUNTIDX = #accountidx#
+	</select>
+	<!-- 업체별 카탈로그 세금계산서 조회 info List -->
+	<select id="selectCatalogTaxPayAccountInfoList" parameterClass="java.util.HashMap" resultClass="commMap">
+			SELECT	A.ACCOUNTIDX BOOKNUM1
+					,A.ACCOUNTIDX INVSEQ
+					,NVL(A.QTY,0) AS GOODS_CNT
+					,NVL(A.SUPPLYPRICE,0) AS SUPTOTAMT
+					,A.TAXPRICE AS SURTAX
+					,NVL(A.AMOUNT,0) AS SUMAMT
+					,A.PAYMONTH     AS INVDATE
+					,TO_CHAR(A.CREATEDATE,'YYYYMMDD')   AS ITEMDATE1
+					,A.SUPP_COMP_ID
+					,A.TAX_VOLUME   AS ITEMSTD1
+					,A.TAX_UNIT     AS ITEMQTY1
+					,TO_CHAR(A.UPDATE_DATE,'YYYYMMDD') UPDATE_DATE
+					,REPLACE(A.REGISTERNO,'-','') AS DEMREGNUM
+					,A.BIZNAME AS DEMCMPNAME
+					,A.BIZCOND AS DEMBIZTYPE
+					,A.BIZCATE AS DEMBIZKIND
+					,A.BOSSNAME AS DEMOWNER
+					,A.POSITIONS AS DEMADDRESS
+					,(A.SUPPLYPRICE + A.TAXPRICE) TOTAL_PRICE
+					,NVL(B.TAXT_DIV_CD,'01') AS TAXT_DIV_CD
+					,B.EMAIL AS RCVEMAIL
+					,'우체국쇼핑 카탈로그' AS ITEM1
+			FROM	SC_ADACCOUNT A
+					,CO_SUPP_COMP_MAST B
+			WHERE	1=1
+			AND 	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+			<isNotEmpty property="accountidx" prepend="AND">
+				ACCOUNTIDX = #accountidx#
+			</isNotEmpty>
+	</select>
+	<!-- 카탈로그 세금계산서 팝빌후 결과 저장 -->
+	<insert id="updateSrmboCatalogTaxResult" parameterClass="java.util.HashMap">
+		UPDATE	SC_ADACCOUNT
+		SET		ADAC_STUS_CD = #state#
+		WHERE	ACCOUNTIDX = #accountidx#
+	</insert>
+
+	<!-- 카탈로그 세금계산서 일괄등록 -->
+	<insert id="insertSrmboCatalogTaxPayInfo" parameterClass="java.util.HashMap">
+		INSERT INTO SC_ADACCOUNT (
+				ACCOUNTIDX,
+				QTY,
+				AMOUNT,
+				SUPPLYPRICE,
+				TAXPRICE,
+				PAYMONTH,
+				CREATEDATE,
+				SUPP_COMP_ID,
+				TAX_VOLUME,
+				TAX_UNIT,
+				UPDATE_DATE,
+				REGISTERNO,
+				BIZNAME,
+				BIZCOND,
+				BIZCATE,
+				BOSSNAME,
+				POSITIONS
+			)
+		SELECT	(SELECT NVL(MAX(ACCOUNTIDX),0)+1 FROM SC_ADACCOUNT),
+				#qty#,
+				#amount#,
+				#supplyprice#,
+				#taxprice#,
+				#paymonth#,
+				#createdate#,
+				#suppCompId#,
+				#taxVolume#,
+				#taxUnit#,
+				SYSDATE,
+				COMPREG_NO,
+				BCNC_NM,
+				ENTRPS,
+				INDUTY,
+				PRSDT_NM,
+				ADDR1||ADDR2
+		FROM	CO_SUPP_COMP_MAST
+		WHERE	SUPP_COMP_ID = #suppCompId#
+	</insert>
+	<!-- 카탈로그 세금계산서 단건 등록/수정 -->
+	<insert id="insertOnceSrmboCatalogTaxPayInfo" parameterClass="java.util.HashMap">
+		MERGE INTO SC_ADACCOUNT A
+		USING DUAL
+		ON (A.ACCOUNTIDX = #accountidx# )
+		WHEN MATCHED THEN
+			UPDATE SET
+				QTY 	= #qty#
+				,AMOUNT	= #amount#
+				,SUPPLYPRICE	= #supplyprice#
+				,TAXPRICE		= #taxprice#
+				,PAYMONTH		= #paymonth#
+				,CREATEDATE		= #createdate#
+				,SUPP_COMP_ID	= #suppCompId#
+				,TAX_VOLUME		= #taxVolume#
+				,TAX_UNIT		= #taxUnit#
+				,UPDATE_DATE	= SYSDATE
+				,REGISTERNO		= SELECT COMPREG_NO FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#
+				,BIZNAME		= SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#
+				,BIZCOND		=  SELECT ENTRPS FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#
+				,BIZCATE		= SELECT INDUTY FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#
+				,BOSSNAME		= SELECT PRSDT_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#
+				,POSITIONS		= SELECT ADDR1||' '||ADDR2 FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#
+		WHEN NOT MATCHED THEN
+			INSERT INTO SC_ADACCOUNT (
+					ACCOUNTIDX,
+					QTY,
+					AMOUNT,
+					SUPPLYPRICE,
+					TAXPRICE,
+					PAYMONTH,
+					CREATEDATE,
+					SUPP_COMP_ID,
+					TAX_VOLUME,
+					TAX_UNIT,
+					UPDATE_DATE,
+					REGISTERNO,
+					BIZNAME,
+					BIZCOND,
+					BIZCATE,
+					BOSSNAME,
+					POSITIONS,
+					ADAC_STUS_CD
+				)
+			SELECT	(SELECT NVL(MAX(ACCOUNTIDX),0)+1 FROM SC_ADACCOUNT),
+					#qty#,
+					#amount#,
+					#supplyprice#,
+					#taxprice#,
+					#paymonth#,
+					#createdate#,
+					#suppCompId#,
+					#taxVolume#,
+					#taxUnit#,
+					SYSDATE,
+					COMPREG_NO,
+					BCNC_NM,
+					ENTRPS,
+					INDUTY,
+					PRSDT_NM,
+					ADDR1||ADDR2,
+					'T0'
+			FROM	CO_SUPP_COMP_MAST
+			WHERE	SUPP_COMP_ID = #suppCompId#
+	</insert>
+	<!-- 카탈로그 세금계산서 삭제 -->
+	<insert id="deleteCatalogTaxInfo" parameterClass="java.util.HashMap">
+		DELETE	FROM SC_ADACCOUNT
+		WHERE	ACCOUNTIDX = #accountidx#
+	</insert>
+
+	<select id="selectCatalogReqFileInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+			<isEqual property="reqNum" compareValue="1">
+				A.IMGFILENAME1 AS IMGFILENAME
+				, (SELECT FILE_STRE_PATH FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS FILE_STRE_PATH
+				, (SELECT STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS STRE_FILE_NM
+				, (SELECT ORIG_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS ORIG_FILE_NM
+				, (SELECT FILE_STRE_PATH||STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME1) AS FULL_FILE_PATH
+				, A.CHG_LIMIT_DATE1 AS CHG_LIMIT_DATE
+			</isEqual>
+			<isEqual property="reqNum" compareValue="2">
+				A.IMGFILENAME2 AS IMGFILENAME
+				, (SELECT FILE_STRE_PATH FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS FILE_STRE_PATH
+				, (SELECT STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS STRE_FILE_NM
+				, (SELECT ORIG_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS ORIG_FILE_NM
+				, (SELECT FILE_STRE_PATH||STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID(+) = A.IMGFILENAME2) AS FULL_FILE_PATH
+				, A.CHG_LIMIT_DATE2 AS CHG_LIMIT_DATE
+			</isEqual>
+		FROM	SC_ADCATALOG_DTL A
+		WHERE	ADIDX = #adidx#
+		AND 	SUPP_COMP_ID = #suppCompId#
+		AND 	CODE_GB = #codeGb#
+		AND 	CODE_VALU_CD = #codeValuCd#
+		AND 	SEQ = #seq#
+	</select>
+
+	<!-- 교정지 파일 업로드 -->
+	<update id="updateCatalogChgRequest" parameterClass="java.util.HashMap">
+		UPDATE	SC_ADCATALOG_DTL
+		SET
+			<isEqual property="reqNum" compareValue="1">
+				CHG_LIMIT_DATE1 = REPLACE(#chgLimitDate#,'-','')
+				<isEqual property="imageDelyn" compareValue="Y">
+					,IMGFILENAME1 = #attchfileId#
+				</isEqual>
+			</isEqual>
+			<isEqual property="reqNum" compareValue="2">
+				CHG_LIMIT_DATE2 = REPLACE(#chgLimitDate#,'-','')
+				<isEqual property="imageDelyn" compareValue="Y">
+					,IMGFILENAME2 = #attchfileId#
+				</isEqual>
+			</isEqual>
+		WHERE	ADIDX = #adidx#
+		AND 	SUPP_COMP_ID = #suppCompId#
+		AND 	CODE_GB = #codeGb#
+		AND 	CODE_VALU_CD = #codeValuCd#
+		AND 	SEQ = #seq#
+	</update>
+
+	<!-- 공급업체 카탈로그 비용 납부 정보 일괄등록  -->
+	<insert id="insertSrmboAdCatalogPayHistory" parameterClass="java.util.HashMap">
+		INSERT INTO SC_AD_BIZ_PAYHISTORY
+                   ( ADIDX,
+                     SUPP_COMP_ID,
+                     SEQ,
+                     PAY_TYPE,
+                     PAY_DATE,
+                     PAY_AMOUNT,
+                     PAY_PERSON
+        			)
+         SELECT
+                 #adidx#,
+                 #suppCompId#,
+                 NVL(MAX(SEQ),0) + 1,
+                 '1',
+                 NVL(#payDate#,TO_CHAR(SYSDATE,'YYYY-MM-DD')),
+                 NVL(#payAmount#,0),
+                 NVL(#payPerson#,(SELECT PRSDT_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#))
+          FROM SC_AD_BIZ_PAYHISTORY
+         WHERE ADIDX =  #adidx#
+           AND SUPP_COMP_ID = #suppCompId#
+
+	</insert>
+</sqlMap>

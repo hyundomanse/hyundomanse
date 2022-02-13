@@ -1,0 +1,884 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboNoticMgr">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 공지사항관리 목록 건수 -->
+	<select id="selectNoticTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT	COUNT(A.BBS_NO)
+			FROM 	CM_SUPPER_BBS A
+	        WHERE 	BBS_CONT_DIV_CD = '2'
+		]]>
+		<!-- 검색조건 01 제목 02 이름 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchGb" compareValue="01">
+				<![CDATA[	AND A.TTL LIKE '%' || #searchTxt# || '%']]>
+			</isEqual>
+		</isNotEmpty>
+		<!-- 공지일자 -->
+		<isNotEmpty property="searchFromDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') >= #searchFromDt#]]>
+		</isNotEmpty>
+		<isNotEmpty property="searchToDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') <= #searchToDt#]]>
+		</isNotEmpty>
+	</select>
+
+	<!-- 공지사항관리 목록 조회 -->
+	<select id="selectNoticList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+			SELECT		A.BBS_NO AS BBS_NO,
+	               		A.TTL AS TTL,
+	               		A.TARGETCODE AS TARGETCODE,
+	               		(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = A.BBS_NO AND CODEIDX IS NOT NULL) AS TARGETCOUNT,
+	               		(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE HIT > 0 AND ARTICLEIDX = A.BBS_NO) AS HIT,
+		               	REPLACE( A.REG_DATE, 120, '-') AS G,
+	               		(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE HIT = 0 AND ARTICLEIDX = A.BBS_NO) AS NOHIT,
+	               		A.MAKEER_ID AS NAME,
+	               		REPLACE(A.VALID_DATE, 120, '-') AS VALID_DATE,
+	               		A.SEND_FLAG
+			FROM 		CM_SUPPER_BBS A
+	        WHERE 		BBS_CONT_DIV_CD = '2'
+		]]>
+		<!-- 검색조건 01 제목 02 이름 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchGb" compareValue="01">
+				<![CDATA[	AND A.TTL LIKE '%' || #searchTxt# || '%']]>
+			</isEqual>
+		</isNotEmpty>
+		<!-- 공지일자 -->
+		<isNotEmpty property="searchFromDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') >= #searchFromDt#]]>
+		</isNotEmpty>
+		<isNotEmpty property="searchToDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') <= #searchToDt#]]>
+		</isNotEmpty>
+		ORDER BY A.BBS_NO DESC
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 기타공지사항관리 목록 건수 -->
+	<select id="selectEtcNoticTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT	COUNT(A.BBS_NO)
+			FROM 	CM_SUPPER_BBS A
+	        WHERE 	1=1
+		]]>
+		<isNotEmpty property="search_bbs_cont_div_cd" prepend="AND">
+			A.BBS_CONT_DIV_CD = #search_bbs_cont_div_cd#
+		</isNotEmpty>
+		<!-- 검색조건 01 제목 02 이름 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchGb" compareValue="01">
+				<![CDATA[	AND A.TTL LIKE '%' || #searchTxt# || '%']]>
+			</isEqual>
+		</isNotEmpty>
+		<!-- 공지일자 -->
+		<isNotEmpty property="searchFromDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') >= #searchFromDt#]]>
+		</isNotEmpty>
+		<isNotEmpty property="searchToDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') <= #searchToDt#]]>
+		</isNotEmpty>
+	</select>
+
+	<!-- 기타공지사항관리 목록 조회 -->
+	<select id="selectEtcNoticList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+			SELECT		A.BBS_NO AS BBS_NO,
+	               		A.TTL AS TTL,
+	               		A.TARGETCODE AS TARGETCODE,
+	               		(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = A.BBS_NO AND CODEIDX IS NOT NULL) AS TARGETCOUNT,
+	               		(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE HIT > 0 AND ARTICLEIDX = A.BBS_NO) AS HIT,
+		               	REPLACE( A.REG_DATE, 120, '-') AS G,
+	               		(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE HIT = 0 AND ARTICLEIDX = A.BBS_NO) AS NOHIT,
+	               		A.MAKEER_ID AS NAME,
+	               		REPLACE(A.VALID_DATE, 120, '-') AS VALID_DATE,
+	               		A.SEND_FLAG,
+	               		F_GET_COMN_CD_NM('BBS_CONT_DIV_CD',A.BBS_CONT_DIV_CD) AS BBS_CONT_DIV_CD
+			FROM 		CM_SUPPER_BBS A
+	        WHERE 		1=1
+		]]>
+		<isNotEmpty property="search_bbs_cont_div_cd" prepend="AND">
+			A.BBS_CONT_DIV_CD = #search_bbs_cont_div_cd#
+		</isNotEmpty>
+		<!-- 검색조건 01 제목 02 이름 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchGb" compareValue="01">
+				<![CDATA[	AND A.TTL LIKE '%' || #searchTxt# || '%']]>
+			</isEqual>
+		</isNotEmpty>
+		<!-- 공지일자 -->
+		<isNotEmpty property="searchFromDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') >= #searchFromDt#]]>
+		</isNotEmpty>
+		<isNotEmpty property="searchToDt">
+			<![CDATA[	AND TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') <= #searchToDt#]]>
+		</isNotEmpty>
+		ORDER BY A.BBS_NO DESC
+		<include refid="pagingFooter"/>
+	</select>
+	<resultMap id="noticMap" class="commMap" >
+		<result	property="BBS_NO"        column="BBS_NO" />
+		<result	property="TTL"           column="TTL" />
+		<result	property="CONT"          column="CONT" javaType="java.lang.String" jdbcType="CLOB"/>
+		<result	property="TARGETCODE"    column="TARGETCODE" />
+		<result	property="MAKEER_ID"     column="MAKEER_ID" />
+		<result	property="REG_DATE"      column="REG_DATE" />
+		<result	property="VALID_DATE"    column="VALID_DATE" />
+		<result	property="FAXNO"         column="FAXNO" />
+		<result	property="JOB"           column="JOB" />
+		<result	property="TARGETNAME"    column="TARGETNAME" />
+		<result	property="ATTCHFILE_ID"  column="ATTCHFILE_ID" />
+		<result	property="BBS_CONT_DIV_CD"  column="BBS_CONT_DIV_CD" />
+		<result	property="BBS_STR_DIV_CD"  column="BBS_STR_DIV_CD" />
+	</resultMap>
+
+	<select id="selectNoticInfo" parameterClass="java.util.HashMap" resultMap="noticMap">
+		<![CDATA[
+		select 	A.BBS_NO      AS BBS_NO,
+				A.TTL         AS TTL,
+			   	A.CONT        AS CONT,
+			   	A.TARGETCODE  AS TARGETCODE,
+			   	A.MAKEER_ID   AS MAKEER_ID,
+			   	F_GET_COMN_CD_NM('BBS_CONT_DIV_CD',A.BBS_CONT_DIV_CD) AS BBS_CONT_DIV_CD,
+			   	TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') AS REG_DATE,
+			   	A.VALID_DATE  AS VALID_DATE,
+			   	A.BBS_STR_DIV_CD,
+				'' AS FAXNO,
+				'' AS JOB,
+			    '' AS TARGETNAME,
+			  	ATTCHFILE_ID
+		FROM 	CM_SUPPER_BBS A
+		WHERE   BBS_NO = #bbsNo#
+		]]>
+	</select>
+
+	<select id="selectTargetNameInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT     SUBSTR(XMLAGG(XMLELEMENT(A, ','||NAME  )).EXTRACT('//text()').GETSTRINGVAL(),2) COMN_CD_NM
+        FROM       SC_TARGET
+        WHERE      (CASE WHEN TARGETIDX < 10 THEN '0'||TO_CHAR(TARGETIDX) ELSE TO_CHAR(TARGETIDX) END) IN (#targetcode#)
+		]]>
+	</select>
+
+	<select id="selectNoticFileList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	ATTCHFILE_ID,
+			 	FILE_SEQ,
+			 	FILE_STRE_PATH,
+			 	STRE_FILE_NM,
+			 	ORIG_FILE_NM,
+			 	FILE_STRE_PATH || STRE_FILE_NM AS FILE_PATH,
+			 	FILE_EXTNER,
+			 	FILE_SIZE,
+			 	DEL_YN,
+			 	REG_DATE,
+			 	CHG_DATE,
+			 	REGER_ID,
+			 	CHGER_ID
+		FROM    CM_FILE_MGT
+		WHERE   ATTCHFILE_ID = #attchfileId#
+	</select>
+
+	<!-- 키생성 -->
+	<select id="selectBbsNo" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT SEQ_CM_SUPPER_BBS_NO.NEXTVAL FROM DUAL
+ 		]]>
+ 	</select>
+
+ 	<!-- 첨부파일 등록 -->
+	<insert id="insertNoticBbsFileInfo" parameterClass="java.util.HashMap">
+ 		INSERT INTO CM_SUPPER_BBS_ATTCHFILE
+      		(
+             BBS_NO,
+             ATTCHFILE_SEQ,
+             ATTCH_FILE_NM,
+             ATTCH_FILE_PATH,
+             ATTCH_FILE_CAPA,
+             USE_YN,
+             REG_DATE,
+             REGER_ID
+      		)
+      	VALUES
+      		(
+             #bbsNo#,
+             (SELECT NVL(MAX(TO_NUMBER(ATTCHFILE_SEQ))+1, '1') FROM CM_SUPPER_BBS_ATTCHFILE),
+             #attchFileNm#,
+             #attchFilePath#,
+             #attchFileCapa#,
+             'Y',
+             SYSDATE,
+             #loginId#
+      		)
+	</insert>
+
+	<insert id="insertNoticeMgr" parameterClass="java.util.HashMap">
+		INSERT INTO CM_SUPPER_BBS
+		  (
+		   BBS_NO,
+		   TTL,
+		   CONT,
+		   MAKEER_ID,
+		   TARGETCODE,
+		   VALID_DATE,
+		   SEND_FLAG,
+		   BBS_CONT_DIV_CD,
+		   ATTCHFILE_ID,
+		   REGER_ID,
+		   <isNotEmpty property="bbsStrDivCd">
+		   BBS_STR_DIV_CD ,
+		   </isNotEmpty>
+		   REG_DATE
+		  )
+		VALUES
+		  (
+		   #bbsNo#,
+		   #ttl#,
+		   #cont#,
+		   #loginId#,
+		   #targetcode#,
+		   #validDate#,
+		   '1',
+		   '2',
+		   #attchfileId#,
+		   #loginId#,
+		   <isNotEmpty property="bbsStrDivCd">
+		   #bbsStrDivCd# ,
+		   </isNotEmpty>
+		   SYSDATE
+		   )
+	</insert>
+
+	<insert id="insertEtcNoticeMgr" parameterClass="java.util.HashMap">
+		INSERT INTO CM_SUPPER_BBS
+		  (
+		   BBS_NO,
+		   TTL,
+		   CONT,
+		   MAKEER_ID,
+		   TARGETCODE,
+		   VALID_DATE,
+		   SEND_FLAG,
+		   BBS_CONT_DIV_CD,
+		   ATTCHFILE_ID,
+		   REGER_ID,
+		   REG_DATE
+		  )
+		VALUES
+		  (
+		   #bbsNo#,
+		   #ttl#,
+		   #cont#,
+		   #loginId#,
+		   #targetcode#,
+		   #validDate#,
+		   '1',
+		    <isEmpty property="bbsContDivCd">
+		   '2',
+		   </isEmpty>
+		   <isNotEmpty property="bbsContDivCd">
+		    #bbsContDivCd#,
+		   </isNotEmpty>
+		   #attchfileId#,
+		   #loginId#,
+		   SYSDATE
+		   )
+	</insert>
+
+	<insert id="insertRegisterNoticeSearchInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+ 		INSERT INTO SC_ARTICLE_CONFIRM
+        (ARTICLEIDX, OJECTTYPE, CODEIDX, HIT)
+        SELECT   #bbsNo#, '01', A.SUPP_COMP_ID, 0
+        FROM     CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+        WHERE    A.SUPP_COMP_ID = B.SUPP_COMP_ID
+        AND      A.SUPP_COMP_DIV_CD NOT IN ('08')
+        AND      B.PAVLN_DIV_CD IN (#targetcode#)
+        AND      B.SUPP_COMP_STUS_CD IN ('05')
+        GROUP BY A.SUPP_COMP_ID
+ 		]]>
+ 		<!-- A.SUPP_COMP_STUS_CD '05' 계약상태가 입점완료인것 -->
+	</insert>
+
+	<insert id="insertRegisterNoticeSearchInfo2" parameterClass="java.util.HashMap">
+		<![CDATA[
+ 		INSERT INTO SC_ARTICLE_CONFIRM
+        (ARTICLEIDX, OJECTTYPE, CODEIDX, HIT)
+        SELECT   #bbsNo#, '01', IDX, 0
+        FROM     SC_TARGETLIST
+        WHERE    TARGETIDX = #targetcode#
+ 		]]>
+	</insert>
+
+	<update id="deleteNoticeSearchInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE 	FROM SC_ARTICLE_CONFIRM
+		WHERE 	ARTICLEIDX = #bbsNo#
+		AND 	CODEIDX IS NULL
+		OR 		CODEIDX = ''
+		]]>
+	</update>
+
+	<select id="selectNoticRegisterTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT 	COUNT(NAME)
+		FROM 	SC_TARGET
+        WHERE 	DEL_FLAG ='N'
+		]]>
+		<isNotEmpty property="searchTxt">
+		<![CDATA[	AND 	NAME LIKE '%' || #searchTxt# || '%']]>
+		</isNotEmpty>
+	</select>
+
+	<select id="selectNoticRegisterList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT 	TARGETIDX IDX, NAME NAME ,SIL_GB SILGB
+		FROM    SC_TARGET
+        WHERE   DEL_FLAG='N'
+		]]>
+		<isNotEmpty property="searchTxt">
+		<![CDATA[	AND 	NAME LIKE '%' || #searchTxt# || '%']]>
+		</isNotEmpty>
+		ORDER BY  SIL_GB DESC , TYPE ASC, TARGETIDX ASC
+		<include refid="pagingFooter"/>
+	</select>
+
+	<update id="modifyNoticeMgr" parameterClass="java.util.HashMap">
+		<![CDATA[
+		UPDATE 	CM_SUPPER_BBS
+		SET 	TTL           = #ttl#
+			   ,CONT          = #cont#
+			   ,VALID_DATE    = #validDate#
+			   ,ATTCHFILE_ID  = #attchfileId#
+			   ,CHGER_ID      = #loginId#
+		   	   ,CHG_DATE      = SYSDATE
+		]]>
+			<isNotEmpty property="bbsStrDivCd">
+			   ,BBS_STR_DIV_CD = #bbsStrDivCd#
+			</isNotEmpty>
+		WHERE 	BBS_NO        = #bbsNo#
+
+	</update>
+
+	<update id="deleteNoticeSmsInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE FROM CF_SMS_NRCV
+		WHERE  IDX = #bbsNo#
+		]]>
+	</update>
+
+	<update id="deleteNoticeInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE FROM CM_SUPPER_BBS
+		WHERE 	BBS_NO = #bbsNo#
+		]]>
+	</update>
+
+	<update id="deleteNoticeInfo2" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE 	FROM SC_ARTICLE_CONFIRM
+		WHERE 	ARTICLEIDX = #bbsNo#
+		]]>
+	</update>
+
+	<select id="selectTagetCompExcelList" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+	SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+						SELECT	A.SUPP_COMP_ID,
+								A.BCNC_NM,
+								B.SUPP_COMP_STUS_CD,
+								(SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SUPP_COMP_STUS_CD' AND COMN_CD_ID=B.SUPP_COMP_STUS_CD) AS SUPP_COMP_STUS_NM
+						FROM 	CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+					    WHERE   A.SUPP_COMP_ID = B.SUPP_COMP_ID
+                        AND     A.SUPP_COMP_DIV_CD NOT IN ('08')
+		]]>
+					<isNotEmpty property="pavlnDivCd">
+						AND 	B.PAVLN_DIV_CD = #pavlnDivCd#
+					</isNotEmpty>
+		<![CDATA[
+		ORDER BY SUPP_COMP_ID ASC
+		) A
+		]]>
+	)
+	</select>
+
+	<!-- 공지사항 미확인업체 목록 건수 -->
+	<select id="selectNoticNotCompTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT 	    COUNT(BBS_NO)
+		FROM 		CM_SUPPER_BBS A
+		WHERE       A.BBS_CONT_DIV_CD = '2'
+		]]>
+     	<isNotEmpty property="searchTxt">
+		<![CDATA[	AND A.TTL LIKE '%' || #searchTxt# || '%']]>
+		</isNotEmpty>
+
+	</select>
+
+	<!-- 공지사항 미확인업체 목록 조회 -->
+	<select id="selectNoticNotCompList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT  	A.BBS_NO AS BBS_NO,
+		           	A.TTL AS TTL,
+		           	A.TARGETCODE AS TARGETCODE,
+		 		  	(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE A.BBS_NO = ARTICLEIDX) AS TARGETCOUNT,
+		           	(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE HIT > 0 AND A.BBS_NO = ARTICLEIDX) AS HIT,
+		           	TO_CHAR(A.REG_DATE, 'YYYYMMDD') AS G,
+		           	(SELECT COUNT(*) FROM SC_ARTICLE_CONFIRM WHERE HIT = 0 AND A.BBS_NO = ARTICLEIDX) as nohit
+		FROM 		CM_SUPPER_BBS A
+		WHERE       A.BBS_CONT_DIV_CD = '2'
+		]]>
+     	<isNotEmpty property="searchTxt">
+		<![CDATA[	AND A.TTL LIKE '%' || #searchTxt# || '%']]>
+		</isNotEmpty>
+		<![CDATA[ORDER BY A.BBS_NO DESC]]>
+		<include refid="pagingFooter"/>
+	</select>
+
+
+	<select id="selectNoticNotCompDtlTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT	COUNT(A.CODEIDX)
+		FROM 	SC_ARTICLE_CONFIRM A, CM_SUPPER_BBS B
+		]]>
+		<isNotEmpty property="find">
+		<![CDATA[	, CO_SUPP_COMP_MAST C ]]>
+		</isNotEmpty>
+		WHERE 	1 = 1
+		AND 	B.BBS_NO = A.ARTICLEIDX
+		AND     B.BBS_CONT_DIV_CD = '2'
+		AND     B.BBS_NO = #bbsNo#
+		<isNotEmpty property="find">
+		<![CDATA[
+		AND C.SUPP_COMP_ID = A.CODEIDX
+		AND	C.BCNC_NM LIKE '%' || #find# || '%'
+		]]>
+		</isNotEmpty>
+		<isEqual property="hFlag" compareValue="1">
+		<![CDATA[ AND A.CODEIDX NOT IN (SELECT CODEIDX FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = #bbsNo# AND  HIT > 0) ]]>
+		</isEqual>
+		<isEqual property="hFlag" compareValue="2">
+		<![CDATA[ AND A.CODEIDX IN (SELECT CODEIDX FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = #bbsNo# AND  HIT > 0)]]>
+		</isEqual>
+	</select>
+
+	<select id="selectNoticNotCompDtlList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT	 A.CODEIDX AS IDX
+			    ,TO_CHAR(A.REG_DATE, 'YYYY/MM/DD') AS REG_DATE
+				,(SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.CODEIDX)  AS BIZNAME
+		FROM 	SC_ARTICLE_CONFIRM A, CM_SUPPER_BBS B
+		]]>
+		<isNotEmpty property="find">
+		<![CDATA[	, CO_SUPP_COMP_MAST C ]]>
+		</isNotEmpty>
+		WHERE 	1 = 1
+		AND 	B.BBS_NO = A.ARTICLEIDX
+		AND     B.BBS_CONT_DIV_CD = '2'
+		AND     B.BBS_NO = #bbsNo#
+		<isNotEmpty property="find">
+		<![CDATA[
+		AND C.SUPP_COMP_ID = A.CODEIDX
+		AND	C.BCNC_NM LIKE '%' || #find# || '%'
+		]]>
+		</isNotEmpty>
+		<isEqual property="hFlag" compareValue="1">
+		<![CDATA[ AND A.CODEIDX NOT IN (SELECT CODEIDX FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = #bbsNo# AND  HIT > 0) ]]>
+		</isEqual>
+		<isEqual property="hFlag" compareValue="2">
+		<![CDATA[ AND A.CODEIDX IN (SELECT CODEIDX FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = #bbsNo# AND  HIT > 0)]]>
+		</isEqual>
+		<include refid="pagingFooter"/>
+	</select>
+
+	<select id="selectNoticNotCompDtlExcelList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT	 A.CODEIDX AS IDX
+			    ,TO_CHAR(A.REG_DATE, 'YYYY/MM/DD') AS REG_DATE
+				,(SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.CODEIDX)  AS BIZNAME
+		FROM 	SC_ARTICLE_CONFIRM A, CM_SUPPER_BBS B
+		]]>
+		<isNotEmpty property="find">
+		<![CDATA[	, CO_SUPP_COMP_MAST C ]]>
+		</isNotEmpty>
+		WHERE 	1 = 1
+		AND 	B.BBS_NO = A.ARTICLEIDX
+		AND     B.BBS_CONT_DIV_CD = '2'
+		AND     B.BBS_NO = #bbsNo#
+		<isNotEmpty property="find">
+		<![CDATA[
+		AND C.SUPP_COMP_ID = A.CODEIDX
+		AND	C.BCNC_NM LIKE '%' || #find# || '%'
+		]]>
+		</isNotEmpty>
+		<isEqual property="hFlag" compareValue="1">
+		<![CDATA[ AND A.CODEIDX NOT IN (SELECT CODEIDX FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = #bbsNo# AND  HIT > 0) ]]>
+		</isEqual>
+		<isEqual property="hFlag" compareValue="2">
+		<![CDATA[ AND A.CODEIDX IN (SELECT CODEIDX FROM SC_ARTICLE_CONFIRM WHERE ARTICLEIDX = #bbsNo# AND  HIT > 0)]]>
+		</isEqual>
+	</select>
+
+	<select id="selectNoticTrgtCompTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT  COUNT(Z.TARGETIDX)
+		FROM 	(
+				SELECT 	A.TARGETIDX AS TARGETIDX,
+		                A.NAME AS TARGETNAME,
+		                COUNT(B.IDX) AS CNT,
+		                TO_CHAR(A.CREATEDATE, 'YYYY-MM-DD') AS CREATEDATE,
+		                CREATOR
+		     	FROM 	SC_TARGET A, SC_TARGETLIST B
+		        WHERE 	A.DEL_FLAG='N'
+		        AND 	A.TARGETIDX = B.TARGETIDX(+)
+		        AND 	B.DEL_FLAG='N'
+		     	]]>
+		        <isNotEqual property="objectType" compareValue="ALL">
+		        <![CDATA[ AND A.OBJECT_TYPE = #objectType#]]>
+		        </isNotEqual>
+		        AND 	B.DEL_FLAG='N'
+		        <isNotEmpty property="fromDate">
+		        <![CDATA[ AND  	TO_CHAR(A.CREATEDATE, 'YYYY-MM-DD') >= #fromDate#]]>
+		        </isNotEmpty>
+		        <isNotEmpty property="toDate">
+		        <![CDATA[ AND  	TO_CHAR(A.CREATEDATE, 'YYYY-MM-DD') <= #toDate#]]>
+		        </isNotEmpty>
+		         <![CDATA[
+		        GROUP BY A.TARGETIDX, A.NAME, A.CREATOR, A.CREATEDATE ,A.OBJECT_TYPE
+        		) Z
+		]]>
+	</select>
+
+	<select id="selectNoticTrgtCompList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT 	A.TARGETIDX AS TARGETIDX,
+                A.NAME AS TARGETNAME,
+                COUNT(B.IDX) AS CNT,
+                TO_CHAR(A.CREATEDATE, 'YYYY-MM-DD') AS CREATEDATE,
+                A.CREATOR
+     	FROM 	SC_TARGET A, SC_TARGETLIST B
+        WHERE 	A.DEL_FLAG='N'
+        AND 	A.TARGETIDX = B.TARGETIDX(+)
+        AND 	B.DEL_FLAG='N'
+     	]]>
+        <isNotEqual property="objectType" compareValue="ALL">
+        <![CDATA[ AND A.OBJECT_TYPE = #objectType#]]>
+        </isNotEqual>
+        AND 	B.DEL_FLAG='N'
+        <isNotEmpty property="fromDate">
+        <![CDATA[ AND  	TO_CHAR(A.CREATEDATE, 'YYYY-MM-DD') >= #fromDate#]]>
+        </isNotEmpty>
+        <isNotEmpty property="toDate">
+        <![CDATA[ AND  	TO_CHAR(A.CREATEDATE, 'YYYY-MM-DD') <= #toDate#]]>
+        </isNotEmpty>
+        <![CDATA[
+        GROUP BY A.TARGETIDX, A.NAME, A.CREATOR, A.CREATEDATE ,A.OBJECT_TYPE
+        ORDER BY TARGETIDX DESC
+		]]>
+		<include refid="pagingFooter"/>
+	</select>
+
+	<update id="updateNoticTrgtCompInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+		UPDATE 	SC_TARGET
+		SET 	NAME 		= #targetname#
+		WHERE 	TARGETIDX 	= #targetidx#
+		]]>
+<!-- 		AND 	CREATOR 	= ?  -->
+	</update>
+
+	<update id="deleteNoticTrgtCompInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+		UPDATE 	SC_TARGET
+		SET 	DEL_FLAG ='Y'
+		WHERE 	TARGETIDX = #targetidx#
+		]]>
+<!-- 		AND CREATOR = ? -->
+	</update>
+
+	<select id="selectNoticTrgtCompDtlTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT  COUNT(TA.TARGETIDX)
+		FROM 	SC_TARGETLIST TL , SC_TARGET TA , CO_SUPP_COMP_MAST CS, CO_PAVLN_MGT PB
+		WHERE 	TA.TARGETIDX = #targetidx#
+		AND 	TA.TARGETIDX = TL.TARGETIDX
+		AND     CS.SUPP_COMP_ID = PB.SUPP_COMP_ID
+		AND 	TL.IDX = CS.SUPP_COMP_ID
+		AND  	TA.DEL_FLAG='N'
+		AND 	TL.DEL_FLAG ='N'
+		ORDER BY CS.BCNC_NM
+		]]>
+	</select>
+
+	<select id="selectNoticTrgtCompDtlList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT  (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='PAVLN_DIV_CD' AND COMN_CD_ID=PB.PAVLN_DIV_CD) AS NAME1,
+				(SELECT PONM FROM PICMT0060 WHERE EDPSCD = CS.PO_ECODE AND USEYN='Y' AND DSCDPOYN = 'N'  AND ROWNUM = 1   ) AS NAME2,
+				CS.BCNC_NM AS NAME3,
+				CS.SUPP_COMP_ID AS CODE
+		FROM 	SC_TARGETLIST TL , SC_TARGET TA , CO_SUPP_COMP_MAST CS, CO_PAVLN_MGT PB
+		WHERE 	TA.TARGETIDX = #targetidx#
+		AND 	TA.TARGETIDX = TL.TARGETIDX
+		AND     CS.SUPP_COMP_ID = PB.SUPP_COMP_ID
+		AND 	TL.IDX = CS.SUPP_COMP_ID
+		AND  	TA.DEL_FLAG='N'
+		AND 	TL.DEL_FLAG ='N'
+		ORDER BY CS.BCNC_NM
+     	]]>
+     	<include refid="pagingFooter"/>
+	</select>
+
+	<update id="deleteNoticTrgtCompDtlInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE FROM  SC_TARGETLIST
+		WHERE 		 TARGETIDX = #targetidx#
+		AND 		 IDX = #delCode#
+		]]>
+	</update>
+
+	<select id="selectSearchTargetTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT  COUNT(SUPP_COMP_ID)
+        FROM (
+	            SELECT A.SUPP_COMP_ID,
+                       A.BCNC_NM,
+                       A.COMPREG_NO,
+                       A.PRSDT_MOBILE_NO,
+                       A.EMAIL,
+                       A.PO_ECODE,
+                       (SELECT RCOCD FROM PICMT0060 WHERE EDPSCD = A.PO_ECODE AND USEYN='Y' AND DSCDPOYN = 'N' AND ROWNUM = 1) AS RCOCD,
+                       (SELECT MPOREGIPOCD FROM PICMT0060 WHERE EDPSCD = A.PO_ECODE AND USEYN='Y' AND DSCDPOYN = 'N' AND ROWNUM = 1) AS MPOREGIPOCD,
+                       A.PRSDT_NM,
+                       A.CORP_SSN,
+                       A.ENTRPS,
+                       A.INDUTY,
+                       B.PAVLN_DIV_CD
+	            FROM   CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+	            WHERE  A.SUPP_COMP_ID = B.SUPP_COMP_ID
+	            AND    SUPP_COMP_DIV_CD NOT IN ('08')
+	            ]]>
+	            <isNotEmpty property="pavlnDivCd">
+					AND B.PAVLN_DIV_CD = #pavlnDivCd#
+				</isNotEmpty>
+				<isNotEmpty property="bizname">
+					AND A.BCNC_NM LIKE '%'||#bizname#||'%'
+				</isNotEmpty>
+	    <![CDATA[
+        ) Z
+        WHERE  1 = 1
+		]]>
+	</select>
+
+	<select id="selectSearchTargetList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT  SUPP_COMP_ID,
+                BCNC_NM,
+                COMPREG_NO,
+                PRSDT_MOBILE_NO,
+                EMAIL,
+                SUPP_COMP_STUS_CD,
+                (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SUPP_COMP_STUS_CD' AND COMN_CD_ID=Z.SUPP_COMP_STUS_CD) AS SUPP_COMP_STUS_NM,
+                PAVLN_DIV_CD,
+                (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='PAVLN_DIV_CD' AND COMN_CD_ID=Z.PAVLN_DIV_CD) AS PAVLN_DIV_NM,
+                PO_ECODE,
+                RCOCD,
+                MPOREGIPOCD,
+                (SELECT PONM FROM PICMT0060 WHERE USEYN='Y' AND DSCDPOYN='N' AND  PODIVCD ='02' AND RCOCD = Z.RCOCD) AS POSTOFFICE,
+                (SELECT PONM FROM PICMT0060 WHERE USEYN='Y' AND DSCDPOYN='N' AND PODIVCD IN ('05', '06', '10', '18') AND RCOCD = Z.RCOCD AND REGIPOCD = Z.MPOREGIPOCD) AS POSTNAME,
+                (SELECT PONM FROM PICMT0060 WHERE EDPSCD = Z.PO_ECODE AND USEYN='Y' AND DSCDPOYN = 'N'  AND ROWNUM = 1   )  AS PO_ECODE_NM,
+                PRSDT_NM,
+                CORP_SSN,
+                ENTRPS,
+                INDUTY
+        FROM (
+	           SELECT  A.SUPP_COMP_ID,
+                       A.BCNC_NM,
+                       A.COMPREG_NO,
+                       A.PRSDT_MOBILE_NO,
+                       A.EMAIL,
+                       B.SUPP_COMP_STUS_CD,
+                       A.PO_ECODE,
+                       (SELECT RCOCD FROM PICMT0060 WHERE EDPSCD = A.PO_ECODE AND USEYN='Y' AND DSCDPOYN = 'N' AND ROWNUM = 1) AS RCOCD,
+                       (SELECT MPOREGIPOCD FROM PICMT0060 WHERE EDPSCD = A.PO_ECODE AND USEYN='Y' AND DSCDPOYN = 'N' AND ROWNUM = 1) AS MPOREGIPOCD,
+                       A.PRSDT_NM,
+                       A.CORP_SSN,
+                       A.ENTRPS,
+                       A.INDUTY,
+                       B.PAVLN_DIV_CD
+	            FROM   CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+	            WHERE  A.SUPP_COMP_ID = B.SUPP_COMP_ID
+	            AND    SUPP_COMP_DIV_CD NOT IN ('08')
+	            ]]>
+	            <isNotEmpty property="pavlnDivCd">
+					AND B.PAVLN_DIV_CD = #pavlnDivCd#
+				</isNotEmpty>
+				<isNotEmpty property="bizname">
+					AND A.BCNC_NM LIKE '%'||#bizname#||'%'
+				</isNotEmpty>
+	    <![CDATA[
+        ) Z
+        WHERE  1 = 1
+		]]>
+     	<include refid="pagingFooter"/>
+	</select>
+
+	<select id="selectNoticCompSearchListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT 	COUNT(SUPP_COMP_ID)
+      	FROM 	CO_SUPP_COMP_MAST
+        WHERE 	SUPP_COMP_DIV_CD NOT IN ('08')
+     	]]>
+     	<isNotEmpty property="find">
+     		<isEqual property="findType" compareValue="name">
+			<![CDATA[
+			AND 	BCNC_NM LIKE '%' || #find# || '%'
+			]]>
+			</isEqual>
+			<isEqual property="findType" compareValue="code">
+			<![CDATA[
+			AND 	SUPP_COMP_ID LIKE '%' || #find# || '%'
+			]]>
+			</isEqual>
+			<isEqual property="findType" compareValue="regcode">
+			<![CDATA[
+			AND 	CORP_REG_NO LIKE '%' || #find# || '%'
+			]]>
+			</isEqual>
+     	</isNotEmpty>
+	</select>
+
+	<select id="selectNoticCompSearchListList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT 	SUPP_COMP_ID CODE,
+                BCNC_NM NAME ,
+                CORP_REG_NO REGNO
+      	FROM 	CO_SUPP_COMP_MAST
+        WHERE 	SUPP_COMP_DIV_CD NOT IN ('08')
+     	]]>
+     	<isNotEmpty property="find">
+     		<isEqual property="findType" compareValue="name">
+			<![CDATA[
+			AND 	BCNC_NM LIKE '%' || #find# || '%'
+			]]>
+			</isEqual>
+			<isEqual property="findType" compareValue="code">
+			<![CDATA[
+			AND 	SUPP_COMP_ID LIKE '%' || #find# || '%'
+			]]>
+			</isEqual>
+			<isEqual property="findType" compareValue="regcode">
+			<![CDATA[
+			AND 	CORP_REG_NO LIKE '%' || #find# || '%'
+			]]>
+			</isEqual>
+     	</isNotEmpty>
+     	<include refid="pagingFooter"/>
+	</select>
+
+	<insert id="insertTargetRegist1" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO SC_TARGET
+		VALUES (
+				(SELECT MAX(TARGETIDX) + 1 FROM SC_TARGET),
+				#targetname# ,
+				SYSDATE,
+				'N',
+				#loginId#,
+				'02',
+				#targetType#,
+				'N'
+			   )
+		]]>
+	</insert>
+
+	<insert id="insertTargetRegist2" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO SC_TARGETLIST
+		VALUES (
+				(SELECT MAX(TARGETIDX) FROM SC_TARGET WHERE CREATOR = #loginId#),
+				#idx#,
+				'N'
+		       )
+		]]>
+	</insert>
+
+	<insert id="insertFileDetail" parameterClass="java.util.HashMap" >
+		INSERT INTO CM_FILE_MGT ( ATTCHFILE_ID
+								, FILE_SEQ
+								, FILE_STRE_PATH
+								, STRE_FILE_NM
+								, ORIG_FILE_NM
+								, FILE_EXTNER
+								, FILE_SIZE
+								, DEL_YN
+								, REG_DATE
+								, CHG_DATE
+								, REGER_ID
+								, CHGER_ID )
+						 VALUES ( #attchfileId#
+								, ( SELECT NVL(MAX(FILE_SEQ)+1, 0)
+                                      FROM CM_FILE_MGT
+                                     WHERE ATTCHFILE_ID = #attchfileId# )
+								, #fileStrePath#
+								, #streFileNm#
+								, #origFileNm#
+								, #fileExtner#
+								, #fileSize#
+								, 'N'
+								, SYSDATE
+								, SYSDATE
+								, #loginId#
+								, #loginId# )
+	</insert>
+
+	<delete id="deleteFileDetail" parameterClass="java.util.HashMap" >
+		DELETE FROM CM_FILE_MGT
+		WHERE ATTCHFILE_ID = #attchfileId#
+		<isNotEmpty property="fileSeq">
+		AND FILE_SEQ = #fileSeq#
+		</isNotEmpty>
+	</delete>
+
+	<select id="selectTargetSampleList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT DISTINCT(SUPP_COMP_ID)
+		FROM CO_PAVLN_MGT
+		WHERE SUPP_COMP_STUS_CD = '05'
+	</select>
+
+</sqlMap>

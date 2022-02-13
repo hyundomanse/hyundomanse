@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.SuplyVolmSmrize">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!--공급물량총괄조회 - PostNet  -->
+	<select id="retrieveSuppoStockStat1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+        		RCO_CD, RCO_NM, MPO_REGI_PO_CD, MPO_REGI_PO_NM, SUPP_PO_REGI_PO_CD, SUPP_PO_REGI_PO_NM,
+	            SUM(NVL(TOT_SUM_STOCK, 0)) TOT_SUM_STOCK,
+	            SUM(NVL(TOT_STOCK, 0)) TOT_STOCK,
+	            SUM(CASE WHEN (STATUS='02') AND (GOODS_CHG_REASN_CD='04') THEN 1 ELSE 0 END) STOCK_STOP_CNT
+	        FROM GD_GOODS_STOCK_HISTORY
+	        WHERE 1 = 1 
+	        AND GOODS_CD_YMD = #search_strt_ymd#
+	        GROUP BY RCO_CD, RCO_NM, MPO_REGI_PO_CD, MPO_REGI_PO_NM, SUPP_PO_REGI_PO_CD, SUPP_PO_REGI_PO_NM
+	        ORDER BY RCO_CD, RCO_NM, MPO_REGI_PO_CD, MPO_REGI_PO_NM, SUPP_PO_REGI_PO_CD, SUPP_PO_REGI_PO_NM
+        ]]>
+	</select>
+	
+	<!--공급물량총괄조회(청) - PostNet  -->
+	<select id="retrieveSuppoStockStat2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+				RCO_CD, RCO_NM,
+	            SUM(NVL(TOT_SUM_STOCK, 0)) TOT_SUM_STOCK,
+	            SUM(NVL(TOT_STOCK, 0)) TOT_STOCK,
+	            SUM(CASE WHEN (STATUS='02') AND (GOODS_CHG_REASN_CD='04') THEN 1 ELSE 0 END) STOCK_STOP_CNT
+	        FROM GD_GOODS_STOCK_HISTORY
+	        WHERE 1 = 1 
+	        AND GOODS_CD_YMD = #search_strt_ymd#
+			AND RCO_CD = #SearchRcode#
+			GROUP BY RCO_CD, RCO_NM
+		]]>
+	</select>
+	
+	<!--공급물량총괄조회(총괄국) - PostNet  -->
+	<select id="retrieveSuppoStockStat3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+				RCO_CD, RCO_NM, MPO_REGI_PO_CD, MPO_REGI_PO_NM,
+	            SUM(NVL(TOT_SUM_STOCK, 0)) TOT_SUM_STOCK,
+	            SUM(NVL(TOT_STOCK, 0)) TOT_STOCK,
+	            SUM(CASE WHEN (STATUS='02') AND (GOODS_CHG_REASN_CD='04') THEN 1 ELSE 0 END) STOCK_STOP_CNT
+	        FROM GD_GOODS_STOCK_HISTORY
+	        WHERE 1 = 1 
+	        AND GOODS_CD_YMD = #search_strt_ymd#
+			AND MPO_REGI_PO_CD = #SearchRcode#
+			GROUP BY RCO_CD, RCO_NM, MPO_REGI_PO_CD, MPO_REGI_PO_NM
+        ]]>	
+	</select>
+	
+	<!--공급물량총괄조회(공급국) - PostNet  -->
+	<select id="retrieveSuppoStockStat4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+				RCO_CD, RCO_NM, MPO_REGI_PO_CD, MPO_REGI_PO_NM, SUPP_PO_REGI_PO_CD, SUPP_PO_REGI_PO_NM,
+	            SUM(NVL(TOT_SUM_STOCK, 0)) TOT_SUM_STOCK,
+	            SUM(NVL(TOT_STOCK, 0)) TOT_STOCK,
+	            SUM(CASE WHEN (STATUS='02') AND (GOODS_CHG_REASN_CD='04') THEN 1 ELSE 0 END) STOCK_STOP_CNT
+	        FROM GD_GOODS_STOCK_HISTORY
+	        WHERE 1 = 1 
+	        AND GOODS_CD_YMD = #search_strt_ymd#
+			AND SUPP_PO_REGI_PO_CD = #SearchRcode#
+			GROUP BY RCO_CD, RCO_NM, MPO_REGI_PO_CD, MPO_REGI_PO_NM, SUPP_PO_REGI_PO_CD, SUPP_PO_REGI_PO_NM
+        ]]>	
+	</select>
+	
+</sqlMap>

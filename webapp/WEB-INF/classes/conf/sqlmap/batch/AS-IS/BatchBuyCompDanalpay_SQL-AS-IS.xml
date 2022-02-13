@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BuyCompDanalpay">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectBuyCompDanalpay" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				M.TID TID                        
+				,T.PURCHASE_ID                    
+			FROM TXORDER T, MOBILE_PAYMENT M       
+			WHERE T.PURCHASE_ID = M.PURCHASE_ID     
+			AND T.COMPLETE_DATE BETWEEN TO_CHAR(ADD_MONTHS(SYSDATE, - 9), 'YYYYMM') || '21000000' AND TO_CHAR(ADD_MONTHS(SYSDATE, - 6), 'YYYYMM') || '31235959'  
+			AND T.PAYMETHOD='I'                                      
+			AND M.STATUS='D1'                      
+			GROUP BY M.TID, T.PURCHASE_ID
+		]]>	 
+	</select>		
+	
+	<update id="updateMobilePayment" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE MOBILE_PAYMENT                   
+				SET STATUS = 'S1',                   
+				BUYCOMPREQYMD = TO_CHAR(SYSDATE, 'YYYYMMDD') 
+			WHERE PURCHASE_ID = #purchaseId#   
+		]]>
+	</update>	
+	
+	<update id="updatePmtInstruction" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE PMT_INSTRUCTION                
+				SET STATE = '2200',                
+				RECEIVE_DATE = TO_CHAR( SYSDATE, 'YYYYMMDDHH24MI' ) 
+			WHERE PURCHASE_ID = #purchaseId#   
+		]]>
+	</update>	
+	
+</sqlMap>

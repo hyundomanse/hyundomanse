@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchSendOkCashBagFund">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- AS-IS 변환 전 -->
+	<select id="selectOdOkcashFundList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				'I' JOBGBN , 
+				PURCHASE_ID , 
+				AUTHID_SEED , 
+				PAYMESTPCD,
+				COMPLETE_DATE, 
+				0 OKCASH_POINT , 
+				'' TXNO , 
+				'' APPTIME,  
+				POINT, 
+				TRUNC(POINT * ? * 0.01) POINT1, 
+				TRUNC(POINT * ? * 0.01 ) POINT2 , 
+				APPDATE     
+			FROM (                                                     
+						SELECT 
+							A.PURCHASE_ID                                                               
+							,MAX(A.AUTHID_SEED) AUTHID_SEED                 
+							,MAX(A.PAYMESTPCD) PAYMESTPCD                              
+							,MAX(SUBSTR(B.COMPLETE_DATE,1,8)) COMPLETE_DATE       
+							,NVL(SUM(B.AMOUNT- (NVL(B.RM_AMOUNT,0) + NVL(B.RM_PEF_AMOUNT,0) + NVL(B.SP_AMOUNT,0) + NVL(B.SP_PEF_AMOUNT,0)  + NVL(B.COUPON_AMOUNT,0) + NVL(B.AMOUNT_OKCASH,0) )),0) POINT       
+							,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE         
+						FROM OD_OKCASH_FUND A , TXORDER B                              
+						WHERE A.PURCHASE_ID = B.PURCHASE_ID                                           
+						AND A.JUNG_DATE >= TO_CHAR(SYSDATE-15,'YYYYMMDD')         
+						AND A.SMODE = 'N011'                                     
+						AND A.STATUS = '00'                                     
+						AND B.COMPLETE_DATE >= TO_CHAR(SYSDATE-2,'YYYYMMDD')     
+						AND B.CANCEL_STATE = 'N'                                 
+						AND B.AMOUNT > 0                                         
+						AND A.OKCASH_POINT_SENDDATE IS NULL                      
+						GROUP BY  A.PURCHASE_ID                                   
+						)                                                                   
+			WHERE POINT > 99         
+			                                         
+			UNION ALL              
+			                                          
+			SELECT 
+				'C' JOBGBN , 
+				PURCHASE_ID , 
+				AUTHID_SEED ,
+				PAYMESTPCD, 
+				COMPLETE_DATE, 
+				OKCASH_POINT,
+				TXNO ,
+				APPTIME, 
+				POINT, 
+				TRUNC(POINT * ? * 0.01) POINT1, 
+				TRUNC(POINT * ? * 0.01 ) POINT2 , 
+				APPDATE   
+			FROM (                                                     
+						SELECT 
+							A.PURCHASE_ID                                                                                     
+							,MAX(A.AUTHID_SEED) AUTHID_SEED                        
+							,MAX(A.PAYMESTPCD) PAYMESTPCD                                         
+							,MAX(SUBSTR(B.COMPLETE_DATE,1,8)) COMPLETE_DATE      
+							,MAX(A.OKCASH_POINT_AMOUNT) OKCASH_POINT ,MAX(A.TXNO) TXNO , MAX(A.APPTIME) APPTIME     
+							,MAX(A.AMOUNT) AMOUNT                                 
+							,NVL(SUM( DECODE(B.CANCEL_STATE ,'N',B.AMOUNT- (NVL(B.RM_AMOUNT,0) + NVL(B.RM_PEF_AMOUNT,0) + NVL(B.SP_AMOUNT,0) + NVL(B.SP_PEF_AMOUNT,0)  + NVL(B.COUPON_AMOUNT,0) + NVL(B.AMOUNT_OKCASH,0) ) ,0)),0) POINT        
+							,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE              
+						FROM OD_OKCASH_FUND A, TXORDER B                               
+						WHERE A.PURCHASE_ID = B.PURCHASE_ID                        
+						AND A.PURCHASE_ID IN (                                   
+																	SELECT 
+																		/*+ INDEX ( A TXORDER_IX13 ) */ DISTINCT A.PURCHASE_ID                                        
+																	FROM TXORDER A  ,  OD_OKCASH_FUND B                                           
+																	WHERE A.PURCHASE_ID = B.PURCHASE_ID                    
+																	AND A.CANCEL_DATE >= TO_CHAR(SYSDATE -2,'YYYYMMDD')                               
+																	AND A.CANCEL_DATE <= TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'         
+																	AND A.CANCEL_STATE = 'Y'                             
+																	AND B.SMODE = 'N011'                                 
+																	AND B.STATUS IN ('D1','D2')                                                     
+																	)                                                        
+						AND A.OKCASH_POINT_AMOUNT > 0                            
+						AND A.SMODE = 'N011'                                      
+						AND A.STATUS = 'D1'                                        
+						GROUP BY A.PURCHASE_ID                                       
+						)                                                          
+			WHERE AMOUNT <> POINT    
+			                                     
+			UNION ALL          
+			                                              
+			SELECT 
+				'I' JOBGBN , 
+				PURCHASE_ID , 
+				AUTHID_SEED ,
+				PAYMESTPCD, 
+				COMPLETE_DATE, 
+				OKCASH_POINT,
+				TXNO ,
+				APPTIME, 
+				POINT, 
+				TRUNC(POINT * ? * 0.01) POINT1, 
+				TRUNC(POINT * ? * 0.01 ) POINT2 , 
+				APPDATE   
+			FROM (                                                     
+						SELECT 
+							A.PURCHASE_ID                                                                                     
+							,MAX(A.AUTHID_SEED) AUTHID_SEED                          
+							,MAX(A.PAYMESTPCD) PAYMESTPCD                                     
+							,MAX(SUBSTR(B.COMPLETE_DATE,1,8)) COMPLETE_DATE      
+							,MAX(A.OKCASH_POINT_AMOUNT) OKCASH_POINT ,MAX(A.TXNO) TXNO , MAX(A.APPTIME) APPTIME     
+							,MAX(A.AMOUNT) AMOUNT                                  
+							,NVL(SUM( DECODE(B.CANCEL_STATE ,'N',B.AMOUNT- (NVL(B.RM_AMOUNT,0) + NVL(B.RM_PEF_AMOUNT,0) + NVL(B.SP_AMOUNT,0) + NVL(B.SP_PEF_AMOUNT,0)  + NVL(B.COUPON_AMOUNT,0) + NVL(B.AMOUNT_OKCASH,0) ) ,0)),0) POINT        
+							,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE              
+						FROM OD_OKCASH_FUND A, TXORDER B                                 
+						WHERE A.PURCHASE_ID = B.PURCHASE_ID                        
+						AND A.PURCHASE_ID IN (                                   
+																	SELECT 
+																		/*+ INDEX ( A TXORDER_IX13 ) */ DISTINCT A.PURCHASE_ID                                        
+																	FROM TXORDER A  ,  OD_OKCASH_FUND B                                          
+																	WHERE A.PURCHASE_ID = B.PURCHASE_ID                    
+																	AND A.CANCEL_DATE >= TO_CHAR(SYSDATE -2,'YYYYMMDD')                               
+																	AND A.CANCEL_DATE <= TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'         
+																	AND A.CANCEL_STATE = 'Y'                             
+																	AND B.SMODE = 'N011'                                 
+																	AND B.STATUS IN ('D1','D2')                                                     
+																	)                                                        
+						AND A.OKCASH_POINT_AMOUNT > 0                            
+						AND A.SMODE = 'N011'                                     
+						AND A.STATUS = 'D2'                                       
+						GROUP BY A.PURCHASE_ID                                     
+						)                                                          
+			WHERE  POINT > 99 
+			                                             
+			UNION ALL		
+			                                                 
+			SELECT 
+				'C1' JOBGBN ,
+				A.PURCHASE_ID ,
+				B.AUTHID_SEED, 
+				B.PAYMESTPCD,
+				TO_CHAR(SYSDATE,'YYYYMMDD') COMPLETE_DATE, 
+				A.AMOUNT OKCASH_POINT ,
+				A.TXNO ,
+				A.APPTIME,
+				1 POINT,
+				1 POINT1,
+				1 POINT2,
+				TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE    
+			FROM  OD_OKCASH_PAYMENT A , OD_OKCASH_FUND B                   
+			WHERE A.PURCHASE_ID = B.PURCHASE_ID(+)                   
+			AND A.PURCHASE_ID IN (                                 
+														SELECT 
+															PURCHASE_ID                                
+														FROM (                                           
+																	SELECT 
+																	/*+ INDEX( A OD_OKCASH_PAYMENT_IX01) */   
+																	A.PURCHASE_ID,                         
+																	SUM(DECODE(B.CANCEL_STATE,'Y',1,0)) CANCEL_CNT,    
+																	SUM(DECODE(B.STATUS_DETAIL,'03',1,'04',1,0)) PEF_CANCEL_CNT,    
+																	COUNT(B.TXORDER_ID) ORDER_CNT                      
+																	FROM OD_OKCASH_PAYMENT A, TXORDER B , CONTACT C              
+																	WHERE A.PURCHASE_ID = B.PURCHASE_ID                     
+																	AND  B.BILL_TO_ID  = C.CONTACT_ID                        
+																	AND  A.STATUS = 'D1'                                     
+																	AND  NVL(B.AMOUNT_OKCASH,0) > 0                         
+																	AND A.APPTIME  BETWEEN  TO_CHAR(SYSDATE-15,'YYYYMMDD')  AND TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'    
+																	GROUP BY A.PURCHASE_ID                                     
+																	)                                                                  
+														WHERE CANCEL_CNT = ORDER_CNT                                    
+														AND CANCEL_CNT > 0 		                                       
+														AND PEF_CANCEL_CNT = 0                                           
+														)                                                                          
+			AND B.SMODE = 'N011'                                                                                                     
+		]]>	 
+	</select>	
+	<!-- 변환 후(적립/적립취소/사용취소 전체쿼리) -->
+	<select id="selectOdOkcashFundList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				'I' JOBGBN , 
+				ORDER_ID , 
+				AUTHID_SEED , 
+				PAYMESTPCD,
+				COMPLETE_DATE, 
+				0 OKCASH_POINT , 
+				'' TXNO , 
+				'' APPTIME,  
+				POINT, 	
+				TRUNC(POINT * #sFundRate# * 0.01) POINT1, 
+				TRUNC(POINT * #sFundCsfRate# * 0.01 ) POINT2,
+				APPDATE     
+			FROM (                                                     
+						SELECT 
+							A.ORDER_ID                                                               
+							,MAX(A.AUTHID_SEED) AUTHID_SEED                 
+							,MAX(A.PAYMESTPCD) PAYMESTPCD                              
+							,MAX(TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) COMPLETE_DATE       
+							,NVL(SUM((C.DC_APPLY_PRC + NVL(C.OPTN_GOODS_APPLY_PRC,0) + NVL(C.SEND_PRC,0)) - (NVL(C.PREMI_CUST_PNT_SETL_AMT,0) + NVL(C.PREMI_CUST_PNT_REFUND_APRV_AMT,0) + NVL(C.PNT_USE_AMT,0) + NVL(C.PNT_REFUND_SETL_AMT,0)  + NVL(C.CPN_DC_AMT,0) + NVL(C.OKCASH_USE_AMT,0) + NVL(C.WALLET_SETL_AMT,0) )),0) POINT       
+							,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE         
+						FROM OD_OKCASH_FUND A, OD_ORDER_MAST B, OD_ORDER_ITM C
+						WHERE 1 = 1
+						AND A.ORDER_ID = B.ORDER_ID
+						AND A.ORDER_ID = C.ORDER_ID
+						AND A.JUNG_DATE >= TO_CHAR(SYSDATE-15,'YYYYMMDD')         
+						AND A.SMODE = 'N011'                                     
+						AND A.STATUS = '00'                                     
+						AND B.APPR_DATE >= TO_DATE(TO_CHAR(SYSDATE -2,'YYYYMMDD'),'YYYYMMDD')      
+						AND C.GOODS_CANCEL_YN = 'N'                                 
+						AND (C.DC_APPLY_PRC + NVL(C.OPTN_GOODS_APPLY_PRC,0) + NVL(C.SEND_PRC,0))  > 0
+						AND A.OKCASH_POINT_SENDDATE IS NULL                      
+						GROUP BY  A.ORDER_ID                                   
+						)                                                                   
+			WHERE POINT > 99      
+			       
+			UNION ALL              
+			                                          
+			SELECT 
+				'C' JOBGBN , 
+				ORDER_ID , 
+				AUTHID_SEED ,
+				PAYMESTPCD, 
+				COMPLETE_DATE, 
+				OKCASH_POINT,
+				TXNO ,
+				APPTIME, 
+				POINT, 
+				TRUNC(POINT * #sFundRate# * 0.01) POINT1, 
+				TRUNC(POINT * #sFundCsfRate# * 0.01 ) POINT2 ,
+				APPDATE   
+			FROM (                                                     
+						SELECT 
+							A.ORDER_ID                                                                                     
+							,MAX(A.AUTHID_SEED) AUTHID_SEED                        
+							,MAX(A.PAYMESTPCD) PAYMESTPCD                                         
+							,MAX(TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) COMPLETE_DATE       
+							,MAX(A.OKCASH_POINT_AMOUNT) OKCASH_POINT 
+							,MAX(A.TXNO) TXNO 
+							,MAX(A.APPTIME) APPTIME     
+							,MAX(A.AMOUNT) AMOUNT                                 
+							,NVL(SUM( DECODE(C.GOODS_CANCEL_YN ,'N', (C.DC_APPLY_PRC + NVL(C.OPTN_GOODS_APPLY_PRC,0) + NVL(C.SEND_PRC,0)) - (NVL(C.PREMI_CUST_PNT_SETL_AMT,0) + NVL(C.PREMI_CUST_PNT_REFUND_APRV_AMT,0) + NVL(C.PNT_USE_AMT,0) + NVL(C.PNT_REFUND_SETL_AMT,0)  + NVL(C.CPN_DC_AMT,0) + NVL(C.OKCASH_USE_AMT,0) + NVL(C.WALLET_SETL_AMT,0) ) ,0)),0) POINT
+							,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE              
+						FROM OD_OKCASH_FUND A, OD_ORDER_MAST B, OD_ORDER_ITM C                            
+						WHERE 1 = 1
+						AND A.ORDER_ID = B.ORDER_ID
+						AND A.ORDER_ID = C.ORDER_ID                     
+						AND A.ORDER_ID IN (                                   
+																	SELECT 
+																		DISTINCT A.ORDER_ID                                        
+																	FROM OD_ORDER_MAST A, OD_ORDER_ITM B,  OD_OKCASH_FUND C
+																	WHERE 1 = 1 
+																	AND A.ORDER_ID = B.ORDER_ID
+																	AND A.ORDER_ID = C.ORDER_ID
+																	AND B.GOODS_CANCEL_DATE >= TO_DATE(TO_CHAR(SYSDATE -2,'YYYYMMDD'),'YYYYMMDD')                               
+																	AND B.GOODS_CANCEL_DATE <= TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD') || '235959','YYYYMMDDHH24MISS')        
+																	AND B.GOODS_CANCEL_YN = 'Y'                             
+																	AND C.SMODE = 'N011'                                 
+																	AND C.STATUS IN ('D1','D2')                                                     
+																	)                                                        
+						AND A.OKCASH_POINT_AMOUNT > 0                            
+						AND A.SMODE = 'N011'                                      
+						AND A.STATUS = 'D1'                                        
+						GROUP BY A.ORDER_ID                                       
+						)                                                          
+			WHERE AMOUNT <> POINT    
+			                                     
+			UNION ALL          
+			                                              
+			SELECT 
+				'I' JOBGBN , 
+				ORDER_ID , 
+				AUTHID_SEED ,
+				PAYMESTPCD, 
+				COMPLETE_DATE, 
+				OKCASH_POINT,
+				TXNO ,
+				APPTIME, 
+				POINT, 
+				TRUNC(POINT * #sFundRate# * 0.01) POINT1, 
+				TRUNC(POINT * #sFundCsfRate# * 0.01 ) POINT2 , 
+				APPDATE   
+			FROM (                                                     
+						SELECT 
+							A.ORDER_ID                                                                                     
+							,MAX(A.AUTHID_SEED) AUTHID_SEED                          
+							,MAX(A.PAYMESTPCD) PAYMESTPCD                                     
+							,MAX(TO_CHAR(B.APPR_DATE, 'YYYYMMDD')) COMPLETE_DATE       
+							,MAX(A.OKCASH_POINT_AMOUNT) OKCASH_POINT 
+							,MAX(A.TXNO) TXNO 
+							,MAX(A.APPTIME) APPTIME     
+							,MAX(A.AMOUNT) AMOUNT                                  
+							,NVL(SUM( DECODE(C.GOODS_CANCEL_YN ,'N', (C.DC_APPLY_PRC + NVL(C.OPTN_GOODS_APPLY_PRC,0) + NVL(C.SEND_PRC,0)) - (NVL(C.PREMI_CUST_PNT_SETL_AMT,0) + NVL(C.PREMI_CUST_PNT_REFUND_APRV_AMT,0) + NVL(C.PNT_USE_AMT,0) + NVL(C.PNT_REFUND_SETL_AMT,0)  + NVL(C.CPN_DC_AMT,0) + NVL(C.OKCASH_USE_AMT,0) + NVL(C.WALLET_SETL_AMT,0) ) ,0)),0) POINT        
+							,TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE              
+						FROM OD_OKCASH_FUND A, OD_ORDER_MAST B, OD_ORDER_ITM C                            
+						WHERE 1 = 1
+						AND A.ORDER_ID = B.ORDER_ID
+						AND A.ORDER_ID = C.ORDER_ID     
+						AND A.ORDER_ID IN (                                   
+																	SELECT 
+																		DISTINCT A.ORDER_ID                                        
+																	FROM OD_ORDER_MAST A, OD_ORDER_ITM B,  OD_OKCASH_FUND C                                  
+																	WHERE 1 = 1 
+																	AND A.ORDER_ID = B.ORDER_ID
+																	AND A.ORDER_ID = C.ORDER_ID
+																	AND B.GOODS_CANCEL_DATE >= TO_DATE(TO_CHAR(SYSDATE -2,'YYYYMMDD'),'YYYYMMDD')                               
+																	AND B.GOODS_CANCEL_DATE <= TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD') || '235959','YYYYMMDDHH24MISS')        
+																	AND B.GOODS_CANCEL_YN = 'Y'      
+																	AND C.SMODE = 'N011'                                 
+																	AND C.STATUS IN ('D1','D2')                                                     
+																	)                                                        
+						AND A.OKCASH_POINT_AMOUNT > 0                            
+						AND A.SMODE = 'N011'                                     
+						AND A.STATUS = 'D2'                                       
+						GROUP BY A.ORDER_ID                                     
+						)                                                          
+			WHERE  POINT > 99 
+			                                             
+			UNION ALL		
+			                                                 
+			SELECT 
+				'C1' JOBGBN ,
+				A.ORDER_ID ,
+				B.AUTHID_SEED, 
+				B.PAYMESTPCD,
+				TO_CHAR(SYSDATE,'YYYYMMDD') COMPLETE_DATE, 
+				A.AMOUNT OKCASH_POINT ,
+				A.TXNO ,
+				A.APPTIME,
+				1 POINT,
+				1 POINT1,
+				1 POINT2,
+				TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') APPDATE    
+			FROM  OD_OKCASH_PAYMENT A , OD_OKCASH_FUND B                   
+			WHERE A.ORDER_ID = B.ORDER_ID(+)                   
+			AND A.ORDER_ID IN (                                 
+														SELECT 
+															ORDER_ID                                
+														FROM (                                           
+																	SELECT 
+																		/*+ INDEX( A OD_OKCASH_PAYMENT_IX01) */   A.ORDER_ID,                         
+																		SUM(DECODE(C.GOODS_CANCEL_YN,'Y',1,0)) CANCEL_CNT,    
+																		SUM(DECODE(C.ORDER_DTAIL_STUS_CD,'C08',1,'C10',1,0)) PEF_CANCEL_CNT,    
+																		COUNT(C.ORDER_ID) ORDER_CNT                      
+																	FROM OD_OKCASH_PAYMENT A, OD_ORDER_MAST B, OD_ORDER_ITM C           
+																	WHERE 1 = 1
+																	AND A.ORDER_ID = B.ORDER_ID                     
+																	AND A.ORDER_ID = C.ORDER_ID                     
+																	AND A.STATUS = 'D1'                                     
+																	AND A.AMOUNT > 0                         
+																	AND A.APPTIME  BETWEEN  TO_CHAR(SYSDATE-15,'YYYYMMDD')  AND TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'
+																	GROUP BY A.ORDER_ID                                     
+																	)                                                                  
+														WHERE CANCEL_CNT = ORDER_CNT                                    
+														AND CANCEL_CNT > 0 		                                       
+														AND PEF_CANCEL_CNT = 0                                           
+														)                                                                          
+			AND B.SMODE = 'N011'                                                   
+		]]>	 
+	</select>	
+
+	<update id="updateOdOkcashFund1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE OKCASH_FUND SET 
+				TXNO = ? , 
+				APPTIME = ? ,
+				AMOUNT = ?, 
+				OKCASH_POINT_AMOUNT = ? ,
+				OKCASH_POINT_CSF_AMOUNT = ? ,
+				STATUS = 'D1' ,
+				JUNG_DATE = ? , 
+				CANCEL_YN = 'N' , 
+				OKCASH_POINT_SENDDATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') 
+			WHERE PURCHASE_ID = ?  
+			  AND SMODE = 'N011'   
+		]]>
+	</update>
+		
+	<update id="updateOdOkcashFund2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE OKCASH_FUND SET 
+				TXNO = ? , 
+				APPTIME = ? ,
+				STATUS = 'D2' ,
+				CANCEL_YN = 'Y' , 
+				OKCASH_POINT_SENDDATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') 
+			WHERE PURCHASE_ID = ?  
+			AND SMODE = 'N011'    
+		]]>
+	</update>
+		
+	<update id="updateOdOkcashPayment" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE OKCASH_PAYMENT SET 
+				STATUS = 'D2' , 
+				CANCEL_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') 
+			WHERE PURCHASE_ID = ?  
+		]]>
+	</update>	
+
+	<update id="updateOdOrderSetl" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE PMT_INSTRUCTION SET 
+				STATE = '2999', 
+				CANCEL_DATE = TO_CHAR( SYSDATE, 'YYYYMMDDHH24MI' ) 
+			WHERE PURCHASE_ID = ?          
+			AND NVL(USE_YN,'Y') = 'Y'      
+			AND PAY_METHOD = 'K'          
+		]]>
+	</update>	
+
+	<update id="updateOdOrderItm" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER SET 
+				STATUS_DETAIL = '10'       
+			WHERE PURCHASE_ID = ?        
+			  AND PAYMETHOD = 'K'   
+		]]>
+	</update>	
+  
+	<update id="insertOdOkcashFundHistory" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO OKCASH_FUND_HISTORY           
+			(PURCHASE_ID, SEQ_NO,             
+			ACCESS_NAME,TXNO,APPTIME,AMOUNT,OKCASH_POINT_AMOUNT,OKCASH_POINT_CSF_AMOUNT,STATUS,CANCEL_YN,CASE_CONT, 
+			JUNG_DATE,OKCASH_POINT_SENDDATE,RESULT,RESULT_TEXT,CREATE_DATE 
+			)             
+			SELECT  PURCHASE_ID, ( SELECT NVL(MAX(SEQ_NO),0) + 1 
+			                       FROM  OKCASH_FUND_HISTORY     
+			                       WHERE PURCHASE_ID = ?             
+			                     ),                              
+			  ACCESS_NAME,TXNO,APPTIME,AMOUNT,OKCASH_POINT_AMOUNT,OKCASH_POINT_CSF_AMOUNT,STATUS,CANCEL_YN,CASE_CONT, 
+			  JUNG_DATE,OKCASH_POINT_SENDDATE,RESULT,RESULT_TEXT,CREATE_DATE 
+			FROM OKCASH_FUND      
+			WHERE PURCHASE_ID = ? 
+			  AND SMODE = 'N011'           
+		]]>
+	</update>	
+
+	<update id="updateOdOkcashFund3" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE OKCASH_FUND SET 
+				AUTHID_SEED = 'ZMgAPJu1KjducYCdg4lILA=='        
+			WHERE JUNG_DATE  >= TO_CHAR(SYSDATE-50,'YYYYMMDD')  
+			AND JUNG_DATE  <= TO_CHAR(SYSDATE-30,'YYYYMMDD')  
+			AND SMODE = 'N011'           
+			AND NVL(AUTHID_SEED,'') <> 'ZMgAPJu1KjducYCdg4lILA==' 
+		]]>
+	</update>	
+
+	<delete id="deleteOdOkcashFund" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM OKCASH_FUND 
+			WHERE JUNG_DATE  >= TO_CHAR(SYSDATE-10,'YYYYMMDD')  
+			AND JUNG_DATE  <= TO_CHAR(SYSDATE-3,'YYYYMMDD')   
+			AND SMODE = 'N010'    
+		]]>
+	</delete>	
+
+
+</sqlMap>

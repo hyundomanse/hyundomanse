@@ -1,0 +1,1322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetSummary">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="ORDERSUBMIT1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  REPLACE( START_DAY, '/', '' ) as StartDay, REPLACE( END_DAY, '/', '' ) || '9999' as EndDay
+	         FROM    history_adjust
+	         WHERE   TRANS_DAY IS NULL
+	         AND     ROWNUM = 1
+		]]>	 
+	</select>
+	
+	<update id="updateHistoryAdjust" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE history_adjust
+			SET TRANS_DAY = TO_CHAR( SYSDATE, 'YYYY/MM/DD' )
+			WHERE START_DAY =  SUBSTR( #StartDay#, 1, 4 ) ||'/'|| SUBSTR( #StartDay#, 5, 2 ) || '/' || SUBSTR( #StartDay#, 7, 2 ) 
+			AND   END_DAY =  SUBSTR( #EndDay#, 1, 4 ) ||'/'|| SUBSTR( #EndDay#, 5, 2 ) || '/' || SUBSTR( #EndDay#, 7, 2 )
+		]]>	 
+	</update>
+	
+	<select id="ORDERSUBMIT2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					TO_CHAR( SYSDATE -1 , 'YYYYMMDD' ) as StartDay, 
+					TO_CHAR( SYSDATE -1, 'YYYYMMDD' ) || '9999' as EndDay,
+					substr(TO_CHAR(sysdate,'yyyymmdd'),7,2) as ToDayDD,
+					TO_CHAR(sysdate - 1,'yyyymm') || '21' as PreMonth
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<delete id="deleteSpStat" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE
+	         FROM   SP_STAT
+	         WHERE  FROM_DATE >= SUBSTR( #StartDay#, 1, 8 ) 
+	         AND    FROM_DATE <= SUBSTR( #EndDay#, 1, 8 )
+		]]>	 
+	</delete>
+	
+				
+	<select id="SelectSPStatInsert1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(SUM(SP_AMOUNT), 0) as i_SP_AMOUNT,
+			       NVL(SUM(SP_PEF_AMOUNT), 0) as i_SP_PEF_AMOUNT,
+			       NVL(SUM(SP_AMOUNT+SP_PEF_AMOUNT), 0) as i_SP_JUNG_AMOUNT
+			  FROM HISTORY_STAT
+			 WHERE DAY >= SUBSTR( #StartDay#, 1, 4 ) || '/' || SUBSTR( #StartDay#, 5, 2 ) || '/' || SUBSTR( #StartDay#, 7, 2 )   
+			   AND DAY <= SUBSTR( #EndDay#, 1, 4 ) || '/' || SUBSTR( #EndDay#, 5, 2 ) || '/' || SUBSTR( #EndDay#, 7, 2 )
+		]]>	 
+	</select>
+	
+	<select id="SelectSPStatInsert2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(DECODE(SUBSTR(TO_DATE, 5, 4), '1130', 0, TOT_ACCU_POINT), 0) as iTOTACCUPOINT,
+		           NVL(DECODE(SUBSTR(TO_DATE, 5, 4), '1130', 0, TOT_USE_POINT), 0) as i_TOT_USE_POINT
+		     FROM SP_STAT
+		    WHERE FROM_DATE = (SELECT MAX(FROM_DATE) FROM SP_STAT) 
+		      AND ETC1 IS NULL
+		]]>	 
+	</select>
+	
+	<select id="SelectSPStatInsert3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(SUM(ACCU_POINT), 0) as iTOTGRANTPOINT
+		      FROM SP_GRANT
+		     WHERE REG_DATE >= SUBSTR( #StartDay#, 1, 8 ) 
+		       AND REG_DATE <= SUBSTR( #EndDay#, 1, 8 )
+		]]>	 
+	</select>		
+	
+	<insert id="insertSpStat1" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO SP_STAT(
+								  FROM_DATE,
+								  TO_DATE,
+								  TOT_ACCU_POINT,
+								  TOT_USE_POINT,
+								  TOT_CURUSE_POINT,
+								  CANCEL_POINT,
+								  ACCOUNT_POINT,
+								  STAT_POINT,
+								  CREATE_DATE
+								)
+			SELECT SUBSTR( #StartDay#, 1, 8 ),
+			       SUBSTR( #EndDay#, 1, 8 ),
+				   #iTOTGRANTPOINT# + #iTOTACCUPOINT#,
+				   #iTOTUSEPOINT# + #iSPAMOUNT#,
+				   #iSPAMOUNT#,
+				   #iSPPEFAMOUNT#,
+				   #iTOTGRANTPOINT# + #iTOTACCUPOINT# - (#iTOTUSEPOINT# + #iSPAMOUNT#),
+				   #iSPJUNGAMOUNT#,
+				   TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+			FROM DUAL
+		]]>	 
+	</insert>
+	
+	<select id="SelectSPStatInsert4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SP_CLASS as sSpClass, 
+				   SP_NAME as sSpName
+			FROM SP_CLASS
+		    WHERE IS_DELETE = 'N'
+		    ORDER BY ORD ASC
+		]]>	 
+	</select>
+	
+	<select id="SelectSPStatInsert5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT ss1.tot_accu_point as lTotAccuPoint, ss1.tot_use_point as lTotUsePoint
+			FROM sp_stat ss1 
+			WHERE ss1.etc1 = #sSpClass#
+			AND ss1.from_date = (SELECT MAX(ss2.from_date) FROM sp_stat ss2 WHERE ss2.etc1 = #sSpClass#)
+		]]>	 
+	</select>
+	
+	<insert id="insertSpStat2" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO SP_STAT(
+				FROM_DATE,
+				TO_DATE,
+				TOT_ACCU_POINT,
+				TOT_USE_POINT,
+				TOT_CURUSE_POINT,
+				CANCEL_POINT,
+				ACCOUNT_POINT,
+				STAT_POINT,
+				CREATE_DATE,
+				ETC1
+				)
+	    SELECT SUBSTR(#StartDay#,1,8) fromdate, 
+		   SUBSTR(#EndDay#,1,8) tpdate,
+		   c.c_accu_point + #lTotAccuPoint# totaccupoint, 
+		   (#lTotUsePoint# + a1.totcurrusepoint) totusepoint, 
+		   a1.totcurrusepoint , 
+		   0 ,
+		   d.d_accu_point + #lTotAccuPoint# - (#lTotUsePoint# + a1.totcurrusepoint) accountpoint, 
+		   (a1.totcurrusepoint) statpoint, 
+		   TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+		   #sSpClass#
+	      FROM  (
+			SELECT NVL(SUM(amount), 0) totcurrusepoint
+			FROM
+			(
+			    SELECT purchase_id
+			    FROM txorder
+			    WHERE COMPLETE_DATE BETWEEN #StartDay# AND #EndDay#
+			    GROUP BY purchase_id
+			) t, sp_payment s
+			WHERE t.purchase_id = s.purchase_id
+			AND s.sp_class = #sSpClass#
+			AND gubun IN ('U','C')
+			AND s.pay_date BETWEEN #StartDay# AND #EndDay#
+			AND s.status <> '0'
+		    ) a1,
+		    (SELECT nvl(SUM(sg1.accu_point),0) c_accu_point
+			FROM sp_grant sg1 
+		       WHERE reg_date BETWEEN #StartDay# AND #EndDay# AND sp_class = #sSpClass#
+		    ) c,
+		    (SELECT nvl(SUM(sg1.accu_point),0) d_accu_point
+			 FROM sp_grant sg1 
+			WHERE reg_date BETWEEN #StartDay# AND #EndDay# AND sp_class = #sSpClass#
+		    ) d
+		]]>	 
+	</insert>
+	
+	
+	
+	<select id="SelectInsert1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+                nvl( A1,      ' ' ) as Day,                   
+				nvl( A2,      ' ' ) as Paymethod,             
+				nvl( A3,      ' ' ) as Shopid,                
+				nvl( A41 ,    ' ' ) as Ecode,                 
+				nvl( A4,      ' ' ) as Postoffice,            
+				nvl( A5,      ' ' ) as Storename,             
+				nvl( A51,     ' ' ) as Storecode,             
+				nvl( A6,      ' ' ) as Payname,               
+				nvl( A7,      ' ' ) as Goodsname,             
+				nvl( A71,     ' ' ) as GoodsCode,             
+				nvl( A8,      ' ' ) as Account,               
+				A9 as Order_Sum,             
+				B as Sales_Amount,          
+				C as Desired_Quantity,      
+				F as Memo_Price,            
+				D as Card_Amount,           
+				D1 as OverseaCard_Amount,    
+				E as Online_Amount,         
+				K as Small_Amount,          
+				K1 as Banktown_Amount,       
+				R1 as Rm_Amount,             
+				R2 as Rm_Pef_Amount,         
+				R3 as Rm_Qty,                
+				R4 as Cp_Amount,             
+				R41 as Cp_Biz_Amount,         
+				R411 as Cp_Thank_Amount,       
+				R42 as Cp_Qty,                
+				R5 as Sp_Amount,             
+				R51 as Sp_Pef_Amount,         
+				R52 as Sp_Qty,                
+				G as Card_Fee,              
+				ROUND( D - G ) as Card_Accept,           
+				ROUND( H - G ) as Card_Realamount,       
+				I as Online_Realamount,     
+				L as Small_Realamount,      
+				G1 as Banktown_Fee,          
+				ROUND( K1 - G1 ) as Banktown_Accept,       
+				ROUND( H1 - G1 ) as Banktown_Realamount,   
+				G2 as OverseaCard_Fee,       
+				ROUND( D1 - G2 ) as OverseaCard_Accept,    
+				ROUND( H2 - G2 ) as OverseaCard_Realamount,
+				ROUND( H - G ) + ROUND( H1 - G1 ) + ROUND( H2 - G2 ) + ROUND( HG1 - GG1 ) + ROUND( GA2 - D2 ) + ROUND( GI2 - D3 ) + I + IR  + IP + L - nvl(EPOST,0) as Realamount,            
+				J as Supplyamount,          
+				ROUND( B - G  - G1 - G2 - GG1 - (  ROUND( H - G ) + ROUND( H1 - G1 ) + ROUND( H2 - G2 ) + ROUND( HG1 - GG1 ) + ROUND( GA2 - D2 ) + ROUND( GI2 - D3 ) + I + IR  + IP + L ) ) - J as Tax,                   
+				ROUND( B - G  - G1 - G2 - GG1 - (  ROUND( H - G ) + ROUND( H1 - G1 ) + ROUND( H2 - G2 ) + ROUND( HG1 - GG1 ) + ROUND( GA2 - D2 ) + ROUND( GI2 - D3 ) + I + IR  + IP + L ) ) as Minus_Total,           
+				0 as System_amount_y,       
+				0 as System_amount_n,       
+				KG1 as MultiGift_Amount,      
+				GG1 as MultiGift_Fee,         
+				ROUND( KG1 - GG1 ) as MultiGift_Accept,      
+				ROUND( HG1 - GG1 ) as MultiGift_Realamount,  
+				nvl(EPOST,0) as Epost_Fee,             
+				nvl(invoice_amt,0) as invoice_amt,           
+				nvl(option_amt,0) as option_amt,            
+				nvl(RECEV_PO_REGIPOCD,'') as sRECEV_PO_REGIPOCD,    
+				nvl(MOBILE_GBN,'N') as sMobile_gbn,         
+				nvl(MOBILE_WEB_GBN,'N') as sMobile_web_gbn,     
+				nvl(POST_GBN,'') as sPostGbn,            
+				nvl(POST_AMOUNT,0) as iPost_amount,        
+				nvl(AMOUNT_OKCASH,0) as iOkCash_amount,      
+				nvl(D2,0) as KaKao_Amount,        
+				nvl(D3,0) as Mobile_Amount,       
+				nvl(GA,0) as KaKao_Fee,           
+				nvl(GI,0) as Mobile_Fee,          
+				ROUND( nvl(D2,0) - nvl(GA,0) ) as KaKao_Accept,        
+				ROUND( nvl(D3,0) - nvl(GI,0) ) as Mobile_Accept,         
+				ROUND( nvl(GA2,0) - nvl(GA,0) ) as KaKao_Realamount,      
+				ROUND( nvl(GI2,0) - nvl(GI,0) ) as Mobile_Realamount      
+        FROM
+            (
+                SELECT /*+use_nl( a b c d e sr fr ) index( a IDX_TXORDER_02)*/
+                       '10', SUBSTR( a.COMPLETE_DATE, 1, 4 ) ||'/'|| SUBSTR( a.COMPLETE_DATE, 5, 2 ) || '/' || SUBSTR( a.COMPLETE_DATE, 7, 2 ) A1,
+                       A.PAYMETHOD A2,
+                       A.SHOP_ID A3,
+                       A.ECODE A41,
+                       A.POSTOFFICE_NAME  A4,   
+                       A.BIZ_NAME A5,
+                       A.BIZ_CODE A51,
+                       DECODE( A.PAYMETHOD,  'C', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사', H.ACQUIRE_NAME  ) ,
+                                             'D', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사', H.ACQUIRE_NAME  ) ,   
+                                             'B', '즉시이체',
+                                             'K', 'OK캐쉬백',
+                                             'S', '소액결제',
+                                             'G', '멀티상품권결제',
+                                             'R', '마일리지결제',
+                                             'P', '우수고객포인트',
+                                             'A', '카카오페이',
+                                             'I', '핸드폰결제',
+                                             'O', D.PAY_NAME ) A6,
+                       B.GOODS_NAME A7,
+                       B.GOODS_Code A71,
+                       '.'    A8,       
+                       SUM(1) A9,
+                       nvl( SUM(A.AMOUNT)   , 0 )   B,        
+                       nvl( SUM(B.QUANTITY) , 0 )   C,                            
+                       nvl( SUM(C.PRICE)    , 0 )   F,               
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'D', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D1 ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'A', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D2 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'I', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D3 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'O', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) E ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'S', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) K ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) K1 ,   
+                       SUM( NVL(A.RM_AMOUNT,0)) R1 ,   
+                       SUM( NVL(A.RM_PEF_AMOUNT,0)) R2 ,   
+                       SUM( DECODE(NVL(A.RM_AMOUNT,0),0,0,1)) R3 ,  
+                       SUM(NVL(DECODE(A.CP_CMP,'1',A.COUPON_AMOUNT,0),0)) R4, 
+                       SUM(NVL(DECODE(A.CP_CMP,'2',A.COUPON_AMOUNT,0),0)) R41, 
+                       SUM(NVL(DECODE(A.CP_TYPE,'G',A.COUPON_AMOUNT,0),0)) R411, 
+                       SUM( DECODE(NVL(A.COUPON_AMOUNT,0),0,0,1)) R42 ,  
+
+                       SUM( NVL(A.SP_AMOUNT,0)) R5 ,   
+                       SUM( NVL(A.SP_PEF_AMOUNT,0)) R51 , 
+                       SUM( DECODE(NVL(A.SP_AMOUNT,0),0,0,1)) R52 ,   
+                        
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0)  + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) KG1 ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', A.FEE_AMOUNT , 0 ) ),  0 ) G  ,         
+                       
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) H ,                    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'O', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) I ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'R', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) IR ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'P', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) IP ,   
+                                                                                    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'S', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) L ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', A.FEE_AMOUNT , 0 ) ),  0 ) G1 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) H1 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', A.FEE_AMOUNT , 0 ) ),  0 ) GG1 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) HG1 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'D', A.FEE_AMOUNT , 0 ) ),  0 ) G2 ,    
+                                                                                    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'D', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  H2 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'A', A.FEE_AMOUNT , 0 ) ),  0 ) GA ,         
+                             NVL( SUM(  DECODE( A.PAYMETHOD, 'A', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  GA2 , 
+                       
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'I', A.FEE_AMOUNT , 0 ) ),  0 ) GI ,         
+                             NVL( SUM(  DECODE( A.PAYMETHOD, 'I', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  GI2 , 
+                                                                                    
+                       NVL( SUM(  ROUND( ( A.AMOUNT - ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ) ) / 1.1)  ) ,  0 ) J ,
+        		      NVL( SUM(decode(A.SHOP_ID,'0',A.AMOUNT - ROUND(NVL(B.PRICE,0) * 0.94,0),0) * decode(b.onoff_flag,'Y',0,1)),0) EPOST,
+        		      SUM(NVL(A.invoice_amt,0)) invoice_amt,
+                        SUM(NVL(A.option_amt,0)) option_amt ,
+                        A.RECEV_PO_REGIPOCD,
+                        NVL(A.MOBILE_GBN,'N') MOBILE_GBN ,
+                        NVL(A.MOBILE_WEB_GBN,'N') MOBILE_WEB_GBN ,
+                        NVL(MAX(A.POST_GBN),'') POST_GBN,
+                        NVL(SUM(A.POST_AMOUNT),0) POST_AMOUNT,
+                        NVL(SUM(A.AMOUNT_OKCASH),0) AMOUNT_OKCASH
+                FROM   TXORDER A, 
+                       TXORDER_ITEM B, 
+                       TXORDER_ITEM C, 
+                       SHOP_RATE SR, 
+                       KICC_CREDIT H, 
+                       PMT_INSTRUCTION D                                           
+               WHERE   A.COMPLETE_DATE >= #StartDay#
+                AND    A.COMPLETE_DATE <= #EndDay#
+                AND    A.TXORDER_ID = B.TXORDER_ID     
+		        AND    A.PURCHASE_ID = H.PURCHASE_ID(+)   
+		        AND    A.PURCHASE_ID = D.PURCHASE_ID(+)                                                  
+                AND    A.SHOP_ID not in ('4','5','6','7','8','10')
+                AND    A.PAYMETHOD not in ('1','2','3')
+                AND    A.STATUS NOT IN ( '1', '9' )                                                                  
+                AND    A.CANCEL_STATE = 'N'                                                              
+                AND    B.GOODS_IDN > 0                                                                   
+                AND    B.PRICE > 0                                                                       
+                AND    A.TXORDER_ID = C.TXORDER_ID(+)                                                    
+                AND    C.GOODS_IDN(+) = 0                                
+               AND    SUBSTR(A.ORDER_DATE,1,8)   >=  SR.START_DATE                               
+               AND    SUBSTR(A.ORDER_DATE,1,8)   <=  SR.END_DATE                               
+               GROUP BY SUBSTR( a.COMPLETE_DATE, 1, 4 ) ||'/'|| SUBSTR( a.COMPLETE_DATE, 5, 2 ) || '/' || SUBSTR( a.COMPLETE_DATE, 7, 2 ) ,
+                       A.PAYMETHOD ,
+                       A.SHOP_ID ,
+                       A.ECODE ,
+                       A.POSTOFFICE_NAME  ,   
+                       A.BIZ_NAME ,
+                       A.BIZ_CODE ,
+                       DECODE( A.PAYMETHOD,  'C', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사',H.ACQUIRE_NAME  ) ,
+                                             'D', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사',H.ACQUIRE_NAME  ) ,   
+                                             'B', '즉시이체',
+                                             'K', 'OK캐쉬백',
+                                             'S', '소액결제',
+                                             'G', '멀티상품권결제',
+                                             'R', '마일리지결제',
+                                             'P', '우수고객포인트',
+                                             'A', '카카오페이',
+                                             'I', '핸드폰결제',
+                                             'O', D.PAY_NAME ) ,
+                       B.GOODS_NAME ,
+                       B.GOODS_Code,
+                       A.RECEV_PO_REGIPOCD,
+                       NVL(A.MOBILE_GBN,'N') ,
+                       NVL(A.MOBILE_WEB_GBN,'N')
+            )
+         union all   
+         SELECT
+                nvl( A1,      ' ' ) A1,
+                nvl( A2,      ' ' ),
+                nvl( decode(A3,'10','11',A3),      ' ' ),
+                nvl( A41 ,    ' ' ),
+                nvl( A4,      ' ' ) A4,
+                nvl( A5,      ' ' ) A5,
+                nvl( A51,     ' ' ),
+                nvl( A6,      ' ' ),
+                nvl( A7,      ' ' ),
+                nvl( A71,     ' ' ),
+                nvl( A8,      ' ' ),
+                A9,
+                B,
+                C,
+                F,
+                D,
+                D1,
+                E,
+                K,
+                K1,
+                R1,
+                R2,
+                R3,
+                R4,
+                R41,
+                R411,
+                R42,
+                R5,
+                R51,
+                R52,
+                G,
+                ROUND( D - G ),
+                ROUND( H - G ),
+                I,
+                L,
+                G1,
+                ROUND( K1 - G1 ),
+                ROUND( H1 - G1 ),
+                G2,
+                ROUND( D1 - G2 ),
+                DECODE(G2,0,0,H2-G2),
+                H2 ,
+                J,
+                ROUND( decode(A3 ,'10', OVERSEA_AMOUNT - H2  - J ,B - H2  - J)),
+                ROUND( decode(A3 ,'10', OVERSEA_AMOUNT - H2      ,B - H2)),
+                SYSTEM_FLAG_amount_y,
+                SYSTEM_FLAG_amount_n,
+                KG1,
+                GG1,
+                ROUND( KG1 - GG1 ),
+                ROUND( HG1 - GG1 ),
+                0,
+                nvl(invoice_amt,0) ,
+                nvl(option_amt,0)    ,
+                nvl(RECEV_PO_REGIPOCD,''),
+                NVL(MOBILE_GBN,'N') MOBILE_GBN ,
+                NVL(MOBILE_WEB_GBN,'N') MOBILE_WEB_GBN ,
+                nvl(POST_GBN,''),
+                nvl(POST_AMOUNT,0),
+                nvl(AMOUNT_OKCASH,0),
+                nvl(D2,0),
+                nvl(D3,0),
+                nvl(GA,0),
+                nvl(GI,0),
+                ROUND( nvl(D2,0) - nvl(GA,0) ),
+                ROUND( nvl(D3,0) - nvl(GI,0) ),
+                ROUND( nvl(GA2,0) - nvl(GA,0) ),
+                ROUND( nvl(GI2,0) - nvl(GI,0) )
+        FROM
+            (
+                SELECT /*+use_nl( a b c d e sr fr ) index( a IDX_TXORDER_02)*/
+                       '21', SUBSTR( a.COMPLETE_DATE, 1, 4 ) ||'/'|| SUBSTR( a.COMPLETE_DATE, 5, 2 ) || '/' || SUBSTR( a.COMPLETE_DATE, 7, 2 ) A1,
+                       A.PAYMETHOD A2,
+                       A.SHOP_ID A3,
+                       A.ECODE A41,
+                       A.POSTOFFICE_NAME  A4,   
+                       A.BIZ_NAME A5,
+                       A.BIZ_CODE A51,
+                       DECODE( A.PAYMETHOD,  'C', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사', H.ACQUIRE_NAME  ) ,
+                                             'D', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사', H.ACQUIRE_NAME  ) ,   
+                                             'B', '즉시이체',
+                                             'K', 'OK캐쉬백',
+                                             'S', '소액결제',
+                                             'G', '멀티상품권결제',
+                                             'R', '마일리지결제',
+                                             'P', '우수고객포인트',
+                                             'A', '카카오페이',
+                                             'I', '핸드폰결제',
+                                             'O', D.PAY_NAME ) A6,
+                       B.GOODS_NAME A7,
+                       B.GOODS_Code A71,
+                       '.'    A8,       
+                       SUM(1) A9,
+                       nvl( SUM(A.AMOUNT)   , 0 )   B,        
+                       nvl( SUM(B.QUANTITY) , 0 )   C,                            
+                       nvl( SUM(C.PRICE)    , 0 )   F,               
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0)  + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'D', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0)  + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D1 ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'A', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D2 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'I', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D3 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'O', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0)  + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) E ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'S', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0)  + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) K ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0)  + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) K1 ,   
+                       SUM( NVL(A.RM_AMOUNT,0)) R1 ,   
+                       SUM( NVL(A.RM_PEF_AMOUNT,0)) R2 ,   
+                       SUM( DECODE(NVL(A.RM_AMOUNT,0),0,0,1)) R3 ,   
+
+					 					   SUM(NVL(DECODE(A.CP_CMP,'1',A.COUPON_AMOUNT,0),0)) R4, 
+										   SUM(NVL(DECODE(A.CP_CMP,'2',A.COUPON_AMOUNT,0),0)) R41, 
+										   SUM(NVL(DECODE(A.CP_TYPE,'G',A.COUPON_AMOUNT,0),0)) R411, 
+                       SUM( DECODE(NVL(A.COUPON_AMOUNT,0),0,0,1)) R42 ,  
+
+                       SUM( NVL(A.SP_AMOUNT,0)) R5 ,   
+                       SUM( NVL(A.SP_PEF_AMOUNT,0)) R51 , 
+                       SUM( DECODE(NVL(A.SP_AMOUNT,0),0,0,1)) R52 ,   
+                       
+                       
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) KG1 ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', A.FEE_AMOUNT , 0 ) ),  0 ) G ,         
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) H ,                    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'O', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) I ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'S', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) L ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', A.FEE_AMOUNT , 0 ) ),  0 ) G1 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) H1 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', A.FEE_AMOUNT , 0 ) ),  0 ) GG1 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) HG1 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'A', A.FEE_AMOUNT , 0 ) ),  0 ) GA ,         
+                             NVL( SUM(  DECODE( A.PAYMETHOD, 'A', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  GA2 , 
+                       
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'I', A.FEE_AMOUNT , 0 ) ),  0 ) GI ,         
+                             NVL( SUM(  DECODE( A.PAYMETHOD, 'I', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  GI2 , 
+                       SUM( decode(A.SHOP_ID,'8',
+                       			    ROUND((A.AMOUNT - NVL(C.PRICE,0) ) *                                   
+          	                     		ROUND(DECODE(A.SHOP_ID,'8', 1 - NVL(b.GOODS_FEE,7.3)/100, 0),3)) + NVL(C.PRICE,0),
+          	                     		     '10',
+                       			    ROUND((A.OVERSEA_AMOUNT - NVL(C.GOODS_PRICE,0) ) *                                   
+          	                     		ROUND(DECODE(A.SHOP_ID,'10',0.96, 0),3)) + NVL(C.GOODS_PRICE,0)
+          	                ,0)
+                       )  H2, 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'D', A.FEE_AMOUNT , 0 ) ),  0 ) G2 ,    
+                       NVL( SUM(   
+                       		   decode(A.SHOP_ID,'8',
+                       			        ROUND( ( A.AMOUNT - ROUND( B.PRICE *                          
+                               		       ROUND( DECODE(A.SHOP_ID,'8',1 - NVL(b.GOODS_FEE,7.3)/100,0) , 3 ) + NVL(C.PRICE,0)   ) ) / 1.1),
+                               		            '10',
+                       			        ROUND( ( A.OVERSEA_AMOUNT - ROUND( B.GOODS_PRICE *                          
+                               		       ROUND( DECODE(A.SHOP_ID,'10',0.96,0) , 3 ) + NVL(C.GOODS_PRICE,0)   ) ) / 1.1)
+                               		,0)
+                       ) ,  0 )  J, 
+                       SUM(decode(a.shop_id,'8',                                                 
+                                       ROUND(decode(b.SYSTEM_FLAG,'N',0,A.AMOUNT) -                                                    
+                                          ROUND(A.AMOUNT * decode(b.SYSTEM_FLAG,'N',0,0.990),3),0),
+                                            '10',
+                                       decode(b.onoff_flag,'Y',0,1) * ROUND(decode(b.SYSTEM_FLAG,'N',0,A.OVERSEA_AMOUNT) -                                                    
+                                          ROUND(A.OVERSEA_AMOUNT * decode(b.SYSTEM_FLAG,'N',0,0.990),3),0)
+                                 ,0)
+                       )  SYSTEM_FLAG_amount_y, 
+                       SUM(decode(a.shop_id,'8',                                                 
+                                       ROUND(decode(b.SYSTEM_FLAG,'N',A.AMOUNT,0) -                                                    
+                                          ROUND(A.AMOUNT * decode(b.SYSTEM_FLAG,'N',0.988,0),3),0),
+                                            '10',
+                                       decode(b.onoff_flag,'Y',0,1) * ROUND(decode(b.SYSTEM_FLAG,'N',A.OVERSEA_AMOUNT,0) -                                                    
+                                          ROUND(A.OVERSEA_AMOUNT * decode(b.SYSTEM_FLAG,'N',0.988,0),3),0)
+                                  ,0)
+                       )  SYSTEM_FLAG_amount_n ,
+                       SUM(decode(a.shop_id,'10',A.OVERSEA_AMOUNT,0)) OVERSEA_AMOUNT ,
+                       SUM(NVL(A.invoice_amt,0)) invoice_amt,
+  										 SUM(NVL(A.option_amt,0)) option_amt ,
+								  		 A.RECEV_PO_REGIPOCD,
+                                                                NVL(A.MOBILE_GBN,'N') MOBILE_GBN ,
+                                                                NVL(A.MOBILE_WEB_GBN,'N') MOBILE_WEB_GBN ,
+                                                                NVL(MAX(A.POST_GBN),'') POST_GBN,
+                                                                NVL(SUM(A.POST_AMOUNT),0) POST_AMOUNT,
+                                                                                        NVL(SUM(A.AMOUNT_OKCASH),0) AMOUNT_OKCASH
+
+                FROM   TXORDER A, 
+                       TXORDER_ITEM B, 
+                       TXORDER_ITEM C, 
+                       SHOP_RATE SR, 
+                       KICC_CREDIT H, 
+                       PMT_INSTRUCTION D                                           
+               WHERE   A.COMPLETE_DATE >= #StartDay#
+                 AND   A.COMPLETE_DATE <= #EndDay#
+                 AND   A.TXORDER_ID  = B.TXORDER_ID  
+		         AND   A.PURCHASE_ID = H.PURCHASE_ID(+)   
+		         AND   A.PURCHASE_ID = D.PURCHASE_ID(+)
+                 AND   A.SHOP_ID = '8'
+                 AND   A.STATUS NOT IN ( '1', '9' )                                                                  
+                 AND   A.CANCEL_STATE = 'N'                                                              
+                 AND   B.GOODS_IDN > 0                                                                   
+                 AND   B.PRICE > 0                                                                       
+                 AND   A.TXORDER_ID = C.TXORDER_ID(+)                                                    
+                 AND   C.GOODS_IDN(+) = 0                                
+                 AND   SUBSTR(A.ORDER_DATE,1,8)   >=  SR.START_DATE                               
+                 AND   SUBSTR(A.ORDER_DATE,1,8)   <=  SR.END_DATE                               
+               GROUP BY SUBSTR( a.COMPLETE_DATE, 1, 4 ) ||'/'|| SUBSTR( a.COMPLETE_DATE, 5, 2 ) || '/' || SUBSTR( a.COMPLETE_DATE, 7, 2 ) ,
+                       A.PAYMETHOD ,
+                       A.SHOP_ID ,
+                       A.ECODE ,
+                       A.POSTOFFICE_NAME  ,   
+                       A.BIZ_NAME ,
+                       A.BIZ_CODE ,
+                       DECODE( A.PAYMETHOD,  'C', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사',H.ACQUIRE_NAME  ) ,
+                                             'D', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사',H.ACQUIRE_NAME  ) ,   
+                                             'B', '즉시이체',
+                                             'K', 'OK캐쉬백',
+                                             'S', '소액결제',
+                                             'G', '멀티상품권결제',
+                                             'R', '마일리지결제',
+                                             'P', '우수고객포인트',
+                                             'A', '카카오페이',
+                                             'I', '핸드폰결제',
+                                             'O', D.PAY_NAME ) ,
+                       B.GOODS_NAME ,
+                       B.GOODS_Code,
+                       A.RECEV_PO_REGIPOCD  ,
+                       NVL(A.MOBILE_GBN,'N'),  
+                       NVL(A.MOBILE_WEB_GBN,'N')  
+            )
+            union all
+         SELECT
+                nvl( A1,      ' ' ) A1,
+                nvl( A2,      ' ' ),
+                nvl( A3,      ' ' ),
+                nvl( A41 ,    ' ' ),
+                nvl( A4,      ' ' ) A4,
+                nvl( A5,      ' ' ) A5,
+                nvl( A51,     ' ' ),
+                nvl( A6,      ' ' ),
+                nvl( A7,      ' ' ),
+                nvl( A71,     ' ' ),
+                nvl( A8,      ' ' ),
+                A9,
+                B,
+                C,
+                F,
+                D,
+                D1,
+                E,
+                K,
+                K1,
+                R1,
+                R2,
+                R3,
+                
+                R4,
+                R41,
+                R411,
+                R42,
+                R5,
+                R51,
+                R52,
+                G,
+                ROUND( D - G ),
+                ROUND( H - G ),
+                I,
+                L,
+                G1,
+                ROUND( K1 - G1 ),
+                ROUND( H1 - G1 ),
+                G2,
+                ROUND( D1 - G2 ),
+                ROUND( H2 - G2 ),
+                B - nvl(G,0) - nvl(G1,0) - nvl(G2,0) - nvl(GG1,0) - nvl(OVERSEA_REAL_PAY_AMOUNT,0) ,
+                OVERSEA_SUPPLY_AMOUNT,
+                OVERSEA_REAL_PAY_AMOUNT - OVERSEA_SUPPLY_AMOUNT,
+                OVERSEA_REAL_PAY_AMOUNT,
+                0,
+                0,
+                KG1,
+                GG1,
+                ROUND( KG1 - GG1 ),
+                ROUND( HG1 - GG1 ),
+                0,
+                nvl(invoice_amt,0) ,
+                nvl(option_amt,0) ,
+                nvl(RECEV_PO_REGIPOCD,''),
+                NVL(MOBILE_GBN,'N') MOBILE_GBN,
+                NVL(MOBILE_WEB_GBN,'N') MOBILE_WEB_GBN,
+                nvl(POST_GBN,''),
+                nvl(POST_AMOUNT,0),
+                nvl(AMOUNT_OKCASH,0),
+                nvl(D2,0),
+                nvl(D3,0),
+                nvl(GA,0),
+                nvl(GI,0),
+                ROUND( nvl(D2,0) - nvl(GA,0) ),
+                ROUND( nvl(D3,0) - nvl(GI,0) ),
+                ROUND( nvl(GA2,0) - nvl(GA,0) ),
+                ROUND( nvl(GI2,0) - nvl(GI,0) )
+        FROM
+            (
+                SELECT /*+use_nl( a b c d e sr fr ) index( a IDX_TXORDER_02)*/
+                       '31', SUBSTR( a.COMPLETE_DATE, 1, 4 ) ||'/'|| SUBSTR( a.COMPLETE_DATE, 5, 2 ) || '/' || SUBSTR( a.COMPLETE_DATE, 7, 2 ) A1,
+                       A.PAYMETHOD A2,
+                       DECODE(B.GOODS_TYPE,'5','11',A.SHOP_ID) A3,
+                       A.ECODE A41,
+                       A.POSTOFFICE_NAME  A4,   
+                       A.BIZ_NAME A5,
+                       A.BIZ_CODE A51,
+                       DECODE( A.PAYMETHOD,  'C', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사', H.ACQUIRE_NAME  ) ,
+                                             'D', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사', H.ACQUIRE_NAME  ) ,   
+                                             'B', '즉시이체',
+                                             'K', 'OK캐쉬백',
+                                             'S', '소액결제',
+                                             'G', '멀티상품권결제',
+                                             'R', '마일리지결제',
+                                             'P', '우수고객포인트',
+                                             'A', '카카오페이',
+                                             'I', '핸드폰결제',
+                                             'O', D.PAY_NAME ) A6,
+                       B.GOODS_NAME A7,
+                       B.GOODS_Code A71,
+                       '.'    A8,       
+                       SUM(1) A9,
+                       nvl( SUM(A.AMOUNT)   , 0 )   B,        
+                       nvl( SUM(B.QUANTITY) , 0 )   C,                            
+                       nvl( SUM(C.PRICE)    , 0 )   F,               
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0)  + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'D', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0)  + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D1 ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'A', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D2 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'I', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) D3 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'O', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0)  + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) E ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'S', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0)  + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) K ,    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0)  + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) K1 ,   
+                       SUM( NVL(A.RM_AMOUNT,0)) R1 ,   
+                       SUM( NVL(A.RM_PEF_AMOUNT,0)) R2 ,   
+                       SUM( DECODE(NVL(A.RM_AMOUNT,0),0,0,1)) R3 ,
+
+					 					   SUM(NVL(DECODE(A.CP_CMP,'1',A.COUPON_AMOUNT,0),0)) R4, 
+										   SUM(NVL(DECODE(A.CP_CMP,'2',A.COUPON_AMOUNT,0),0)) R41, 
+										   SUM(NVL(DECODE(A.CP_TYPE,'G',A.COUPON_AMOUNT,0),0)) R411, 
+                       SUM( DECODE(NVL(A.COUPON_AMOUNT,0),0,0,1)) R42 ,  
+
+                       SUM( NVL(A.SP_AMOUNT,0)) R5 ,   
+                       SUM( NVL(A.SP_PEF_AMOUNT,0)) R51 ,  
+                       SUM( DECODE(NVL(A.SP_AMOUNT,0),0,0,1)) R52 ,   
+                                             
+                          
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', A.AMOUNT - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0)  + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0)  + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) , 0 ) ),  0 ) KG1 ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', A.FEE_AMOUNT , 0 ) ),  0 ) G , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'C', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) H ,                    
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'O', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) I ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'S', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) L ,   
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', A.FEE_AMOUNT , 0 ) ),  0 ) G1 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'B', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) H1 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', A.FEE_AMOUNT , 0 ) ),  0 ) GG1 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'G', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 ) HG1 ,  
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'D', A.FEE_AMOUNT , 0 ) ),  0 ) G2 ,    
+                                                                                    
+                             NVL( SUM(  DECODE( A.PAYMETHOD, 'D', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  H2 , 
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'A', A.FEE_AMOUNT , 0 ) ),  0 ) GA ,         
+                             NVL( SUM(  DECODE( A.PAYMETHOD, 'A', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  GA2 , 
+                       
+                       NVL( SUM(  DECODE( A.PAYMETHOD, 'I', A.FEE_AMOUNT , 0 ) ),  0 ) GI ,         
+                             NVL( SUM(  DECODE( A.PAYMETHOD, 'I', ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ), 0 ) ),  0 )  GI2 , 
+                                                                                    
+                       NVL( SUM(  ROUND( ( A.AMOUNT - ROUND( B.PRICE * ROUND( 
+                                                                                     DECODE(A.SHOP_ID,1,SR.SHOP1_RATE, 
+                                                                                                      2,SR.SHOP2_RATE, 
+                                                                                                      3,SR.SHOP3_RATE, 
+                                                                                                      4,SR.SHOP4_RATE, 
+                                                                                                      5,SR.SHOP5_RATE, 
+                                                                                                      6,SR.SHOP6_RATE, 
+                                                                                                      7,SR.SHOP7_RATE, 
+                                                                                                      8,SR.SHOP8_RATE, 0.96 )
+                                                                                    , 3 ) + NVL(C.PRICE,0) ) ) / 1.1)  ) ,  0 ) J, 
+                       SUM(DECODE(A.SHOP_ID,'4',B.GOODS_PRICE,'5',B.GOODS_PRICE,'6',B.GOODS_PRICE,'7',B.GOODS_PRICE,0)) OVERSEA_AMOUNT, 
+                       SUM(ROUND( nvl(A.OVERSEA_AMOUNT,0) * A.FEE_RATE)) OVERSEA_CHARGE,                                                   
+                       NVL( SUM(   ROUND( ( nvl(B.GOODS_PRICE,0) - ROUND( nvl(B.GOODS_PRICE,0) *                          
+                                   ROUND( DECODE(A.SHOP_ID,1,SR.SHOP1_RATE,                               
+                                                           2,SR.SHOP2_RATE,                               
+                                                           3,SR.SHOP3_RATE,                               
+                                                           4,SR.SHOP4_RATE,                               
+                                                           5,SR.SHOP5_RATE,                               
+                                                           6,SR.SHOP6_RATE,                               
+                                                           7,SR.SHOP7_RATE,                               
+                                                           8,SR.SHOP8_RATE, 0.96 ) , 3 )  ) ))  ) ,  0 ) OVERSEA_REAL_PAY_AMOUNT,
+                       NVL( SUM(   ROUND( ( nvl(B.GOODS_PRICE,0) - ROUND( nvl(B.GOODS_PRICE,0) *                          
+                                   ROUND( DECODE(A.SHOP_ID,1,SR.SHOP1_RATE,                               
+                                                           2,SR.SHOP2_RATE,                               
+                                                           3,SR.SHOP3_RATE,                               
+                                                           4,SR.SHOP4_RATE,                               
+                                                           5,SR.SHOP5_RATE,                               
+                                                           6,SR.SHOP6_RATE,                               
+                                                           7,SR.SHOP7_RATE,                               
+                                                           8,SR.SHOP8_RATE, 0.96 ) , 3 ) ) ) / 1.1)  ) ,  0 ) OVERSEA_SUPPLY_AMOUNT ,
+                        SUM(NVL(A.invoice_amt,0)) invoice_amt,
+                        SUM(NVL(A.option_amt,0)) option_amt ,
+                        A.RECEV_PO_REGIPOCD     RECEV_PO_REGIPOCD,
+                        NVL(A.MOBILE_GBN,'N') MOBILE_GBN ,
+                        NVL(A.MOBILE_WEB_GBN,'N') MOBILE_WEB_GBN ,
+                        NVL(MAX(A.POST_GBN),'') POST_GBN,
+                        NVL(SUM(A.POST_AMOUNT),0) POST_AMOUNT,
+                        NVL(SUM(A.AMOUNT_OKCASH),0) AMOUNT_OKCASH
+
+                FROM   TXORDER A, 
+                       TXORDER_ITEM B, 
+                       TXORDER_ITEM C, 
+                       SHOP_RATE SR, 
+                       KICC_CREDIT H, 
+                       PMT_INSTRUCTION D                                           
+               WHERE   A.COMPLETE_DATE >= #StartDay#
+                 AND   A.COMPLETE_DATE <= #EndDay#
+                 AND   A.TXORDER_ID = B.TXORDER_ID    
+                 AND   A.PURCHASE_ID = H.PURCHASE_ID(+) 
+		         AND   A.PURCHASE_ID = D.PURCHASE_ID(+)                                                  
+                 AND   A.SHOP_ID in ('4','5','6','7','10')
+                 AND   A.STATUS NOT IN ( '1', '9' )                                                                  
+                 AND   A.CANCEL_STATE = 'N'                                                              
+                 AND   B.GOODS_IDN > 0                                                                   
+                 AND   B.PRICE > 0                                                                       
+                 AND   A.TXORDER_ID = C.TXORDER_ID(+)                                                    
+                 AND   C.GOODS_IDN(+) = 0                                
+                 AND   SUBSTR(A.ORDER_DATE,1,8)   >=  SR.START_DATE                               
+                 AND   SUBSTR(A.ORDER_DATE,1,8)   <=  SR.END_DATE                               
+               GROUP BY SUBSTR( a.COMPLETE_DATE, 1, 4 ) ||'/'|| SUBSTR( a.COMPLETE_DATE, 5, 2 ) || '/' || SUBSTR( a.COMPLETE_DATE, 7, 2 ) ,
+                       A.PAYMETHOD ,
+                       DECODE(B.GOODS_TYPE,'5','11',A.SHOP_ID),
+                       A.ECODE ,
+                       A.POSTOFFICE_NAME  ,   
+                       A.BIZ_NAME ,
+                       A.BIZ_CODE ,
+                       DECODE( A.PAYMETHOD,  'C', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사',H.ACQUIRE_NAME  ) ,
+                                             'D', DECODE( H.ACQUIRE_CODE, '047', '동양아멕스', '008', '외환카드사', '027', '현대카드사',H.ACQUIRE_NAME  ) ,   
+                                             'B', '즉시이체',
+                                             'K', 'OK캐쉬백',
+                                             'S', '소액결제',
+                                             'G', '멀티상품권결제',
+                                             'R', '마일리지결제',
+                                             'P', '우수고객포인트',
+                                             'A', '카카오페이',
+                                             'I', '핸드폰결제',
+                                             'O', D.PAY_NAME ) ,
+                       B.GOODS_NAME ,
+                       B.GOODS_Code,
+                       A.RECEV_PO_REGIPOCD  ,
+                       NVL(A.MOBILE_GBN,'N') ,
+                       NVL(A.MOBILE_WEB_GBN,'N')
+               ORDER BY A1,A4,A5
+            )
+		]]>	 
+	</select>
+	
+	<select id="SelectInsert2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SEED_ACCOUNT as Account 
+                 FROM BIZ_MASTER
+                 WHERE BIZ_CODE = #Storecode#
+                       AND language = 'KO'
+		]]>	 
+	</select>
+	
+	<insert id="insertHISTORYSTAT" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO  HISTORY_STAT
+                             (
+                              DAY                ,
+                              PAYMETHOD          ,
+                              SHOPID             ,
+                              POSTOFFICE         ,
+                              STORENAME          ,
+                              PAYNAME            ,
+                              GOODSNAME          ,
+                              GOODS_Code         ,
+                              ACCOUNT            ,
+                              order_sum          ,
+                              SALES_AMOUNT       ,
+                              DESIRED_QUANTITY   ,
+                              MEMO_PRICE         ,
+                              CARD_AMOUNT        ,
+                              ONLINE_AMOUNT      ,
+                              SMALL_AMOUNT       ,
+                              BANKTOWN_AMOUNT    ,
+                              OVERSEACARD_AMOUNT ,
+                              CARD_FEE           ,
+                              CARD_ACCEPT        ,
+                              CARD_REALAMOUNT    ,
+                              ONLINE_REALAMOUNT  ,
+                              SMALL_REALAMOUNT   ,
+                              BANKTOWN_FEE           ,
+                              BANKTOWN_ACCEPT        ,
+                              BANKTOWN_REALAMOUNT    ,
+                              OVERSEACARD_FEE        ,
+                              OVERSEACARD_ACCEPT     ,
+                              OVERSEACARD_REALAMOUNT ,
+                              REALAMOUNT         ,
+                              SUPPLYAMOUNT       ,
+                              TAX                ,
+                              MINUS_TOTAL        ,
+                              STORECODE          ,
+                              ECODE              ,
+                              SYSTEM_AMOUNT_Y    ,
+                              SYSTEM_AMOUNT_N    ,
+  			      								MULTIGIFT_AMOUNT 	 ,
+                              MULTIGIFT_FEE 	 ,
+                              MULTIGIFT_ACCEPT 	 ,
+                              MULTIGIFT_REALAMOUNT,
+                              EPOST_FEE 	 ,
+                              RM_AMOUNT      ,
+                              RM_PEF_AMOUNT  ,
+                              RM_QTY         ,
+                                COUPON_AMOUNT  ,
+                                CP_AMT2        ,
+                                CP_THANK_AMT        ,
+                                CP_QTY ,
+                              SP_AMOUNT      ,
+                              SP_PEF_AMOUNT  ,
+                              SP_QTY         ,
+                              INVOICE_AMT    ,
+                              OPTION_AMT    ,
+                              RECEV_PO_REGIPOCD,
+                              Mobile_gbn,
+                              Mobile_web_gbn,
+                              POST_GBN,
+                              POST_AMOUNT ,
+                              SEED_ACCOUNT,
+                              AMOUNT_OKCASH,
+                              KAKAO_AMOUNT,
+                              KAKAO_FEE,
+                              KAKAO_ACCEPT,
+                              KAKAO_REALAMOUNT,  
+                              MOBILE_AMOUNT,
+                              MOBILE_FEE,
+                              MOBILE_ACCEPT,
+                              MOBILE_REALAMOUNT
+                              )
+                      VALUES(
+                                #Day#,
+								#Paymethod#,
+								#Shopid#,
+								#Postoffice#,
+								#Storename#,
+								#Payname#,
+								#Goodsname#,
+								#GoodsCode#,
+								'.',
+								#Order_Sum#,
+								#Sales_Amount#,
+								#Desired_Quantity#,
+								#Memo_Price#,
+								#Card_Amount#,
+								#Online_Amount#,
+								#Small_Amount#,
+								#Banktown_Amount#,
+								#OverseaCard_Amount#,
+								#Card_Fee#,
+								#Card_Accept#,
+								#Card_Realamount#,
+								#Online_Realamount#,
+								#Small_Realamount#,
+								#Banktown_Fee#,
+								#Banktown_Accept#,
+								#Banktown_Realamount#,
+								#OverseaCard_Fee#,
+								#OverseaCard_Accept#,
+								#OverseaCard_Realamount#,
+								#Realamount#,
+								#Supplyamount#,
+								#Tax#,
+								#Minus_Total#,
+								#Storecode#,
+								#Ecode#,
+								#System_amount_y#,
+								#System_amount_n#,
+								#MultiGift_Amount#,
+								#MultiGift_Fee#,
+								#MultiGift_Accept#,
+								#MultiGift_Realamount#,
+								#Epost_Fee#,
+								#Rm_Amount#,
+								#Rm_Pef_Amount#,
+								#Rm_Qty#,
+								#Cp_Amount#,
+								#Cp_Biz_Amount#,
+								#Cp_Thank_Amount#,
+								#Cp_Qty#,
+								#Sp_Amount#,
+								#Sp_Pef_Amount#,
+								#Sp_Qty#,
+								#invoice_amt#,
+								#option_amt#,
+								#sRECEV_PO_REGIPOCD#,
+								#sMobile_gbn#,
+								#sMobile_web_gbn#,
+								#sPostGbn#,
+								#iPost_amount#,
+								#Account#,
+								#iOkCash_amount#,
+								#KaKao_Amount#,
+								#KaKao_Fee#,
+								#KaKao_Accept#,
+								#KaKao_Realamount#,
+								#Mobile_Amount#,
+								#Mobile_Fee#,
+								#Mobile_Accept#,
+								#Mobile_Realamount#
+                            )
+		]]>	 
+	</insert>
+	
+	
+	
+	
+	
+	<delete id="deleteHISTORYSTAT" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE
+	         FROM   HISTORY_STAT
+	         WHERE  DAY >= SUBSTR( #StartDay#, 1, 4 ) ||'/'|| SUBSTR( #StartDay#, 5, 2 ) || '/' || SUBSTR( #StartDay#, 7, 2 )
+	         AND    DAY <= SUBSTR( #EndDay#, 1, 4 ) ||'/'|| SUBSTR( #EndDay#, 5, 2 ) || '/' || SUBSTR( #EndDay#, 7, 2 ) 
+	         and    RECEV_PO_REGIPOCD <> '89999'
+		]]>	 
+	</delete>			
+	
+	<select id="SelectRMPaymentInsert" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			
+		]]>	 
+	</select>
+	
+	<delete id="deleteHistoryRmStat" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE
+			FROM   history_rm_stat
+			WHERE  DAY >= SUBSTR( #StartDay#, 1, 8 ) 
+			AND    DAY <= SUBSTR( #EndDay#, 1, 8 )
+		]]>	 
+	</delete>
+	
+	<insert id="insertHistoryRmStat" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO history_rm_stat(
+										  DAY,
+										  GBN,	
+										  SHOP_ID,	
+										  MEMBER_TYPE,
+										  CATEGORY_CODE,	
+										  CATEGORY_NAME1,
+										  CATEGORY_NAME2,
+										  CATEGORY_NAME3,
+										  CATEGORY_NAME4,
+										  AMOUNT,	
+										  PEF_AMOUNT
+										)
+			select substr(a.complete_date,1,8),
+			      '1',
+				  a.shop_id,
+			      c.member_type,
+				  nvl(e.code4,'9999999991'),
+				  nvl(e.name1,'미분류'),
+				  e.name2,
+				  e.name3,
+				  e.name4,
+			      sum(nvl(a.rm_amount,0)), sum(nvl(rm_pef_amount,0))
+			from txorder a, txorder_item b,meminfo c , goods_master d, 
+			     (
+					    select a.code4,
+					      b.category_name name1,
+					      c.category_name name2,
+					      a.category_name name3,
+					      '' name4
+					    from (
+					        select substr(category_code, 1, 2) || '0000' code1,
+					          substr(category_code, 1, 4) || '00' code2,
+					          category_code code4,
+					          category_name
+					        from GOODS_CATEGORY
+					        where substr(category_code, 1, 1) <> '6'
+					          and delete_date = '99999999'
+					          and language = 'KO' ) A ,
+					      GOODS_CATEGORY B,
+					      GOODS_CATEGORY C
+					    where a.code1 = b.category_code(+)
+					      and a.code2 = c.category_code(+)
+					      and b.language = 'KO'
+					      and c.language = 'KO'
+					    union all
+					    select a.code4,
+					      b.category_name,
+					      c.category_name,
+					      d.category_name,
+					      a.category_name
+					    from (
+					        select substr(category_code, 1, 3) || '000000' code1,
+					          substr(category_code, 1, 5) || '0000' code2,
+					          substr(category_code, 1, 7) || '00' code3,
+					          category_code code4,
+					          category_name
+					        from GOODS_CATEGORY
+					        where category_code like '6%'
+					          and delete_date = '99999999'
+					          and language = 'KO' ) A ,
+					      GOODS_CATEGORY B,
+					      GOODS_CATEGORY C,
+					      GOODS_CATEGORY D
+					    where a.code1 = b.category_code(+)
+					      and a.code2 = c.category_code(+)
+					      and a.code3 = d.category_code(+)
+					      and b.language = 'KO'
+					      and c.language = 'KO'
+					      and d.language = 'KO' 
+			     ) e
+			where a.txorder_id    = b.txorder_id
+			  and a.access_name   = c.access_name
+			  and b.goods_idn     = d.goods_idn
+			  and d.CATEGORY_CODE = e.CODE4(+)
+			  and a.complete_date >= #StartDay#
+			  and a.complete_date <= #EndDay#
+			  and b.goods_idn > 0
+			  and (nvl(a.rm_amount,0) + nvl(a.rm_pef_amount,0)) > 0
+			group by substr(a.complete_date,1,8),'1',a.shop_id,c.member_type,
+				  nvl(e.code4,'9999999991'),
+				  nvl(e.name1,'미분류'),
+				  e.name2,e.name3,e.name4
+		]]>	 
+	</insert>
+ 	
+</sqlMap>

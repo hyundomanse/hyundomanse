@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetTracking">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectOdOrderItmList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ INDEX( A TXORDER_IX11)*/            
+				TXORDER_ID,     
+				TRACKING_NUMBER 
+			FROM TXORDER A  
+			WHERE 1 = 1  
+			AND ORDER_DATE >= TO_CHAR(SYSDATE  - 	31,'YYYYMMDD')    
+			AND ORDER_DATE <  TO_CHAR(SYSDATE  - 1,'YYYYMMDD')||'9999'                                     
+			AND STATUS = 4 
+			AND CANCEL_STATE = 'N'                                 
+			AND PURCHASE_ID IS NOT NULL                            
+			AND TRACKING_NUMBER IS NOT NULL                        
+			AND LENGTH(TRACKING_NUMBER) = 13                       
+			AND A.SHOP_ID <> '2'
+		]]>	 
+
+	</select>	
+	
+	<update id="updateOdOrderItm" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER SET 
+				INVOICE_COMPLETE_DATE = REPLACE(?,'-','') , 
+				STATUS = 5 ,                                
+				RETRUN_DELIV_DONE_YN = ?                    
+			WHERE TXORDER_ID = ? 
+		]]>
+	</update>	
+	
+	<update id="updateImagineTelNoMgmt" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE IMAGINE_TEL_NO_MGMT SET 
+				USE_YN = 'N'  
+			WHERE IMAGINE_TEL_NO IN (
+									 SELECT 
+									 	IMAGINE_TEL_NO 
+									 FROM IMAGINE_TEL_NO_INFO 
+									 WHERE STATUS IN ('C','U')  
+									 AND REGI_NO = ? 
+									 )
+
+		]]>
+	</update>	
+	
+	<update id="updateImagineTelNoInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE IMAGINE_TEL_NO_INFO SET  
+				STATUS='D', 
+				DEAL_STATE='N'   
+			WHERE STATUS IN ('C','U')    
+			AND REGI_NO = ? 
+		]]>
+	</update>	
+	
+		
+</sqlMap>

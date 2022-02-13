@@ -1,0 +1,1000 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.AdjPo">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 접수국 미처리 리스트 & 금융/우편수납 불부합내역 -->
+	<select id="selectAdjPoYtreatList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectAdjPoYtreatList **/
+		
+		SELECT 
+				A.*
+		FROM (
+				SELECT 
+				      A.*
+				      ,DECODE(SIGN(A.DEPOT_DIFF_AMT), 1, '미입금', 0, '정상', -1, '초과금액') AS TREAT_REASON
+				      ,(SELECT B.PONM FROM PICMT0060 B WHERE B.REGIPOCD = A.RECEV_PO_REGI_PO_CD AND B.USEYN = 'Y' AND B.DSCDPOYN = 'N' ) AS SUPPPOREGIPONM
+				      ,ROWNUM AS RNUM
+				FROM (
+				      SELECT 
+				            A.RECEV_PO_REGI_PO_CD /*접수국등기용국기호 */ 
+				            ,A.ADJ_TRGT_YMD       /*정산대상일자 */
+				            ,A.MONEY_RECEV_AMT    /*현금접수금액 */
+				            ,A.DEPOT_AMT				/*입금액*/
+				            ,(A.MONEY_RECEV_AMT - A.DEPOT_AMT) AS DEPOT_DIFF_AMT /*현금접수금액 - 입금액 : 차액*/
+				            ,A.Y_TREAT_OCCUR_YMD  /*미처리 발생일자*/
+				      FROM ST_RECEV_PO_DEP_NO_TRT A
+				      <!-- 접수국 미처리일 경우 -->
+				      <isEqual property="searchGbn" compareValue="01"> 
+				      	WHERE A.Y_TREAT_OCCUR_YMD = #searchTreatOccurYmd#
+				      </isEqual>
+				      <!-- 금융/우편수납 불부합내역일 경우 -->
+				      <isEqual property="searchGbn" compareValue="02"> 
+				      	WHERE A.Y_TREAT_OCCUR_YMD <![CDATA[<=]]> #searchToDt# AND A.Y_TREAT_OCCUR_YMD >= #searchFromDt# 
+					      <isNotEmpty property="searchRegipocd" prepend="AND">
+						 	  A.RECEV_PO_REGI_PO_CD = #searchRegipocd#
+						  </isNotEmpty>
+					  </isEqual>
+				      ORDER BY A.RECEV_PO_REGI_PO_CD, A.ADJ_TRGT_YMD
+				) A 
+				WHERE ROWNUM <![CDATA[<=	]]>	#lastIndex#
+		) A WHERE A.RNUM >= #firstIndex#
+	</select>
+	
+	<!-- 접수국 미처리 리스트 카운트 -->
+	<select id="selectAdjPoYtreatListCnt" parameterClass="java.util.HashMap" resultClass="int">
+			/** SQL_ID : selectAdjPoYtreatListCnt **/
+			
+		      SELECT 
+		           		COUNT(*)
+		      FROM ST_RECEV_PO_DEP_NO_TRT A
+		       <!-- 접수국 미처리일 경우 -->
+		      <isEqual property="searchGbn" compareValue="01"> 
+		      	WHERE A.Y_TREAT_OCCUR_YMD = #searchTreatOccurYmd#
+		      </isEqual>
+		      <!-- 금융/우편수납 불부합내역일 경우 -->
+		      <isEqual property="searchGbn" compareValue="02"> 
+		      	WHERE A.Y_TREAT_OCCUR_YMD <![CDATA[<=]]> #searchToDt# AND A.Y_TREAT_OCCUR_YMD >= #searchFromDt# 
+			      <isNotEmpty property="searchRegipocd" prepend="AND">
+				 	  A.RECEV_PO_REGI_PO_CD = #searchRegipocd#
+				  </isNotEmpty>
+			  </isEqual>
+	</select>
+	
+	<!-- 금융입금내역조회 - 금융입금내역 -->
+	<select id="selectAdjPoFncDepotList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectAdjPoFncDepotList **/
+		
+		 SELECT 
+		       A.*
+		 FROM 
+		 (
+		    SELECT 
+		           A.*
+		           ,ROWNUM AS RNUM
+		    FROM(
+						 SELECT 
+						      RPD.DEPOT_YMD AS DEPOT_YMD                                 /*입금일자*/
+						      ,RPD.DEPOT_HMS AS DEPOT_HMS                                /*입금시각*/
+						      ,RPD.RECEV_PO_REGI_PO_CD AS RECEV_PO_REGI_PO_CD          /*접수국등기용국기호*/
+						      ,RPD.DEPOT_AMT AS DEPOT_AMT                              /*입금액*/
+						      ,DECODE(RPD.MONEY_DEPOT_STUS_CD, '001', '불부합', '002', '입금확인') AS DEPOT_STUS_NM        /*현금입금상태코드명*/
+						      ,RPD.MONEY_DEPOT_TREAT_YMD AS DEPOT_TREAT_YMD       /*현금입금처리일자*/                    
+						FROM ST_RECEV_PO_DEP_AMT RPD
+						WHERE RPD.DEPOT_YMD <![CDATA[<=]]> #searchToDt# AND RPD.DEPOT_YMD >= #searchFromDt#
+						      <isNotEmpty property="searchRegipocd" prepend="AND">
+							 	  RPD.RECEV_PO_REGI_PO_CD = #searchRegipocd#
+							  </isNotEmpty>
+						UNION ALL 
+						SELECT 
+						      BCDI.BUY_COMP_DEPOT_YMD AS DEPOT_YMD        /*매입사입금일자*/
+						      ,'0000' AS DEPOT_HMS
+						      ,BCDI.BUY_COMP_CD AS RECEV_PO_REGI_PO_CD    /*매입사코드*/
+						      ,BCDI.BUY_COMP_DEPOT_AMT AS DEPOT_AMT       /*매입사입금금액*/
+						      ,DECODE(BCDI.CARD_DEPOT_STUS_CD, '001', '미확인', '002', '입금확인') AS DEPOT_STUS_NM        /*카드입금처리상태코드명*/
+						      ,BCDI.CARD_DEPOT_TREAT_YMD AS DEPOT_TREAT_YMD  /*카드입금처리일자*/
+						FROM ST_BUY_COMP_DEPOT_INFO BCDI
+						WHERE BCDI.BUY_COMP_DEPOT_YMD <![CDATA[<=]]> #searchToDt# AND BCDI.BUY_COMP_DEPOT_YMD >= #searchFromDt#
+			) A WHERE ROWNUM <![CDATA[<=	]]>	#lastIndex#
+		) A WHERE A.RNUM >= #firstIndex#
+	</select>
+	
+	<!-- 금융입금내역조회 - 금융입금내역 카운트-->
+	<select id="selectAdjPoFncDepotListCnt" parameterClass="java.util.HashMap" resultClass="int">
+		/** SQL_ID : selectAdjPoFncDepotListCnt **/
+		
+		SELECT                        
+		      COUNT(*)
+		FROM (
+				 SELECT 
+				      RPD.DEPOT_YMD AS DEPOT_YMD                                 /*입금일자*/
+				      ,RPD.DEPOT_HMS AS DEPOT_HMS                                /*입금시각*/
+				      ,RPD.RECEV_PO_REGI_PO_CD AS RECEV_PO_REGI_PO_CD          /*접수국등기용국기호*/
+				      ,RPD.DEPOT_AMT AS DEPOT_AMT                              /*입금액*/
+				      ,DECODE(RPD.MONEY_DEPOT_STUS_CD, '001', '불부합', '002', '입금확인') AS DEPOT_STUS_NM        /*현금입금상태코드명*/
+				      ,RPD.MONEY_DEPOT_TREAT_YMD AS DEPOT_TREAT_YMD       /*현금입금처리일자*/                    
+				FROM ST_RECEV_PO_DEP_AMT RPD
+				WHERE RPD.DEPOT_YMD <![CDATA[<=]]> #searchToDt# AND RPD.DEPOT_YMD >= #searchFromDt#
+					 <isNotEmpty property="searchRegipocd" prepend="AND">
+					 	 RPD.RECEV_PO_REGI_PO_CD = #searchRegipocd#
+					 </isNotEmpty>
+				UNION ALL 
+				SELECT 
+				      BCDI.BUY_COMP_DEPOT_YMD AS DEPOT_YMD        /*매입사입금일자*/
+				      ,'0000' AS DEPOT_HMS
+				      ,BCDI.BUY_COMP_CD AS RECEV_PO_REGI_PO_CD    /*매입사코드*/
+				      ,BCDI.BUY_COMP_DEPOT_AMT AS DEPOT_AMT       /*매입사입금금액*/
+				      ,DECODE(BCDI.CARD_DEPOT_STUS_CD, '001', '미확인', '002', '입금확인') AS DEPOT_STUS_NM        /*카드입금처리상태코드명*/
+				      ,BCDI.CARD_DEPOT_TREAT_YMD AS DEPOT_TREAT_YMD  /*카드입금처리일자*/
+				FROM ST_BUY_COMP_DEPOT_INFO BCDI
+				WHERE BCDI.BUY_COMP_DEPOT_YMD <![CDATA[<=]]> #searchToDt# AND BCDI.BUY_COMP_DEPOT_YMD >= #searchFromDt#
+		) A
+	</select>
+	
+	<!-- 금융입금내역조회 - 수납마감내역-->
+	<select id="selectAdjPoRcptCloseList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectAdjPoRcptCloseList **/
+		
+		 SELECT 
+		       A.*
+		 FROM 
+		 (
+				SELECT
+				      A.*
+				      ,(RECEV_AMT - PO_REFUND_AMT) AS MONEY_CLOSE_AMT		/*현금수납마감금액*/
+				      ,ROWNUM AS RNUM 
+				FROM (
+				      SELECT
+				            RPAC.RECEV_PO_ADJ_TRGT_YMD		
+				            ,NVL(DECODE(RPAC.RECEV_ADJ_TRGT_DIV_CD, '01', RPAC.MONEY_SETL_AMT),0) AS RECEV_AMT			/*현금접수금액*/
+				            ,NVL(DECODE(RPAC.RECEV_ADJ_TRGT_DIV_CD, '02', RPAC.MONEY_SETL_AMT),0) AS PO_REFUND_AMT	/*자국환불금액*/
+				            ,NVL(DECODE(RPAC.RECEV_ADJ_TRGT_DIV_CD, '03', RPAC.MONEY_SETL_AMT),0) AS CNTER_REQ_AMT 	/*센터요청금액*/
+				            ,RPAC.RECEV_ADJ_TRGT_DIV_CD
+				            ,DECODE(RPAC.MONEY_DEPOT_STUS_CD, '001', '불부합', '002', '입금확인') AS MONEY_DEPOT_STUS_NM	/*입금확인상태*/
+				            ,MONEY_DEPOT_TREAT_YMD				/*현금입금처리일자*/
+				      FROM ST_RECEV_PO_ADJ_COMPARE RPAC	
+				      WHERE RPAC.RECEV_PO_ADJ_TRGT_YMD <![CDATA[<=]]> #searchToDt# AND RPAC.RECEV_PO_ADJ_TRGT_YMD >= #searchFromDt#
+				      <isNotEmpty property="searchRegipocd" prepend="AND">
+					 	  RPD.RECEV_PO_REGI_PO_CD = #searchRegipocd#
+					  </isNotEmpty>
+				      ORDER BY RPAC.RECEV_PO_ADJ_TRGT_YMD
+				) A WHERE ROWNUM <![CDATA[<=	]]>	#lastIndex#
+		) A WHERE A.RNUM >= #firstIndex#
+	</select>
+	
+	<!-- 금융입금내역조회 - 수납마감내역 카운트-->
+	<select id="selectAdjPoRcptCloseListCnt" parameterClass="java.util.HashMap" resultClass="int">
+			/** SQL_ID : selectAdjPoRcptCloseListCnt **/
+			
+		      SELECT
+		            	COUNT(*)
+		      FROM ST_RECEV_PO_ADJ_COMPARE RPAC
+		      WHERE RPAC.RECEV_PO_ADJ_TRGT_YMD <![CDATA[<=]]> #searchToDt# AND RPAC.RECEV_PO_ADJ_TRGT_YMD >= #searchFromDt#
+		      <isNotEmpty property="searchRegipocd" prepend="AND">
+			 	  RPD.RECEV_PO_REGI_PO_CD = #searchRegipocd#
+			  </isNotEmpty>
+	</select>
+	
+	<sql id="selectAdjPoFncTransfListSql">
+			  SELECT
+			        SPTA.TRANSF_REQ_YMD
+			        ,SPTA.SUPP_PO_REGI_PO_CD
+			        ,SPTA.SUPP_COMP_CD
+			        ,SPTA.TRANSF_DATA_SEQ
+			        ,SPTA.SUPP_PO_ACC_SEED_NO
+			        ,SPTA.TRANSF_AMT
+			        ,SPTA.TRANSF_RSLT_PFNC_CD
+			        ,SPTA.TRANSF_RSLT_CONT
+			        ,SPTA.TRANSF_DATA_DIV_CD
+			  FROM ST_SUPP_POREGI_TRF_AMT SPTA
+			  WHERE SPTA.TRANSF_REQ_YMD <![CDATA[<=]]> #searchToDt# AND SPTA.TRANSF_REQ_YMD >= #searchFromDt#
+		   			 <isNotEmpty property="searchRegipocd" prepend="AND">
+					 	 SPTA.SUPP_PO_REGI_PO_CD = #searchRegipocd#
+					 </isNotEmpty>
+		   			 <isNotEmpty property="searchPoAccSeedNo" prepend="AND">
+					 	 SPTA.SUPP_PO_ACC_SEED_NO = #searchPoAccSeedNo#
+					 </isNotEmpty>
+			  UNION ALL 
+			  SELECT 
+			        CFT.TRANSF_REQ_YMD
+			        ,NVL(CFT.SUPP_PO_REGI_PO_CD,'') AS SUPP_PO_REGI_PO_CD
+			        ,'' AS SUPP_COMP_CD
+			        ,CFT.TRANSF_DATA_SEQ
+			        ,CFT.SUPP_PO_ACC_SEED_NO
+			        ,CFT.TRANSF_AMT
+			        ,CFT.TRANSF_RSLT_PFNC_CD
+			        ,CFT.TRANSF_RSLT_CONT
+			        ,CFT.TRANSF_DATA_DIV_CD
+			  FROM ST_CTRT_FEE_TRANSF CFT
+			  WHERE CFT.TRANSF_REQ_YMD <![CDATA[<=]]> #searchToDt# AND CFT.TRANSF_REQ_YMD >= #searchFromDt#
+			  		<isNotEmpty property="searchRegipocd" prepend="AND">
+					 	 CFT.SUPP_PO_REGI_PO_CD = #searchRegipocd#
+					 </isNotEmpty>
+					 <isNotEmpty property="searchPoAccSeedNo" prepend="AND">
+					 	 CFT.SUPP_PO_ACC_SEED_NO = #searchPoAccSeedNo#
+					 </isNotEmpty>
+	</sql>
+	
+	<!-- 금융입금내역조회 - 금융이체내역-->
+	<select id="selectAdjPoFncTransfList" parameterClass="java.util.HashMap" resultClass="commMap">
+			/** SQL_ID : selectAdjPoFncTransfList **/
+			
+			 SELECT 
+			       A.*
+			 FROM 
+			 (
+					SELECT
+							A.* 
+							,ROWNUM AS RNUM
+					FROM (
+						SELECT 
+						      A.* 
+						      ,(SELECT  B.PONM FROM PICMT0060 B WHERE B.REGIPOCD=A.SUPP_PO_REGI_PO_CD AND B.USEYN='Y') AS SUPP_PO_REGI_PO_NM
+						      ,'' AS TRANSF_DATA_DIV_NM
+						FROM ( 
+						  		<include refid="selectAdjPoFncTransfListSql" />
+						) A ORDER BY A.TRANSF_REQ_YMD, A.TRANSF_DATA_DIV_CD, A.TRANSF_DATA_SEQ
+					) A WHERE ROWNUM <![CDATA[<=	]]>	#lastIndex#
+			 ) A WHERE A.RNUM >= #firstIndex#
+	</select>
+	
+	<!-- 금융입금내역조회 - 금융이체내역 카운트-->
+	<select id="selectAdjPoFncTransfListCnt" parameterClass="java.util.HashMap" resultClass="int">
+				/** SQL_ID : selectAdjPoFncTransfListCnt **/
+				
+				SELECT 
+				      COUNT(*)
+				FROM (
+				  		<include refid="selectAdjPoFncTransfListSql" />
+				) A 
+	</select>
+	
+	<!-- 후납소포료 정산조회 - 공급업체 후납소포료정산 & 공급업체 상품대금정산  -->
+	<select id="selectAdjPoAftpmnPrclList" parameterClass="java.util.HashMap" resultClass="commMap">
+			/** SQL_ID : selectAdjPoAftpmnPrclList **/
+			
+			SELECT
+					A.* 
+			FROM (
+					SELECT 
+		            		A.*
+				            ,(SELECT  B.BCNC_NM FROM  CO_SUPP_COMP_MAST B WHERE  B.SUPP_COMP_ID = A.SUPP_COMP_ID) AS SUPP_COMP_NM
+				          	,(SELECT  B.PONM FROM PICMT0060 B WHERE B.REGIPOCD=A.SUPP_PO_REGI_PO_CD AND B.USEYN='Y') AS SUPP_PO_REGI_PO_NM
+				          	,(SELECT  B.PONM FROM PICMT0060 B WHERE B.REGIPOCD=A.COMP_PO_REGI_PO_CD AND B.USEYN='Y') AS COMP_PO_REGI_PO_NM
+				          	,ROWNUM AS RNUM
+				     FROM 
+				     ( 
+				        SELECT 
+				               SUPP_PO_REGI_PO_CD        /*공급국등기용국기호*/
+				               ,SUPP_COMP_ID             /*공급 업체 ID*/
+				               ,ADJ_YMD                  /*정산일자*/
+				               ,ADJ_HMS                  /*정산시각*/
+				               ,ADJ_CD                   /*정산구분*/
+				               ,COMP_PO_REGI_PO_CD       /*광역화국등기용국기호*/
+				               ,FORWARD_AMT              /*이월금액*/
+				               ,ADJ_AMT                  /*정산금액*/
+				               ,LATER_PRCL_NEXT_PRC      /*익월고지후납소포료*/
+				               ,RCPT_PRC                 /*후납청구금액*/
+				               ,SUB_AMT                  /*차감금액*/
+				               ,TRANS_AMT                /*이체금액*/
+				               ,BAL_AMT                  /*잔액*/
+				               ,ADD_AMT                  /*추가징수금액*/
+				               ,SUBSTR(ADJ_PERIOD_YMD,1,8) AS ADJ_PERIOD_YMD   /*정산주기*/
+				               ,ADJ_TREAT_STUS_CD          /*정산상태코드*/
+				               ,NVL(ADJ_TREAT_YMD,' ')  AS ADJ_TREAT_YMD       /*정산처리일자*/
+				        FROM ST_SUPP_COMP_ADJ_INFO
+				        WHERE ADJ_PERIOD_YMD <![CDATA[<=]]> #searchToDt#||'99999999' AND ADJ_PERIOD_YMD >= #searchFromDt#||'00000000'
+				        	<isEqual property="searchType" compareValue="01"> 
+				        		AND ADJ_CD = '13'
+				        	</isEqual>
+			        		<isEqual property="searchType" compareValue="02">
+				        		AND ADJ_CD = '01'
+				        	</isEqual>
+				        	<isNotEmpty property="searchRegipocd" prepend="AND">
+				        		SUPP_PO_REGI_PO_CD = #searchRegipocd#
+				        	</isNotEmpty>
+				        	<isNotEmpty property="searchSuppCompId" prepend="AND">
+				        		SUPP_COMP_ID = #searchSuppCompId#
+				        	</isNotEmpty>
+				        ORDER BY COMP_PO_REGI_PO_CD, SUPP_PO_REGI_PO_CD, SUPP_COMP_ID, ADJ_CD, ADJ_YMD, ADJ_HMS
+				       ) A WHERE ROWNUM <![CDATA[<=	]]>	#lastIndex#
+			 ) A WHERE A.RNUM >= #firstIndex#
+		        
+	</select>
+	
+	<!-- 후납소포료 정산조회 - 공급업체 후납소포료정산 & 공급업체 상품대금정산  -->
+	<select id="selectAdjPoAftpmnPrclListCnt" parameterClass="java.util.HashMap" resultClass="int">
+			/** SQL_ID : selectAdjPoAftpmnPrclListCnt **/
+			
+	        SELECT 
+	               COUNT(*)
+	        FROM ST_SUPP_COMP_ADJ_INFO
+	        WHERE ADJ_PERIOD_YMD <![CDATA[<=]]> #searchToDt#||'99999999' AND ADJ_PERIOD_YMD >= #searchFromDt#||'00000000'
+	        	<isEqual property="searchType" compareValue="01"> 
+	        		AND ADJ_CD = '13'
+	        	</isEqual>
+	        	<isEqual property="searchType" compareValue="02">
+	        		AND ADJ_CD = '01'
+	        	</isEqual>
+	        	<isNotEmpty property="searchRegipocd" prepend="AND">
+	        		SUPP_PO_REGI_PO_CD = #searchRegipocd#
+	        	</isNotEmpty>
+	        	<isNotEmpty property="searchSuppCompId" prepend="AND">
+	        		SUPP_COMP_ID = #searchSuppCompId#
+	        	</isNotEmpty>
+		        
+	</select>
+	
+	<!-- 공급국별 정산조회 -->
+	<select id="selectAdjPoSuppList" parameterClass="java.util.HashMap" resultClass="commMap">
+			/** SQL_ID : selectAdjPoSuppList **/
+		SELECT  A.* 
+		FROM
+		(    
+		    SELECT
+		          A.* 
+		          ,ROWNUM AS RNUM
+		      FROM (
+					SELECT A.*
+					       ,(SELECT B.PONM FROM PICMT0060 B WHERE B.REGIPOCD = A.SUPP_PO_REGI_PO_CD AND B.USEYN = 'Y' AND B.DSCDPOYN = 'N' ) AS SUPP_PO_REGI_PO_NM
+					       ,SUM(GOODS_AMOUNT) OVER() TOT_GOODS_AMOUNT
+					       ,SUM(RET_AMOUNT) OVER() TOT_RET_AMOUNT
+					       ,SUM(DEFICIT_AMOUNT) OVER() TOT_DEFICIT_AMOUNT
+					       ,SUM(AMOUNT_CARD_POSTNET) OVER() TOT_AMOUNT_CARD_POSTNET
+					       ,SUM(REFUND_GOODS_AMT) OVER() TOT_REFUND_GOODS_AMT
+					       ,SUM(REFUND_CSF_FEE) OVER() TOT_REFUND_CSF_FEE
+					       ,SUM(AMOUNT_CASH) OVER() TOT_AMOUNT_CASH
+					       ,SUM(AMOUNT_CARD_EPOST) OVER() TOT_AMOUNT_CARD_EPOST
+					       ,SUM(AMOUNT_CARD_OVERSEA) OVER() TOT_AMOUNT_CARD_OVERSEA 
+					       ,SUM(AMOUNT_ACCOUNT) OVER() TOT_AMOUNT_ACCOUNT
+					       ,SUM(AMOUNT_BANKTOWN) OVER() TOT_AMOUNT_BANKTOWN
+					       ,SUM(AMOUNT_MOBILE) OVER() TOT_AMOUNT_MOBILE
+					       ,SUM(AMOUNT_KAKAO) OVER() TOT_AMOUNT_KAKAO
+					       ,SUM(AMOUNT_OTHER_BANKTOWN) OVER() TOT_AMOUNT_OTHER_BANKTOWN
+	                       ,SUM(AMOUNT_POSTMPAY) OVER() TOT_AMOUNT_POSTMPAY
+	                       ,SUM(AMOUNT_SYRUP_PAY) OVER() TOT_AMOUNT_SYRUP_PAY
+	                       ,SUM(AMOUNT_NAVER_PAY) OVER() TOT_AMOUNT_NAVER_PAY
+	                       ,SUM(AMOUNT_PAYNOW) OVER() TOT_AMOUNT_PAYNOW
+	                       ,SUM(AMOUNT_PAYCO) OVER() TOT_AMOUNT_PAYCO
+	                       ,SUM(AMOUNT_BANK_KAKAO) OVER() TOT_AMOUNT_BANK_KAKAO
+	                       ,SUM(AMOUNT_RPAY) OVER() TOT_AMOUNT_RPAY
+	                       ,SUM(AMOUNT_PAYPAL) OVER() TOT_AMOUNT_PAYPAL
+	                       ,SUM(AMOUNT_ONURI) OVER() TOT_AMOUNT_ONURI
+					       ,SUM(AMOUNT_SP) OVER() TOT_AMOUNT_SP
+					       ,SUM(AMOUNT_RM) OVER() TOT_AMOUNT_RM
+					       ,SUM(AMOUNT_COUPON_CSF) OVER() TOT_AMOUNT_COUPON_CSF
+					       ,SUM(AMOUNT_COUPON_BIZ) OVER() TOT_AMOUNT_COUPON_BIZ
+					       ,SUM(AMOUNT_COUPON_THANK) OVER() TOT_AMOUNT_COUPON_THANK
+					       ,SUM(AMOUNT_OKCASH) OVER() TOT_AMOUNT_OKCASH
+					       ,SUM(AMOUNT_MULTIGIFT) OVER() TOT_AMOUNT_MULTIGIFT
+					       ,SUM(SETTLE_AMOUNT) OVER() TOT_SETTLE_AMOUNT
+					       ,SUM(FEE_AMOUNT) OVER() TOT_FEE_AMOUNT
+					       ,SUM(IMMEDIATE_PRCL_PRC) OVER() TOT_IMMEDIATE_PRCL_PRC
+					       ,SUM(LATER_PRCL_PRC) OVER() TOT_LATER_PRCL_PRC
+					       ,SUM(TOTAL_PRCL_PRC) OVER() TOT_TOTAL_PRCL_PRC
+					       ,SUM(CONG_CARD_AMOUNT) OVER() TOT_CONG_CARD_AMOUNT
+					       ,SUM(DELIV_CERT_AMOUNT) OVER() TOT_DELIV_CERT_AMOUNT
+					       ,SUM(ETC_SERVICE_AMOUNT) OVER() TOT_ETC_SERVICE_AMOUNT
+					       ,SUM(MART_FEE) OVER() TOT_MART_FEE
+					       ,SUM(PO_FEE) OVER() TOT_PO_FEE
+					       ,SUM(CSF_FEE) OVER() TOT_CSF_FEE
+					       ,SUM(TOTAL_FEE_AMOUNT) OVER() TOT_TOTAL_FEE_AMOUNT
+					       ,SUM(AMOUNT_EXT_MALL_FEE) OVER() TOT_AMOUNT_EXT_MALL_FEE
+					       ,SUM(LATER_PRCL_SALE_PRC) OVER()  AS TOT_LATER_PRCL_SALE_PRC
+					       ,SUM(AMOUNT_KAKAO_POSTNET) OVER()  AS TOT_AMOUNT_KAKAO_POSTNET
+					       ,SUM(AMOUNT_WALLET) OVER() TOT_AMOUNT_WALLET
+					FROM
+					(
+					    SELECT
+					           SUPP_PO_REGI_PO_CD
+					           /*--, A.PONM AS SUPP_PO_REGI_PO_NM*/     /*공급국*/
+					           , A.COMPLETE_DATE                  /*접수일자*/
+					           , SUM( CASE WHEN COMPLETE_DATE <![CDATA[<]]> '20130121' THEN GOODS_AMOUNT - RET_AMOUNT - DEFICIT_AMOUNT - AMOUNT_COUPON_BIZ - LATER_PRCL_PRC - PO_FEE - MART_FEE - CSF_FEE - decode(A.PAVLN_DIV_CD, '02', 0, FEE_AMOUNT ) + DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE
+					                       ELSE GOODS_AMOUNT - RET_AMOUNT - DEFICIT_AMOUNT - AMOUNT_COUPON_BIZ - LATER_PRCL_PRC - PO_FEE - MART_FEE - CSF_FEE - FEE_AMOUNT + DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE + NVL(LATER_PRCL_SALE_PRC,0)
+					                  END ) AS SUPP_ADJ_AMOUNT --업체정산
+					           , SUM(GOODS_CNT) AS GOODS_CNT   
+					           , SUM(GOODS_AMOUNT) AS GOODS_AMOUNT
+					           , SUM(RET_CNT) AS RET_CNT
+					           , SUM(RET_AMOUNT) AS RET_AMOUNT
+					           , SUM(DEFICIT_CNT) AS DEFICIT_CNT
+					           , SUM(DEFICIT_AMOUNT) AS DEFICIT_AMOUNT
+					           , SUM(AMOUNT_CASH) AS AMOUNT_CASH
+					           , SUM(AMOUNT_CARD_POSTNET) AS AMOUNT_CARD_POSTNET
+					           , SUM(AMOUNT_CARD_EPOST) AS AMOUNT_CARD_EPOST
+					           , SUM(AMOUNT_CARD_OVERSEA) AS AMOUNT_CARD_OVERSEA
+					           , SUM(AMOUNT_ACCOUNT) AS AMOUNT_ACCOUNT
+					           , SUM(AMOUNT_BANKTOWN) AS AMOUNT_BANKTOWN
+					           , SUM(AMOUNT_OTHER_BANKTOWN) AS AMOUNT_OTHER_BANKTOWN
+		                       , SUM(AMOUNT_POSTMPAY) AS AMOUNT_POSTMPAY
+		                       , SUM(AMOUNT_SYRUP_PAY) AS AMOUNT_SYRUP_PAY
+		                       , SUM(AMOUNT_NAVER_PAY) AS AMOUNT_NAVER_PAY
+		                       , SUM(AMOUNT_PAYNOW) AS AMOUNT_PAYNOW
+		                       , SUM(AMOUNT_PAYCO) AS AMOUNT_PAYCO
+		                       , SUM(AMOUNT_BANK_KAKAO) AS AMOUNT_BANK_KAKAO
+		                       , SUM(AMOUNT_RPAY) AS AMOUNT_RPAY
+		                       , SUM(AMOUNT_PAYPAL) AS AMOUNT_PAYPAL
+		                       , SUM(AMOUNT_ONURI) AS AMOUNT_ONURI
+					           , SUM(AMOUNT_SP) AS AMOUNT_SP
+					           , SUM(AMOUNT_RM) AS AMOUNT_RM
+					           , SUM(AMOUNT_COUPON_CSF) AS AMOUNT_COUPON_CSF
+					           , SUM(AMOUNT_COUPON_BIZ) AS AMOUNT_COUPON_BIZ
+					           , SUM(NVL(AMOUNT_COUPON_THANK,0)) AS AMOUNT_COUPON_THANK
+					           , SUM(DELIV_CERT_AMOUNT) AS DELIV_CERT_AMOUNT
+					           , SUM(CONG_CARD_AMOUNT) AS CONG_CARD_AMOUNT
+					           , SUM(DELIV_CERT_AMOUNT + CONG_CARD_AMOUNT) AS ETC_SERVICE_AMOUNT
+					           , SUM(SETTLE_AMOUNT) AS SETTLE_AMOUNT
+					           , SUM( CASE WHEN COMPLETE_DATE <![CDATA[<]]>  '20130121' THEN DECODE(PAVLN_DIV_CD, '02', 0, FEE_AMOUNT)
+					                       ELSE FEE_AMOUNT
+					                  END) AS FEE_AMOUNT
+					           , SUM(IMMEDIATE_PRCL_PRC) AS IMMEDIATE_PRCL_PRC
+					           , SUM(LATER_PRCL_PRC) AS LATER_PRCL_PRC
+					           , SUM(IMMEDIATE_PRCL_PRC + LATER_PRCL_PRC) AS TOTAL_PRCL_PRC
+					           , SUM(PO_FEE) AS PO_FEE
+					           , SUM(CSF_FEE) - SUM(A.AMOUNT_EXT_MALL_FEE)AS CSF_FEE
+					           , SUM(MART_FEE) AS MART_FEE
+					           , SUM(PO_FEE + CSF_FEE + MART_FEE) - SUM(A.AMOUNT_EXT_MALL_FEE) AS TOTAL_FEE_AMOUNT
+					           , SUM(DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE) AS SETTLE_FEE_ADJUST
+					           , SUM(A.AMOUNT_OKCASH) AS AMOUNT_OKCASH
+					           , SUM(A.AMOUNT_MULTIGIFT) AS AMOUNT_MULTIGIFT
+					           , SUM(A.AMOUNT_EXT_MALL_FEE) AS AMOUNT_EXT_MALL_FEE
+					           , SUM(A.REFUND_GOODS_AMT) AS REFUND_GOODS_AMT
+					           , SUM(A.REFUND_CSF_FEE) AS REFUND_CSF_FEE
+					           , SUM(A.AMOUNT_KAKAO) AS AMOUNT_KAKAO
+					           , SUM(A.AMOUNT_MOBILE) AS AMOUNT_MOBILE
+					           , SUM(NVL(A.LATER_PRCL_SALE_PRC,0)) AS LATER_PRCL_SALE_PRC
+					           , SUM(NVL(AMOUNT_KAKAO_POSTNET,0)) AS AMOUNT_KAKAO_POSTNET
+					           , SUM(NVL(AMOUNT_WALLET,0)) AS AMOUNT_WALLET
+					    FROM
+					    (
+					             SELECT  A.SUPP_PO_REGI_PO_CD                      /*공급국등기용국기호*/
+					                     /*--,P.PONM*/                                   /*공급국명*/
+					                     ,A.COMPLETE_DATE                          /*결제일자*/
+					                     ,A.GOODS_CNT                              /*상품수량*/
+					                     ,A.GOODS_AMOUNT                           /*상품금액*/
+					                     ,A.RET_CNT                                /*반품수량*/
+					                     ,A.RET_AMOUNT                             /*반품금액*/
+					                     ,A.DEFICIT_CNT                            /*조정수량*/
+					                     ,A.DEFICIT_AMOUNT                         /*조정금액*/
+					                     ,A.AMOUNT_CASH                            /*현금_결제금액*/
+					                     ,A.AMOUNT_CARD_POSTNET                    /*카드_창구_결제금액*/
+					                     ,A.AMOUNT_CARD_EPOST                      /*카드_이포스트_결제금액*/
+					                     ,A.AMOUNT_CARD_OVERSEA                    /*해외카드_결제금액*/
+					                     ,A.AMOUNT_ACCOUNT                         /*무통장_결제금액*/
+					                     ,A.AMOUNT_BANKTOWN                        /*계좌이체_결제금액*/
+					                     ,A.AMOUNT_OTHER_BANKTOWN                  /*계좌이체_결제금액(우체국외)*/
+					                     ,A.AMOUNT_POSTMPAY                        /*포스트엠페이*/
+					                     ,A.AMOUNT_SYRUP_PAY                       /*시럽*/
+					                     ,A.AMOUNT_NAVER_PAY                       /*네이버페이*/
+					                     ,A.AMOUNT_PAYNOW                          /*페이나우*/
+					                     ,A.AMOUNT_PAYCO                           /*페이코*/
+					                     ,A.AMOUNT_BANK_KAKAO                      /*뱅크월넷카카오*/
+					                     ,A.AMOUNT_RPAY                            /*알레페이*/
+					                     ,A.AMOUNT_PAYPAL                          /*페이팔*/
+					                     ,A.AMOUNT_ONURI                           /*온누리*/
+					                     ,A.AMOUNT_SP                              /*포인트_결제금액*/
+					                     ,A.AMOUNT_RM                              /*우수고객포인트_결제금액*/
+					                     ,A.AMOUNT_COUPON_CSF                      /*진흥원발행_할인쿠폰금액*/
+					                     ,A.AMOUNT_COUPON_BIZ                      /*업체발행_할인쿠폰금액*/
+					                     ,A.AMOUNT_COUPON_THANK                    /*업체발행_감사금액*/
+					                     ,A.DELIV_CERT_AMOUNT                      /*배달증명금액*/
+					                     ,A.CONG_CARD_AMOUNT                       /*경조카드금액*/
+					                     ,A.SETTLE_AMOUNT                          /*총 결제금액*/
+					                     ,A.FEE_AMOUNT                             /*총 결제수수료 금액*/
+					                     ,A.IMMEDIATE_PRCL_PRC                     /*즉납소포료*/
+					                     ,A.LATER_PRCL_PRC                         /*후납소포료*/
+					                     ,A.PO_FEE                                 /*우체국수수료(6%)*/
+					                     ,A.CSF_FEE                                /*판매수수료(4%)*/
+					                     ,A.AMOUNT_EXT_MALL_FEE                    /*외부_쇼핑몰_수수료*/
+					                     ,A.MART_FEE                               /*대기업수수료(6%)*/
+					                     ,A.DEFICIT_CARD_SETL_FEE                  /*조정환불결제수수료*/
+					                     ,A.REFUND_CARD_SETL_FEE                   /*반품환불결제수수료*/
+					                     ,A.AMOUNT_OKCASH                          /*OK캐쉬백금액*/
+					                     ,A.AMOUNT_MULTIGIFT                       /*멀티기프트_결제금액*/
+					                     ,A.REFUND_GOODS_AMT                       
+					                     ,A.REFUND_CSF_FEE
+					                     ,A.AMOUNT_KAKAO                           /*카카오페이결제금액*/
+					                     ,A.AMOUNT_MOBILE                          /*핸드폰결제금액*/
+					                     ,A.LATER_PRCL_SALE_PRC
+					                     ,A.PAVLN_DIV_CD                        /*상품종류*/
+					                     ,A.KAKAO_WICKET_SETL_AMT AS AMOUNT_KAKAO_POSTNET
+					                     ,A.AMOUNT_WALLET /*전자지갑 사용금액*/
+					            FROM ST_ADJ_GOODS A
+					            WHERE 1=1
+					              AND A.GOODS_CANCEL_YN != 'Y'
+					              AND A.COMPLETE_DATE <![CDATA[<=]]> #searchToDt# AND A.COMPLETE_DATE >= #searchFromDt#
+<!-- 					              AND A.ORDER_MDA_DIV_CD IN ('P', 'E', 'C','M') -->
+					              AND A.ORDER_MDA_DIV_CD IN ('05', '01', '04','03')
+					              AND A.PAVLN_DIV_CD != '02'
+					              <isEqual property="recvShop" compareValue="ALL">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','03','04','05','07','08','09','99') ]]>
+								  </isEqual>
+					              <isEqual property="recvShop" compareValue="01">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','07') ]]>
+								  </isEqual>
+					              <isEqual property="recvShop" compareValue="04">
+								  	<![CDATA[ AND   PAVLN_DIV_CD = '04' ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="03">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('03','09') ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="05">
+								  	<![CDATA[ AND   PAVLN_DIV_CD = '05' ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="08">
+								  	<![CDATA[ AND   PAVLN_DIV_CD = '08' ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="EP">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','04','07') ]]><!-- 특산품+꽃배달+특화(제철) -->
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="EN">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('03','05','08','09') ]]><!-- 생활마트+전통시장+패션B2B -->
+								  </isEqual>
+								   <isEqual property="recvShop" compareValue="EA">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','04','07','03','05','09') ]]><!-- 특산품+꽃배달+특화(제철)+생활마트+전통시장 -->
+								  </isEqual>
+				              	<isNotEmpty property="searchSuppCompId" prepend="AND">
+					        		SUPP_PO_REGI_PO_CD = #searchSuppCompId#
+					        	</isNotEmpty>
+					            ORDER BY SUPP_PO_REGI_PO_CD, COMPLETE_DATE
+					    ) A
+					    GROUP BY A.SUPP_PO_REGI_PO_CD, A.COMPLETE_DATE
+					) A 
+			 ) A WHERE ROWNUM <![CDATA[<=	]]>	#lastIndex#
+		 ) A WHERE A.RNUM >= #firstIndex# 
+	</select>
+	
+	<!-- 공급국별 정산조회 카운트 -->
+	<select id="selectAdjPoSuppListCnt" parameterClass="java.util.HashMap" resultClass="int">
+			/** SQL_ID : selectAdjPoSuppListCnt **/
+			
+			SELECT
+			      COUNT(*)
+			FROM(
+					    SELECT
+					           SUPP_PO_REGI_PO_CD
+					           /*, A.PONM AS SUPP_PO_REGI_PO_NM*/     /*공급국*/
+					           , A.COMPLETE_DATE                  /*접수일자*/
+					    FROM
+					    (
+					             SELECT   A.SUPP_PO_REGI_PO_CD                      /*공급국등기용국기호*/
+					                      /*,P.PONM*/                                   /*공급국명*/
+					                     ,A.COMPLETE_DATE                          /*결제일자*/
+					            FROM ST_ADJ_GOODS A
+					            WHERE 1=1
+					              AND A.GOODS_CANCEL_YN != 'Y'
+					              AND A.COMPLETE_DATE <![CDATA[<=]]> #searchToDt# AND A.COMPLETE_DATE >= #searchFromDt#
+<!-- 					              AND A.ORDER_MDA_DIV_CD IN ('P', 'E', 'C','M') -->
+					              AND A.ORDER_MDA_DIV_CD IN ('05', '01', '04','03')
+					              AND A.PAVLN_DIV_CD != '02'
+					              <isEqual property="recvShop" compareValue="ALL">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','03','04','05','07','08','09','99') ]]>
+								  </isEqual>
+					              <isEqual property="recvShop" compareValue="01">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','07') ]]>
+								  </isEqual>
+					              <isEqual property="recvShop" compareValue="04">
+								  	<![CDATA[ AND   PAVLN_DIV_CD = '04' ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="03">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('03','09') ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="05">
+								  	<![CDATA[ AND   PAVLN_DIV_CD = '05' ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="08">
+								  	<![CDATA[ AND   PAVLN_DIV_CD = '08' ]]>
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="EP">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','04','07') ]]><!-- 특산품+꽃배달+특화(제철) -->
+								  </isEqual>
+								  <isEqual property="recvShop" compareValue="EN">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('03','05','08','09') ]]><!-- 생활마트+전통시장+패션B2B -->
+								  </isEqual>
+								   <isEqual property="recvShop" compareValue="EA">
+								  	<![CDATA[ AND   PAVLN_DIV_CD IN ('01','04','07','03','05','09') ]]><!-- 특산품+꽃배달+특화(제철)+생활마트+전통시장 -->
+								  </isEqual>
+				              	  <isNotEmpty property="searchSuppCompId" prepend="AND">
+					        		SUPP_PO_REGI_PO_CD = #searchSuppCompId#
+					        	  </isNotEmpty>
+					            ORDER BY SUPP_PO_REGI_PO_CD, COMPLETE_DATE
+					    ) A
+					    GROUP BY A.SUPP_PO_REGI_PO_CD, A.COMPLETE_DATE
+		    ) A
+	</select>
+	
+	<!-- 공급국별 정산조회 상세--> <!-- 수정필요 -->
+	<select id="selectAdjPoSuppDtlList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectAdjPoSuppDtlList **/
+		
+		SELECT
+				A.* 
+		FROM (
+				SELECT A.*, ROWNUM AS RNUM FROM (
+				SELECT 
+						A.*
+						, SUM(GOODS_CNT) OVER() AS TOT_GOODS_CNT 
+                        , SUM(GOODS_AMOUNT) OVER() AS TOT_GOODS_AMOUNT
+                        , SUM (RET_AMOUNT) OVER() AS TOT_RET_AMOUNT
+                        , SUM(DEFICIT_CNT) OVER() AS TOT_DEFICIT_CNT
+                        , SUM(DEFICIT_AMOUNT) OVER() AS TOT_DEFICIT_AMOUNT
+                        , SUM(AMOUNT_CASH) OVER() AS TOT_AMOUNT_CASH
+                        , SUM(AMOUNT_CARD_POSTNET) OVER() AS TOT_AMOUNT_CARD_POSTNET
+                        , SUM(AMOUNT_CARD_EPOST) OVER() AS TOT_AMOUNT_CARD_EPOST
+                        , SUM(AMOUNT_CARD_OVERSEA) OVER() AS TOT_AMOUNT_CARD_OVERSEA
+                        , SUM(AMOUNT_ACCOUNT) OVER() AS TOT_AMOUNT_ACCOUNT
+                        , SUM(AMOUNT_BANKTOWN) OVER() AS TOT_AMOUNT_BANKTOWN
+                        , SUM(AMOUNT_SP) OVER() AS TOT_AMOUNT_SP
+                        , SUM(AMOUNT_RM) OVER() AS TOT_AMOUNT_RM
+                        , SUM(AMOUNT_COUPON_CSF) OVER() AS TOT_AMOUNT_COUPON_CSF
+                        , SUM(AMOUNT_COUPON_BIZ)OVER() AS TOT_AMOUNT_COUPON_BIZ
+                        , SUM(AMOUNT_COUPON_SALE_BIZ)OVER() AS TOT_AMOUNT_COUPON_SALE_BIZ
+                        , SUM(DELIV_CERT_AMOUNT) OVER() AS TOT_DELIV_CERT_AMOUNT
+                        , SUM(CONG_CARD_AMOUNT)OVER() AS TOT_CONG_CARD_AMOUNT
+                        , SUM(ETC_SERVICE_AMOUNT) OVER() AS TOT_ETC_SERVICE_AMOUNT
+                        , SUM(SETTLE_AMOUNT) OVER() AS TOT_SETTLE_AMOUNT
+                        , SUM(FEE_AMOUNT) OVER() AS TOT_FEE_AMOUNT
+                        , SUM(IMMEDIATE_PRCL_PRC) OVER() AS TOT_IMMEDIATE_PRCL_PRC
+                        , SUM(LATER_PRCL_PRC) OVER() AS TOT_LATER_PRCL_PRC
+                        , SUM(TOTAL_PRCL_PRC) OVER() AS TOT_TOTAL_PRCL_PRC
+                        , SUM(PO_FEE) OVER() AS TOT_PO_FEE
+                        , SUM(CSF_FEE) OVER() AS TOT_CSF_FEE
+                        , SUM(MART_FEE) OVER() AS TOT_MART_FEE
+                        , SUM(TOTAL_FEE_AMOUNT) OVER() AS TOT_TOTAL_FEE_AMOUNT
+                        , SUM(SETTLE_FEE_ADJUST) OVER() AS TOT_SETTLE_FEE_ADJUST
+                        , SUM(AMOUNT_OKCASH) OVER() AS TOT_AMOUNT_OKCASH 
+                        , SUM(AMOUNT_MULTIGIFT) OVER() AS TOT_AMOUNT_MULTIGIFT 
+                        , SUM(AMOUNT_EXT_MALL_FEE) OVER() AS TOT_AMOUNT_EXT_MALL_FEE 
+                        , 0 AS TOT_REFUND_GOODS_AMT
+                        , 0 AS TOT_REFUND_CSF_FEE
+                        , SUM(AMOUNT_KAKAO) OVER() AS TOT_AMOUNT_KAKAO
+                        , SUM(AMOUNT_MOBILE) OVER() AS TOT_AMOUNT_MOBILE
+                        , SUM(LATER_PRCL_SALE_PRC) OVER() AS  TOT_LATER_PRCL_SALE_PRC
+                        , SUM(AMOUNT_OTHER_BANKTOWN) OVER() TOT_AMOUNT_OTHER_BANKTOWN
+	                    , SUM(AMOUNT_POSTMPAY) OVER() TOT_AMOUNT_POSTMPAY
+	                    , SUM(AMOUNT_SYRUP_PAY) OVER() TOT_AMOUNT_SYRUP_PAY
+	                    , SUM(AMOUNT_NAVER_PAY) OVER() TOT_AMOUNT_NAVER_PAY
+	                    , SUM(AMOUNT_PAYNOW) OVER() TOT_AMOUNT_PAYNOW
+	                    , SUM(AMOUNT_PAYCO) OVER() TOT_AMOUNT_PAYCO
+	                    , SUM(AMOUNT_BANK_KAKAO) OVER() TOT_AMOUNT_BANK_KAKAO
+	                    , SUM(AMOUNT_RPAY) OVER() TOT_AMOUNT_RPAY
+	                    , SUM(AMOUNT_PAYPAL) OVER() TOT_AMOUNT_PAYPAL
+	                    , SUM(AMOUNT_ONURI) OVER() TOT_AMOUNT_ONURI
+	                    , SUM(AMOUNT_KAKAO_POSTNET) OVER() TOT_AMOUNT_KAKAO_POSTNET
+	                    , SUM(WALLET_SETL_AMT) OVER() TOT_AMOUNT_WALLET
+				FROM (
+						 SELECT  1
+						       , SUPP_PO_REGI_PO_CD
+						       , SUPP_PO_REGI_PO_NM
+						       , COMPLETE_DATE
+						       , ORDER_ID
+						       , RECEV_PO_REGI_PO_NM
+						       , STATUS_NM
+						       , GOODS_NAME
+						       , CASE WHEN COMPLETE_DATE <![CDATA[<]]> '20130121' THEN GOODS_AMOUNT - RET_AMOUNT - DEFICIT_AMOUNT - AMOUNT_COUPON_BIZ - LATER_PRCL_PRC - PO_FEE - MART_FEE - CSF_FEE - decode(a.shop_id, '02', 0, FEE_AMOUNT ) + DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE
+						              ELSE GOODS_AMOUNT - RET_AMOUNT - DEFICIT_AMOUNT - AMOUNT_COUPON_BIZ - LATER_PRCL_PRC - PO_FEE - MART_FEE - CSF_FEE - FEE_AMOUNT + DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE + NVL(LATER_PRCL_SALE_PRC,0)
+						         END AS SUPP_ADJ_AMOUNT --업체정산
+						       , (GOODS_CNT) AS GOODS_CNT
+						       , (GOODS_AMOUNT) AS GOODS_AMOUNT
+						       , (RET_CNT) AS RET_CNT
+						       , (RET_AMOUNT) AS RET_AMOUNT
+						       , (DEFICIT_CNT) AS DEFICIT_CNT
+						       , (DEFICIT_AMOUNT) AS DEFICIT_AMOUNT
+						       , (AMOUNT_CASH) AS AMOUNT_CASH
+						       , (AMOUNT_CARD_POSTNET) AS AMOUNT_CARD_POSTNET
+						       , (AMOUNT_CARD_EPOST) AS AMOUNT_CARD_EPOST
+						       , (AMOUNT_CARD_OVERSEA) AS AMOUNT_CARD_OVERSEA
+						       , (AMOUNT_ACCOUNT) AS AMOUNT_ACCOUNT
+						       , (AMOUNT_BANKTOWN) AS AMOUNT_BANKTOWN
+						       , (AMOUNT_SP) AS AMOUNT_SP
+						       , (AMOUNT_RM) AS AMOUNT_RM
+						       , (AMOUNT_COUPON_CSF) AS AMOUNT_COUPON_CSF
+						       , (AMOUNT_COUPON_BIZ) AS AMOUNT_COUPON_BIZ
+						       , (AMOUNT_COUPON_BIZ - AMOUNT_COUPON_THANK) AS AMOUNT_COUPON_SALE_BIZ
+						       , (DELIV_CERT_AMOUNT) AS DELIV_CERT_AMOUNT
+						       , (CONG_CARD_AMOUNT) AS CONG_CARD_AMOUNT
+						       , (DELIV_CERT_AMOUNT + CONG_CARD_AMOUNT) AS ETC_SERVICE_AMOUNT
+						       , (SETTLE_AMOUNT) AS SETTLE_AMOUNT
+						       , ( CASE WHEN COMPLETE_DATE <![CDATA[<]]> '20130121' THEN DECODE(SHOP_ID, '02', 0, FEE_AMOUNT)
+						                ELSE FEE_AMOUNT
+						           END) AS FEE_AMOUNT
+						       , (IMMEDIATE_PRCL_PRC) AS IMMEDIATE_PRCL_PRC
+						       , (LATER_PRCL_PRC) AS LATER_PRCL_PRC
+						       , (IMMEDIATE_PRCL_PRC + LATER_PRCL_PRC) AS TOTAL_PRCL_PRC
+						       , (PO_FEE) AS PO_FEE
+						       , (CSF_FEE) - AMOUNT_EXT_MALL_FEE AS CSF_FEE
+						       , (MART_FEE) AS MART_FEE
+						       , (PO_FEE + CSF_FEE + MART_FEE) - AMOUNT_EXT_MALL_FEE AS TOTAL_FEE_AMOUNT
+						       , (DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE) AS SETTLE_FEE_ADJUST
+						       , AMOUNT_OKCASH AS AMOUNT_OKCASH 
+						       , AMOUNT_MULTIGIFT AS AMOUNT_MULTIGIFT 
+						       , AMOUNT_EXT_MALL_FEE AS AMOUNT_EXT_MALL_FEE 
+						       , 0 AS REFUND_GOODS_AMT
+						       , 0 AS REFUND_CSF_FEE
+						       , AMOUNT_KAKAO
+						       , AMOUNT_MOBILE
+						       , AMOUNT_OTHER_BANKTOWN                  /*계좌이체_결제금액(우체국외)*/
+							   , AMOUNT_POSTMPAY                        /*포스트엠페이*/
+							   , AMOUNT_SYRUP_PAY                       /*시럽*/
+						   	   , AMOUNT_NAVER_PAY                       /*네이버페이*/
+							   , AMOUNT_PAYNOW                          /*페이나우*/
+							   , AMOUNT_PAYCO                           /*페이코*/
+							   , AMOUNT_BANK_KAKAO                      /*뱅크월넷카카오*/
+							   , AMOUNT_RPAY                            /*알레페이*/
+							   , AMOUNT_PAYPAL                          /*페이팔*/
+							   , AMOUNT_ONURI                           /*온누리*/
+						       , NVL(LATER_PRCL_SALE_PRC,0) LATER_PRCL_SALE_PRC
+						       , AMOUNT_KAKAO_POSTNET
+						       , AMOUNT_WALLET
+					     FROM
+					     (    
+					        SELECT 
+						            I.SUPPO_RGIST_POCD AS SUPP_PO_REGI_PO_CD, 
+						            P.PONM AS SUPP_PO_REGI_PO_NM,
+						            SUBSTR(APPR_DATE, 1, 8)  COMPLETE_DATE, 
+						            I.ORDER_ID,
+						            R.PONM AS RECEV_PO_REGI_PO_NM,
+						            I.GOODS_CANCEL_YN CANCEL_YN,
+						            I.PAVLN_DIV_CD SHOP_ID,
+						            SC.COMN_CD_NM AS STATUS_NM,
+						            I.GOODS_CD, 
+						            (SELECT GOODS_NM FROM GD_GOODS_MAST WHERE GOODS_CD=I.GOODS_CD AND ROWNUM=1 ) GOODS_NAME,
+						            SUM(NVL(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0),0)+NVL((SELECT DELIV_CERT_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)+NVL((SELECT CONG_CARD_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)) AS SETTLE_AMOUNT,
+						            SUM(NVL((SELECT FEE_AMT FROM OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0)) AS FEE_AMOUNT,
+						            SUM(DECODE( A.SETL_MEAN_CD,'15', I.CASH_BILL_AMT, '17', I.CASH_BILL_AMT, 0)) AMOUNT_CASH,
+						            SUM(DECODE( A.SETL_MEAN_CD,'01',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_ACCOUNT,
+						            SUM(DECODE( A.SETL_MEAN_CD,'05',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 
+                                                          '16',DECODE(A.PO_FNC_YN,'P',NVL(C.TRANS_AMT,0),0),0)) AS AMOUNT_BANKTOWN,
+									SUM(DECODE( A.SETL_MEAN_CD,'06',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0),
+                                                          '16',DECODE(A.PO_FNC_YN,'P',0,NVL(C.TRANS_AMT,0)) ,0)) AS AMOUNT_OTHER_BANKTOWN,
+						            SUM(DECODE( A.SETL_MEAN_CD,'04',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), '17', (I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.CASH_BILL_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_CARD_POSTNET,
+						            SUM(DECODE( A.SETL_MEAN_CD,'02',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0),
+                                                          '16',NVL(C.CARD_AMT1,0)+NVL(C.CARD_AMT2,0),0)) AMOUNT_CARD_EPOST,
+						            SUM(DECODE( A.SETL_MEAN_CD,'03',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_CARD_OVERSEA,
+						            SUM(NVL(I.PREMI_CUST_PNT_SETL_AMT,0)) AMOUNT_SP,
+						            SUM(NVL(I.PNT_USE_AMT,0)) AMOUNT_RM,
+						            SUM(DECODE(I.CP_CMP_CD1,'1',I.CPN_DC_AMT1, 0) + DECODE(I.CP_CMP_CD2,'1',I.CPN_DC_AMT2, 0)) AMOUNT_COUPON_CSF,
+                                    SUM(DECODE(I.CP_CMP_CD1,'2',I.CPN_DC_AMT1, 0) + DECODE(I.CP_CMP_CD2,'2',I.CPN_DC_AMT2, 0)) AMOUNT_COUPON_BIZ,
+                                    SUM(DECODE(I.CP_CMP_CD1,'3',I.CPN_DC_AMT1, 0) + DECODE(I.CP_CMP_CD2,'3',I.CPN_DC_AMT2, 0)) AMOUNT_COUPON_THANK,
+						            SUM(DECODE( A.SETL_MEAN_CD,'28',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_MULTIGIFT,
+						            SUM(DECODE( A.SETL_MEAN_CD,'12',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_CYBERPASS,
+						            SUM(1) GOODS_CNT,
+						            SUM(NVL(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0),0)) GOODS_AMOUNT,
+						            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 1 ELSE 0 END) RET_CNT,
+						            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0) ELSE 0 END) RET_AMOUNT,
+						            SUM(CASE WHEN I.DEFICIT_YN = 'Y' THEN 1 ELSE 0 END) DEFICIT_CNT,
+						            SUM(CASE WHEN I.DEFICIT_YN = 'Y' THEN I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0) ELSE 0 END) DEFICIT_AMOUNT,
+						            SUM(NVL((SELECT DELIV_CERT_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)) DELIV_CERT_AMOUNT,
+						            SUM(NVL((SELECT CONG_CARD_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)) CONG_CARD_AMOUNT,
+						            SUM(NVL(I.IMMPMN_PRCL_AMT,0)) IMMEDIATE_PRCL_PRC,
+						            SUM(NVL(I.AFTPMN_PRCL_AMT,0)) LATER_PRCL_PRC,
+						            SUM(NVL(I.LATER_PRCL_SALE_PRC,0)) LATER_PRCL_SALE_PRC,
+						            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 0 WHEN I.DEFICIT_YN = 'Y' THEN 0 ELSE NVL((SELECT POSA_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0) END) CSF_FEE,
+						            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 0 WHEN I.DEFICIT_YN = 'Y'  THEN 0 WHEN I.PAVLN_DIV_CD != '92' THEN NVL((SELECT FLWR_DELIV_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0) ELSE 0 END) PO_FEE,
+						            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 0 WHEN I.DEFICIT_YN = 'Y'  THEN 0 WHEN I.PAVLN_DIV_CD = '92' THEN NVL((SELECT FLWR_DELIV_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0) ELSE 0 END) MART_FEE,
+						            SUM(NVL(I.OKCASH_USE_AMT,0)) AS AMOUNT_OKCASH,
+						            SUM(NVL((SELECT OUTSID_COPRTN_SHOPMALL_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID), 0)) AS AMOUNT_EXT_MALL_FEE,
+						            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN (SELECT RETRNGD_CARD_REFUND_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID) ELSE 0 END) REFUND_CARD_SETL_FEE,
+						            SUM(CASE WHEN I.DEFICIT_YN = 'Y' THEN NVL((SELECT DEFICIT_CARD_SETL_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0) ELSE 0 END) DEFICIT_CARD_SETL_FEE,
+						            SUM(DECODE( A.SETL_MEAN_CD,'20',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_KAKAO,
+						            SUM(DECODE( A.SETL_MEAN_CD,'13',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_MOBILE,
+						            SUM(DECODE( A.SETL_MEAN_CD,'21',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_POSTMPAY,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'22',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_SYRUP_PAY,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'23',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_NAVER_PAY,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'24',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_PAYNOW,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'25',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_PAYCO,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'26',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_BANK_KAKAO,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'27',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_RPAY,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'07',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_PAYPAL,
+	                                SUM(DECODE( A.SETL_MEAN_CD,'08',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 
+                                                               '16',NVL(C.ONNURI_AMT,0),0)) AMOUNT_ONURI,
+									SUM(DECODE( A.SETL_MEAN_CD,'29',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_KAKAO_POSTNET,
+									SUM(I.WALLET_SETL_AMT) AS AMOUNT_WALLET,
+						            1
+					        FROM    OD_ORDER_ITM I, OD_ORDER_MAST A, CO_SUPP_COMP_MAST B, PICMT0060 P, CM_COMN_CD SC, PICMT0060 R, OD_ORDER_FEE C
+					        WHERE   1=1
+					        AND     I.ORDER_ID = A.ORDER_ID
+					        AND     I.ORDER_ITM_ID = C.ORDER_ITM_ID
+					        AND     A.APPR_DATE BETWEEN TO_DATE(#searchFromDt#, 'YYYYMMDD') AND TO_DATE(#searchToDt#, 'YYYYMMDD') + .99999
+					        AND     I.GOODS_CANCEL_YN != 'Y'
+					        AND     I.SUPP_COMP_ID = B.SUPP_COMP_ID
+					        AND     I.SUPPO_RGIST_POCD = P.REGIPOCD
+					        AND     P.USEYN = 'Y'
+					        AND     A.RECEVPO_RGISTPOCD = R.REGIPOCD
+					        AND     R.USEYN = 'Y'
+					        AND     I.ORDER_STUS_CD = SC.COMN_CD_ID
+					        AND     SC.CD_GRP_ID = 'ORDER_STUS_CD'
+					        <isEqual property="recvShop" compareValue="ALL">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','03','04','05','07','08','09','99') ]]>
+						    </isEqual>
+			                <isEqual property="recvShop" compareValue="01">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','07') ]]>
+						    </isEqual>
+			                <isEqual property="recvShop" compareValue="04">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD = '04' ]]>
+						    </isEqual>
+						    <isEqual property="recvShop" compareValue="03">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('03','09') ]]>
+						    </isEqual>
+						    <isEqual property="recvShop" compareValue="05">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD = '05' ]]>
+						    </isEqual>
+						    <isEqual property="recvShop" compareValue="08">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD = '08' ]]>
+						    </isEqual>
+						    <isEqual property="recvShop" compareValue="EP">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','04','07') ]]><!-- 특산품+꽃배달+특화(제철) -->
+						    </isEqual>
+						    <isEqual property="recvShop" compareValue="EN">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('03','05','08','09') ]]><!-- 생활마트+전통시장+패션B2B -->
+						    </isEqual>
+						    <isEqual property="recvShop" compareValue="EA">
+						  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','04','07','03','05','09') ]]><!-- 특산품+꽃배달+특화(제철)+생활마트+전통시장 -->
+						    </isEqual>
+					        <isNotEmpty property="searchRegipocd" prepend="AND"> 
+				        		    I.SUPPO_RGIST_POCD = #searchRegipocd#
+				        	</isNotEmpty>
+					        GROUP BY 1, I.SUPPO_RGIST_POCD, SUBSTR(A.APPR_DATE, 1, 8), I.ORDER_ID, P.PONM, R.PONM, I.GOODS_CANCEL_YN, I.PAVLN_DIV_CD, SC.COMN_CD_NM, I.GOODS_CD
+					    ) A
+					    ORDER BY SUPP_PO_REGI_PO_CD, COMPLETE_DATE, ORDER_ID, GOODS_CD
+					 ) A
+		        ) A WHERE ROWNUM <![CDATA[<=]]>	#lastIndex#
+			 ) A WHERE A.RNUM >= #firstIndex#
+	</select>
+	
+	<!-- 공급국별 정산조회 상세 카운트--> 
+	<select id="selectAdjPoSuppDtlListCnt" parameterClass="java.util.HashMap" resultClass="int">
+			/** SQL_ID : selectAdjPoSuppDtlListCnt **/
+			SELECT 
+					COUNT(*)
+			FROM 
+			(
+	 			 SELECT  1
+				       , SUPP_PO_REGI_PO_CD
+				       , SUPP_PO_REGI_PO_NM
+				       , COMPLETE_DATE
+				       , ORDER_ID
+				       , RECEV_PO_REGI_PO_NM
+				       , STATUS_NM
+				       , GOODS_NAME
+				       , CASE WHEN COMPLETE_DATE <![CDATA[<]]> '20130121' THEN GOODS_AMOUNT - RET_AMOUNT - DEFICIT_AMOUNT - AMOUNT_COUPON_BIZ - LATER_PRCL_PRC - PO_FEE - MART_FEE - CSF_FEE - decode(a.shop_id, '02', 0, FEE_AMOUNT ) + DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE
+				              ELSE GOODS_AMOUNT - RET_AMOUNT - DEFICIT_AMOUNT - AMOUNT_COUPON_BIZ - LATER_PRCL_PRC - PO_FEE - MART_FEE - CSF_FEE - FEE_AMOUNT + DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE + NVL(LATER_PRCL_SALE_PRC,0)
+				         END AS SUPP_ADJ_AMOUNT --업체정산
+				       , (GOODS_CNT) AS GOODS_CNT
+				       , (GOODS_AMOUNT) AS GOODS_AMOUNT
+				       , (RET_CNT) AS RET_CNT
+				       , (RET_AMOUNT) AS RET_AMOUNT
+				       , (DEFICIT_CNT) AS DEFICIT_CNT
+				       , (DEFICIT_AMOUNT) AS DEFICIT_AMOUNT
+				       , (AMOUNT_CASH) AS AMOUNT_CASH
+				       , (AMOUNT_CARD_POSTNET) AS AMOUNT_CARD_POSTNET
+				       , (AMOUNT_CARD_EPOST) AS AMOUNT_CARD_EPOST
+				       , (AMOUNT_CARD_OVERSEA) AS AMOUNT_CARD_OVERSEA
+				       , (AMOUNT_ACCOUNT) AS AMOUNT_ACCOUNT
+				       , (AMOUNT_BANKTOWN) AS AMOUNT_BANKTOWN
+				       , (AMOUNT_SP) AS AMOUNT_SP
+				       , (AMOUNT_RM) AS AMOUNT_RM
+				       , (AMOUNT_COUPON_CSF) AS AMOUNT_COUPON_CSF
+				       , (AMOUNT_COUPON_BIZ) AS AMOUNT_COUPON_BIZ
+				       , (DELIV_CERT_AMOUNT) AS DELIV_CERT_AMOUNT
+				       , (CONG_CARD_AMOUNT) AS CONG_CARD_AMOUNT
+				       , (DELIV_CERT_AMOUNT + CONG_CARD_AMOUNT) AS ETC_SERVICE_AMOUNT
+				       , (SETTLE_AMOUNT) AS SETTLE_AMOUNT
+				       , ( CASE WHEN COMPLETE_DATE <![CDATA[<]]> '20130121' THEN DECODE(SHOP_ID, '02', 0, FEE_AMOUNT)
+				                ELSE FEE_AMOUNT
+				           END) AS FEE_AMOUNT
+				       , (IMMEDIATE_PRCL_PRC) AS IMMEDIATE_PRCL_PRC
+				       , (LATER_PRCL_PRC) AS LATER_PRCL_PRC
+				       , (IMMEDIATE_PRCL_PRC + LATER_PRCL_PRC) AS TOTAL_PRCL_PRC
+				       , (PO_FEE) AS PO_FEE
+				       , (CSF_FEE) - AMOUNT_EXT_MALL_FEE AS CSF_FEE
+				       , (MART_FEE) AS MART_FEE
+				       , (PO_FEE + CSF_FEE + MART_FEE) - AMOUNT_EXT_MALL_FEE AS TOTAL_FEE_AMOUNT
+				       , (DEFICIT_CARD_SETL_FEE + REFUND_CARD_SETL_FEE) AS SETTLE_FEE_ADJUST
+				       , AMOUNT_OKCASH AS AMOUNT_OKCASH 
+				       , AMOUNT_MULTIGIFT AS AMOUNT_MULTIGIFT 
+				       , AMOUNT_EXT_MALL_FEE AS AMOUNT_EXT_MALL_FEE 
+				       , 0 AS REFUND_GOODS_AMT
+				       , 0 AS REFUND_CSF_FEE
+				       , AMOUNT_KAKAO
+				       , AMOUNT_MOBILE
+				       , AMOUNT_WALLET
+				       , NVL(LATER_PRCL_SALE_PRC,0) LATER_PRCL_SALE_PRC
+			     FROM
+			     (    
+			        SELECT 
+				            I.SUPPO_RGIST_POCD AS SUPP_PO_REGI_PO_CD, 
+				            P.PONM AS SUPP_PO_REGI_PO_NM,
+				            SUBSTR(APPR_DATE, 1, 8)  COMPLETE_DATE, 
+				            I.ORDER_ID,
+				            R.PONM AS RECEV_PO_REGI_PO_NM,
+				            I.GOODS_CANCEL_YN CANCEL_YN,
+				            I.PAVLN_DIV_CD SHOP_ID,
+				            SC.COMN_CD_NM AS STATUS_NM,
+				            I.GOODS_CD, 
+				            (SELECT GOODS_NM FROM GD_GOODS_MAST WHERE GOODS_CD=I.GOODS_CD AND ROWNUM=1 ) GOODS_NAME,
+				            SUM(NVL(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0),0)+NVL((SELECT DELIV_CERT_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)+NVL((SELECT CONG_CARD_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)) AS SETTLE_AMOUNT,
+				            SUM(NVL((SELECT FEE_AMT FROM OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0)) AS FEE_AMOUNT,
+				            SUM(DECODE( A.SETL_MEAN_CD,'15', I.CASH_BILL_AMT, '17', I.CASH_BILL_AMT, 0)) AMOUNT_CASH,
+				            SUM(DECODE( A.SETL_MEAN_CD,'01',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_ACCOUNT,
+				            SUM(DECODE( A.SETL_MEAN_CD,'05',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) + SUM(DECODE( A.SETL_MEAN_CD,'06',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_BANKTOWN,
+				            SUM(DECODE( A.SETL_MEAN_CD,'04',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), '17', (I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0) - NVL(I.CASH_BILL_AMT,0), 0)) AS AMOUNT_CARD_POSTNET,
+				            SUM(DECODE( A.SETL_MEAN_CD,'02',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_CARD_EPOST,
+				            SUM(DECODE( A.SETL_MEAN_CD,'03',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_CARD_OVERSEA,
+				            SUM(NVL(I.PREMI_CUST_PNT_SETL_AMT,0)) AMOUNT_SP,
+				            SUM(NVL(I.PNT_USE_AMT,0)) AMOUNT_RM,
+				            SUM(DECODE(I.CP_CMP_CD1,'1',I.CPN_DC_AMT1, 0) + DECODE(I.CP_CMP_CD2,'1',I.CPN_DC_AMT2, 0)) AMOUNT_COUPON_CSF,
+                            SUM(DECODE(I.CP_CMP_CD1,'2',I.CPN_DC_AMT1, 0) + DECODE(I.CP_CMP_CD2,'2',I.CPN_DC_AMT2, 0)) AMOUNT_COUPON_BIZ,
+                            SUM(DECODE(I.CP_CMP_CD1,'3',I.CPN_DC_AMT1, 0) + DECODE(I.CP_CMP_CD2,'3',I.CPN_DC_AMT2, 0)) AMOUNT_COUPON_THANK,
+				            SUM(DECODE( A.SETL_MEAN_CD,'28',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_MULTIGIFT,
+				            SUM(DECODE( A.SETL_MEAN_CD,'12',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AMOUNT_CYBERPASS,
+				            SUM(1) GOODS_CNT,
+				            SUM(NVL(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0),0)) GOODS_AMOUNT,
+				            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 1 ELSE 0 END) RET_CNT,
+				            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0) ELSE 0 END) RET_AMOUNT,
+				            SUM(CASE WHEN I.DEFICIT_YN = 'Y' THEN 1 ELSE 0 END) DEFICIT_CNT,
+				            SUM(CASE WHEN I.DEFICIT_YN = 'Y' THEN I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0) ELSE 0 END) DEFICIT_AMOUNT,
+				            SUM(NVL((SELECT DELIV_CERT_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)) DELIV_CERT_AMOUNT,
+				            SUM(NVL((SELECT CONG_CARD_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0)) CONG_CARD_AMOUNT,
+				            SUM(NVL(I.IMMPMN_PRCL_AMT,0)) IMMEDIATE_PRCL_PRC,
+				            SUM(NVL(I.AFTPMN_PRCL_AMT,0)) LATER_PRCL_PRC,
+				            SUM(NVL(I.LATER_PRCL_SALE_PRC,0)) LATER_PRCL_SALE_PRC,
+				            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 0 WHEN I.DEFICIT_YN = 'Y' THEN 0 ELSE NVL((SELECT POSA_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0) END) CSF_FEE,
+				            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 0 WHEN I.DEFICIT_YN = 'Y'  THEN 0 WHEN I.PAVLN_DIV_CD != '92' THEN NVL((SELECT FLWR_DELIV_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0) ELSE 0 END) PO_FEE,
+				            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN 0 WHEN I.DEFICIT_YN = 'Y'  THEN 0 WHEN I.PAVLN_DIV_CD = '92' THEN NVL((SELECT FLWR_DELIV_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID),0) ELSE 0 END) MART_FEE,
+				            SUM(NVL(I.OKCASH_USE_AMT,0)) AS AMOUNT_OKCASH,
+				            SUM(NVL((SELECT OUTSID_COPRTN_SHOPMALL_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID), 0)) AS AMOUNT_EXT_MALL_FEE,
+				            SUM(CASE WHEN I.RETRNGD_YN = 'Y' THEN (SELECT RETRNGD_CARD_REFUND_FEE from OD_ORDER_FEE where ORDER_ITM_ID = I.ORDER_ITM_ID) ELSE 0 END) REFUND_CARD_SETL_FEE,
+				            SUM(CASE WHEN I.DEFICIT_YN = 'Y' THEN NVL((SELECT DEFICIT_CARD_SETL_FEE FROM OD_ORDER_FEE WHERE ORDER_ITM_ID = I.ORDER_ITM_ID),0) ELSE 0 END) DEFICIT_CARD_SETL_FEE,
+				            SUM(DECODE( A.SETL_MEAN_CD,'20',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_KAKAO,
+				            SUM(DECODE( A.SETL_MEAN_CD,'13',(I.DC_APPLY_PRC + NVL(I.OPTN_GOODS_APPLY_PRC,0) + NVL(I.SEND_PRC,0)) - (I.PREMI_CUST_PNT_SETL_AMT + NVL(I.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (I.PNT_USE_AMT + NVL(I.PNT_REFUND_SETL_AMT, 0)) - I.CPN_DC_AMT - NVL(I.OKCASH_USE_AMT,0) - NVL(I.WALLET_SETL_AMT,0), 0)) AS AMOUNT_MOBILE,
+				            SUM(NVL(I.WALLET_SETL_AMT,0)) AS AMOUNT_WALLET,
+				            1
+			        FROM    OD_ORDER_ITM I, OD_ORDER_MAST A, CO_SUPP_COMP_MAST B, PICMT0060 P, CM_COMN_CD SC, PICMT0060 R
+			        WHERE   1=1
+			        AND     I.ORDER_ID = A.ORDER_ID
+			        AND     A.APPR_DATE BETWEEN TO_DATE(#searchFromDt#, 'YYYYMMDD') AND TO_DATE(#searchToDt#, 'YYYYMMDD') + .99999
+			        AND     I.GOODS_CANCEL_YN != 'Y'
+			        AND     I.SUPP_COMP_ID = B.SUPP_COMP_ID
+			        AND     I.SUPPO_RGIST_POCD = P.REGIPOCD
+			        AND     P.USEYN = 'Y'
+			        AND     A.RECEVPO_RGISTPOCD = R.REGIPOCD
+			        AND     R.USEYN = 'Y'
+			        AND     I.ORDER_STUS_CD = SC.COMN_CD_ID
+			        AND     SC.CD_GRP_ID = 'ORDER_STUS_CD'
+			        <isEqual property="recvShop" compareValue="ALL">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','03','04','05','07','08','09','99') ]]>
+				    </isEqual>
+	                <isEqual property="recvShop" compareValue="01">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','07') ]]>
+				    </isEqual>
+	                <isEqual property="recvShop" compareValue="04">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD = '04' ]]>
+				    </isEqual>
+				    <isEqual property="recvShop" compareValue="03">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('03','09') ]]>
+				    </isEqual>
+				    <isEqual property="recvShop" compareValue="05">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD = '05' ]]>
+				    </isEqual>
+				    <isEqual property="recvShop" compareValue="08">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD = '08' ]]>
+				    </isEqual>
+				    <isEqual property="recvShop" compareValue="EP">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','04','07') ]]><!-- 특산품+꽃배달+특화(제철) -->
+				    </isEqual>
+				    <isEqual property="recvShop" compareValue="EN">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('03','05','08','09') ]]><!-- 생활마트+전통시장+패션B2B -->
+				    </isEqual>
+				    <isEqual property="recvShop" compareValue="EA">
+				  	<![CDATA[ AND   I.PAVLN_DIV_CD IN ('01','04','07','03','05','09') ]]><!-- 특산품+꽃배달+특화(제철)+생활마트+전통시장 -->
+				    </isEqual>
+			        <isNotEmpty property="searchRegipocd" prepend="AND"> 
+		        		    I.SUPPO_RGIST_POCD = #searchRegipocd#
+		        	</isNotEmpty>
+			        GROUP BY 1, I.SUPPO_RGIST_POCD, SUBSTR(A.APPR_DATE, 1, 8), I.ORDER_ID, P.PONM, R.PONM, I.GOODS_CANCEL_YN, I.PAVLN_DIV_CD, SC.COMN_CD_NM, I.GOODS_CD
+			    )A
+			    ORDER BY SUPP_PO_REGI_PO_CD, COMPLETE_DATE, ORDER_ID, GOODS_CD
+            ) A
+	</select> 
+</sqlMap>

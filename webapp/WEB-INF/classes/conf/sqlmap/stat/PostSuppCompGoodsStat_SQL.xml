@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.PostSuppCompStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 등록상품 조회 -->
+	<select id="selectPostSuppCompStatList1" parameterClass="java.util.HashMap" resultClass="commMap">
+			<![CDATA[
+			SELECT SUM(DECODE(PAVLN_DIV_CD,'02',1,0)) AS SUM1
+					,SUM(DECODE(PAVLN_DIV_CD,'92',1,0)) AS SUM2
+			FROM (
+				SELECT	P.PAVLN_DIV_CD
+						,G.GOODS_CD
+				FROM	GD_GOODS_MAST G
+						, CO_SUPP_COMP_MAST B
+						, CO_PAVLN_MGT P
+						, GD_GOODS_CTGRY C
+				WHERE	G.SUPP_COMP_ID = B.SUPP_COMP_ID
+				AND 	B.SUPP_COMP_ID = P.SUPP_COMP_ID
+				AND 	C.GOODS_CD = G.GOODS_CD
+				AND 	P.SUPP_COMP_STUS_CD = '05'
+				AND 	G.REG_DATE >= #searchFromDt#
+				AND 	G.REG_DATE <= #searchToDt#
+			)
+			]]>
+	</select>
+	<!-- 판매상품 조회 -->
+	<select id="selectPostSuppCompStatList2" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT	SUM(DECODE(PAVLN_DIV_CD,'02',1,0)) AS SUM1
+				,SUM(DECODE(PAVLN_DIV_CD,'92',1,0)) AS SUM2
+		FROM(
+			SELECT	P.PAVLN_DIV_CD
+					,G.GOODS_CD
+			FROM	GD_GOODS_MAST G
+					, CO_SUPP_COMP_MAST B
+					, CO_PAVLN_MGT P
+			WHERE	G.SUPP_COMP_ID = B.SUPP_COMP_ID
+			AND 	B.SUPP_COMP_ID = P.SUPP_COMP_ID
+			AND 	P.PAVLN_DIV_CD IN ('92','02')
+			AND 	G.GOODS_STUS_CD IN ('01','05')
+			AND 	P.SUPP_COMP_STUS_CD = '05'
+			AND 	G.SUPP_BGIN_YMD <= to_char(sysdate,'yyyymmdd')
+			AND 	G.SUPP_END_YMD >= to_char(sysdate,'yyyymmdd')
+			AND 	( G.SUPP_DSCNTC_STRT_YMD > to_char(sysdate,'yyyymmdd') OR G.SUPP_DSCNTC_END_YMD < to_char(sysdate,'yyyymmdd') )
+			ORDER BY G.GOODS_CD
+			)
+		]]>
+	</select>
+	<!-- 업체정보 조회 -->
+	<select id="selectPostSuppCompStatList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	SUM(DECODE(B.PAVLN_DIV_CD,'02',1,0)) AS SUM1
+				,SUM(DECODE(B.PAVLN_DIV_CD,'92',1,0)) AS SUM2
+		FROM	CO_SUPP_COMP_MAST A
+				,CO_PAVLN_MGT B
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.PAVLN_DIV_CD IN ('92','02')
+		AND 	B.SUPP_COMP_STUS_CD = #suppCompStusCd#
+		GROUP BY B.SUPP_COMP_STUS_CD
+	</select>
+
+	<!-- 등록상품 정보 엑셀다운 조회 -->
+	<select id="selectPostSuppCompStatExcelList1" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+	<![CDATA[
+		SELECT	ROW_NUMBER() OVER(ORDER BY G.GOODS_CD)AS RNUM
+				,G.GOODS_CD
+				,G.GOODS_NM
+				,CM.CTGRY_NM
+				,F_GET_COMN_CD_NM('GOODS_STUS_CD' ,G.GOODS_STUS_CD) AS GOODS_STUS_CD_NM
+				,G.CNSMR_PRC
+				,G.DC_APPLY_PRC
+				,B.BCNC_NM
+				,B.SUPP_COMP_ID
+		FROM	GD_GOODS_MAST G
+				, CO_SUPP_COMP_MAST B
+				, CO_PAVLN_MGT P
+				, GD_GOODS_CTGRY C
+				, GD_CTGRY_MAST CM
+		WHERE	G.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.SUPP_COMP_ID = P.SUPP_COMP_ID
+		AND 	C.GOODS_CD = G.GOODS_CD
+		AND 	C.CTGRY_CD = CM.CTGRY_CD
+		AND 	P.SUPP_COMP_STUS_CD = '05'
+		AND 	P.PAVLN_DIV_CD = #pavlnDivCd#
+		AND 	G.REG_DATE >= #searchFromDt#
+		AND 	G.REG_DATE <= #searchToDt#
+		]]>
+	</select>
+	<!-- 판매 상품 정보 엑셀다운 조회 -->
+	<select id="selectPostSuppCompStatExcelList2" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+		SELECT	ROW_NUMBER() OVER(ORDER BY G.GOODS_CD)AS RNUM
+					,G.GOODS_CD
+					,G.GOODS_NM
+					,CM.CTGRY_NM
+					,F_GET_COMN_CD_NM('GOODS_STUS_CD' ,G.GOODS_STUS_CD) AS GOODS_STUS_CD_NM
+					,G.CNSMR_PRC
+					,G.DC_APPLY_PRC
+					,B.BCNC_NM
+					,B.SUPP_COMP_ID
+		FROM	GD_GOODS_MAST G
+				, CO_SUPP_COMP_MAST B
+				, CO_PAVLN_MGT P
+				, GD_GOODS_CTGRY C
+				, GD_CTGRY_MAST CM
+		WHERE	G.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.SUPP_COMP_ID = P.SUPP_COMP_ID
+		AND 	C.GOODS_CD = G.GOODS_CD
+		AND 	C.CTGRY_CD = CM.CTGRY_CD
+		AND 	P.PAVLN_DIV_CD = #pavlnDivCd#
+		AND 	G.GOODS_STUS_CD IN ('01','05')
+		AND 	P.SUPP_COMP_STUS_CD = '05'
+		AND 	C.BASIC_CTGRY_YN	= 'Y'
+		AND 	G.SUPP_BGIN_YMD <= to_char(sysdate,'yyyymmdd')
+		AND 	G.SUPP_END_YMD >= to_char(sysdate,'yyyymmdd')
+		AND 	( G.SUPP_DSCNTC_STRT_YMD > to_char(sysdate,'yyyymmdd') OR G.SUPP_DSCNTC_END_YMD < to_char(sysdate,'yyyymmdd') )
+		ORDER BY G.GOODS_CD
+		]]>
+	</select>
+	<!-- 업체 정보 엑셀다운 조회 -->
+	<select id="selectPostSuppCompStatExcelList3" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	 ROW_NUMBER() OVER(ORDER BY A.SUPP_COMP_ID)AS RNUM
+				,A.SUPPO_RGIST_POCD
+				,TO_CHAR(A.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+				,A.BCNC_NM
+				,A.SUPP_COMP_ID
+				,A.TELNO
+				,A.EMAIL
+				,A.ADDR2||' '||A.ADDR1 AS ADDR
+				,F_GET_COMN_CD_NM('SUPP_COMP_STUS_CD' ,B.SUPP_COMP_STUS_CD) AS SUPP_COMP_STUS_CD_NM
+		FROM	CO_SUPP_COMP_MAST A
+				,CO_PAVLN_MGT B
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.PAVLN_DIV_CD = #pavlnDivCd#
+		AND 	B.SUPP_COMP_STUS_CD = #suppCompStusCd#
+		ORDER BY A.SUPP_COMP_ID ASC
+	</select>
+
+</sqlMap>

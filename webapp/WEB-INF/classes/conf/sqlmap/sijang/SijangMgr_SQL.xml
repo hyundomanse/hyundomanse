@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SijangMgr">
+
+	<sql id="sijangTalk_list">
+		SELECT A.BBS_NO
+			 , A.BBS_TYP_CD
+			 , A.BBS_SEQ
+			 , A.BBS_TTL
+			 , A.BBS_DPTH
+			 , A.USE_YN
+			 , NVL(A.EXPSR_YN, 'Y') AS EXPSR_YN
+			 , NVL(A.RECOM_GOODS_YN, 'N') AS RECOM_GOODS_YN
+			 , BBS_TYP_CD.COMN_CD_NM AS BBS_TYP_NM
+			 , NVL(B.CNT, 0) AS RECOM_GOODS_CNT
+		  FROM CM_CUST_BBS A
+		  	 , (SELECT BBS_NO, COUNT(*) AS CNT FROM CM_BBS_REL_GOODS GROUP BY BBS_NO) B
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'BBS_DIV_CD') BBS_TYP_CD
+		 WHERE A.BBS_NO = B.BBS_NO(+)
+		   AND A.BBS_TYP_CD = BBS_TYP_CD.COMN_CD_ID(+)
+		   AND A.BBS_SEQ &lt; '10020' /* 생생시장 톡 */
+	   <isNotEmpty property="search_bbs_ttl" prepend="AND">
+			A.BBS_TTL LIKE '%'||#search_bbs_ttl#||'%'
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+	   		(TO_CHAR(TO_DATE(A.NOTIC_STRT_DATE), 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#
+	   		OR
+	   		TO_CHAR(TO_DATE(A.NOTIC_END_DATE), 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#)
+	   </isNotEmpty>
+	   <isNotEmpty property="search_expsr_yn" prepend="AND">
+			A.EXPSR_YN = #search_expsr_yn#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_bbs_typ_cd" prepend="AND">
+			A.BBS_TYP_CD = #search_bbs_typ_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="bbs_no" prepend="AND">
+			A.BBS_NO = #bbs_no#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectSTalkBbsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY BBS_NO DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="sijangTalk_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectSTalkBbsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="sijangTalk_list" />)
+	</select>
+	
+	<select id="selectSTalkBbsDivList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.COMN_CD_ID AS VALUE
+			 , A.COMN_CD_NM AS NAME
+		  FROM CM_COMN_CD A
+	 	 WHERE A.CD_GRP_ID = 'BBS_DIV_CD'
+	 	   AND A.CD_VAL2 = 'gal'
+	 	   AND A.USE_YN = 'Y'
+	 	 ORDER BY A.SORT_ORDER
+	</select>
+	
+	<select id="selectSTalkBbsInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.BBS_NO
+			 , A.BBS_TYP_CD
+			 , A.BBS_SEQ
+			 , A.BBS_TTL
+			 , A.BBS_CONT
+			 , A.BBS_DPTH
+			 , A.USE_YN
+			 , NVL(A.EXPSR_YN, 'Y') AS EXPSR_YN
+			 , NVL(A.RECOM_GOODS_YN, 'N') AS RECOM_GOODS_YN
+			 , BBS_TYP_CD.COMN_CD_NM AS BBS_TYP_NM
+		  FROM CM_CUST_BBS A
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'BBS_DIV_CD') BBS_TYP_CD
+		 WHERE A.BBS_TYP_CD = BBS_TYP_CD.COMN_CD_ID(+)
+		<isNotEmpty property="bbs_no" prepend="AND">
+			A.BBS_NO = #bbs_no#
+		</isNotEmpty>
+	</select>
+	
+	<insert id="insertSTalkBbsMgrInfo" parameterClass="java.util.HashMap">
+		MERGE INTO CM_CUST_BBS
+			   USING DUAL
+			   ON ( BBS_NO = #bbs_no# AND BBS_TYP_CD = #bbs_typ_cd# )
+			   WHEN MATCHED THEN
+					UPDATE SET
+						   BBS_TTL			= #bbs_ttl#
+						 , BBS_CONT			= #bbs_cont#
+						 , BBS_DPTH			= 1
+						 , USE_YN			= 'Y'
+						 , EXPSR_YN			= #expsr_yn#
+						 , RECOM_GOODS_YN	= #recom_goods_yn#
+				         , CHG_DATE			= SYSDATE
+				         , CHGER_ID			= #login_usr_id#
+				WHEN NOT MATCHED THEN
+					INSERT
+						  ( BBS_NO
+						  , BBS_TYP_CD
+						  , BBS_SEQ
+						  , BBS_TTL
+						  , BBS_CONT
+						  , USE_YN
+						  , EXPSR_YN
+						  , RECOM_GOODS_YN
+						  , REG_DATE
+						  , CHG_DATE
+						  , REGER_ID
+						  , CHGER_ID )
+					 VALUES
+						  ( #bbs_no#
+						  , #bbs_typ_cd#
+						  , '100'||#bbs_typ_cd#
+						  , #bbs_ttl#
+						  , #bbs_cont#
+						  , 'Y'
+						  , #expsr_yn#
+						  , #recom_goods_yn#
+						  , SYSDATE
+						  , SYSDATE
+						  , #login_usr_id#
+						  , #login_usr_id# )
+	</insert>
+	
+	<delete id="deleteSTalkBbsRelGoodsInfo" parameterClass="java.util.HashMap">
+		DELETE FROM CM_BBS_REL_GOODS
+		 WHERE BBS_NO = #bbs_no#
+	</delete>
+	
+	<insert id="insertSTalkBbsRelGoodsInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CM_BBS_REL_GOODS
+			  ( BBS_NO
+			  , BBS_TYP
+			  , GOODS_CD
+			  , INPUT_STUS_CD
+			  , REG_DATE
+			  , CHG_DATE
+			  , REGER_ID
+			  , CHGER_ID )
+		 VALUES
+			  ( #bbs_no#
+			  , #bbs_typ_cd#
+			  , #goods_cd#
+			  , #input_stus_cd#
+			  , SYSDATE
+			  , SYSDATE
+			  , #login_usr_id#
+			  , #login_usr_id# )
+	</insert>
+	
+	<sql id="sTalkBbsRelGoods_list">
+		SELECT A.BBS_NO
+			 , A.GOODS_CD
+			 , A.INPUT_STUS_CD
+			 , B.GOODS_NM
+			 , C.BCNC_NM
+			 , INPUT_STUS_CD.COMN_CD_NM AS INPUT_STUS_CD_NM
+			 , DECODE(FN_GOODS_SUPP_YN(A.GOODS_CD), 'Y', '공급', '공급중단') AS SUPP_YN
+		  FROM CM_BBS_REL_GOODS A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C
+		  	, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'INPUT_STUS_CD') INPUT_STUS_CD
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND B.SUPP_COMP_ID = C.SUPP_COMP_ID(+)
+		   AND A.INPUT_STUS_CD = INPUT_STUS_CD.COMN_CD_ID(+)
+		<isNotEmpty property="bbs_no" prepend="AND">
+			A.BBS_NO = #bbs_no#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectSTalkBbsRelGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY GOODS_CD DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="sTalkBbsRelGoods_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectSTalkBbsRelGoodsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="sTalkBbsRelGoods_list" />)
+	</select>
+	
+	<select id="selectSTalkBbsNo" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT SEQ_CM_CUST_BBS_NO.NEXTVAL FROM DUAL
+	</select>
+	
+	<sql id="sTalkComments_list">
+		SELECT A.BBS_NO
+			 , A.BBS_TYP_CD
+			 , A.BBS_TTL
+			 , B.RPLY_NO
+			 , B.ACCESS_NAME
+			 , B.SCRIN_EXPSR_YN
+			 , DECODE(B.SCRIN_EXPSR_YN, 'Y', '전시', '비전시') AS SCRIN_EXPSR_YN_NM
+			 , B.ANS_CONT
+			 , B.REGER_IP
+			 , B.CHGER_IP
+			 , B.REG_DATE
+			 , B.CHG_DATE
+			 , B.REGER_ID
+			 , B.CHGER_ID
+			 , BBS_TYP_CD.COMN_CD_NM AS BBS_TYP_NM
+		  FROM CM_CUST_BBS A
+		  	 , CM_CUST_BBS_ANS B
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'BBS_DIV_CD') BBS_TYP_CD
+		 WHERE A.BBS_NO = B.BBS_NO
+		   AND A.BBS_TYP_CD = BBS_TYP_CD.COMN_CD_ID(+)
+		   AND A.BBS_SEQ &lt; '10020'
+		<isNotEmpty property="bbs_no" prepend="AND">
+			A.BBS_NO = #bbs_no#
+		</isNotEmpty>
+		<isNotEmpty property="rply_no" prepend="AND">
+			B.RPLY_NO = #rply_no#
+		</isNotEmpty>
+		<isNotEmpty property="search_scrin_expsr_yn" prepend="AND">
+			B.SCRIN_EXPSR_YN = #search_scrin_expsr_yn#
+		</isNotEmpty>
+		<isNotEmpty property="search_access_name" prepend="AND">
+			B.ACCESS_NAME = #search_access_name#
+		</isNotEmpty>
+		<isNotEmpty property="search_ans_cont" prepend="AND">
+			B.ANS_CONT LIKE '%'||#search_ans_cont#||'%'
+		</isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+	   		TO_CHAR(B.REG_DATE, 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_bbs_typ_cd" prepend="AND">
+			A.BBS_TYP_CD = #search_bbs_typ_cd#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectSTalkCommentsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY REG_DATE DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="sTalkComments_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	
+	<select id="selectSTalkCommentsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="sTalkComments_list" />)
+	</select>
+	
+	<update id="updateTalkScrinExpsrYn" parameterClass="java.util.HashMap">
+		UPDATE CM_CUST_BBS_ANS
+		   SET SCRIN_EXPSR_YN = #scrin_expsr_yn#
+		   	 , CHG_DATE = SYSDATE
+			 , CHGER_ID = #login_usr_id#
+		 WHERE BBS_NO = #bbs_no#
+		   AND RPLY_NO = #rply_no#
+	</update>
+	
+	<sql id="smartGoods_list">
+		SELECT A.PAVLN_ID
+			 , A.SMART_GOODS_SEQ
+			 , A.DISP_NO
+			 , B.CTGRY_NM
+			 , A.GOODS_NM
+			 , A.GOODS_DESC
+			 , A.PRICE
+			 , A.DISP_YN
+			 , A.ATTCHFILE_ID
+           	 , IMAGE.FILE_STRE_PATH || IMAGE.STRE_FILE_NM AS IMAGE_PATH
+           	 , IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+		  FROM OD_MMARKET_SMART_GOODS A
+		  	 , GD_CTGRY_MAST B
+		  	 , CM_FILE_MGT IMAGE
+		 WHERE A.DISP_NO = B.CTGRY_CD(+) 
+		   AND A.ATTCHFILE_ID = IMAGE.ATTCHFILE_ID(+)
+		<isNotEmpty property="pavln_id" prepend="AND">
+			A.PAVLN_ID = #pavln_id#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectSmartGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY SMART_GOODS_SEQ DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="smartGoods_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	
+	<select id="selectSmartGoodsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="smartGoods_list" />)
+	</select>
+	
+	<select id="selectSmartGoodsSeq" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT SEQ_SMART_GOODS_SEQ.NEXTVAL FROM DUAL
+	</select>
+	
+	<insert id="insertSmartGoodsInfo" parameterClass="java.util.HashMap">
+		MERGE INTO OD_MMARKET_SMART_GOODS
+			   USING DUAL
+			   ON ( PAVLN_ID = #pavln_id# AND SMART_GOODS_SEQ = #smart_goods_seq# )
+			   WHEN MATCHED THEN
+					UPDATE SET
+						   DISP_NO			= #disp_no#
+						 , GOODS_NM			= #goods_nm#
+						 , GOODS_DESC		= #goods_desc#
+						 , PRICE			= #price#
+						 , DISP_YN			= #disp_yn#
+						<isNotEmpty property="attchfile_id" prepend=",">
+							ATTCHFILE_ID = #attchfile_id#
+						</isNotEmpty>
+						<isEmpty property="new_attchfile_id_yn">
+							<isEqual property="image_delyn" compareValue="Y" prepend=",">
+								ATTCHFILE_ID = NULL
+							</isEqual>
+						</isEmpty>
+				         , SYS_MOD_DTIME	= SYSDATE
+				         , SYS_MODR_ID		= #login_usr_id#
+				WHEN NOT MATCHED THEN
+					INSERT
+						  ( PAVLN_ID
+						  , SMART_GOODS_SEQ
+						  , DISP_NO
+						  , GOODS_NM
+						  , GOODS_DESC
+						  , PRICE
+						  , DISP_YN
+						  , ATTCHFILE_ID
+						  , SYS_REG_DTIME
+						  , SYS_MOD_DTIME
+						  , SYS_REGR_ID
+						  , SYS_MODR_ID )
+					 VALUES
+						  ( #pavln_id#
+						  , #smart_goods_seq#
+						  , #disp_no#
+						  , #goods_nm#
+						  , #goods_desc#
+						  , #price#
+						  , #disp_yn#
+						  , #attchfile_id#
+						  , SYSDATE
+						  , SYSDATE
+						  , #login_usr_id#
+						  , #login_usr_id# )
+	</insert>
+	
+	<sql id="smartOrder_list">
+		SELECT A.ORDER_ID
+			 , A.PAVLN_ID
+			 , A.ACCESS_NAME
+			 , A.ORD_MAN_ID
+			 , A.ORD_MAN_NM
+			 , A.CELL_SCT_NO ||'-'|| A.CELL_TXNO ||'-'|| A.CELL_END_NO AS TEL_NO
+			 , A.POST_ADDR ||' '|| A.DTL_ADDR AS ADDR
+			 , A.DVL_STAT_CD
+			 , A.HOPE_DELIVERY_DATE ||' '|| NVL(HOPE_DELIVERY_TIME, '00') || ':00' AS HOPE_DELIVERY_DATE
+			 , A.PAY_TP_CD
+			 , TO_CHAR(A.ORD_ACCP_DTIME, 'YYYY-MM-DD HH24:MI') AS ORD_ACCP_DTIME
+			 , B.PAVLN_NM
+			 , DVL_STAT_CD.COMN_CD_NM AS DVL_STAT_NM
+			 , PAY_TP_CD.COMN_CD_NM AS PAY_TP_NM
+			 , C.PRICE
+		  FROM OD_MMARKET_SMART_ORDER A
+		  	 , CO_PAVLN_MAST B
+			 , (SELECT SA.ORDER_ID
+					 , NVL(SUM(NVL(SA.ORD_QTY, 0) * 
+					 	  (SELECT NVL(PRICE, 0) FROM OD_MMARKET_SMART_GOODS WHERE SMART_GOODS_SEQ = SA.SMART_ITEM_ID) ),0) AS PRICE
+				  FROM OD_MMARKET_SMART_ORDER_DTAIL SA
+				 GROUP BY SA.ORDER_ID) C
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SMART_DVL_STAT_CD') DVL_STAT_CD
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SMART_PAY_TP_CD') PAY_TP_CD
+		 WHERE A.PAVLN_ID = B.PAVLN_ID
+		   AND A.ORDER_ID = C.ORDER_ID
+		   AND A.DVL_STAT_CD = DVL_STAT_CD.COMN_CD_ID(+)
+		   AND A.PAY_TP_CD = PAY_TP_CD.COMN_CD_ID(+)
+		<isNotEmpty property="pavln_id" prepend="AND">
+			A.PAVLN_ID = #pavln_id#
+		</isNotEmpty>
+		<isNotEmpty property="search_area_cd" prepend="AND">
+			B.AREA_CD = #search_area_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_sido_cd" prepend="AND">
+			B.SIDO_CD = #search_sido_cd#
+		</isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+	   		TO_CHAR(A.ORD_ACCP_DTIME, 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_pavln_nm" prepend="AND">
+			B.PAVLN_NM LIKE '%'||#search_pavln_nm#||'%'
+	   </isNotEmpty>
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					A.ORDER_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					A.ORD_MAN_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="03">
+					A.ORD_MAN_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(  A.ORDER_ID LIKE '%'||#search_text#||'%'
+				OR A.ORD_MAN_ID LIKE '%'||#search_text#||'%' 
+				OR A.ORD_MAN_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectSmartOrderList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY ORDER_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="smartOrder_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	
+	<select id="selectSmartOrderCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="smartOrder_list" />)
+	</select>
+	
+	<select id="selectSmartOrderInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.ORDER_ID
+			 , A.PAVLN_ID
+			 , A.ACCESS_NAME
+			 , A.ORD_MAN_ID
+			 , A.ORD_MAN_NM
+			 , A.CELL_SCT_NO ||'-'|| A.CELL_TXNO ||'-'|| A.CELL_END_NO AS TEL_NO
+			 , A.POST_ADDR ||' '|| A.DTL_ADDR AS ADDR
+			 , A.DVL_STAT_CD
+			 , A.PAY_TP_CD
+			 , TO_CHAR(A.ORD_ACCP_DTIME, 'YYYY-MM-DD HH24:MI') AS ORD_ACCP_DTIME
+			 , B.PAVLN_NM
+			 , DVL_STAT_CD.COMN_CD_NM AS DVL_STAT_NM
+			 , PAY_TP_CD.COMN_CD_NM AS PAY_TP_NM
+			 , TRIM(TO_CHAR(C.PRICE, '9,999,999,999')) AS PRICE
+			 , A.MEMO
+             , A.HOPE_DELIVERY_TIME
+             , A.HOPE_DELIVERY_DATE
+		  FROM OD_MMARKET_SMART_ORDER A
+		  	 , CO_PAVLN_MAST B
+			 , (SELECT SA.ORDER_ID
+					 , NVL(SUM(NVL(SA.ORD_QTY, 0) * 
+					 	  (SELECT NVL(PRICE, 0) FROM OD_MMARKET_SMART_GOODS WHERE SMART_GOODS_SEQ = SA.SMART_ITEM_ID) ),0) AS PRICE
+				  FROM OD_MMARKET_SMART_ORDER_DTAIL SA
+				 GROUP BY SA.ORDER_ID) C
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SMART_DVL_STAT_CD') DVL_STAT_CD
+		  	 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SMART_PAY_TP_CD') PAY_TP_CD
+		 WHERE A.PAVLN_ID = B.PAVLN_ID
+		   AND A.ORDER_ID = C.ORDER_ID
+		   AND A.DVL_STAT_CD = DVL_STAT_CD.COMN_CD_ID(+)
+		   AND A.PAY_TP_CD = PAY_TP_CD.COMN_CD_ID(+)
+		<isNotEmpty property="order_id" prepend="AND">
+			A.ORDER_ID = #order_id#
+		</isNotEmpty>
+	</select>
+	
+	<select id="selectSmartOrderGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT ROWNUM AS RNUM
+			 , A.ORDER_ID
+			 , A.SMART_ITEM_NAME
+			 , A.ORD_QTY
+			 , TRIM(TO_CHAR(B.PRICE, '9,999,999,999')) AS PRICE
+			 , TRIM(TO_CHAR(NVL(SUM(NVL(A.ORD_QTY, 0) * 
+			 	  (SELECT NVL(PRICE, 0)
+			 	     FROM OD_MMARKET_SMART_GOODS
+			 	    WHERE SMART_GOODS_SEQ = A.SMART_ITEM_ID) ),0), '9,999,999,999')) AS TOT_PRICE
+		  FROM OD_MMARKET_SMART_ORDER_DTAIL A
+		  	 , OD_MMARKET_SMART_GOODS B
+		 WHERE A.SMART_ITEM_ID = B.SMART_GOODS_SEQ
+		<isNotEmpty property="order_id" prepend="AND">
+			A.ORDER_ID = #order_id#
+		</isNotEmpty>
+         GROUP BY ROWNUM, A.ORDER_ID, A.SMART_ITEM_NAME, A.ORD_QTY, B.PRICE
+         ORDER BY ROWNUM
+	</select>
+	
+	<update id="updateSmartOrderInfo" parameterClass="java.util.HashMap">
+		UPDATE OD_MMARKET_SMART_ORDER
+		   SET MEMO = #memo#
+		   	 , DVL_STAT_CD = #dvl_stat_cd#
+		 WHERE ORDER_ID = #order_id#
+	</update>
+	
+</sqlMap>

@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.CommonCode">
+	<typeAlias  alias="commonMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<!-- 그룹코드 조회 -->
+	<select id="selectGroupCodeList" parameterClass ="java.util.HashMap" resultClass="commonMap">
+		<include refid="pagingHeader"/>
+		SELECT	        CODE_SEQ				/* 공통코드일련번호 */
+		              , GROUP_CODE				/* 그룹코드 */
+		              , GROUP_NAME				/* 그룹명 */
+		              , USE_YN					/* 사용여부 */
+		              , REG_ID					/* 등록자아이디 */
+		              , REG_DT					/* 등록일시 */
+		              , MOD_ID					/* 수정자아이디 */
+		              , MOD_DT					/* 수정일시 */
+        FROM			TB_COMM_CODE_M			/* 공통코드 관리  */         		
+		WHERE			1=1
+        AND     		CODE_NAME IS NULL
+        AND     		CODE_SORT IS NULL
+        AND     		CODE_DESC IS NULL
+		<!-- 조회기간 -->			            
+		<isNotEmpty property="searchFromDate">
+			<isNotEmpty property="searchToDate">
+				AND TO_CHAR (REG_DT, 'YYYYMMDD') BETWEEN #searchFromDate# AND #searchToDate#
+		    </isNotEmpty>
+		</isNotEmpty>
+		
+		<!-- 검색구분 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchType" compareValue="01">
+				AND (REG_ID LIKE '%'||#searchTxt#||'%' OR MOD_ID LIKE '%'||#searchTxt#||'%')
+			</isEqual>
+			<isEqual property="searchType" compareValue="02">
+				AND REG_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="03">
+				AND MOD_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+		</isNotEmpty>				
+
+		ORDER BY REG_DT DESC
+		<include refid="pagingFooter"/>
+	</select>		
+	
+	<!-- 그룹코드 cnt -->
+	<select id="selectGroupCodeListTotCnt" resultClass="int">
+		SELECT	COUNT(*)
+		FROM			TB_COMM_CODE_M	/* 공통코드 관리  */         		
+		WHERE			1=1
+        AND     		CODE_NAME IS NULL
+        AND     		CODE_SORT IS NULL
+        AND     		CODE_DESC IS NULL
+	    <!-- 조회기간 -->			            
+		<isNotEmpty property="searchFromDate">
+			<isNotEmpty property="searchToDate">
+				AND TO_CHAR (REG_DT, 'YYYYMMDD') BETWEEN #searchFromDate# AND #searchToDate#
+		    </isNotEmpty>
+		</isNotEmpty>
+		
+		<!-- 검색구분 -->
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchType" compareValue="01">
+				AND (REG_ID LIKE '%'||#searchTxt#||'%' OR MOD_ID LIKE '%'||#searchTxt#||'%')
+			</isEqual>
+			<isEqual property="searchType" compareValue="02">
+				AND REG_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="03">
+				AND MOD_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+		</isNotEmpty>		
+    
+	</select>	
+	
+	<!-- 그룹코드 상세 --> 
+	<select id="selectGroupCode" resultClass="commonMap">
+		SELECT	  	CODE_SEQ				/* 공통코드일련번호 */
+	              , GROUP_CODE				/* 그룹코드 */
+	              , GROUP_NAME				/* 그룹명 */
+	              , USE_YN					/* 사용여부 */
+	              , REG_ID					/* 등록자아이디 */
+	              , REG_DT					/* 등록일시 */
+	              , MOD_ID					/* 수정자아이디 */
+	              , MOD_DT					/* 수정일시 */
+        FROM	TB_COMM_CODE_M				/* 공통코드 관리  */         		
+		WHERE	1=1
+        AND     CODE_SEQ = #codeSeq#
+	</select>
+	
+	<!-- 공통코드 조회 -->
+	<select id="selectCommonCodeList" parameterClass ="java.util.HashMap" resultClass="commonMap">
+		<include refid="pagingHeader"/>
+		SELECT	        CODE_SEQ
+						,GROUP_CODE
+						,GROUP_NAME
+						,CODE_NAME
+						,CODE_SORT
+						,CODE_DESC
+						,USE_YN
+						,REG_ID
+						,REG_DT
+						,MOD_ID
+						,MOD_DT
+        FROM			TB_COMM_CODE_M	/* 공통코드 관리  */         		
+		WHERE			1=1
+		AND     		GROUP_CODE IS NOT NULL
+        AND     		CODE_NAME IS NOT NULL
+        AND     		CODE_SORT IS NOT NULL
+        AND				GROUP_CODE = #groupCode#
+
+		ORDER BY CODE_SORT ASC
+		<include refid="pagingFooter"/>
+	</select>
+	
+	<!-- 공통코드 cnt -->
+	<select id="selectCommonCodeListTotCnt" resultClass="int">
+		SELECT	COUNT(*)
+		FROM			TB_COMM_CODE_M	/* 공통코드 관리  */         		
+		WHERE			1=1
+	   	AND     		GROUP_CODE IS NOT NULL
+        AND     		CODE_NAME IS NOT NULL
+        AND     		CODE_SORT IS NOT NULL
+        AND				GROUP_CODE = #groupCode#
+        
+	</select>
+	
+	<!-- 그룹코드 등록 -->
+	<insert id="insertGroupCode" parameterClass="java.util.HashMap">
+	INSERT INTO TB_COMM_CODE_M(
+		 CODE_SEQ
+		,GROUP_CODE 
+	    ,GROUP_NAME
+	    ,USE_YN
+	    ,REG_ID
+	    ,REG_DT
+	    ,MOD_ID
+	    ,MOD_DT
+	)VALUES(
+		  CODE_SEQ.NEXTVAL
+		, CODE_SEQ.NEXTVAL
+		, #groupName#
+		, 'Y'
+		, #sessionId#
+		, SYSDATE
+		, #sessionId#
+		, SYSDATE
+	)
+	</insert>	
+	
+	<!-- 그룹코드 수정 -->
+	<update id="updateGroupCode" parameterClass="java.util.HashMap">
+	UPDATE	TB_COMM_CODE_M
+	SET		GROUP_NAME	= #groupName#
+		  , MOD_ID	= #sessionId#
+		  , MOD_DT	= SYSDATE
+	WHERE	1=1
+	AND		GROUP_CODE 	= #codeSeq#
+	</update>	
+	
+	<!-- 그룹코드 사용여부 수정 -->
+	<update id="updateGroupCodeUseYn" parameterClass="java.util.HashMap">
+	UPDATE	TB_COMM_CODE_M
+	SET		USE_YN	= #useYn#
+		  , MOD_ID	= #sessionId#
+		  , MOD_DT	= SYSDATE
+	WHERE	1=1
+	AND		GROUP_CODE 	= #codeSeq#
+	</update>	
+	
+	<!-- 그룹코드 중복체크 -->	
+	<select id="selectGroupCodeDupCheck" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT	COUNT(GROUP_NAME)
+	FROM 	TB_COMM_CODE_M
+	WHERE 	1=1
+	AND 	GROUP_NAME =#groupName# 
+	</select>
+	
+	
+	<!-- 공통코드 등록 -->
+	<insert id="insertCommonCode" parameterClass="java.util.HashMap">
+	INSERT INTO TB_COMM_CODE_M(
+		 CODE_SEQ
+		,GROUP_CODE 
+	    ,GROUP_NAME
+	    ,CODE_NAME
+	    ,CODE_SORT
+	    ,CODE_DESC
+	    ,USE_YN
+	    ,REG_ID
+	    ,REG_DT
+	    ,MOD_ID
+	    ,MOD_DT
+	)VALUES(
+		  CODE_SEQ.NEXTVAL
+		, #groupCode#
+		, #groupName#
+		, #inputCodeName#
+		, #inputCodeSort#
+		, #inputCodeDesc#
+		, 'Y'
+		, #sessionId#
+		, SYSDATE
+		, #sessionId#
+		, SYSDATE
+	)
+	</insert>	
+	
+	<!-- 공통코드 수정 -->
+	<update id="updateCommonCode" parameterClass="java.util.HashMap">
+	UPDATE	TB_COMM_CODE_M
+	SET		USE_YN	= #modUseYn#
+		  , CODE_NAME = #modCodeName#
+		  , CODE_SORT = #modCodeSort#
+		  , CODE_DESC = #modCodeDesc#
+		  , MOD_ID	= #sessionId#
+		  , MOD_DT	= SYSDATE
+	WHERE	1=1
+	AND		CODE_SEQ 	= #modCodeSeq#
+	</update>	
+	
+	<!-- 공통코드 삭제 -->
+	<delete id="deleteCommonCode" parameterClass="java.util.HashMap">
+	DELETE	COMMONCODE
+	WHERE	1=1
+	AND		COMMIDX = #commidx#
+	</delete>
+	
+	<!-- 공통코드 중복체크 -->	
+	<select id="selectCommonCodeDupCheck" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT	COUNT(COMMIDX)
+	FROM 	COMMONCODE
+	WHERE 	1=1
+	AND 	COMMID = #commid#
+	</select>	
+</sqlMap>

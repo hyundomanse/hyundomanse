@@ -1,0 +1,2029 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.GoodsEntrpsStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="retrieveGoodsStat2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT 
+		        GOODSCD,
+		        GOODSNM,
+		        SUPPCOMPCD,
+		        SUPPCOMPNM,
+		        RECEVDIVCD,
+		        RECEVDIVCDNM,
+		        RECEVSYSDIVCD,
+		        RECEVSYSDIVCDNM,
+		        SUM(SUPPCNT)SUPPCNT,
+		        SUM(SUPPGOODSCNT)SUPPGOODSCNT,
+		        SUM(SETLAMT)SETLAMT,
+		        SUM(CSFFEE) - SUM(AMOUNT_EXT_MALL_FEE) AS CSFFEE,
+		        SUM(MONEYAMT)MONEYAMT,
+		        SUM(MONEYCNT)MONEYCNT,
+		        SUM(CARDAMT)CARDAMT,
+		        SUM(CARDCNT)CARDCNT,
+		        SUM(COMPLEXAMT)COMPLEXAMT,
+		        SUM(COMPLEXCNT)COMPLEXCNT,
+		        SUM(ECARDAMT)ECARDAMT,
+		        SUM(ECARDCNT)ECARDCNT,
+		        SUM(EASYAMT)EASYAMT,
+		        SUM(EASYCNT)EASYCNT,
+		        SUM(BANKAMT)BANKAMT,
+		        SUM(BANKCNT)BANKCNT,
+		        SUM(OVERSEAAMT)OVERSEAAMT,
+		        SUM(OVERSEACNT)OVERSEACNT,
+		        SUM(COMPLEXSETLAMT)COMPLEXSETLAMT,
+		        SUM(COMPLEXSETLCNT)COMPLEXSETLCNT,
+		        SUM(RESERVAMT)RESERVAMT,
+		        SUM(CPAMT)CPAMT,
+		        SUM(COMPCPAMT) COMPCPAMT,
+		        SUM(COMPCPAMT) - SUM(COMPCPTHANKAMT )  CPBIZAMT,
+		        SUM(COMPCPTHANKAMT) COMPCPTHANKAMT,
+		        SUM(SPOINTAMT)SPOINTAMT,
+		        SUM(COMPLEXMONEYAMT)COMPLEXMONEYAMT,
+		        SUM(COMPLEXMONEYRESERVAMT)COMPLEXMONEYRESERVAMT,
+		        SUM(COMPLEXMONEYCPAMT)COMPLEXMONEYCPAMT,
+		        SUM(COMPLEXMONEYCOMPCPAMT)COMPLEXMONEYCOMPCPAMT,
+		        SUM(COMPLEXMONEYCOMPCPAMT - COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPBIZAMT,
+		        SUM(COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPTHANKAMT,
+		        SUM(COMPLEXMONEYSPOINTAMT)COMPLEXMONEYSPOINTAMT,
+		        SUM(COMPLEXMONEYCNT)COMPLEXMONEYCNT,
+		        SUM(COMPLEXCARDAMT)COMPLEXCARDAMT,
+		        SUM(COMPLEXCARDRESERVAMT)COMPLEXCARDRESERVAMT,
+		        SUM(COMPLEXCARDCPAMT)COMPLEXCARDCPAMT,
+		        SUM(COMPLEXCARDCOMPCPAMT)COMPLEXCARDCOMPCPAMT,
+		        SUM(COMPLEXCARDCOMPCPAMT - COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPBIZAMT,
+		        SUM(COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPTHANKAMT,
+		        SUM(COMPLEXCARDCNT)COMPLEXCARDCNT,
+		        SUM(COMPLEXCARDSPOINTAMT)COMPLEXCARDSPOINTAMT,
+		        SUM(RETURNGDCARDFEE)RETURNGDCARDFEE,
+		        SUM(COMPLEXMONEY_AMOUNT_OKCASH) AS COMPLEXMONEY_AMOUNT_OKCASH,
+		        SUM(COMPLEXCARD_AMOUNT_OKCASH) AS COMPLEXCARD_AMOUNT_OKCASH,
+		        SUM(EXT_MALL_ORD_AMT) AS EXT_MALL_ORD_AMT,
+		        SUM(EXT_MALL_ORD_CNT) AS EXT_MALL_ORD_CNT,
+		        SUM(AMOUNT_EXT_MALL_FEE) AS AMOUNT_EXT_MALL_FEE,
+		        SUM(EKAKAOAMT) AS EKAKAOAMT,
+		        SUM(EKAKAOCNT) AS EKAKAOCNT,
+		        SUM(EMOBILEAMT) AS EMOBILEAMT,
+		        SUM(EMOBILECNT) AS EMOBILECNT
+		     FROM
+		    (
+		    SELECT  B.GOODS_CD GOODSCD,
+                B.GOODS_NM GOODSNM,
+                A.SUPP_COMP_CD SUPPCOMPCD,
+                (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.SUPP_COMP_CD) SUPPCOMPNM,
+		        A.RECEV_DIV_CD RECEVDIVCD,
+		        (SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', A.RECEV_DIV_CD) FROM DUAL) RECEVDIVCDNM,
+		        A.RECEV_SYS_DIV_CD RECEVSYSDIVCD,
+		        DECODE(A.RECEV_SYS_DIV_CD, '01', '창구', '02', 'ePOST', '03', '콜센터', '') RECEVSYSDIVCDNM,
+		        NVL(SUM(A.SUPP_CNT), 0) SUPPCNT, 
+		        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0) SUPPGOODSCNT ,  
+		        NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0) SETLAMT ,
+		        SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE) CSFFEE ,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) MONEYAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) MONEYCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) CARDAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) CARDCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) ECARDAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) ECARDCNT,
+		        CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+				 	 THEN NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0)
+				 	 ELSE 0
+				END  EASYAMT,
+	            CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+				 	 THEN NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0)
+				 	 ELSE 0
+				END EASYCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) BANKAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) BANKCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) OVERSEAAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) OVERSEACNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXSETLAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXSETLCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'28',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EXT_MALL_ORD_AMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'28',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EXT_MALL_ORD_CNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EKAKAOAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EKAKAOCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EMOBILEAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EMOBILECNT,
+		        NVL(SUM(A.RESERV_AMT-A.REFUND_RESERV_AMT), 0) RESERVAMT,
+		        NVL(SUM(A.CP_AMT-A.REFUND_CP_AMT), 0) CPAMT,
+		        NVL(SUM(A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT), 0) COMPCPAMT,
+		        NVL(SUM(A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT), 0) COMPCPTHANKAMT,
+		        NVL(SUM(A.S_POINT_AMT-A.REFUN_DS_POINT_AMT), 0) SPOINTAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',A.MONEY_SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE,
+		                                    '02',0,
+		                                    '03',0,A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT
+		                                            -A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.RESERV_AMT-A.REFUND_RESERV_AMT)), 0) COMPLEXMONEYRESERVAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0, 
+		                                    '02',0,
+		                                    '03',0,A.CP_AMT-A.REFUND_CP_AMT)), 0) COMPLEXMONEYCPAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYCOMPCPAMT,
+		
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT)), 0) COMPLEXMONEYCOMPCPTHANKAMT,
+		                                                                                                                                                            
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.S_POINT_AMT-A.REFUN_DS_POINT_AMT)), 0) COMPLEXMONEYSPOINTAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.SUPP_GOODS_CNT-A.RETURN_GD_CNT)), 0) COMPLEXMONEYCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0, AMOUNT_OKCASH )), 0) AS COMPLEXMONEY_AMOUNT_OKCASH,
+		
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                    '17',A.CARD_SETL_AMT-A.RETURN_GD_AMT,
+		                                    '02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                    '03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                    '17',0,
+		                                    '02',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                    '03',A.RESERV_AMT-A.REFUND_RESERV_AMT,0)), 0) COMPLEXCARDRESERVAMT,
+		                                    
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.CP_AMT-A.REFUND_CP_AMT,
+		                                    '17',0,
+		                                    '02',A.CP_AMT-A.REFUND_CP_AMT,
+		                                    '03',A.CP_AMT-A.REFUND_CP_AMT,0)), 0) COMPLEXCARDCPAMT,
+		                                    
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                    '17',0,
+		                                    '02',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                    '03',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDCOMPCPAMT,
+		
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                    '17',0,
+		                                    '02',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                    '03',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,0)), 0) COMPLEXCARDCOMPCPTHANKAMT,
+		                                    
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                    '17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                    '02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                    '03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCARDCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                    '17',0,
+		                                    '02',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                    '03',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,0)), 0) COMPLEXCARDSPOINTAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04', A.AMOUNT_OKCASH,
+		                                    '17',0,
+		                                    '02', A.AMOUNT_OKCASH,
+		                                    '03', A.AMOUNT_OKCASH,0)), 0) COMPLEXCARD_AMOUNT_OKCASH,
+		        NVL(SUM(A.RETURN_GD_CARD_FEE), 0) RETURNGDCARDFEE, 
+		        NVL(SUM(A.AMOUNT_EXT_MALL_FEE), 0) AMOUNT_EXT_MALL_FEE
+		        FROM MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C, PICMT0060 D, GD_MGT_GOODS_CTGRY E
+                WHERE 1 = 1 
+                AND A.RECEV_STUS_CD = 'O02'
+                AND A.GOODS_CD = B.GOODS_CD(+)
+                AND B.GOODS_CD = E.GOODS_CD
+                AND A.SUPP_COMP_CD = C.SUPP_COMP_ID(+)
+                AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD(+)
+                AND D.USEYN(+) = 'Y'
+		        AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+		        AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+		        ]]> 
+				
+					<isNotEqual property="SearchRcode" compareValue="">
+						<isEqual property="SearchCode" compareValue="A">
+							<![CDATA[
+								AND D.RCOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="B">
+							<![CDATA[
+								AND D.MPOREGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="C">
+							<![CDATA[
+								AND D.REGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+					</isNotEqual>
+					
+				    <isNotEqual property="shop_id" compareValue="">
+						AND E.PAVLN_DIV_CD = #shop_id#
+					</isNotEqual>     
+				        
+					<isEqual property="recev_system" compareValue="01">
+						AND A.RECEV_SYS_DIV_CD  =  '05'
+					</isEqual>
+					
+					<isEqual property="recev_system" compareValue="02">
+						AND A.RECEV_SYS_DIV_CD  !=  '05'
+					</isEqual>
+					
+					<isNotEqual property="goods_code" compareValue="">
+						AND B.GOODS_CD = #goods_code#
+					</isNotEqual>
+					
+					<isNotEqual property="biz_code" compareValue="">
+						AND A.SUPP_COMP_CD =  #biz_code#
+					</isNotEqual>
+					
+	    		<![CDATA[
+                GROUP BY A.SUPP_COMP_CD, B.GOODS_CD, B.GOODS_NM, A.RECEV_DIV_CD, A.RECEV_SYS_DIV_CD, A.SETL_TYPE_CD
+            )
+            GROUP BY GOODSCD, GOODSNM, SUPPCOMPCD, SUPPCOMPNM, RECEVDIVCD, RECEVDIVCDNM, RECEVSYSDIVCD, RECEVSYSDIVCDNM
+            ORDER BY GOODSCD, GOODSNM, SUPPCOMPCD, SUPPCOMPNM, RECEVDIVCD, RECEVDIVCDNM, RECEVSYSDIVCD, RECEVSYSDIVCDNM            
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat21" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+		        GOODSCD,
+		        GOODSNM,
+		        RECEVDIVCD,
+		        RECEVDIVCDNM,
+		        RECEVSYSDIVCD,
+		        RECEVSYSDIVCDNM,
+		        SUM(SUPPCNT)SUPPCNT,
+		        SUM(SUPPGOODSCNT)SUPPGOODSCNT,
+		        SUM(SETLAMT)SETLAMT,
+		        SUM(CSFFEE)CSFFEE,
+		        SUM(MONEYAMT)MONEYAMT,
+		        SUM(MONEYCNT)MONEYCNT,
+		        SUM(CARDAMT)CARDAMT,
+		        SUM(CARDCNT)CARDCNT,
+		        SUM(COMPLEXAMT)COMPLEXAMT,
+		        SUM(COMPLEXCNT)COMPLEXCNT,
+		        SUM(ECARDAMT)ECARDAMT,
+		        SUM(ECARDCNT)ECARDCNT,
+		        SUM(EASYAMT)EASYAMT,
+		        SUM(EASYCNT)EASYCNT,
+		        SUM(BANKAMT)BANKAMT,
+		        SUM(BANKCNT)BANKCNT,
+		        SUM(OVERSEAAMT)OVERSEAAMT,
+		        SUM(OVERSEACNT)OVERSEACNT,
+		        SUM(COMPLEXSETLAMT)COMPLEXSETLAMT,
+		        SUM(COMPLEXSETLCNT)COMPLEXSETLCNT,
+		        SUM(RESERVAMT)RESERVAMT,
+		        SUM(CPAMT)CPAMT,
+		        SUM(COMPCPAMT)COMPCPAMT,
+		        SUM(COMPCPAMT) - SUM(COMPCPTHANKAMT) CPBIZAMT,
+		        SUM(COMPCPTHANKAMT) COMPCPTHANKAMT,     
+		        SUM(SPOINTAMT)SPOINTAMT,
+		        SUM(COMPLEXMONEYAMT)COMPLEXMONEYAMT,
+		        SUM(COMPLEXMONEYRESERVAMT)COMPLEXMONEYRESERVAMT,
+		        SUM(COMPLEXMONEYCPAMT)COMPLEXMONEYCPAMT,
+		        SUM(COMPLEXMONEYCOMPCPAMT)COMPLEXMONEYCOMPCPAMT,
+		        SUM(COMPLEXMONEYCOMPCPAMT - COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPBIZAMT,
+		        SUM(COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPTHANKAMT,
+		        SUM(COMPLEXMONEYSPOINTAMT)COMPLEXMONEYSPOINTAMT,
+		        SUM(COMPLEXMONEYCNT)COMPLEXMONEYCNT,
+		        SUM(COMPLEXCARDAMT)COMPLEXCARDAMT,
+		        SUM(COMPLEXCARDRESERVAMT)COMPLEXCARDRESERVAMT,
+		        SUM(COMPLEXCARDCPAMT)COMPLEXCARDCPAMT,
+		        SUM(COMPLEXCARDCOMPCPAMT)COMPLEXCARDCOMPCPAMT,
+		        SUM(COMPLEXCARDCOMPCPAMT - COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPBIZAMT,
+		        SUM(COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPTHANKAMT,
+		        SUM(COMPLEXCARDCNT)COMPLEXCARDCNT,
+		        SUM(COMPLEXCARDSPOINTAMT)COMPLEXCARDSPOINTAMT,
+		        SUM(RETURNGDCARDFEE)RETURNGDCARDFEE,
+		        SUM(EKAKAOAMT) AS EKAKAOAMT,
+		        SUM(EKAKAOCNT) AS EKAKAOCNT,
+		        SUM(EMOBILEAMT) AS EMOBILEAMT,
+		        SUM(EMOBILECNT) AS EMOBILECNT
+		    FROM
+		    (
+		    SELECT  B.GOODS_CD GOODSCD,
+                	B.GOODS_NM GOODSNM,
+		            DECODE(A.RECEV_DIV_CD, '02', '01', A.RECEV_DIV_CD) RECEVDIVCD,
+		            (SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', A.RECEV_DIV_CD) FROM DUAL) RECEVDIVCDNM,
+		            A.RECEV_SYS_DIV_CD RECEVSYSDIVCD,
+		            DECODE(A.RECEV_SYS_DIV_CD, '01', '창구', '02', 'ePOST', '03', '콜센터', '') RECEVSYSDIVCDNM,
+		            NVL(SUM(A.SUPP_CNT), 0) SUPPCNT, 
+		            NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0) SUPPGOODSCNT ,  
+		            NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0) SETLAMT ,
+		            SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE) CSFFEE ,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) MONEYAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) MONEYCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) CARDAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) CARDCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) ECARDAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) ECARDCNT,
+		            CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+					 	 THEN NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0)
+					 	 ELSE 0
+					END  EASYAMT,
+	                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+					 	 THEN NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0)
+					 	 ELSE 0
+					END  EASYCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) BANKAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) BANKCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) OVERSEAAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) OVERSEACNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EKAKAOAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EKAKAOCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EMOBILEAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EMOBILECNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXSETLAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXSETLCNT,
+		            NVL(SUM(A.RESERV_AMT-A.REFUND_RESERV_AMT), 0) RESERVAMT,
+		            NVL(SUM(A.CP_AMT-A.REFUND_CP_AMT), 0) CPAMT,
+		            NVL(SUM(A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT), 0) COMPCPAMT,
+		            NVL(SUM(A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT), 0) COMPCPTHANKAMT,
+		            NVL(SUM(A.S_POINT_AMT-A.REFUN_DS_POINT_AMT), 0) SPOINTAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                        '17',A.MONEY_SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE,
+		                                        '02',0,
+		                                        '03',0,A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT
+		                                                -A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                        '17',0,
+		                                        '02',0,
+		                                        '03',0,A.RESERV_AMT-A.REFUND_RESERV_AMT)), 0) COMPLEXMONEYRESERVAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                        '17',0, 
+		                                        '02',0,
+		                                        '03',0,A.CP_AMT-A.REFUND_CP_AMT)), 0) COMPLEXMONEYCPAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                        '17',0,
+		                                        '02',0,
+		                                        '03',0,A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYCOMPCPAMT,   
+		
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                        '17',0,
+		                                        '02',0,
+		                                        '03',0,A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT)), 0) COMPLEXMONEYCOMPCPTHANKAMT,  
+		                                                                                                                                                            
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                        '17',0,
+		                                        '02',0,
+		                                        '03',0,A.S_POINT_AMT-A.REFUN_DS_POINT_AMT)), 0) COMPLEXMONEYSPOINTAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                        '17',0,
+		                                        '02',0,
+		                                        '03',0,A.SUPP_GOODS_CNT-A.RETURN_GD_CNT)), 0) COMPLEXMONEYCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                        '17',A.CARD_SETL_AMT-A.RETURN_GD_AMT,
+		                                        '02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                        '03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                        '17',0,
+		                                        '02',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                        '03',A.RESERV_AMT-A.REFUND_RESERV_AMT,0)), 0) COMPLEXCARDRESERVAMT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.CP_AMT-A.REFUND_CP_AMT,
+		                                        '17',0,
+		                                        '02',A.CP_AMT-A.REFUND_CP_AMT,
+		                                        '03',A.CP_AMT-A.REFUND_CP_AMT,0)), 0) COMPLEXCARDCPAMT,
+		                                        
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                        '17',0,
+		                                        '02',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                        '03',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDCOMPCPAMT,
+		
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                        '17',0,
+		                                        '02',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                        '03',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,0)), 0) COMPLEXCARDCOMPCPTHANKAMT,
+		                                        
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                        '17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                        '02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                        '03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCARDCNT,
+		            NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                        '17',0,
+		                                        '02',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                        '03',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,0)), 0) COMPLEXCARDSPOINTAMT,
+		            NVL(SUM(A.RETURN_GD_CARD_FEE), 0) RETURNGDCARDFEE
+		
+		            FROM MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C, PICMT0060 D, GD_MGT_GOODS_CTGRY E
+		            WHERE 1 = 1 
+                	AND A.RECEV_STUS_CD = 'O02'
+		            AND A.GOODS_CD = B.GOODS_CD(+)
+                	AND B.GOODS_CD = E.GOODS_CD
+                	AND A.SUPP_COMP_CD = C.SUPP_COMP_ID(+)
+		            AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+		            AND D.USEYN = 'Y'
+		            AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+		        	AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+			        ]]> 
+					
+						<isNotEqual property="SearchRcode" compareValue="">
+							<isEqual property="SearchCode" compareValue="A">
+								<![CDATA[
+									AND D.RCOCD = #SearchRcode#
+								]]>	
+							</isEqual>
+							<isEqual property="SearchCode" compareValue="B">
+								<![CDATA[
+									AND D.MPOREGIPOCD = #SearchRcode#
+								]]>	
+							</isEqual>
+							<isEqual property="SearchCode" compareValue="C">
+								<![CDATA[
+									AND D.REGIPOCD = #SearchRcode#
+								]]>	
+							</isEqual>
+						</isNotEqual>
+						
+					    <isNotEqual property="shop_id" compareValue="">
+							AND E.PAVLN_DIV_CD = #shop_id#
+						</isNotEqual>     
+					        
+						<isEqual property="recev_system" compareValue="01">
+							AND A.RECEV_SYS_DIV_CD  =  '05'
+						</isEqual>
+						
+						<isEqual property="recev_system" compareValue="02">
+							AND A.RECEV_SYS_DIV_CD  !=  '05'
+						</isEqual>
+						
+						<isNotEqual property="goods_code" compareValue="">
+							AND B.GOODS_CD = #goods_code#
+						</isNotEqual>
+						
+						<isNotEqual property="biz_code" compareValue="">
+							AND A.SUPP_COMP_CD =  #biz_code#
+						</isNotEqual>
+					
+		    		<![CDATA[
+                	GROUP BY A.SUPP_COMP_CD, B.GOODS_CD, B.GOODS_NM, A.RECEV_DIV_CD,A.RECEV_SYS_DIV_CD, A.SETL_TYPE_CD
+            )
+            GROUP BY GOODSCD, GOODSNM, RECEVDIVCD, RECEVDIVCDNM, RECEVSYSDIVCD, RECEVSYSDIVCDNM
+            ORDER BY GOODSCD, GOODSNM, RECEVDIVCD, RECEVDIVCDNM, RECEVSYSDIVCD, RECEVSYSDIVCDNM      
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat22" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT   
+		        A.SUPP_COMP_CD SUPPCOMPCD,
+                (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.SUPP_COMP_CD) SUPPCOMPNM,
+		        A.RECEV_DIV_CD RECEVDIVCD,
+		        (SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', A.RECEV_DIV_CD) FROM DUAL) RECEVDIVCDNM ,
+		        A.RECEV_SYS_DIV_CD RECEVSYSDIVCD,
+		        DECODE(A.RECEV_SYS_DIV_CD, '01', '창구', '02', 'ePOST', '03', '콜센터', '') RECEVSYSDIVCDNM,
+		        NVL(SUM(A.SUPP_CNT),0) SUPPCNT,
+		        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) SUPPGOODSCNT,
+		        NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT),0) SETLAMT,
+		        SUM(CSF_FEE-A.RETURN_GD_CSF_FEE) CSFFEE,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) MONEYAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) MONEYCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) CARDAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) CARDCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) ECARDAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) ECARDCNT,
+		        CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+				 	 THEN NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0)
+				 	 ELSE 0
+				END  EASYAMT,
+                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+				 	 THEN NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0)
+				 	 ELSE 0
+				END  EASYCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) BANKAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) BANKCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) OVERSEAAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) OVERSEACNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EKAKAOAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EKAKAOCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EMOBILEAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EMOBILECNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXSETLAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXSETLCNT,
+		        NVL(SUM(A.RESERV_AMT-A.REFUND_RESERV_AMT), 0) RESERVAMT,
+		        NVL(SUM(A.CP_AMT-A.REFUND_CP_AMT), 0) CPAMT,
+		        NVL(SUM(A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT), 0) COMPCPAMT,
+		        NVL(SUM(A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT), 0) -  NVL(SUM(A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT), 0) CPBIZAMT,
+		        NVL(SUM(A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT), 0) COMPCPTHANKAMT,
+		        
+		        NVL(SUM(A.S_POINT_AMT-A.REFUN_DS_POINT_AMT), 0) SPOINTAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',A.MONEY_SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE,
+		                                    '02',0,
+		                                    '03',0,A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT
+		                                            -A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.RESERV_AMT-A.REFUND_RESERV_AMT)), 0) COMPLEXMONEYRESERVAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0, 
+		                                    '02',0,
+		                                    '03',0,A.CP_AMT-A.REFUND_CP_AMT)), 0) COMPLEXMONEYCPAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYCOMPCPAMT,                                                                                                                       
+		
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT)), 0) -                                                                                                                        
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT)), 0) COMPLEXMONEYCOMPCPBIZAMT,                                                                                                                        
+		
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT)), 0) COMPLEXMONEYCOMPCPTHANKAMT,                                                                                                                      
+		                                    
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.S_POINT_AMT-A.REFUN_DS_POINT_AMT)), 0) COMPLEXMONEYSPOINTAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                    '17',0,
+		                                    '02',0,
+		                                    '03',0,A.SUPP_GOODS_CNT-A.RETURN_GD_CNT)), 0) COMPLEXMONEYCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                    '17',A.CARD_SETL_AMT-A.RETURN_GD_AMT,
+		                                    '02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                    '03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                    '17',0,
+		                                    '02',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                    '03',A.RESERV_AMT-A.REFUND_RESERV_AMT,0)), 0) COMPLEXCARDRESERVAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.CP_AMT-A.REFUND_CP_AMT,
+		                                    '17',0,
+		                                    '02',A.CP_AMT-A.REFUND_CP_AMT,
+		                                    '03',A.CP_AMT-A.REFUND_CP_AMT,0)), 0) COMPLEXCARDCPAMT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                    '17',0,
+		                                    '02',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                    '03',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDCOMPCPAMT,
+		
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                    '17',0,
+		                                    '02',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                    '03',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,0)), 0) -
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                    '17',0,
+		                                    '02',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                    '03',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,0)), 0) COMPLEXCARDCOMPCPBIZAMT,
+		
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                    '17',0,
+		                                    '02',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                    '03',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,0)), 0) COMPLEXCARDCOMPCPTHANKAMT,
+		                                    
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                    '17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                    '02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                    '03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCARDCNT,
+		        NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                    '17',0,
+		                                    '02',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                    '03',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,0)), 0) COMPLEXCARDSPOINTAMT,
+		        NVL(SUM(A.RETURN_GD_CARD_FEE), 0) RETURNGDCARDFEE
+		        FROM MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C, PICMT0060 D, GD_MGT_GOODS_CTGRY E
+		        WHERE 1 = 1 
+                AND A.RECEV_STUS_CD = 'O02'
+		        AND A.GOODS_CD = B.GOODS_CD(+)
+		        AND B.GOODS_CD = E.GOODS_CD
+		        AND A.SUPP_COMP_CD = C.SUPP_COMP_ID(+)
+		        AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+		        AND D.USEYN = 'Y'
+		        AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+		        AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+		        ]]> 
+					
+					<isNotEqual property="SearchRcode" compareValue="">
+						<isEqual property="SearchCode" compareValue="A">
+							<![CDATA[
+								AND D.RCOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="B">
+							<![CDATA[
+								AND D.MPOREGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="C">
+							<![CDATA[
+								AND D.REGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+					</isNotEqual>
+					
+				    <isNotEqual property="shop_id" compareValue="">
+						AND E.PAVLN_DIV_CD = #shop_id#
+					</isNotEqual>     
+				        
+					<isEqual property="recev_system" compareValue="01">
+						AND A.RECEV_SYS_DIV_CD  =  '05'
+					</isEqual>
+					
+					<isEqual property="recev_system" compareValue="02">
+						AND A.RECEV_SYS_DIV_CD  !=  '05'
+					</isEqual>
+					
+					<isNotEqual property="goods_code" compareValue="">
+						AND B.GOODS_CD = #goods_code#
+					</isNotEqual>
+					
+					<isNotEqual property="biz_code" compareValue="">
+						AND A.SUPP_COMP_CD =  #biz_code#
+					</isNotEqual>
+				
+	    		<![CDATA[
+			    GROUP BY A.SUPP_COMP_CD, A.RECEV_DIV_CD, A.RECEV_SYS_DIV_CD, A.SETL_TYPE_CD
+		      	ORDER BY A.SUPP_COMP_CD, A.RECEV_DIV_CD, A.RECEV_SYS_DIV_CD
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT  
+				D.RCOCD RCOCD,
+				(SELECT F_GET_COMN_CD_NM('RCO_CD', D.RCOCD) FROM DUAL) RCONM,
+				(SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', H.PAVLN_DIV_CD) FROM DUAL) SUPPGOODSDIVCD,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 3 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) LARGEDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 3 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) LARGEDIVNM,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 2 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) MIDDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 2 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) MIDDIVNM,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 1 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) SMALLDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 1 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) SMALLDIVNM,
+				NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) GOODSCNT,
+				NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT),0) GOODSAMT
+			FROM  MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, PICMT0060 D, GD_MGT_GOODS_CTGRY H
+			WHERE 1 = 1 
+			AND A.RECEV_STUS_CD = 'O02' 
+			AND DECODE(A.RECEV_DIV_CD,'04',  SUBSTR(A.GOODS_CD, 1, 4),A.GOODS_CD ) = B.GOODS_CD
+			AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+			AND D.USEYN='Y'
+			AND B.GOODS_CD = H.GOODS_CD
+			AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+			AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+		        ]]> 
+					
+					<isNotEqual property="SearchRcode" compareValue="">
+						<isEqual property="SearchCode" compareValue="A">
+							<![CDATA[
+								AND D.RCOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="B">
+							<![CDATA[
+								AND D.MPOREGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="C">
+							<![CDATA[
+								AND D.REGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+					</isNotEqual>
+					
+				    <isNotEqual property="shop_id" compareValue="">
+						AND H.PAVLN_DIV_CD = #shop_id#
+					</isNotEqual>     
+				        
+					<isEqual property="recev_system" compareValue="01">
+						AND A.RECEV_SYS_DIV_CD  =  '05'
+					</isEqual>
+					
+					<isEqual property="recev_system" compareValue="02">
+						AND A.RECEV_SYS_DIV_CD  !=  '05'
+					</isEqual>
+					
+					<isNotEqual property="goods_code" compareValue="">
+						AND B.GOODS_CD = #goods_code#
+					</isNotEqual>
+				
+	    		<![CDATA[
+	
+			GROUP BY D.RCOCD, H.PAVLN_DIV_CD, H.CTGRY_CD
+			ORDER BY D.RCOCD, H.PAVLN_DIV_CD, H.CTGRY_CD
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat31" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT  
+				(SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', H.PAVLN_DIV_CD) FROM DUAL) SUPPGOODSDIVCD,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 3 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) LARGEDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 3 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) LARGEDIVNM,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 2 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) MIDDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 2 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) MIDDIVNM,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 1 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) SMALLDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 1 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) SMALLDIVNM,
+				NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) GOODSCNT,
+				NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT),0) GOODSAMT
+			FROM  MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, PICMT0060 D, GD_MGT_GOODS_CTGRY H
+			WHERE 1 = 1 
+			AND A.RECEV_STUS_CD = 'O02'
+			AND DECODE(A.RECEV_DIV_CD,'04',  SUBSTR(A.GOODS_CD, 1, 4),A.GOODS_CD ) = B.GOODS_CD
+			AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+			AND D.USEYN='Y'
+			AND B.GOODS_CD = H.GOODS_CD
+			AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+	        AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+	        ]]> 
+				
+				<isNotEqual property="SearchRcode" compareValue="">
+					<isEqual property="SearchCode" compareValue="A">
+						<![CDATA[
+							AND D.RCOCD = #SearchRcode#
+						]]>	
+					</isEqual>
+					<isEqual property="SearchCode" compareValue="B">
+						<![CDATA[
+							AND D.MPOREGIPOCD = #SearchRcode#
+						]]>	
+					</isEqual>
+					<isEqual property="SearchCode" compareValue="C">
+						<![CDATA[
+							AND D.REGIPOCD = #SearchRcode#
+						]]>	
+					</isEqual>
+				</isNotEqual>
+				
+			    <isNotEqual property="shop_id" compareValue="">
+					AND H.PAVLN_DIV_CD = #shop_id#
+				</isNotEqual>     
+			        
+				<isEqual property="recev_system" compareValue="01">
+					AND A.RECEV_SYS_DIV_CD  =  '05'
+				</isEqual>
+				
+				<isEqual property="recev_system" compareValue="02">
+					AND A.RECEV_SYS_DIV_CD  !=  '05'
+				</isEqual>
+				
+				<isNotEqual property="goods_code" compareValue="">
+					AND B.GOODS_CD = #goods_code#
+				</isNotEqual>
+			
+	   		<![CDATA[
+			GROUP BY D.RCOCD, H.PAVLN_DIV_CD, H.CTGRY_CD
+			ORDER BY D.RCOCD, H.PAVLN_DIV_CD, H.CTGRY_CD
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat32" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT  
+				(SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', H.PAVLN_DIV_CD) FROM DUAL) SUPPGOODSDIVCD,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 3 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) LARGEDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 3 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) LARGEDIVNM,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 2 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) MIDDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 2 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) MIDDIVNM,
+				(SELECT CTGRY_CD FROM GD_CTGRY_MAST WHERE LEVEL = 1 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) SMALLDIVCD,
+				(SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE LEVEL = 1 START WITH CTGRY_CD = H.CTGRY_CD CONNECT BY PRIOR HRNK_CTGRY_CD = CTGRY_CD) SMALLDIVNM,
+				NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) GOODSCNT,
+				NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT),0) GOODSAMT
+			FROM  MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, PICMT0060 D, GD_MGT_GOODS_CTGRY H
+			WHERE 1 = 1 
+			AND A.RECEV_STUS_CD = 'O02'
+			AND DECODE(A.RECEV_DIV_CD,'04',  SUBSTR(A.GOODS_CD, 1, 4),A.GOODS_CD ) = B.GOODS_CD
+			AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+			AND D.USEYN='Y'
+			AND B.GOODS_CD = H.GOODS_CD
+			AND H.PAVLN_DIV_CD IN ('92', '01','04','02')
+			AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+	        AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+	        ]]> 
+				
+				<isNotEqual property="SearchRcode" compareValue="">
+					<isEqual property="SearchCode" compareValue="A">
+						<![CDATA[
+							AND D.RCOCD = #SearchRcode#
+						]]>	
+					</isEqual>
+					<isEqual property="SearchCode" compareValue="B">
+						<![CDATA[
+							AND D.MPOREGIPOCD = #SearchRcode#
+						]]>	
+					</isEqual>
+					<isEqual property="SearchCode" compareValue="C">
+						<![CDATA[
+							AND D.REGIPOCD = #SearchRcode#
+						]]>	
+					</isEqual>
+				</isNotEqual>
+				
+			    <isNotEqual property="shop_id" compareValue="">
+					AND H.PAVLN_DIV_CD = #shop_id#
+				</isNotEqual>     
+			        
+				<isEqual property="recev_system" compareValue="01">
+					AND A.RECEV_SYS_DIV_CD  =  '05'
+				</isEqual>
+				
+				<isEqual property="recev_system" compareValue="02">
+					AND A.RECEV_SYS_DIV_CD  !=  '05'
+				</isEqual>
+				
+				<isNotEqual property="goods_code" compareValue="">
+					AND B.GOODS_CD = #goods_code#
+				</isNotEqual>
+				
+	   		<![CDATA[
+			GROUP BY D.RCOCD, H.PAVLN_DIV_CD, H.CTGRY_CD
+			ORDER BY D.RCOCD, H.PAVLN_DIV_CD, H.CTGRY_CD
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+		        RCOCD,
+		        RCONM,
+		        SUPPCOMPCD,
+		        SUPPCOMPNM,
+		        MPOREGIPOCD,
+		        MPOREGIPONM,
+		        REGIPOCD,
+		        REGIPONM,
+		        GOODSCD,
+		        GOODSNM,
+		        RECEVDIVCD,
+		        RECEVDIVCDNM,
+		        SUM(SUPPCNT) SUPPCNT,
+		        SUM(SUPPGOODSCNT) SUPPGOODSCNT,
+		        SUM(SETLAMT) SETLAMT,
+		        SUM(CSFFEE) CSFFEE,
+		        SUM(MONEYAMT) MONEYAMT,
+		        SUM(MONEYCNT) MONEYCNT,
+		        SUM(CARDAMT) CARDAMT,
+		        SUM(CARDCNT) CARDCNT,
+		        SUM(COMPLEXAMT) COMPLEXAMT,
+		        SUM(COMPLEXCNT) COMPLEXCNT,
+		        SUM(ECARDAMT) ECARDAMT,
+		        SUM(ECARDCNT) ECARDCNT,
+		        SUM(EASYAMT) EASYAMT,
+		        SUM(EASYCNT) EASYCNT,
+		        SUM(BANKAMT) BANKAMT,
+		        SUM(BANKCNT) BANKCNT,
+		        SUM(OVERSEAAMT) OVERSEAAMT,
+		        SUM(OVERSEACNT) OVERSEACNT,
+		        SUM(COMPLEXSETLAMT) COMPLEXSETLAMT,
+		        SUM(COMPLEXSETLCNT) COMPLEXSETLCNT,
+		        SUM(RESERVAMT) RESERVAMT,
+		        SUM(CPAMT) CPAMT,
+		        SUM(COMPCPAMT) COMPCPAMT,
+		        
+		        SUM(COMPCPAMT) - SUM(COMPCPTHANKAMT) CPBIZAMT,
+		        SUM(COMPCPTHANKAMT) COMPCPTHANKAMT,
+		                
+		        SUM(SPOINTAMT) SPOINTAMT,
+		        SUM(COMPLEXMONEYAMT) COMPLEXMONEYAMT,
+		        SUM(COMPLEXMONEYRESERVAMT) COMPLEXMONEYRESERVAMT,
+		        
+		        SUM(COMPLEXMONEYCPAMT) COMPLEXMONEYCPAMT,
+		        SUM(COMPLEXMONEYCOMPCPAMT) COMPLEXMONEYCOMPCPAMT,
+		
+		        SUM(COMPLEXMONEYCOMPCPAMT - COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPBIZAMT,
+		        SUM(COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPTHANKAMT,
+		
+		        
+		        SUM(COMPLEXMONEYSPOINTAMT) COMPLEXMONEYSPOINTAMT,
+		        SUM(COMPLEXMONEYCNT) COMPLEXMONEYCNT,
+		        SUM(COMPLEXCARDAMT) COMPLEXCARDAMT,
+		        SUM(COMPLEXCARDRESERVAMT) COMPLEXCARDRESERVAMT,
+		        
+		        SUM(COMPLEXCARDCPAMT) COMPLEXCARDCPAMT,
+		        SUM(COMPLEXCARDCOMPCPAMT) COMPLEXCARDCOMPCPAMT,
+		
+		        SUM(COMPLEXCARDCOMPCPAMT - COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPBIZAMT,
+		        SUM(COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPTHANKAMT,
+		        
+		        SUM(COMPLEXCARDCNT) COMPLEXCARDCNT,
+		        SUM(COMPLEXCARDSPOINTAMT) COMPLEXCARDSPOINTAMT,
+		        SUM(RETURNGDCARDFEE) RETURNGDCARDFEE,
+		
+		        SUM(EKAKAOAMT) AS EKAKAOAMT,
+		        SUM(EKAKAOCNT) AS EKAKAOCNT,
+		        SUM(EMOBILEAMT) AS EMOBILEAMT,
+		        SUM(EMOBILECNT) AS EMOBILECNT
+		        
+		    FROM
+		    (
+		        SELECT  
+		                D.RCOCD,
+		                (SELECT F_GET_COMN_CD_NM('RCO_CD', D.RCOCD) FROM DUAL) RCONM,
+		                A.SUPP_COMP_CD SUPPCOMPCD,
+		                (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.SUPP_COMP_CD) SUPPCOMPNM,
+		                D.MPOREGIPOCD,
+		                (SELECT Y.PONM FROM PICMT0060 Y WHERE Y.REGIPOCD = D.MPOREGIPOCD AND Y.USEYN='Y' AND ROWNUM = 1) MPOREGIPONM,
+		                D.REGIPOCD,
+		                D.PONM REGIPONM,
+		                B.GOODS_CD GOODSCD,
+		                B.GOODS_NM GOODSNM,
+		                DECODE(A.RECEV_DIV_CD, '02', '01', A.RECEV_DIV_CD) RECEVDIVCD,
+		                (SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', A.RECEV_DIV_CD) FROM DUAL) RECEVDIVCDNM,
+		                NVL(SUM(A.SUPP_CNT), 0) SUPPCNT, 
+		                NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0) SUPPGOODSCNT ,  
+		                NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0) SETLAMT ,
+		                SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE) CSFFEE ,
+		                
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) MONEYAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) MONEYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) CARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) CARDCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) ECARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) ECARDCNT,
+		                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 	 THEN NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0)
+						 	 ELSE 0
+						END  EASYAMT,
+		                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 	 THEN NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0)
+						 	 ELSE 0
+						END  EASYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) BANKAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) BANKCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) OVERSEAAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) OVERSEACNT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EKAKAOAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EKAKAOCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EMOBILEAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EMOBILECNT,
+		
+		                
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXSETLAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXSETLCNT,
+		                NVL(SUM(A.RESERV_AMT-A.REFUND_RESERV_AMT), 0) RESERVAMT,
+		                
+		                NVL(SUM(A.CP_AMT-A.REFUND_CP_AMT), 0) CPAMT,
+		                NVL(SUM(A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT), 0) COMPCPAMT,
+		                NVL(SUM(A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT), 0) COMPCPTHANKAMT,
+		                
+		                NVL(SUM(A.S_POINT_AMT-A.REFUN_DS_POINT_AMT), 0) SPOINTAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',A.MONEY_SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE,
+		                                            '02',0,
+		                                            '03',0,A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT
+		                                                    -A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.RESERV_AMT-A.REFUND_RESERV_AMT)), 0) COMPLEXMONEYRESERVAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0, 
+		                                            '02',0,
+		                                            '03',0,A.CP_AMT-A.REFUND_CP_AMT)), 0) COMPLEXMONEYCPAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYCOMPCPAMT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT)), 0) COMPLEXMONEYCOMPCPTHANKAMT,
+		                                                                                                                                                                    
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.S_POINT_AMT-A.REFUN_DS_POINT_AMT)), 0) COMPLEXMONEYSPOINTAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.SUPP_GOODS_CNT-A.RETURN_GD_CNT)), 0) COMPLEXMONEYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                            '17',A.CARD_SETL_AMT-A.RETURN_GD_AMT,
+		                                            '02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                            '03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                            '17',0,
+		                                            '02',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                            '03',A.RESERV_AMT-A.REFUND_RESERV_AMT,0)), 0) COMPLEXCARDRESERVAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.CP_AMT-A.REFUND_CP_AMT,
+		                                            '17',0,
+		                                            '02',A.CP_AMT-A.REFUND_CP_AMT,
+		                                            '03',A.CP_AMT-A.REFUND_CP_AMT,0)), 0) COMPLEXCARDCPAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                            '17',0,
+		                                            '02',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                            '03',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDCOMPCPAMT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                            '17',0,
+		                                            '02',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                            '03',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,0)), 0) COMPLEXCARDCOMPCPTHANKAMT,
+		                                            
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCARDCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                            '17',0,
+		                                            '02',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                            '03',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,0)), 0) COMPLEXCARDSPOINTAMT,
+		                NVL(SUM(A.RETURN_GD_CARD_FEE), 0) RETURNGDCARDFEE
+		    
+		        FROM MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C, PICMT0060 D, GD_MGT_GOODS_CTGRY E
+		        WHERE 1 = 1 
+                AND A.RECEV_STUS_CD = 'O02' 
+		        AND DECODE(A.RECEV_DIV_CD,'04',  SUBSTR(A.GOODS_CD, 1, 4),A.GOODS_CD ) = B.GOODS_CD(+) 
+		        AND B.GOODS_CD = E.GOODS_CD
+		        AND A.SUPP_COMP_CD = C.SUPP_COMP_ID(+)
+		        AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+		        AND D.USEYN = 'Y'
+		        AND E.PAVLN_DIV_CD IN ('92','01','04','02')
+		        AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+	        	AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+		        ]]> 
+					
+					<isNotEqual property="SearchRcode" compareValue="">
+						<isEqual property="SearchCode" compareValue="A">
+							<![CDATA[
+								AND D.RCOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="B">
+							<![CDATA[
+								AND D.MPOREGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="C">
+							<![CDATA[
+								AND D.REGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+					</isNotEqual>
+					
+				    <isNotEqual property="shop_id" compareValue="">
+						AND E.PAVLN_DIV_CD = #shop_id#
+					</isNotEqual>     
+				        
+					<isEqual property="recev_system" compareValue="01">
+						AND A.RECEV_SYS_DIV_CD  =  '05'
+					</isEqual>
+					
+					<isEqual property="recev_system" compareValue="02">
+						AND A.RECEV_SYS_DIV_CD  !=  '05'
+					</isEqual>
+					
+					<isNotEqual property="goods_code" compareValue="">
+						AND B.GOODS_CD = #goods_code#
+					</isNotEqual>
+					
+					<isNotEqual property="biz_code" compareValue="">
+						AND A.SUPP_COMP_CD =  #biz_code#
+					</isNotEqual>
+				
+	    		<![CDATA[
+		        GROUP BY D.RCOCD,A.SUPP_COMP_CD, B.GOODS_CD, B.GOODS_NM, A.RECEV_DIV_CD, D.MPOREGIPOCD, D.REGIPOCD, D.PONM, A.SETL_TYPE_CD
+		    )
+		    GROUP BY RCOCD,RCONM,SUPPCOMPCD,SUPPCOMPNM,GOODSCD,GOODSNM,RECEVDIVCD, RECEVDIVCDNM, MPOREGIPOCD, MPOREGIPONM, REGIPOCD, REGIPONM
+		  ORDER BY RCOCD,RCONM,SUPPCOMPCD,SUPPCOMPNM,GOODSCD,GOODSNM,RECEVDIVCD, RECEVDIVCDNM, MPOREGIPOCD, MPOREGIPONM, REGIPOCD, REGIPONM
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat41" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+		        RCOCD,
+		        RCONM,
+		        SUPPCOMPCD,
+		        SUPPCOMPNM,
+		        MPOREGIPOCD,
+		        MPOREGIPONM,
+		        REGIPOCD,
+		        REGIPONM,
+		        GOODSCD,
+		        GOODSNM,
+		        RECEVDIVCD,
+		        RECEVDIVCDNM,
+		        SUM(SUPPCNT) SUPPCNT,
+		        SUM(SUPPGOODSCNT) SUPPGOODSCNT,
+		        SUM(SETLAMT) SETLAMT,
+		        SUM(CSFFEE) CSFFEE,
+		        SUM(MONEYAMT) MONEYAMT,
+		        SUM(MONEYCNT) MONEYCNT,
+		        SUM(CARDAMT) CARDAMT,
+		        SUM(CARDCNT) CARDCNT,
+		        SUM(COMPLEXAMT) COMPLEXAMT,
+		        SUM(COMPLEXCNT) COMPLEXCNT,
+		        SUM(ECARDAMT) ECARDAMT,
+		        SUM(ECARDCNT) ECARDCNT,
+		        SUM(EASYAMT) EASYAMT,
+		        SUM(EASYCNT) EASYCNT,
+		        SUM(BANKAMT) BANKAMT,
+		        SUM(BANKCNT) BANKCNT,
+		        SUM(OVERSEAAMT) OVERSEAAMT,
+		        SUM(OVERSEACNT) OVERSEACNT,
+		        SUM(COMPLEXSETLAMT) COMPLEXSETLAMT,
+		        SUM(COMPLEXSETLCNT) COMPLEXSETLCNT,
+		        SUM(RESERVAMT) RESERVAMT,
+		        
+		        SUM(CPAMT) CPAMT,
+		        SUM(COMPCPAMT) COMPCPAMT,
+		        SUM(COMPCPAMT) - SUM(COMPCPTHANKAMT) CPBIZAMT,
+		        SUM(COMPCPTHANKAMT) COMPCPTHANKAMT, 
+		            
+		        SUM(SPOINTAMT) SPOINTAMT,
+		        SUM(COMPLEXMONEYAMT) COMPLEXMONEYAMT,
+		        SUM(COMPLEXMONEYRESERVAMT) COMPLEXMONEYRESERVAMT,
+		        
+		        SUM(COMPLEXMONEYCPAMT) COMPLEXMONEYCPAMT,
+		        SUM(COMPLEXMONEYCOMPCPAMT) COMPLEXMONEYCOMPCPAMT,
+		
+		        SUM(COMPLEXMONEYCOMPCPAMT - COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPBIZAMT,
+		        SUM(COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPTHANKAMT,
+		        
+		        SUM(COMPLEXMONEYSPOINTAMT) COMPLEXMONEYSPOINTAMT,
+		        SUM(COMPLEXMONEYCNT) COMPLEXMONEYCNT,
+		        SUM(COMPLEXCARDAMT) COMPLEXCARDAMT,
+		        SUM(COMPLEXCARDRESERVAMT) COMPLEXCARDRESERVAMT,
+		        
+		        SUM(COMPLEXCARDCPAMT) COMPLEXCARDCPAMT,
+		        SUM(COMPLEXCARDCOMPCPAMT) COMPLEXCARDCOMPCPAMT,
+		
+		        SUM(COMPLEXCARDCOMPCPAMT - COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPBIZAMT,
+		        SUM(COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPTHANKAMT,
+		        
+		        SUM(COMPLEXCARDCNT) COMPLEXCARDCNT,
+		        SUM(COMPLEXCARDSPOINTAMT) COMPLEXCARDSPOINTAMT,
+		        SUM(RETURNGDCARDFEE) RETURNGDCARDFEE,
+		
+		        SUM(EKAKAOAMT) AS EKAKAOAMT,
+		        SUM(EKAKAOCNT) AS EKAKAOCNT,
+		        SUM(EMOBILEAMT) AS EMOBILEAMT,
+		        SUM(EMOBILECNT) AS EMOBILECNT
+		        
+		    FROM
+		    (
+		        SELECT  
+		                D.RCOCD,
+		                (SELECT F_GET_COMN_CD_NM('RCO_CD', D.RCOCD) FROM DUAL) RCONM,
+		                A.SUPP_COMP_CD SUPPCOMPCD,
+		                (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.SUPP_COMP_CD) SUPPCOMPNM,
+		                D.MPOREGIPOCD,
+		                (SELECT Y.PONM FROM PICMT0060 Y WHERE Y.REGIPOCD = D.MPOREGIPOCD AND Y.USEYN='Y' AND ROWNUM = 1) MPOREGIPONM,
+		                D.REGIPOCD,
+		                D.PONM REGIPONM,
+		                B.GOODS_CD GOODSCD,
+		                B.GOODS_NM GOODSNM,
+		                DECODE(A.RECEV_DIV_CD, '02', '01', A.RECEV_DIV_CD) RECEVDIVCD,
+		                (SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', A.RECEV_DIV_CD) FROM DUAL) RECEVDIVCDNM,
+		                NVL(SUM(A.SUPP_CNT), 0) SUPPCNT, 
+		                NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0) SUPPGOODSCNT ,  
+		                NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0) SETLAMT ,
+		                SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE) CSFFEE ,
+		                
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) MONEYAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) MONEYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) CARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) CARDCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) ECARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) ECARDCNT,
+		                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 	 THEN NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0)
+						 	 ELSE 0
+						END  EASYAMT,
+		                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 	 THEN NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0)
+						 	 ELSE 0
+						END  EASYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) BANKAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) BANKCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) OVERSEAAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) OVERSEACNT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EKAKAOAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EKAKAOCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EMOBILEAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EMOBILECNT,
+		                
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXSETLAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXSETLCNT,
+		                NVL(SUM(A.RESERV_AMT-A.REFUND_RESERV_AMT), 0) RESERVAMT,
+		                
+		                NVL(SUM(A.CP_AMT-A.REFUND_CP_AMT), 0) CPAMT,
+		                NVL(SUM(A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT), 0) COMPCPAMT,
+		                NVL(SUM(A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT), 0) COMPCPTHANKAMT,
+		                
+		                NVL(SUM(A.S_POINT_AMT-A.REFUN_DS_POINT_AMT), 0) SPOINTAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',A.MONEY_SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE,
+		                                            '02',0,
+		                                            '03',0,A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT
+		                                                    -A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.RESERV_AMT-A.REFUND_RESERV_AMT)), 0) COMPLEXMONEYRESERVAMT,
+		                                            
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0, 
+		                                            '02',0,
+		                                            '03',0,A.CP_AMT-A.REFUND_CP_AMT)), 0) COMPLEXMONEYCPAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYCOMPCPAMT,                                                                                                                       
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT)), 0) COMPLEXMONEYCOMPCPTHANKAMT,                                                                                                                      
+		                                            
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.S_POINT_AMT-A.REFUN_DS_POINT_AMT)), 0) COMPLEXMONEYSPOINTAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.SUPP_GOODS_CNT-A.RETURN_GD_CNT)), 0) COMPLEXMONEYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                            '17',A.CARD_SETL_AMT-A.RETURN_GD_AMT,
+		                                            '02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                            '03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                            '17',0,
+		                                            '02',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                            '03',A.RESERV_AMT-A.REFUND_RESERV_AMT,0)), 0) COMPLEXCARDRESERVAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.CP_AMT-A.REFUND_CP_AMT,
+		                                            '17',0,
+		                                            '02',A.CP_AMT-A.REFUND_CP_AMT,
+		                                            '03',A.CP_AMT-A.REFUND_CP_AMT,0)), 0) COMPLEXCARDCPAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                            '17',0,
+		                                            '02',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                            '03',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDCOMPCPAMT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                            '17',0,
+		                                            '02',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                            '03',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,0)), 0) COMPLEXCARDCOMPCPTHANKAMT,
+		                                            
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCARDCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                            '17',0,
+		                                            '02',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                            '03',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,0)), 0) COMPLEXCARDSPOINTAMT,
+		                NVL(SUM(A.RETURN_GD_CARD_FEE), 0) RETURNGDCARDFEE
+		    
+		        FROM MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C, PICMT0060 D, GD_MGT_GOODS_CTGRY E
+		        WHERE 1 = 1 
+                AND A.RECEV_STUS_CD = 'O02' 
+		        AND DECODE(A.RECEV_DIV_CD,'04', SUBSTR(A.GOODS_CD, 1, 4), A.GOODS_CD ) = B.GOODS_CD(+) 
+		        AND B.GOODS_CD = E.GOODS_CD
+		        AND A.SUPP_COMP_CD = C.SUPP_COMP_ID(+)
+		        AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+		        AND D.USEYN = 'Y'
+		        AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+	        	AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+		        ]]> 
+					
+					<isNotEqual property="SearchRcode" compareValue="">
+						<isEqual property="SearchCode" compareValue="A">
+							<![CDATA[
+								AND D.RCOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="B">
+							<![CDATA[
+								AND D.MPOREGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="C">
+							<![CDATA[
+								AND D.REGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+					</isNotEqual>
+					
+				    <isNotEqual property="shop_id" compareValue="">
+						AND E.PAVLN_DIV_CD = #shop_id#
+					</isNotEqual>     
+				        
+					<isEqual property="recev_system" compareValue="01">
+						AND A.RECEV_SYS_DIV_CD  =  '05'
+					</isEqual>
+					
+					<isEqual property="recev_system" compareValue="02">
+						AND A.RECEV_SYS_DIV_CD  !=  '05'
+					</isEqual>
+					
+					<isNotEqual property="goods_code" compareValue="">
+						AND B.GOODS_CD = #goods_code#
+					</isNotEqual>
+					
+					<isNotEqual property="biz_code" compareValue="">
+						AND A.SUPP_COMP_CD =  #biz_code#
+					</isNotEqual>
+					
+	    		<![CDATA[
+		        GROUP BY D.RCOCD,A.SUPP_COMP_CD, B.GOODS_CD, B.GOODS_NM, A.RECEV_DIV_CD, D.MPOREGIPOCD, D.REGIPOCD, D.PONM, A.SETL_TYPE_CD
+		    )
+		    GROUP BY RCOCD,RCONM,SUPPCOMPCD,SUPPCOMPNM,GOODSCD,GOODSNM,RECEVDIVCD, RECEVDIVCDNM, MPOREGIPOCD, MPOREGIPONM, REGIPOCD, REGIPONM
+		  ORDER BY RCOCD,RCONM,SUPPCOMPCD,SUPPCOMPNM,GOODSCD,GOODSNM,RECEVDIVCD, RECEVDIVCDNM, MPOREGIPOCD, MPOREGIPONM, REGIPOCD, REGIPONM 
+	    ]]>
+	</select>
+	
+	<select id="retrieveGoodsStat42" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+		        RCOCD,
+		        RCONM,
+		        SUPPCOMPCD,
+		        SUPPCOMPNM,
+		        MPOREGIPOCD,
+		        MPOREGIPONM,
+		        REGIPOCD,
+		        REGIPONM,
+		        GOODSCD,
+		        GOODSNM,
+		        RECEVDIVCD,
+		        RECEVDIVCDNM,
+		        SUM(SUPPCNT) SUPPCNT,
+		        SUM(SUPPGOODSCNT) SUPPGOODSCNT,
+		        SUM(SETLAMT) SETLAMT,
+		        SUM(CSFFEE) CSFFEE,
+		        SUM(MONEYAMT) MONEYAMT,
+		        SUM(MONEYCNT) MONEYCNT,
+		        SUM(CARDAMT) CARDAMT,
+		        SUM(CARDCNT) CARDCNT,
+		        SUM(COMPLEXAMT) COMPLEXAMT,
+		        SUM(COMPLEXCNT) COMPLEXCNT,
+		        SUM(ECARDAMT) ECARDAMT,
+		        SUM(ECARDCNT) ECARDCNT,
+		        SUM(EASYAMT) EASYAMT,
+		        SUM(EASYCNT) EASYCNT,
+		        SUM(BANKAMT) BANKAMT,
+		        SUM(BANKCNT) BANKCNT,
+		        SUM(OVERSEAAMT) OVERSEAAMT,
+		        SUM(OVERSEACNT) OVERSEACNT,
+		        SUM(COMPLEXSETLAMT) COMPLEXSETLAMT,
+		        SUM(COMPLEXSETLCNT) COMPLEXSETLCNT,
+		        SUM(RESERVAMT) RESERVAMT,
+		        
+		        SUM(CPAMT) CPAMT,
+		        SUM(COMPCPAMT) COMPCPAMT,
+		        SUM(COMPCPAMT) - SUM(COMPCPTHANKAMT) CPBIZAMT,
+		        SUM(COMPCPTHANKAMT) COMPCPTHANKAMT, 
+		            
+		        SUM(SPOINTAMT) SPOINTAMT,
+		        SUM(COMPLEXMONEYAMT) COMPLEXMONEYAMT,
+		        SUM(COMPLEXMONEYRESERVAMT) COMPLEXMONEYRESERVAMT,
+		        
+		        SUM(COMPLEXMONEYCPAMT) COMPLEXMONEYCPAMT,
+		        SUM(COMPLEXMONEYCOMPCPAMT) COMPLEXMONEYCOMPCPAMT,
+		
+		        SUM(COMPLEXMONEYCOMPCPAMT - COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPBIZAMT,
+		        SUM(COMPLEXMONEYCOMPCPTHANKAMT)COMPLEXMONEYCOMPCPTHANKAMT,
+		        
+		        SUM(COMPLEXMONEYSPOINTAMT) COMPLEXMONEYSPOINTAMT,
+		        SUM(COMPLEXMONEYCNT) COMPLEXMONEYCNT,
+		        SUM(COMPLEXCARDAMT) COMPLEXCARDAMT,
+		        SUM(COMPLEXCARDRESERVAMT) COMPLEXCARDRESERVAMT,
+		        
+		        SUM(COMPLEXCARDCPAMT) COMPLEXCARDCPAMT,
+		        SUM(COMPLEXCARDCOMPCPAMT) COMPLEXCARDCOMPCPAMT,
+		
+		        SUM(COMPLEXCARDCOMPCPAMT - COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPBIZAMT,
+		        SUM(COMPLEXCARDCOMPCPTHANKAMT)COMPLEXCARDCOMPCPTHANKAMT,
+		        
+		        SUM(COMPLEXCARDCNT) COMPLEXCARDCNT,
+		        SUM(COMPLEXCARDSPOINTAMT) COMPLEXCARDSPOINTAMT,
+		        SUM(RETURNGDCARDFEE) RETURNGDCARDFEE,
+		        SUM(EKAKAOAMT) AS EKAKAOAMT,
+		        SUM(EKAKAOCNT) AS EKAKAOCNT,
+		        SUM(EMOBILEAMT) AS EMOBILEAMT,
+		        SUM(EMOBILECNT) AS EMOBILECNT
+		        
+		    FROM
+		    (
+		        SELECT  
+		                D.RCOCD,
+		                (SELECT F_GET_COMN_CD_NM('RCO_CD', D.RCOCD) FROM DUAL) RCONM,
+		                A.SUPP_COMP_CD SUPPCOMPCD,
+		                (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.SUPP_COMP_CD) SUPPCOMPNM,
+		                D.MPOREGIPOCD,
+		                (SELECT Y.PONM FROM PICMT0060 Y WHERE Y.REGIPOCD = D.MPOREGIPOCD AND Y.USEYN='Y' AND ROWNUM = 1) MPOREGIPONM,
+		                D.REGIPOCD,
+		                D.PONM REGIPONM,
+		                B.GOODS_CD GOODSCD,
+		                B.GOODS_NM GOODSNM,
+		                DECODE(A.RECEV_DIV_CD, '02', '01', A.RECEV_DIV_CD) RECEVDIVCD,
+		                (SELECT F_GET_COMN_CD_NM('PAVLN_DIV_CD', A.RECEV_DIV_CD) FROM DUAL) RECEVDIVCDNM,
+		                NVL(SUM(A.SUPP_CNT), 0) SUPPCNT, 
+		                NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0) SUPPGOODSCNT ,  
+		                NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0) SETLAMT ,
+		                SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE) CSFFEE ,
+		                
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) MONEYAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'15',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) MONEYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) CARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) CARDCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) ECARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) ECARDCNT,
+		                
+		                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 	 THEN NVL(SUM(A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT), 0)
+						 	 ELSE 0
+						END  EASYAMT,
+		                CASE WHEN A.SETL_TYPE_CD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 	 THEN NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT), 0)
+						 	 ELSE 0
+						END  EASYCNT,
+		                
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) BANKAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) BANKCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) OVERSEAAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) OVERSEACNT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EKAKAOAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'20',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EKAKAOCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) EMOBILEAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'13',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) EMOBILECNT,
+		                
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT,0)), 0) COMPLEXSETLAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'16',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXSETLCNT,
+		                NVL(SUM(A.RESERV_AMT-A.REFUND_RESERV_AMT), 0) RESERVAMT,
+		                
+		                NVL(SUM(A.CP_AMT-A.REFUND_CP_AMT), 0) CPAMT,
+		                NVL(SUM(A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT), 0) COMPCPAMT,
+		                NVL(SUM(A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT), 0) COMPCPTHANKAMT,             
+		                
+		                NVL(SUM(A.S_POINT_AMT-A.REFUN_DS_POINT_AMT), 0) SPOINTAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',A.MONEY_SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE,
+		                                            '02',0,
+		                                            '03',0,A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT
+		                                                    -A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.RESERV_AMT-A.REFUND_RESERV_AMT)), 0) COMPLEXMONEYRESERVAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0, 
+		                                            '02',0,
+		                                            '03',0,A.CP_AMT-A.REFUND_CP_AMT)), 0) COMPLEXMONEYCPAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT)), 0) COMPLEXMONEYCOMPCPAMT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT)), 0) COMPLEXMONEYCOMPCPTHANKAMT,
+		                                                                                                                                                                    
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.S_POINT_AMT-A.REFUN_DS_POINT_AMT)), 0) COMPLEXMONEYSPOINTAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',0,
+		                                            '17',0,
+		                                            '02',0,
+		                                            '03',0,A.SUPP_GOODS_CNT-A.RETURN_GD_CNT)), 0) COMPLEXMONEYCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                            '17',A.CARD_SETL_AMT-A.RETURN_GD_AMT,
+		                                            '02',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,
+		                                            '03',A.SETL_AMT-A.DELIV_CERT_FEE-A.CONG_CARD_FEE-A.RETURN_GD_AMT-A.RESERV_AMT+A.REFUND_RESERV_AMT-A.CP_AMT+A.REFUND_CP_AMT-A.COMP_CP_AMT+A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                            '17',0,
+		                                            '02',A.RESERV_AMT-A.REFUND_RESERV_AMT,
+		                                            '03',A.RESERV_AMT-A.REFUND_RESERV_AMT,0)), 0) COMPLEXCARDRESERVAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.CP_AMT-A.REFUND_CP_AMT,
+		                                            '17',0,
+		                                            '02',A.CP_AMT-A.REFUND_CP_AMT,
+		                                            '03',A.CP_AMT-A.REFUND_CP_AMT,0)), 0) COMPLEXCARDCPAMT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                            '17',0,
+		                                            '02',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,
+		                                            '03',A.COMP_CP_AMT-A.REFUND_COMP_CP_AMT,0)), 0) COMPLEXCARDCOMPCPAMT,
+		
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                            '17',0,
+		                                            '02',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,
+		                                            '03',A.COMP_CP_THANK_AMT-A.REFUND_COMP_CP_THANK_AMT,0)), 0) COMPLEXCARDCOMPCPTHANKAMT,
+		                                            
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '17',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,
+		                                            '03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)), 0) COMPLEXCARDCNT,
+		                NVL(SUM(DECODE(A.SETL_TYPE_CD,'04',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                            '17',0,
+		                                            '02',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,
+		                                            '03',A.S_POINT_AMT-A.REFUN_DS_POINT_AMT,0)), 0) COMPLEXCARDSPOINTAMT,
+		                NVL(SUM(A.RETURN_GD_CARD_FEE), 0) RETURNGDCARDFEE
+		    
+		        FROM MP_POST_SHOP_SUPP_DAY A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C, PICMT0060 D, GD_MGT_GOODS_CTGRY E
+		        WHERE 1 = 1
+		        AND A.RECEV_STUS_CD = 'O02' 
+		        AND DECODE(A.RECEV_DIV_CD,'04',  SUBSTR(A.GOODS_CD, 1, 4),A.GOODS_CD ) = B.GOODS_CD(+) 
+		        AND B.GOODS_CD = E.GOODS_CD
+		        AND A.SUPP_COMP_CD = C.SUPP_COMP_ID(+)
+		        AND A.SUPP_PO_REGI_PO_CD = D.REGIPOCD
+		        AND D.USEYN = 'Y'
+		        AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+	        	AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+		        ]]> 
+				
+					<isNotEqual property="SearchRcode" compareValue="">
+						<isEqual property="SearchCode" compareValue="A">
+							<![CDATA[
+								AND D.RCOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="B">
+							<![CDATA[
+								AND D.MPOREGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+						<isEqual property="SearchCode" compareValue="C">
+							<![CDATA[
+								AND D.REGIPOCD = #SearchRcode#
+							]]>	
+						</isEqual>
+					</isNotEqual>
+					
+				    <isNotEqual property="shop_id" compareValue="">
+						AND E.PAVLN_DIV_CD = #shop_id#
+					</isNotEqual>     
+				        
+					<isEqual property="recev_system" compareValue="01">
+						AND A.RECEV_SYS_DIV_CD  =  '05'
+					</isEqual>
+					
+					<isEqual property="recev_system" compareValue="02">
+						AND A.RECEV_SYS_DIV_CD  !=  '05'
+					</isEqual>
+					
+					<isNotEqual property="goods_code" compareValue="">
+						AND B.GOODS_CD = #goods_code#
+					</isNotEqual>
+					
+					<isNotEqual property="biz_code" compareValue="">
+						AND A.SUPP_COMP_CD =  #biz_code#
+					</isNotEqual>
+				
+	    		<![CDATA[
+		        GROUP BY D.RCOCD,A.SUPP_COMP_CD, B.GOODS_CD, B.GOODS_NM, A.RECEV_DIV_CD, D.MPOREGIPOCD, D.REGIPOCD, D.PONM, A.SETL_TYPE_CD
+		    )
+		    GROUP BY RCOCD,RCONM,SUPPCOMPCD,SUPPCOMPNM,GOODSCD,GOODSNM,RECEVDIVCD, RECEVDIVCDNM, MPOREGIPOCD, MPOREGIPONM, REGIPOCD, REGIPONM
+		    ORDER BY RCOCD,RCONM,SUPPCOMPCD,SUPPCOMPNM,GOODSCD,GOODSNM,RECEVDIVCD, RECEVDIVCDNM, MPOREGIPOCD, MPOREGIPONM, REGIPOCD, REGIPONM
+	    ]]>
+	</select>
+	
+	<!-- 공급업체 조회 -->
+	<sql id="suppcomp_sql">
+		SELECT SUPP_COMP_DIV_CD_NM.COMN_CD_NM AS SUPP_COMP_DIV_CD_NM /*DECODE
+		공급 업체 분류 코드*/
+		,A.SUPP_COMP_DIV_CD /*공급 업체 분류 코드*/
+		,A.BCNC_NM /*공급업체 명*/
+		,A.BCNC_CNTRAC_NO /*공급업체 계약 번호*/
+		,A.SUPP_COMP_ID /*공급 업체 ID*/
+		,A.PRSDT_NM /*대표자 명*/
+		,A.COMPREG_NO /*사업자등록 번호*/
+		,A.ENTRPS /*업태*/
+		,A.TELNO /*전화번호*/
+		,A.PRSDT_MOBILE_NO /*대표자 휴대폰 번호*/
+		,SUPP_COMP_STUS_CD_NM.COMN_CD_NM AS SUPP_COMP_STUS_CD_NM /*DECODE 공급 업체 상태 코드*/
+		,A.SUPP_COMP_STUS_CD /*공급 업체 상태 코드*/
+		,TO_CHAR(TO_DATE(A.OPN_YMD), 'YYYY-MM-DD') /*오픈 일자*/
+		,A.PO_ECODE /*우체국 ECODE*/
+		,A.SUPPO_RGIST_POCD /*공급국 등기용 국기호*/
+		,B.PONM /*우체국국번호*/
+		,B.EDPSCD /*EDPS코드*/
+		FROM CO_SUPP_COMP_MAST A, PICMT0060 B
+		,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_DIV_CD') SUPP_COMP_DIV_CD_NM
+		,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_STUS_CD') SUPP_COMP_STUS_CD_NM
+		WHERE A.SUPPO_RGIST_POCD = B.REGIPOCD
+		AND A.SUPP_COMP_DIV_CD = SUPP_COMP_DIV_CD_NM.COMN_CD_ID(+)
+		AND A.SUPP_COMP_STUS_CD = SUPP_COMP_STUS_CD_NM.COMN_CD_ID(+)
+		/*
+		AND B.USEYN = 'Y'
+		AND B.DSCDPOYN = 'N'
+		AND A.CNTRAC_CANCEL_YMD != '99999999'
+		*/
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					A.SUPP_COMP_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					A.BCNC_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="03">
+					A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="04">
+					A.COMPREG_NO
+					LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.SUPP_COMP_ID LIKE
+				'%'||#search_text#||'%' OR A.BCNC_NM LIKE '%'||#search_text#||'%'
+				OR A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%' OR A.COMPREG_NO LIKE
+				'%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_text1">
+			<isNotEmpty property="search_type1" prepend="AND">
+				A.SUPP_COMP_DIV_CD = #search_type1#
+			</isNotEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_comp_stus">
+			<isNotEmpty property="search_comp_stus" prepend="AND">
+				A.SUPP_COMP_STUS_CD = #search_comp_stus#
+			</isNotEmpty>
+		</isNotEmpty>
+	</sql>
+	<!-- 공급업체 팝업 -->
+	<select id="selectSuppCompList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	
+		SELECT 
+			A.RNUM,
+			A.SUPP_COMP_ID,
+			A.BCNC_NM,
+			A.COMPREG_NO,
+			A.PRSDT_NM,
+			A.TELNO,
+			A.SUPPO_RGIST_POCD,
+			A.EDPSCD,
+			A.PONM
+		FROM ( 
+				SELECT
+					ROW_NUMBER () OVER (ORDER BY A.SUPP_COMP_ID DESC) RNUM,
+					A.SUPP_COMP_ID,
+					A.BCNC_NM,
+					A.COMPREG_NO,
+					A.PRSDT_NM,
+					A.TELNO,
+					A.SUPPO_RGIST_POCD,
+					A.EDPSCD,
+					A.PONM
+				FROM (
+						SELECT 
+							BCNC_NM,
+							SUPP_COMP_ID,
+							COMPREG_NO,
+							PRSDT_NM,
+							TELNO,
+							SUPPO_RGIST_POCD,
+							EDPSCD,
+							PONM
+						FROM(
+							SELECT 
+								 A.BCNC_NM, /*공급업체 명*/
+								 A.SUPP_COMP_ID, /*공급 업체 ID*/
+								 A.COMPREG_NO, /*사업자등록 번호*/
+								 A.PRSDT_NM, /*대표자 명*/
+								 A.TELNO, /*전화번호*/
+								 A.SUPPO_RGIST_POCD, /*공급국 등기용 국기호*/
+								 B.EDPSCD, /*EDPS코드*/
+								 B.PONM /*우체국국번호*/
+							FROM CO_SUPP_COMP_MAST A, PICMT0060 B
+							,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_DIV_CD') SUPP_COMP_DIV_CD_NM
+							,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_STUS_CD') SUPP_COMP_STUS_CD_NM
+							WHERE A.SUPPO_RGIST_POCD = B.REGIPOCD
+							AND A.SUPP_COMP_DIV_CD = SUPP_COMP_DIV_CD_NM.COMN_CD_ID(+)
+							AND A.SUPP_COMP_STUS_CD = SUPP_COMP_STUS_CD_NM.COMN_CD_ID(+)
+							/*
+							AND B.USEYN = 'Y'
+							AND B.DSCDPOYN = 'N'
+							AND A.CNTRAC_CANCEL_YMD != '99999999'
+							*/
+							<isNotEmpty property="search_text">
+								<isNotEmpty property="search_type" prepend="AND">
+									<isEqual property="search_type" compareValue="01">
+										A.SUPP_COMP_ID LIKE '%'||#search_text#||'%'
+									</isEqual>
+									<isEqual property="search_type" compareValue="02">
+										A.BCNC_NM LIKE '%'||#search_text#||'%'
+									</isEqual>
+									<isEqual property="search_type" compareValue="03">
+										A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%'
+									</isEqual>
+									<isEqual property="search_type" compareValue="04">
+										A.COMPREG_NO
+										LIKE '%'||#search_text#||'%'
+									</isEqual>
+								</isNotEmpty>
+								<isEmpty property="search_type" prepend="AND">
+									(A.SUPP_COMP_ID LIKE
+									'%'||#search_text#||'%' OR A.BCNC_NM LIKE '%'||#search_text#||'%'
+									OR A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%' OR A.COMPREG_NO LIKE
+									'%'||#search_text#||'%')
+								</isEmpty>
+							</isNotEmpty>
+							GROUP BY A.BCNC_NM, A.SUPP_COMP_ID, A.COMPREG_NO, A.PRSDT_NM, A.TELNO, A.SUPPO_RGIST_POCD, B.EDPSCD, B.PONM
+						)
+				) A
+			) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<!-- 공급업체 팝업 COUNT -->
+	<select id="selectSuppCompCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT 
+			COUNT(*) AS CNT
+		FROM (
+				SELECT 
+					BCNC_NM,
+					SUPP_COMP_ID,
+					COMPREG_NO,
+					PRSDT_NM,
+					TELNO,
+					SUPPO_RGIST_POCD,
+					EDPSCD,
+					PONM
+				FROM(
+					SELECT 
+						 A.BCNC_NM, /*공급업체 명*/
+						 A.SUPP_COMP_ID, /*공급 업체 ID*/
+						 A.COMPREG_NO, /*사업자등록 번호*/
+						 A.PRSDT_NM, /*대표자 명*/
+						 A.TELNO, /*전화번호*/
+						 A.SUPPO_RGIST_POCD, /*공급국 등기용 국기호*/
+						 B.EDPSCD, /*EDPS코드*/
+						 B.PONM /*우체국국번호*/
+					FROM CO_SUPP_COMP_MAST A, PICMT0060 B
+					,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_DIV_CD') SUPP_COMP_DIV_CD_NM
+					,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_STUS_CD') SUPP_COMP_STUS_CD_NM
+					WHERE A.SUPPO_RGIST_POCD = B.REGIPOCD
+					AND A.SUPP_COMP_DIV_CD = SUPP_COMP_DIV_CD_NM.COMN_CD_ID(+)
+					AND A.SUPP_COMP_STUS_CD = SUPP_COMP_STUS_CD_NM.COMN_CD_ID(+)
+					/*
+					AND B.USEYN = 'Y'
+					AND B.DSCDPOYN = 'N'
+					AND A.CNTRAC_CANCEL_YMD != '99999999'
+					*/
+					<isNotEmpty property="search_text">
+						<isNotEmpty property="search_type" prepend="AND">
+							<isEqual property="search_type" compareValue="01">
+								A.SUPP_COMP_ID LIKE '%'||#search_text#||'%'
+							</isEqual>
+							<isEqual property="search_type" compareValue="02">
+								A.BCNC_NM LIKE '%'||#search_text#||'%'
+							</isEqual>
+							<isEqual property="search_type" compareValue="03">
+								A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%'
+							</isEqual>
+							<isEqual property="search_type" compareValue="04">
+								A.COMPREG_NO
+								LIKE '%'||#search_text#||'%'
+							</isEqual>
+						</isNotEmpty>
+						<isEmpty property="search_type" prepend="AND">
+							(A.SUPP_COMP_ID LIKE
+							'%'||#search_text#||'%' OR A.BCNC_NM LIKE '%'||#search_text#||'%'
+							OR A.BCNC_CNTRAC_NO LIKE '%'||#search_text#||'%' OR A.COMPREG_NO LIKE
+							'%'||#search_text#||'%')
+						</isEmpty>
+					</isNotEmpty>
+					GROUP BY A.BCNC_NM, A.SUPP_COMP_ID, A.COMPREG_NO, A.PRSDT_NM, A.TELNO, A.SUPPO_RGIST_POCD, B.EDPSCD, B.PONM
+			)
+		)
+	</select>
+	
+	
+	<select id="selectGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT * 
+				FROM ( SELECT
+						ROW_NUMBER () OVER (ORDER BY GOODS_CD DESC) RNUM
+					, A.*
+					FROM (
+						SELECT A.*
+							 , A.PAVLN_DIV_NM ||
+							   ( SELECT SYS_CONNECT_BY_PATH(B.CTGRY_NM, '▶')
+							   	   FROM GD_CTGRY_MAST B
+								  WHERE B.CTGRY_CD = A.CTGRY_CD
+								  START WITH B.CTGRY_CD = A.TOP_CTGRY_CD
+								CONNECT BY PRIOR B.CTGRY_CD = B.HRNK_CTGRY_CD) BASIC_CTGRY_NM /* 기본 카테고리*/ 
+							FROM(
+							SELECT A.GOODS_CD
+								 , A.GOODS_NM
+								 , A.GOODS_STUS_CD    /*상품 상태코드*/
+								 , A.STD_SELL_PRC	  /* 판매가 */
+								 , A.SUPP_COMP_ID
+								 , B.BCNC_NM AS SUPP_COMP_NM
+								 , GOODS_STUS_CD.COMN_CD_NM AS GOODS_STUS_NM /*상품판매상태 */
+								 , PAVLN_DIV_CD.COMN_CD_NM AS PAVLN_DIV_NM /*전시관명*/
+								 , S.CTGRY_CD
+								 , SEND.SENDNON
+								 , ( SELECT B.CTGRY_CD
+									  FROM GD_CTGRY_MAST B
+									 WHERE CONNECT_BY_ISLEAF = 1
+									 START WITH B.CTGRY_CD = S.CTGRY_CD
+								   CONNECT BY PRIOR B.HRNK_CTGRY_CD = B.CTGRY_CD ) TOP_CTGRY_CD
+					          FROM GD_GOODS_MAST A, CO_SUPP_COMP_MAST B
+								 , GD_GOODS_CTGRY S
+								 , GD_CTGRY_PAVLN_MAPP T
+								 , GD_GOODS_MLANG_SPRT M
+								 , GD_GOODS_SM SM
+								 , GD_GOODS_SEND SEND
+								 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODS_STUS_CD') GOODS_STUS_CD
+								 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV_CD
+					         WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+							   AND A.GOODS_CD = M.GOODS_CD(+)
+							   AND A.GOODS_CD = SM.GOODS_CD
+							   AND A.GOODS_CD = SEND.GOODS_CD
+					           AND A.GOODS_STUS_CD = GOODS_STUS_CD.COMN_CD_ID(+)
+					           AND S.PAVLN_DIV_CD = PAVLN_DIV_CD.COMN_CD_ID(+)
+							   AND S.GOODS_CD = A.GOODS_CD
+							   AND T.PAVLN_DIV_CD = S.PAVLN_DIV_CD
+							   AND T.CTGRY_CD = S.CTGRY_CD
+							   AND S.BASIC_CTGRY_YN = 'Y'
+							   AND S.USE_YN = 'Y'
+							   /*
+					           AND A.GOODS_STUS_CD IN ('01', '05')
+					           AND SM.GOODS_SUPP_YN = 'Y'
+					           */
+								<isNotEmpty property="lang_cd" prepend="AND">
+									<isNotEqual property="lang_cd" compareValue="KO">
+										M.LANG_CD = #lang_cd#
+									</isNotEqual>
+								</isNotEmpty>
+								<isNotEmpty property="str_div" prepend="AND">
+									A.GOODS_CD IN ( SELECT X.GOODS_CD 
+													  FROM GD_CTGRY_PAVLN_MAPP B, GD_GOODS_CTGRY X
+													 WHERE X.USE_YN = 'Y'
+													   AND X.PAVLN_DIV_CD = B.PAVLN_DIV_CD
+													   AND X.CTGRY_CD = B.CTGRY_CD
+													   AND B.PAVLN_DIV_CD = #str_div#
+													   AND B.CTGRY_CD IN ( SELECT A.CTGRY_CD
+																			 FROM GD_CTGRY_MAST A
+																			WHERE A.USE_YN = 'Y'
+																	<isNotEmpty property="search_ctgry_cd" >
+																			START WITH A.CTGRY_CD = #search_ctgry_cd#
+																		  CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD
+																	 </isNotEmpty>
+																		 )
+												  )
+								</isNotEmpty>
+								<isNotEmpty property="search_text">
+									<isNotEmpty property="search_type" prepend="AND">
+										<isEqual property="search_type" compareValue="goods_cd">
+											A.GOODS_CD LIKE #search_text#||'%'
+										</isEqual>
+										<isEqual property="search_type" compareValue="goods_nm">
+											A.GOODS_NM LIKE '%'||#search_text#||'%'
+										</isEqual>
+									</isNotEmpty>
+									<isEmpty property="search_type" prepend="AND">
+										(A.GOODS_CD LIKE #search_text#||'%' OR A.GOODS_NM LIKE '%'||#search_text#||'%')
+									</isEmpty>
+								</isNotEmpty>
+								<isNotEmpty property="search_supp_comp_id" prepend="AND">
+									A.SUPP_COMP_ID = #search_supp_comp_id#
+								</isNotEmpty>
+								<isNotEmpty property="search_appr_proc_cd" prepend="AND">
+									A.APPR_PROC_CD = #search_appr_proc_cd#
+								</isNotEmpty>
+								<isNotEmpty property="search_goods_stus_cd" prepend="AND">
+									A.GOODS_STUS_CD = #search_goods_stus_cd#
+								</isNotEmpty>
+								<isNotEmpty property="goods_cd" prepend="AND">
+							   		A.GOODS_CD = #goods_cd#
+								</isNotEmpty>
+								<isNotEmpty property="rgr_goods_yn" prepend="AND">
+							   		A.RGR_GOODS_YN = #rgr_goods_yn#
+								</isNotEmpty>
+								<isNotEmpty property="sell_typ_cd" prepend="AND">
+							   		A.SELL_TYP_CD = #sell_typ_cd#
+								</isNotEmpty>
+								<isEqual property="dc_type" compareValue="05" prepend="AND">
+							   		A.GOODS_CD IN ( SELECT GOODS_CD
+													 FROM GD_GOODS_DC
+													WHERE DC_TYP_CD = '08' 
+													  AND DC_APPLY_YN = 'Y' )
+								</isEqual>
+							)A
+						) A
+					) A
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+	</select>
+
+	<select id="selectGoodsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (
+		  			SELECT A.GOODS_CD
+						 , A.GOODS_NM
+						 , A.GOODS_STUS_CD    /*상품 상태코드*/
+						 , A.STD_SELL_PRC	  /* 판매가 */
+						 , A.SUPP_COMP_ID
+						 , B.BCNC_NM AS SUPP_COMP_NM
+						 , GOODS_STUS_CD.COMN_CD_NM AS GOODS_STUS_NM /*상품판매상태 */
+						 , PAVLN_DIV_CD.COMN_CD_NM AS PAVLN_DIV_NM /*전시관명*/
+						 , S.CTGRY_CD
+						 , SEND.SENDNON
+						 , ( SELECT B.CTGRY_CD
+							  FROM GD_CTGRY_MAST B
+							 WHERE CONNECT_BY_ISLEAF = 1
+							 START WITH B.CTGRY_CD = S.CTGRY_CD
+						   CONNECT BY PRIOR B.HRNK_CTGRY_CD = B.CTGRY_CD ) TOP_CTGRY_CD
+			          FROM GD_GOODS_MAST A, CO_SUPP_COMP_MAST B
+						 , GD_GOODS_CTGRY S
+						 , GD_CTGRY_PAVLN_MAPP T
+						 , GD_GOODS_MLANG_SPRT M
+						 , GD_GOODS_SM SM
+						 , GD_GOODS_SEND SEND
+						 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODS_STUS_CD') GOODS_STUS_CD
+						 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV_CD
+			         WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+					   AND A.GOODS_CD = M.GOODS_CD(+)
+					   AND A.GOODS_CD = SM.GOODS_CD
+					   AND A.GOODS_CD = SEND.GOODS_CD
+			           AND A.GOODS_STUS_CD = GOODS_STUS_CD.COMN_CD_ID(+)
+			           AND S.PAVLN_DIV_CD = PAVLN_DIV_CD.COMN_CD_ID(+)
+					   AND S.GOODS_CD = A.GOODS_CD
+					   AND T.PAVLN_DIV_CD = S.PAVLN_DIV_CD
+					   AND T.CTGRY_CD = S.CTGRY_CD
+					   AND S.BASIC_CTGRY_YN = 'Y'
+					   AND S.USE_YN = 'Y'
+					   /*
+			           AND A.GOODS_STUS_CD IN ('01', '05')
+			           AND SM.GOODS_SUPP_YN = 'Y'
+			           */
+						<isNotEmpty property="lang_cd" prepend="AND">
+							<isNotEqual property="lang_cd" compareValue="KO">
+								M.LANG_CD = #lang_cd#
+							</isNotEqual>
+						</isNotEmpty>
+						<isNotEmpty property="str_div" prepend="AND">
+							A.GOODS_CD IN ( SELECT X.GOODS_CD 
+											  FROM GD_CTGRY_PAVLN_MAPP B, GD_GOODS_CTGRY X
+											 WHERE X.USE_YN = 'Y'
+											   AND X.PAVLN_DIV_CD = B.PAVLN_DIV_CD
+											   AND X.CTGRY_CD = B.CTGRY_CD
+											   AND B.PAVLN_DIV_CD = #str_div#
+											   AND B.CTGRY_CD IN ( SELECT A.CTGRY_CD
+																	 FROM GD_CTGRY_MAST A
+																	WHERE A.USE_YN = 'Y'
+															<isNotEmpty property="search_ctgry_cd" >
+																	START WITH A.CTGRY_CD = #search_ctgry_cd#
+																  CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD
+															 </isNotEmpty>
+																 )
+										  )
+						</isNotEmpty>
+						<isNotEmpty property="search_text">
+							<isNotEmpty property="search_type" prepend="AND">
+								<isEqual property="search_type" compareValue="goods_cd">
+									A.GOODS_CD LIKE #search_text#||'%'
+								</isEqual>
+								<isEqual property="search_type" compareValue="goods_nm">
+									A.GOODS_NM LIKE '%'||#search_text#||'%'
+								</isEqual>
+							</isNotEmpty>
+							<isEmpty property="search_type" prepend="AND">
+								(A.GOODS_CD LIKE #search_text#||'%' OR A.GOODS_NM LIKE '%'||#search_text#||'%')
+							</isEmpty>
+						</isNotEmpty>
+						<isNotEmpty property="search_supp_comp_id" prepend="AND">
+							A.SUPP_COMP_ID = #search_supp_comp_id#
+						</isNotEmpty>
+						<isNotEmpty property="search_appr_proc_cd" prepend="AND">
+							A.APPR_PROC_CD = #search_appr_proc_cd#
+						</isNotEmpty>
+						<isNotEmpty property="search_goods_stus_cd" prepend="AND">
+							A.GOODS_STUS_CD = #search_goods_stus_cd#
+						</isNotEmpty>
+						<isNotEmpty property="goods_cd" prepend="AND">
+					   		A.GOODS_CD = #goods_cd#
+						</isNotEmpty>
+						<isNotEmpty property="rgr_goods_yn" prepend="AND">
+					   		A.RGR_GOODS_YN = #rgr_goods_yn#
+						</isNotEmpty>
+						<isNotEmpty property="sell_typ_cd" prepend="AND">
+					   		A.SELL_TYP_CD = #sell_typ_cd#
+						</isNotEmpty>
+						<isEqual property="dc_type" compareValue="05" prepend="AND">
+					   		A.GOODS_CD IN ( SELECT GOODS_CD
+											 FROM GD_GOODS_DC
+											WHERE DC_TYP_CD = '08' 
+											  AND DC_APPLY_YN = 'Y' )
+						</isEqual>
+				)
+	</select>
+	
+</sqlMap>

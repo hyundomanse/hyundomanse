@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.EpostTop100">
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS CNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE CNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- Top 100 LIST -->
+	<sql id="selectEpostTop100ListQry">
+		SELECT SUPP_PO_NM
+				, SUPP_COMP_NM
+				, GOODS_CD
+				, GOODS_NM
+				, AMOUNT
+				, SUM( REQ_CNT ) AS QUANTITY        /* 수량 */
+				, COUNT(ORDER_ID) AS ORDER_CNT       /* 주문건수 */
+				, SUM( AMOUNT * REQ_CNT ) AS TOT_AMOUNT     /*    합계      */
+				, ORDER_CHNL
+				<!-- Top 조건 -->
+				<isEqual property="quan_amount_gbn" compareValue="1">
+				, ROW_NUMBER() OVER(ORDER BY SUM(REQ_CNT) DESC) AS RNUM		/* TOP 조건 */
+				</isEqual>
+				<isEqual property="quan_amount_gbn" compareValue="2">
+				, ROW_NUMBER() OVER(ORDER BY SUM(AMOUNT * REQ_CNT) DESC) AS RNUM		/* TOP 조건 */
+				</isEqual>		
+			FROM
+				(
+				SELECT  /* 인덱스 들어감 */
+						OOI.SUPP_PO_NM AS SUPP_PO_NM       /* 공급우체국명   */
+						, DECODE( #grp_condition#, '1', '.', OOI.SUPP_COMP_NM ) AS SUPP_COMP_NM             /* 공급업체명 */
+						, DECODE( #grp_condition#, '3', OOI.GOODS_CD, '.' ) AS GOODS_CD              /*상품코드 */
+						, DECODE( #grp_condition#, '3', OOI.GOODS_NM, '.' ) AS GOODS_NM     /* 상품명 */ 
+						, DECODE( #grp_condition#, '3', OOI.CNSMR_PRC, 0 ) AS AMOUNT         /*    상품가      */
+						, OOI.REQ_CNT       /* 수량 */
+						, OOM.ORDER_ID  /* 주문건수 */
+						, DECODE( #quan_amount_gbn#, '1', OOI.REQ_CNT, NVL(OOI.DC_APPLY_PRC, 0 ) ) AS TOT_AMOUNT     /*    합계      */
+						, F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', OOM.ORDER_MDA_DIV_CD) AS ORDER_CHNL		/* 주문채널 */
+					FROM OD_ORDER_MAST OOM
+						, OD_ORDER_ITM OOI
+				WHERE OOM.ORDER_ID = OOI.ORDER_ID
+						<isNotEmpty property="searchStrtYmd">
+						AND OOM.ORDER_DATE BETWEEN TO_DATE(#searchStrtYmd#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchEndYmd#||'235959','YYYYMMDDHH24MISS')
+						</isNotEmpty>
+						<!-- 가격조건 -->
+						<isNotEmpty property="prcStrt">
+							<isNotEmpty property="prcEnd">
+						AND ( NVL(OOI.CNSMR_PRC, OOI.DC_APPLY_PRC) BETWEEN #prcStrt# AND #prcEnd# )		/* 가격조건 */
+							</isNotEmpty>
+						</isNotEmpty>
+						<!-- 가격조건 END -->
+						AND OOM.ORDER_STUS_CD NOT IN ('O01', 'O08')        /* 주문상태코드 O01 온라인송금확인중, O08 접수국취소요청 */
+						AND OOI.GOODS_CANCEL_YN = 'N'
+						AND OOM.ORDER_ID IS NOT NULL
+						<!-- 상품조건 -->
+						AND OOI.PAVLN_DIV_CD = DECODE(#goods_condition#, 'A', OOI.PAVLN_DIV_CD, '92', OOI.PAVLN_DIV_CD, '02', '02')	/* 92:마트온오프 사용안함 */
+						<!-- 상품조건 END -->
+						
+						<!-- 채널조건 -->
+						<isNotEmpty property="chnl_gbn">
+						AND OOM.ORDER_MDA_DIV_CD = #chnl_gbn#
+						</isNotEmpty>
+						<!-- 채널조건 END -->
+						/* AND OOI.DC_APPLY_PRC > 0 
+						AND OOI.GOODS_CD IS NOT NULL */
+					/* GROUP BY OOI.SUPP_PO_NM */  /* 공급우체국명 */   
+				)
+				GROUP BY SUPP_PO_NM   /* 공급우체국명 */ 
+						, SUPP_COMP_NM
+						, GOODS_CD
+						, GOODS_NM
+						, AMOUNT
+						, ORDER_CHNL	
+				<!-- Top 조건 -->			
+				<isEqual property="quan_amount_gbn" compareValue="1">
+					ORDER BY QUANTITY DESC /* TOP 조건 */
+				</isEqual>
+				<isEqual property="quan_amount_gbn" compareValue="2">
+					ORDER BY TOT_AMOUNT DESC /* TOP 조건 */
+				</isEqual>										
+	</sql>
+	
+	<sql id="selectEpostTop100ListTmp2">
+		SELECT  /* 인덱스 들어감 */
+				OOI.SUPP_PO_NM AS SUPP_PO_NM       /* 공급우체국명   */
+				, DECODE( #grp_condition#, '1', '.', OOI.SUPP_COMP_NM ) AS SUPP_COMP_NM             /* 공급업체명 */
+				, DECODE( #grp_condition#, '3', OOI.GOODS_CD, '.' ) AS GOODS_CD              /*상품코드 */
+				, DECODE( #grp_condition#, '3', OOI.GOODS_NM, '.' ) AS GOODS_NM     /* 상품명 */ 
+				, DECODE( #grp_condition#, '3', OOI.CNSMR_PRC, 0 ) AS AMOUNT         /*    상품가      */
+				, SUM( OOI.REQ_CNT ) AS QUANTITY        /* 수량 */
+				, COUNT(OOM.ORDER_ID) AS ORDER_CNT       /* 주문건수 */
+				, SUM( DECODE( #quan_amount_gbn#, '1', OOI.REQ_CNT, NVL(OOI.DC_APPLY_PRC, 0 ) ) ) AS TOT_AMOUNT     /*    합계      */
+				<!-- Top 조건 -->
+				<isEqual property="quan_amount_gbn" compareValue="quan">
+				, ROW_NUMBER() OVER(ORDER BY SUM(OOI.REQ_CNT) DESC) AS RNUM		/* TOP 조건 */
+				</isEqual>
+				<isEqual property="quan_amount_gbn" compareValue="amount">
+				, ROW_NUMBER() OVER(ORDER BY SUM(OOI.REQ_CNT) DESC) AS RNUM		/* TOP 조건 */
+				</isEqual>				
+			FROM OD_ORDER_MAST OOM
+				, OD_ORDER_ITM OOI
+		WHERE OOM.ORDER_ID = OOI.ORDER_ID
+				<isNotEmpty property="searchStrtYmd">
+				AND OOM.ORDER_DATE BETWEEN TO_DATE(#searchStrtYmd#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchEndYmd#||'235959','YYYYMMDDHH24MISS')
+				</isNotEmpty>
+				<!-- 가격조건 -->
+				<isNotEmpty property="prcStrt">
+					<isNotEmpty property="prcEnd">
+				AND ( NVL(OOI.CNSMR_PRC, OOI.DC_APPLY_PRC) BETWEEN #prcStrt# AND #prcEnd# )		/* 가격조건 */
+					</isNotEmpty>
+				</isNotEmpty>
+				<!-- 가격조건 END -->
+				AND OOM.ORDER_STUS_CD NOT IN ('O01', 'O08')        /* 주문상태코드 O01 온라인송금확인중, O08 접수국취소요청 */
+				AND OOI.GOODS_CANCEL_YN = 'N'
+				AND OOM.ORDER_ID IS NOT NULL
+				<!-- 상품조건 -->
+				AND OOI.PAVLN_DIV_CD = DECODE(#goods_condition#, OOI.PAVLN_DIV_CD, '92', OOI.PAVLN_DIV_CD, '02', '02')	/* 92:마트온오프 사용안함 */
+				<!-- 상품조건 END -->
+				
+				<!-- 채널조건 -->
+				<isNotEmpty property="chnl_gbn">
+				AND OOM.ORDER_MDA_DIV_CD = #chnl_gbn#
+				</isNotEmpty>
+				<!-- 채널조건 END -->
+				/* AND OOI.DC_APPLY_PRC > 0 
+				AND OOI.GOODS_CD IS NOT NULL */
+			GROUP BY OOI.SUPP_PO_NM   /* 공급우체국명 */   
+					, DECODE( #grp_condition#, '1', '.', OOI.SUPP_COMP_NM )
+					, DECODE( #grp_condition#, '3', OOI.GOODS_CD, '.' )
+					, DECODE( #grp_condition#, '3', OOI.GOODS_NM, '.' )
+					, DECODE( #grp_condition#, '3', OOI.CNSMR_PRC, 0 )
+				<!-- Top 조건 -->			
+				<isEqual property="quan_amount_gbn" compareValue="quan">
+				ORDER BY QUANTITY DESC /* TOP 조건 */
+				</isEqual>
+				<isEqual property="quan_amount_gbn" compareValue="amount">
+				ORDER BY TOT_AMOUNT DESC /* TOP 조건 */
+				</isEqual>				
+	</sql>	
+
+	<!-- ePOST Top 100 리포트  -->
+	<select id="selectEpostTop100List" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		<include refid="pagingHeader"/>	
+		SELECT *
+			FROM
+				(
+				<include refid="selectEpostTop100ListQry"/> 	/* ePOST Top 100 */
+				)
+		<include refid="pagingFooter"/>				
+	</select>
+	
+
+	
+	<!-- 청구분, 감독국 콤보 make -->
+	<select id="selectMporegipoCdList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT REGIPOCD AS VALUE
+		     , PONM AS NAME 
+		  FROM PICMT0060
+	     WHERE USEYN = 'Y'
+	       AND PODIVCD = '06'
+	       AND RCOCD = #rcocd#
+	    ORDER BY REGIPOCD
+	</select>	
+	
+	<!-- ePOST Top 100 total -->
+	<select id="selectEpostTop100Total" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<include refid="pagingHeader"/>	
+		SELECT *
+			FROM
+				(	
+				SELECT NVL(SUM(AMOUNT), 0) AS SUM_AMOUNT
+						, NVL(SUM(QUANTITY), 0) AS SUM_QUANTITY
+						, NVL(SUM(ORDER_CNT), 0) AS SUM_ORDER_CNT
+						, NVL(SUM(TOT_AMOUNT), 0) AS SUM_TOT_AMOUNT
+						, COUNT(*) AS TOTAL_RECORD
+					FROM
+				        (
+						<include refid="selectEpostTop100ListQry"/> /* ePOST Top 100 */		        
+				        )
+				)
+		<include refid="pagingFooter"/>						        
+	</select>	
+
+</sqlMap>

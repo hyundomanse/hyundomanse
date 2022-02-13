@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchDeleteExpiredMembersInfo">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<delete id="deleteXInvoiceInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM X_INVOICE_INFO B    
+			WHERE 1=1                  
+			AND EXISTS (               
+			     SELECT /*+ hash_sj */ 1    
+			     FROM MEMINFO A             
+			     WHERE A.STATUS = '4'       
+			     AND A.ACCESS_NAME = B.ACCESS_NAME    
+			     AND A.HOLD_YN IS NULL ) 
+		]]>
+	</delete>	
+				
+	<delete id="deleteMileageEvent" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM MILEAGE_EVENT B    
+			WHERE 1=1                  
+			AND EXISTS (               
+			     SELECT /*+ hash_sj */ 1    
+			     FROM MEMINFO A             
+			     WHERE A.STATUS = '4'       
+			     AND A.ACCESS_NAME = B.ACCESS_NAME    
+			     AND A.HOLD_YN IS NULL )    
+		]]>
+	</delete>	
+				
+	<delete id="deleteMileageMaster" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM MILEAGE_MASTER B    
+			WHERE 1=1                  
+			AND EXISTS (               
+			     SELECT /*+ hash_sj */ 1    
+			     FROM MEMINFO A             
+			     WHERE A.STATUS = '4'       
+			     AND A.ACCESS_NAME = B.ACCESS_NAME    
+			     AND A.HOLD_YN IS NULL )    			
+		]]>
+	</delete>	
+				
+	<delete id="deleteMbMemAccmlamt" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM RM_MASTER B    
+			WHERE 1=1                  
+			AND EXISTS (               
+			     SELECT /*+ hash_sj */ 1    
+			     FROM MEMINFO A             
+			     WHERE A.STATUS = '4'       
+			     AND A.ACCESS_NAME = B.ACCESS_NAME    
+			     AND A.HOLD_YN IS NULL )
+		]]>
+	</delete>	
+				
+	<delete id="deleteEvCpnUserIssueInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM CP_USERINFO B    
+			WHERE 1=1                  
+			AND EXISTS (               
+			     SELECT /*+ hash_sj */ 1    
+			     FROM MEMINFO A             
+			     WHERE A.STATUS = '4'       
+			     AND A.ACCESS_NAME = B.ACCESS_NAME    
+			     AND A.HOLD_YN IS NULL ) 
+		]]>
+	</delete>	
+				
+	<delete id="deleteMbSpMaster" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM SP_MASTER B    
+			WHERE 1=1                  
+			AND EXISTS (               
+			     SELECT /*+ hash_sj */ 1    
+			     FROM MEMINFO A             
+			     WHERE A.STATUS = '4'       
+			     AND A.ACCESS_NAME = B.ACCESS_NAME    
+			     AND A.HOLD_YN IS NULL )    	
+		]]>
+	</delete>	
+				
+	
+</sqlMap>

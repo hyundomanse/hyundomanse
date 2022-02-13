@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchContactCheck">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt ,
+				TO_CHAR(sysdate - 0.1, 'yyyymmddhh24') as sStartDate,
+				TO_CHAR(sysdate, 'yyyymmddhh24') as sEndDate
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select distinct bill_to_id as bill_to_id
+			from (
+				select a.bill_to_id from txorder a, contact b 
+				where a.bill_to_id = b.contact_id 
+				  and a.order_date >= #sStartDate# and a.order_date <=#sEndDate# || '9999999' and RECEV_PO_REGIPOCD in ('89903','85414')
+				  and b.TELEPHONE_1 is null 
+				union all  
+				select a.bill_to_id from txorder a, contact b 
+				where a.bill_to_id = b.contact_id 
+				  and a.order_date >= #sStartDate# and a.order_date <=#sEndDate# || '9999999' and RECEV_PO_REGIPOCD in ('89903','85414')
+				  and b.mobile_1 is null 
+				union all  
+				select a.ship_to_id  from txorder a, contact b
+				where a.ship_to_id = b.contact_id 
+				  and a.order_date >= #sStartDate# and a.order_date <=#sEndDate# || '9999999' and RECEV_PO_REGIPOCD in ('89903','85414')
+				  and b.TELEPHONE_1 is null
+				union all  
+				select a.ship_to_id  from txorder a, contact b
+				where a.ship_to_id = b.contact_id 
+				  and a.order_date >= #sStartDate# and a.order_date <=#sEndDate# || '9999999' and RECEV_PO_REGIPOCD in ('89903','85414')
+				  and b.mobile_1 is null
+			)
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select 
+				a.purchase_id as purchase_id,
+				a.access_name as access_name,
+				b.cp_no as cp_no,
+				b.goods_idn as goods_idn
+			from txorder a, cp_payment b
+			where a.purchase_id = b.purchase_id 
+				and a.cancel_date >= #sStartDate# 
+				and a.goods_idn    = b.goods_idn
+				and a.cancel_state = 'Y' and a.coupon_amount > 1 
+				and b.depot_stus_cd is null
+		]]>	 
+	</select>
+	
+	
+	<update id="updateCpPayment_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE cp_payment
+		    set depot_stus_cd = '1'
+		    where purchase_id = #sPurchaseId#
+		      and cp_no       = #sCpNo#
+		      and goods_idn   = #sGoodsIdn#
+		]]>	 
+	</update>
+	
+	<update id="updateCpUserInfo_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE cp_userinfo 
+		    set use_date = null
+		    WHERE access_name = #sAccessName#
+		      and cp_no = #sCpNo#
+		      AND USE_DATE IS NOT NULL
+		]]>	 
+	</update>
+	
+	
+	<select id="ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select 
+					a.purchase_id as purchase_id,
+					a.txorder_id as txorder_id,
+			        TRIM(B.H_TEL_F_NO)||TRIM(B.H_TEL_M_NO)||TRIM(B.H_TEL_L_NO) as h_tel_no,
+			        '우체국 꽃배달 주문(' || 
+			        SUBSTR(A.PURCHASE_ID,1,1) || '_' || SUBSTR(A.PURCHASE_ID,2,6) || '_'|| SUBSTR(A.PURCHASE_ID,8,5) || '_' || SUBSTR(A.PURCHASE_ID,13,3)|| '_'|| SUBSTR(A.PURCHASE_ID,16)
+			        || ') 확인하세요. 배달요청일 ' || substr(wish_Date,1,4) || '.' || substr(wish_Date,5,2) || '.' || substr(wish_Date,7,2) as wish_date1
+			from  txorder a, biz_master b
+			where a.biz_code = b.biz_code 
+			  and a.complete_date >= TO_CHAR(sysdate - 1, 'yyyymmddhh24') 
+			  and a.shop_id = '2'
+			  and a.status  = '2' 
+			  and a.cancel_state = 'N'
+			  and b.language = 'KO'
+			  and a.paymethod not in ('1','2','3')
+			  and nvl(a.supp_comp_sms_yn,'N') = 'N'
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select /*+ index(a txorder_ix13) */ 
+					a.purchase_id as purchase_id,
+					a.txorder_id as txorder_id,
+			        TRIM(B.H_TEL_F_NO)||TRIM(B.H_TEL_M_NO)||TRIM(B.H_TEL_L_NO) as h_tel_no,
+					'우체국 꽃배달 취소(' || 
+					 SUBSTR(A.PURCHASE_ID,1,1) || '_' || SUBSTR(A.PURCHASE_ID,2,6) || '_'|| SUBSTR(A.PURCHASE_ID,8,5) || '_' || SUBSTR(A.PURCHASE_ID,13,3)|| '_'|| SUBSTR(A.PURCHASE_ID,16)
+					 || ') 되었습니다. 접수일 '||SUBSTR(A.COMPLETE_DATE,1,4)||'.'||SUBSTR(A.COMPLETE_DATE,5,2)||'.'||SUBSTR(A.COMPLETE_DATE,7,2) as wish_date1 
+			from  txorder a, biz_master b
+			where a.biz_code = b.biz_code 
+			  and a.cancel_date >= #sStartDate# 
+			  and a.shop_id = '2'
+			  and a.status  > '1' 
+			  and a.cancel_state = 'Y'
+			  and b.language = 'KO'
+			  and a.paymethod not in ('1','2','3')
+			  and nvl(a.supp_comp_sms_yn,'N') <> 'C'
+			  and a.complete_date is not null
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select  a.purchase_id as purchase_id,
+					a.txorder_id as txorder_id,
+			       TRIM(B.H_TEL_F_NO)||TRIM(B.H_TEL_M_NO)||TRIM(B.H_TEL_L_NO) as h_tel_no,
+			       '우체국 제철배달 주문(' || 
+			       SUBSTR(A.PURCHASE_ID,1,1) || '_' || SUBSTR(A.PURCHASE_ID,2,6) || '_'|| SUBSTR(A.PURCHASE_ID,8,5) || '_' || SUBSTR(A.PURCHASE_ID,13,3)|| '_'|| SUBSTR(A.PURCHASE_ID,16)
+			       || ') 확인하세요. 배달요청일 ' || substr(wish_Date,1,4) || '.' || substr(wish_Date,5,2) || '.' || substr(wish_Date,7,2) as wish_date1
+			from  txorder a, biz_master b
+			where a.biz_code = b.biz_code 
+			  and a.complete_date >= #sStartDate#
+			  and a.shop_id = '88'
+			  and a.status  = '2' 
+			  and a.cancel_state = 'N'
+			  and b.language = 'KO'
+			  and a.paymethod not in ('1','2','3')
+			  and nvl(a.supp_comp_sms_yn,'N') = 'N'
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select /*+ index(a txorder_ix13) */ 
+					a.purchase_id as purchase_id,
+					a.txorder_id as txorder_id,
+			        TRIM(B.H_TEL_F_NO)||TRIM(B.H_TEL_M_NO)||TRIM(B.H_TEL_L_NO) as h_tel_no,
+						 '우체국 제철배달 취소(' || 
+						 SUBSTR(A.PURCHASE_ID,1,1) || '_' || SUBSTR(A.PURCHASE_ID,2,6) || '_'|| SUBSTR(A.PURCHASE_ID,8,5) || '_' || SUBSTR(A.PURCHASE_ID,13,3)|| '_'|| SUBSTR(A.PURCHASE_ID,16)
+						 || ') 되었습니다. 접수일 '||SUBSTR(A.COMPLETE_DATE,1,4)||'.'||SUBSTR(A.COMPLETE_DATE,5,2)||'.'||SUBSTR(A.COMPLETE_DATE,7,2) as wish_date1 
+			from  txorder a, biz_master b
+			where a.biz_code = b.biz_code 
+			  and a.cancel_date >= #sStartDate# 
+			  and a.shop_id = '88'
+			  and a.status  > '1' 
+			  and a.cancel_state = 'Y'
+			  and b.language = 'KO'
+			  and a.paymethod not in ('1','2','3')
+			  and nvl(a.supp_comp_sms_yn,'N') <> 'C'
+			  and a.complete_date is not null
+		]]>	 
+	</select>
+	
+	<update id="updateContract_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE CONTACT 
+					    SET TELEPHONE_1 = NVL(SUBSTRB(SUBSTR(TELEPHONE,1,INSTR(TELEPHONE,'-')-1),1,4),' '),
+						      TELEPHONE_2 = NVL(SUBSTRB(SUBSTR(SUBSTR(TELEPHONE,INSTR(TELEPHONE,'-')+1),1,INSTR(SUBSTR(TELEPHONE,INSTR(TELEPHONE,'-')+1),'-')-1),1,4),' ') ,
+						      TELEPHONE_3 = NVL(SUBSTRB(SUBSTR(SUBSTR(TELEPHONE,INSTR(TELEPHONE,'-')+1),INSTR(SUBSTR(TELEPHONE,INSTR(TELEPHONE,'-')+1),'-')+1),1,4),' '),
+						      MOBILE_1    = NVL(SUBSTRB(SUBSTR(MOBILE,1,INSTR(MOBILE,'-')-1),1,4),' '),
+						      MOBILE_2    = NVL(SUBSTRB(SUBSTR(SUBSTR(MOBILE,INSTR(MOBILE,'-')+1),1,INSTR(SUBSTR(MOBILE,INSTR(MOBILE,'-')+1),'-')-1),1,4),' '),
+						      MOBILE_3    = NVL(SUBSTRB(SUBSTR(SUBSTR(MOBILE,INSTR(MOBILE,'-')+1),INSTR(SUBSTR(MOBILE,INSTR(MOBILE,'-')+1),'-')+1),1,4),' ')
+					    WHERE contact_id = #sGoodsCode#
+		]]>	 
+	</update>
+	
+	<insert id="insertIfSmsSend_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO IF_SMS_SEND (
+									 RAISE_SEQ,	   	
+									 CMP_USR_ID,	
+									 ODR_FG,		
+									 SMS_GB,		
+									 USED_CD,		
+									 MSG_GB,		
+									 SND_DTTM,		
+									 SND_PHN_ID,	
+									 RCV_PHN_ID,	
+									 SND_MSG ,			
+									 EXPIRE_VAL,	
+									 SMS_ST,		
+									 SVC_L_ID,		
+									 SVC_M_ID,		
+									 RSRVD_ID,			
+									 RSRVD_WD,		
+									 RTR_SEQ,			
+									 IF_ID,			
+									 INIT_TIME,		
+									 DEAL_STATE,	
+									 WRK_GBN			
+									 ) 
+			VALUES	(	
+					SHOPUSR.IF_SMS_SEND_SQ01.NEXTVAL, 
+					'00000' , 
+					'2',
+					'1' ,
+					'00',
+					'A' , 
+					CASE WHEN TO_CHAR(SYSDATE, 'HH24MI') BETWEEN '0000' AND '0759' THEN TO_CHAR(SYSDATE, 'YYYYMMDD')||'081000'
+					WHEN TO_CHAR(SYSDATE, 'HH24MI') BETWEEN '0800' AND '2200' THEN TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+					ELSE TO_CHAR(SYSDATE+1, 'YYYYMMDD')||'081000' END,  
+					'', #sFlwTelNo#, 
+					#sFlwMsg#, 
+					0,
+					'0' , 
+					'CS',
+					'CS-1', 
+					'1', 
+					#sFlwTxorderId# , 
+					'',
+					'IF-ESHPSH-006-P01I',
+					TO_CHAR(SYSDATE , 'YYYYMMDDHH24MISS'),
+					'N',
+					'1' 
+				)
+		]]>	 
+	</insert>
+	
+	<update id="updatTxOrder_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER 
+		    SET supp_comp_sms_yn = 'Y'
+		    WHERE purchase_id  = #sFlwPurchaseId#
+		      and txorder_id   = #sFlwTxorderId#
+		]]>	 
+	</update>
+	
+	<insert id="insertIfSmsSend_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO IF_SMS_SEND (
+									 RAISE_SEQ,	   	
+									 CMP_USR_ID,	
+									 ODR_FG,		
+									 SMS_GB,		
+									 USED_CD,		
+									 MSG_GB,		
+									 SND_DTTM,		
+									 SND_PHN_ID,	
+									 RCV_PHN_ID,	
+									 SND_MSG ,			
+									 EXPIRE_VAL,	
+									 SMS_ST,		
+									 SVC_L_ID,		
+									 SVC_M_ID,		
+									 RSRVD_ID,			
+									 RSRVD_WD,		
+									 RTR_SEQ,			
+									 IF_ID,			
+									 INIT_TIME,		
+									 DEAL_STATE,	
+									 WRK_GBN		
+									 ) 
+			VALUES	(	
+						SHOPUSR.IF_SMS_SEND_SQ01.NEXTVAL,
+						'00000' ,
+						'2',
+						'1' ,
+						'00', 
+						'A' , 
+						CASE WHEN TO_CHAR(SYSDATE, 'HH24MI') BETWEEN '0800' AND '2200' THEN TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+						ELSE TO_CHAR(SYSDATE+1, 'YYYYMMDD')||'081000' END  , 
+						'',
+						#sFlwTelNo# ,
+						#sFlwMsg#,
+						0, 
+						'0' ,
+						'CS',
+						'CS-1',
+						'3',
+						#sFlwTxorderId#, 
+						'',
+						'IF-ESHPSH-006-P01I',
+						TO_CHAR(SYSDATE , 'YYYYMMDDHH24MISS'),
+						'N',
+						'1'
+					)
+		]]>	 
+	</insert>
+	
+	<update id="updatTxOrder_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER 
+		    SET supp_comp_sms_yn = 'C'
+		    WHERE purchase_id  = #sFlwPurchaseId#
+		      and txorder_id   = #sFlwTxorderId#
+		]]>	 
+	</update>
+	
+	<insert id="insertIfSmsSend_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO IF_SMS_SEND (
+									 RAISE_SEQ,	   	
+									 CMP_USR_ID,	
+									 ODR_FG,		
+									 SMS_GB,		
+									 USED_CD,		
+									 MSG_GB,		
+									 SND_DTTM,		
+									 SND_PHN_ID,	
+									 RCV_PHN_ID,	
+									 SND_MSG ,			
+									 EXPIRE_VAL,	
+									 SMS_ST,		
+									 SVC_L_ID,		
+									 SVC_M_ID,		
+									 RSRVD_ID,			
+									 RSRVD_WD,		
+									 RTR_SEQ,			
+									 IF_ID,			
+									 INIT_TIME,		
+									 DEAL_STATE,	
+									 WRK_GBN		
+									 ) 
+			VALUES	(	
+						SHOPUSR.IF_SMS_SEND_SQ01.NEXTVAL, 
+						'00000' ,
+						'2',
+						'1' ,
+						'00',
+						'A' , 
+						CASE WHEN TO_CHAR(SYSDATE, 'HH24MI') BETWEEN '0800' AND '2200' THEN TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+						ELSE TO_CHAR(SYSDATE+1, 'YYYYMMDD')||'081000' END,  
+						'', 
+						#sFlwTelNo#, 
+						#sFlwMsg#, 
+						0, 
+						'0' , 
+						'CS',
+						'CS-1', 
+						'1', 
+						#sFlwTxorderId#, 
+						'',
+						'IF-ESHPSH-006-P01I',
+						TO_CHAR(SYSDATE , 'YYYYMMDDHH24MISS'),
+						'N',
+						'1'
+					)
+		]]>	 
+	</insert>
+	
+	<update id="updatTxOrder_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER 
+		    SET supp_comp_sms_yn = 'Y'
+		    WHERE purchase_id  = #sFlwPurchaseId#
+		      and txorder_id   = #sFlwTxorderId#
+		]]>	 
+	</update>
+	
+	<insert id="insertIfSmsSend_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO IF_SMS_SEND (
+									 RAISE_SEQ,	   	
+									 CMP_USR_ID,	
+									 ODR_FG,		
+									 SMS_GB,		
+									 USED_CD,		
+									 MSG_GB,		
+									 SND_DTTM,		
+									 SND_PHN_ID,	
+									 RCV_PHN_ID,	
+									 SND_MSG ,			
+									 EXPIRE_VAL,	
+									 SMS_ST,		
+									 SVC_L_ID,		
+									 SVC_M_ID,		
+									 RSRVD_ID,			
+									 RSRVD_WD,		
+									 RTR_SEQ,			
+									 IF_ID,			
+									 INIT_TIME,		
+									 DEAL_STATE,	
+									 WRK_GBN		
+									 ) 
+			VALUES	(	
+						SHOPUSR.IF_SMS_SEND_SQ01.NEXTVAL, 
+						'00000' ,
+						'2',
+						'1' ,
+						'00', 
+						'A' , 
+						CASE WHEN TO_CHAR(SYSDATE, 'HH24MI') BETWEEN '0800' AND '2200' THEN TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+						ELSE TO_CHAR(SYSDATE+1, 'YYYYMMDD')||'081000' END  , 
+						'',
+						#sFlwTelNo#, 
+						#sFlwMsg#,
+						0, 
+						'0' , 
+						'CS',
+						'CS-1', 
+						'3',
+						#sFlwTxorderId#, 
+						'',
+						'IF-ESHPSH-006-P01I',
+						TO_CHAR(SYSDATE , 'YYYYMMDDHH24MISS'),
+						'N',
+						'1'
+					)
+		]]>	 
+	</insert>
+	
+	<update id="updatTxOrder_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER 
+		    SET supp_comp_sms_yn = 'C'
+		    WHERE purchase_id  = #sFlwPurchaseId#
+		      and txorder_id   = #sFlwTxorderId#
+		]]>	 
+	</update>
+	
+	<update id="updatTxOrder_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			update txorder
+		    set ems_amt = amount - oversea_amount
+		    where order_date >= #sStartDate# and order_date <=#sEndDate# || '9999999'
+		      and shop_id in ('5','6','7') and nvl(ems_amt,0) = 0
+		]]>	 
+	</update>
+ 	
+</sqlMap>

@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="MO.EventMgr">
+
+	<sql id="event_list">
+		SELECT T2.DSPY_SEQ
+			 , T1.PAVLN_DIV_CD	                                                             /* 전시관 분류 */
+		     , T1.EVENT_ID		                                                                 /* 이벤트 ID */
+		     , T2.TEMPL_SEQ                                                                     /* 템플릿 일련번호 */
+		     , T1.PSNSER
+		     , ( SELECT COMN_CD_NM
+		           FROM CM_COMN_CD
+		          WHERE CD_GRP_ID = 'PAVLN_DIV_CD' AND COMN_CD_ID = T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM    /*상설 전시관 명*/
+		     , T1.EVENT_NM                                                                          	                                                      /*상설 이벤트 명*/
+		     , (SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ = T2.TEMPL_SEQ ) AS TEMPL_NM     	  /*템플릿 명*/
+		     , DECODE(T2.USE_YN, 'Y','예','아니오') AS USE_YN_NM                                    	                                      /*사용여부*/
+		     , CASE WHEN T1.CHG_DATE IS NULL THEN TO_CHAR(T1.REG_DATE,'YYYY-MM-DD HH24:MI:SS')
+                    ELSE TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') END                       AS FINAL_DATE            /*최종일자*/         
+             , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD HH24:MI:SS') AS  REG_DATE                             	                      /*등록일자*/
+		     , T1.REGER_ID                                                                                                                                   /*등록 ID*/
+		     , TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') AS CHG_DATE                             	                      /*수정일자*/
+		     , T1.CHGER_ID                                                                                                                                   /*수정 ID*/
+		     , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS EVENT_STRT_DATE                                  /* 이벤트 시작일 */
+		     , TO_CHAR(T1.EVENT_END_DATE,  'YYYY-MM-DD HH24:MI') AS EVENT_END_DATE                                  /* 이벤트 종료일 */
+		     , T3.DSPY_SPOT_CD                                                                      	                                                    /* 전시위치 */
+		     , T2.DSPY_STUS_CD                                                                                                                           /* 진행상태코드 */
+		     , T4.GOODS_CNT
+		     , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'DSPY_STUS_CD' AND COMN_CD_ID = T2.DSPY_STUS_CD ) AS DSPY_STUS_NM   /* 진행상태 */
+		     , CASE WHEN T2.DSPY_STUS_CD = '20' THEN '게시중'
+             		    WHEN T2.DSPY_STUS_CD = '10' THEN '예약게시'
+                        WHEN T2.DSPY_STUS_CD = '30' THEN '일시게시중지'
+                        WHEN T2.DSPY_STUS_CD = '40' THEN '종료'
+                         ELSE NULL END                                                                                      AS MO_DSPY_STUS_NM   /* 모바일진행상태(수정요청함) */
+		     , T1.LANG_CD
+		     , LANG_CD.COMN_CD_NM AS LANG_CD_NM
+		     , DECODE(T1.PLNBEF_MAIN_IMAGE_YN, 'Y', '예', '아니오') AS PLNBEF_MAIN_IMAGE_YN_NM
+		     , PAVLN_AREA_CD
+		     , PAVLN_AREA_CD.COMN_CD_NM AS PAVLN_AREA_CD_NM
+		     , IS_MOBILE                                /* 모바일여부 */
+             , MOBILE_AREA_CD                     /* 모바일 지역코드 */
+             , MOBILE_BANNER_DSPY_YN        /* 모바일 배너노출 여부 */
+		  FROM EV_EVENT_MAST T1, /* 이벤트 마스터 */
+			   DP_DSPY_MAST T2,  /* 전시마스터 */
+			   DP_DSPY_DTAIL T3, /* 전시 상세 */
+			   (SELECT EVENT_ID, COUNT(*) AS GOODS_CNT FROM EV_EVENT_DC_GOODS GROUP BY EVENT_ID) T4,
+			   (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'LANG_CD') LANG_CD,
+			   (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_AREA_CD') PAVLN_AREA_CD
+		 WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+		   AND T1.DSPY_SEQ = T3.DSPY_SEQ
+           AND T1.EVENT_ID = T4.EVENT_ID(+)
+           AND T1.LANG_CD = LANG_CD.COMN_CD_ID(+)
+           AND T1.PAVLN_AREA_CD = PAVLN_AREA_CD.COMN_CD_ID(+)
+		   AND T1.DEL_YN = 'N'
+	   <isNotEmpty property="isMobile" prepend="AND">
+			T1.IS_MOBILE = #isMobile#
+	   </isNotEmpty>
+	   <isNotEmpty property="mobileGoodsRegCd" prepend="AND">
+			T1.MOBILE_GOODS_REG_CD = #mobileGoodsRegCd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_event_div_cd" prepend="AND">
+			T1.EVENT_DIV_CD = #search_event_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="event_id">
+					T1.EVENT_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="event_nm">
+					T1.EVENT_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="psnser">
+					T1.PSNSER LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(T1.EVENT_ID LIKE '%'||#search_text#||'%'
+				 OR T1.EVENT_NM LIKE '%'||#search_text#||'%'
+				 OR T1.PSNSER LIKE '%'||#search_text#||'%')
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			T2.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_img_use_yn" prepend="AND">
+			T1.PLNBEF_MAIN_IMAGE_YN = #search_img_use_yn#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_lang_cd" prepend="AND">
+			T1.LANG_CD = #search_lang_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+	   		 ( TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#
+	   		OR TO_CHAR(T1.EVENT_END_DATE, 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd# )
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectEventDivList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY EVENT_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="event_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectEventDivCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="event_list" />)
+	</select>
+	
+	<sql id="plnbef_list">
+		SELECT T2.DSPY_SEQ
+			 , T1.PLNBEF_DIV_CD /* 전시관 구분 */
+			 , T1.PAVLN_DIV_CD	/* 전시관 분류 */
+		     , T1.PLNBEF_ID		/* 기획전 ID */
+		     , T2.TEMPL_SEQ     /* 템플릿 일련번호 */
+		     , ( SELECT COMN_CD_NM
+		           FROM CM_COMN_CD
+		          WHERE CD_GRP_ID = 'PAVLN_DIV_CD' AND COMN_CD_ID = T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM    /*전시관 명*/
+		     , T1.PLNBEF_NM                                                                          	/*기획전 명*/
+		     , (SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ = T2.TEMPL_SEQ ) AS TEMPL_NM     	/*템플릿 명*/
+		     , DECODE(T2.USE_YN, 'Y','예','아니오') AS USE_YN_NM                                    	/*사용여부*/
+		     , TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') AS CHG_DATE                             	/*최종 수정일자*/
+		     , T1.CHGER_ID                                                                          	/*최종 수정 ID*/
+		     , CASE WHEN T1.CHG_DATE IS NULL THEN TO_CHAR(T1.REG_DATE,'YYYY-MM-DD HH24:MI:SS')
+                    ELSE TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') END                       AS FINAL_DATE            /*최종일자*/ 
+		     , TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS PLNBEF_STRT_DATE                   /* 기획전 시작일 */
+		     , TO_CHAR(T1.PLNBEF_END_DATE,  'YYYY-MM-DD HH24:MI') AS PLNBEF_END_DATE                    /* 기획전 종료일 */
+		     , T3.DSPY_SPOT_CD                                                                      	/* 전시위치 */
+		     , T2.DSPY_STUS_CD                                                                          /* 진행상태코드 */
+		     , T4.GOODS_CNT
+			 , DECODE(T1.PLNBEF_MAIN_IMAGE_YN, 'Y', '예', '아니오') AS PLNBEF_MAIN_IMAGE_YN_NM
+			 , DECODE(T1.MOBILE_BANNER_DSPY_YN, 'N', '아니오', '예') AS MOBILE_MAIN_IMAGE_YN_NM
+		     , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'DSPY_STUS_CD' AND COMN_CD_ID = T2.DSPY_STUS_CD ) AS DSPY_STUS_NM   /* 진행상태 */
+		     , CASE WHEN T2.DSPY_STUS_CD = '20' THEN '게시중'
+             		    WHEN T2.DSPY_STUS_CD = '10' THEN '예약게시'
+                        WHEN T2.DSPY_STUS_CD = '30' THEN '일시게시중지'
+                        WHEN T2.DSPY_STUS_CD = '40' THEN '종료'
+                         ELSE NULL END                                                                                      AS MO_DSPY_STUS_NM   /* 모바일진행상태(수정요청함) */
+		     , PAVLN_AREA_CD
+		     , PAVLN_AREA_CD.COMN_CD_NM AS PAVLN_AREA_CD_NM
+		     , PAVLN_DTL_AREA_CD
+		     , PAVLN_DTL_AREA_CD.COMN_CD_NM AS PAVLN_DTL_AREA_CD_NM
+		     , IS_MOBILE                                /* 모바일여부 */
+             , MOBILE_AREA_CD                     /* 모바일 지역코드 */
+             , MOBILE_BANNER_DSPY_YN        /* 모바일 배너노출 여부 */
+             , T1.SORT_ORDER                         /*노출순서*/
+		  FROM EV_PLNBEF_MAST T1, /* 기획전 마스터 */
+			   DP_DSPY_MAST T2,  /* 전시마스터 */
+			   DP_DSPY_DTAIL T3, /* 전시 상세 */
+			   (SELECT PLNBEF_ID, COUNT(*) AS GOODS_CNT FROM EV_PLNBEF_GOODS GROUP BY PLNBEF_ID) T4,
+			   (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_AREA_CD') PAVLN_AREA_CD,
+			   (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID IN ('B2B_PAVLN_AREA_CD') ) PAVLN_DTL_AREA_CD
+		 WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+		   AND T1.DSPY_SEQ = T3.DSPY_SEQ(+)
+           AND T1.PLNBEF_ID = T4.PLNBEF_ID(+)
+		   AND T1.PAVLN_AREA_CD = PAVLN_AREA_CD.COMN_CD_ID(+)
+		   AND T1.PAVLN_DTL_AREA_CD = PAVLN_DTL_AREA_CD.COMN_CD_ID(+)
+		   AND T1.DEL_YN = 'N'
+		   AND T1.IS_MOBILE IN ('C','M')
+	   <isNotEmpty property="search_plnbef_div_cd" prepend="AND">
+			T1.PLNBEF_DIV_CD = #search_plnbef_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="plnbef_id">
+					T1.PLNBEF_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="plnbef_nm">
+					T1.plnbef_nm LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( T1.PLNBEF_ID LIKE '%'||#search_text#||'%' OR T1.PLNBEF_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			T2.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_img_use_yn" prepend="AND">
+			T1.PLNBEF_MAIN_IMAGE_YN = #search_img_use_yn#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(REPLACE(#search_strt_ymd#, '-') BETWEEN TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(T1.PLNBEF_END_DATE, 'YYYYMMDD')
+			OR REPLACE(#search_end_ymd#, '-') BETWEEN TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(T1.PLNBEF_END_DATE, 'YYYYMMDD'))
+	   </isNotEmpty>
+	   <isNotEmpty property="recom_plnbef_yn" prepend="AND">
+			T1.RECOM_PLNBEF_YN = #recom_plnbef_yn#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectPlnbefDivList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY SORT_ORDER ASC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="plnbef_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectPlnbefDivCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="plnbef_list" />)
+	</select>
+	
+	<!--  모바일 기획전 일괄저장-->
+	<update id="updateAllSortSeqMgr" parameterClass="java.util.HashMap">
+		UPDATE	 EV_PLNBEF_MAST
+		SET	SORT_ORDER = #sortOrder#
+		WHERE 	PLNBEF_ID = #plnbefId#
+	</update>
+	
+</sqlMap>

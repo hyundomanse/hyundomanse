@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchPostageEai_Delete">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectHistoryAdjustList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  REPLACE( START_DAY, '/', '' )           from_day, 
+			        REPLACE( END_DAY, '/', '' ) || '999999' to_day    
+			FROM    history_adjust                                    
+			WHERE   TRANS_DAY IS NULL                                    
+			  AND   ROWNUM = 1                                        
+		]]>	 
+	</select>
+	
+	<select id="select3DayList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select to_char(sysdate-4,'yyyymmdd')              from_day,
+			       to_char(sysdate,'yyyymmdd')|| '999999'     to_day   
+			from dual                                     
+		]]>	 
+	</select>
+	
+	<delete id="deleteHistoryPostageInterface" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			delete from EAI.HISTORY_postage_INTERFACE        
+			where sellRecevYmd >= ?  and sellRecevYmd <=  ?  
+			   and sellRecevDivCd = '005'                    
+		]]>	 
+	</delete>
+	 	
+</sqlMap>

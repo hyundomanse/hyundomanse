@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatReport188k01">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 상품/업체별재고현황 -->
+	<select id="retrieveStockStat" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+	    	SELECT  /* 파일명[파일설명] : EpostStatReport188k01_SQL.xml[상품/업체별재고현황] SQL ID : retrieveStockStat */
+	    			a.SUPPLIER_CODE suppCompCd,
+		            a.SUPP_COMP_NM suppCompNm,
+		            a.GOODS_CD goodscd,
+		            a.GOODS_NAME goodsNm,
+		            a.PRICE_COST sellPrc,
+		            (NVL(a.TOT_SUM_STOCK, 0)) totSumStock,
+		            (NVL(a.TOT_STOCK, 0)) totStock,
+		            (NVL(a.SUPP_CNT_PER_DAY, 0)) suppcntperday,
+		            a.ADD_STOCK addStock,
+		            (SELECT COMN_CD_NM
+		             FROM CM_COMN_CD
+		             WHERE CD_GRP_ID = 'GOODS_STUS_CD'
+		             AND COMN_CD_ID = a.STATUS) suppStusCdNm --공급상태
+	        FROM    GD_GOODS_STOCK_HISTORY a
+	        WHERE a.GOODS_CD_YMD = #hFromDate#
+	        AND a.GOODS_CD like '%'|| #goods_idn# ||'%'
+	        AND a.SUPPLIER_CODE like '%'|| #supplier_code# ||'%'
+	    ]]>
+	    <isNotEmpty property="SearchRcode">
+	    	<isEqual property="SearchCode" compareValue="A">
+	    		AND a.RCO_CD = #SearchRcode#
+	    	</isEqual>
+	    	<isEqual property="SearchCode" compareValue="B">
+	    		AND a.MPO_REGI_PO_CD = #SearchRcode# 
+	    	</isEqual>
+	    	<isNotEqual property="SearchCode" compareValue="A">
+	    		<isNotEqual property="SearchCode" compareValue="B">
+	    			AND a.SUPP_PO_REGI_PO_CD = #SearchRcode#
+	    		</isNotEqual>
+	    	</isNotEqual>
+	    </isNotEmpty>
+  </select>
+
+	<!-- 상품/업체별재고현황1 -->
+  <select id="retrieveStockStat1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+    SELECT  	/* 파일명[파일설명] : EpostStatReport188k01_SQL.xml[상품/업체별재고현황1] SQL ID : retrieveStockStat1 */
+    		a.SUPPLIER_CODE suppCompCd,
+            a.SUPP_COMP_NM suppCompNm,
+            a.goods_cd goodscd,
+            a.goods_Name goodsNm,
+            DECODE(a.SHOP_ID,'1','특산품','2','꽃배달','0','마트','') suppGoodsDivCd,
+            b.CTGRY_CD largeDivCd,
+            b.CTGRY_NM largeDivNm,
+            c.CTGRY_CD midDivCd,
+            c.CTGRY_NM midDivNm,
+            d.CTGRY_CD smallDivCd,
+            d.CTGRY_NM smallDivNm,
+            a.PRICE_COST sellPrc,
+            SUM(NVL(a.TOT_SUM_STOCK, 0)) totSumStock,
+            SUM(NVL(a.TOT_STOCK, 0)) totStock,
+            SUM(NVL(a.SUPP_CNT_PER_DAY,0)) suppcntperday,
+            SUM(NVL(a.ADD_STOCK,0)) addStock,
+            (SELECT COMN_CD_NM
+             FROM CM_COMN_CD
+             WHERE CD_GRP_ID = 'GOODS_STUS_CD'
+             AND COMN_CD_ID = a.STATUS) suppStusCdNm --공급상태
+        FROM    GD_GOODS_STOCK_HISTORY a,
+                GD_GOODS_MAST e,                
+                 (select x.CTGRY_CD,x.CTGRY_NM from GD_CTGRY_MAST x where x.CTGRY_LEVEL='1' AND POSTNET_CTGRY_YN = 'Y') b,
+                 (select y.CTGRY_CD,y.HRNK_CTGRY_CD,y.CTGRY_NM from GD_CTGRY_MAST y where y.CTGRY_LEVEL='2' AND POSTNET_CTGRY_YN = 'Y') c,
+                 (select z.CTGRY_CD,z.HRNK_CTGRY_CD,z.CTGRY_NM from GD_CTGRY_MAST z where z.CTGRY_LEVEL='3' AND POSTNET_CTGRY_YN = 'Y') d,
+                 GD_MGT_GOODS_MLANG_SPRT F
+        WHERE   d.HRNK_CTGRY_CD = c.CTGRY_CD(+)
+        and     c.HRNK_CTGRY_CD = b.CTGRY_CD(+)
+        AND     A.GOODS_CD = E.GOODS_CD
+        AND     F.LANG_CD = 'KO'
+        AND		E.GOODS_CD = F.GOODS_CD
+        and     E.POSTNET_CTGRY_CD =  d.CTGRY_CD(+)
+        AND a.GOODS_CD_YMD = #hFromDate#
+        AND a.GOODS_CD like '%'|| #goods_idn# ||'%'
+        AND a.SUPPLIER_CODE like '%'|| #supplier_code# ||'%'
+        ]]>
+        
+		<isNotEmpty property="SearchRcode">
+	    	<isEqual property="SearchCode" compareValue="A">
+	    		AND a.RCO_CD = #SearchRcode#
+	    	</isEqual>
+	    	<isEqual property="SearchCode" compareValue="B">
+	    		AND a.MPO_REGI_PO_CD = #SearchRcode# 
+	    	</isEqual>
+	    	<isNotEqual property="SearchCode" compareValue="A">
+	    		<isNotEqual property="SearchCode" compareValue="B">
+	    			AND a.SUPP_PO_REGI_PO_CD = #SearchRcode#
+	    		</isNotEqual>
+	    	</isNotEqual>
+	    </isNotEmpty>
+
+      GROUP BY a.SHOP_ID, b.CTGRY_CD, b.CTGRY_NM, c.CTGRY_CD, c.CTGRY_NM, d.CTGRY_CD, d.CTGRY_NM, a.PRICE_COST, a.STATUS,a.SUPPLIER_CODE, a.SUPP_COMP_NM, a.goods_cd, a.goods_Name
+      ORDER BY a.SHOP_ID, b.CTGRY_CD, b.CTGRY_NM, c.CTGRY_CD, c.CTGRY_NM, d.CTGRY_CD, d.CTGRY_NM, a.PRICE_COST, a.STATUS,a.SUPPLIER_CODE, a.SUPP_COMP_NM, a.goods_cd, a.goods_Name
+    
+  </select>
+  
+  <!-- 상품/업체별재고현황2 -->
+  <select id="retrieveStockStat2" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    SELECT  	/* 파일명[파일설명] : EpostStatReport188k01_SQL.xml[상품/업체별재고현황2] SQL ID : retrieveStockStat2 */
+    		a.RCO_CD rcoCd,
+            a.RCO_NM rcoNm,
+            a.MPO_REGI_PO_CD mpoRegiPoCd,
+            a.MPO_REGI_PO_NM mpoRegiPoNm,
+            a.SUPP_PO_REGI_PO_CD suppPoRegiPoCd,
+            a.SUPP_PO_REGI_PO_NM suppPoRegiPoNm,
+            a.SUPPLIER_CODE suppCompCd,
+            a.SUPP_COMP_NM suppCompNm,
+            a.GOODS_CODE goodscd,
+            a.GOODS_NAME goodsNm,
+            a.PRICE_COST sellPrc,
+            (NVL(a.TOT_SUM_STOCK, 0)) totSumStock,
+            (NVL(a.TOT_STOCK, 0)) totStock,
+            (NVL(a.SUPP_CNT_PER_DAY,0)) suppcntperday,
+            a.ADD_STOCK addStock,
+            (SELECT COMN_CD_NM
+             FROM CM_COMN_CD
+             WHERE CD_GRP_ID = 'GOODS_STUS_CD'
+             AND COMN_CD_ID = a.STATUS) suppStusCdNm --공급상태
+        FROM    GOODS_STOCK_HISTORY a
+        WHERE a.GOODS_CD_YMD = #hFromDate#
+          AND a.GOODS_CODE like '%'|| #goods_idn# ||'%'
+          AND a.SUPPLIER_CODE like '%'|| #supplier_code# ||'%'          
+    ]]>
+    	<isNotEmpty property="SearchRcode">
+	    	<isEqual property="SearchCode" compareValue="A">
+	    		AND a.RCO_CD = #SearchRcode#
+	    	</isEqual>
+	    	<isEqual property="SearchCode" compareValue="B">
+	    		AND a.MPO_REGI_PO_CD = #SearchRcode# 
+	    	</isEqual>
+	    	<isNotEqual property="SearchCode" compareValue="A">
+	    		<isNotEqual property="SearchCode" compareValue="B">
+	    			AND a.SUPP_PO_REGI_PO_CD = #SearchRcode#
+	    		</isNotEqual>
+	    	</isNotEqual>
+	    </isNotEmpty>
+    
+  </select>
+	
+</sqlMap>

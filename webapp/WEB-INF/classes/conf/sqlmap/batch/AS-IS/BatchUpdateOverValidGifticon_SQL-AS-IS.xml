@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchUpdateOverValidGifticon">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectOdGiftOrderList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT PURCHASE_ID                                                                                                                                               
+			  FROM ( SELECT A.PURCHASE_ID                                                                                                                                    
+			           FROM GIFTICON_SEND A, GIFTICON_RECEV B                                                                                                                
+			          WHERE A.DEAL_STATE = 'Y'                                                                                                                               
+			            AND A.COMPLETE_DATE BETWEEN TO_CHAR(SYSDATE-16,'YYYYMMDD') || '000000' AND TO_CHAR(SYSDATE-16,'YYYYMMDD') || '999999'                                
+			            AND A.SEND_GBN = 'I'                                                                                                                                   
+			            AND A.TR_ID = B.TR_ID                                                                                                                                                                                                                                  
+			            AND B.CODE = '0'                                                                                                                                        
+			            AND A.PURCHASE_ID NOT IN ( SELECT PURCHASE_ID                                                                                                                                                                                            
+			                                         FROM GIFTICON_SEND                                                                                                                                                                                  
+			                                        WHERE DEAL_STATE IN ('Y', 'N')                                                                                                                                                                     
+			                                          AND COMPLETE_DATE BETWEEN TO_CHAR(SYSDATE-16,'YYYYMMDD') || '000000' AND TO_CHAR(SYSDATE-16,'YYYYMMDD') || '999999'                                                                  
+			                                          AND SEND_GBN = 'C' )                                                                                                                               
+			        )                                                                                                                                                                                      
+			 WHERE PURCHASE_ID NOT IN (SELECT PURCHASE_ID FROM GIFTICON_ORDER)                                                                                                                                                                                                                                        
+		]]>	 
+	</select>
+	 	
+	<select id="selectOdOrderItmList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT B.NAME                       
+			     , B.POSTAL_CODE                
+			     , B.ADDRESS_1                  
+			     , B.ADDRESS_2                  
+			     , B.MOBILE                     
+			     , B.TELEPHONE                  
+			     , B.MOBILE_1                   
+			     , B.MOBILE_2                   
+			     , B.MOBILE_3                   
+			     , B.TELEPHONE_1                
+			     , B.TELEPHONE_2                
+			     , B.TELEPHONE_3                
+			     , A.SHIP_TO_ID                 
+			  FROM TXORDER A, CONTACT B         
+			 WHERE A.BILL_TO_ID = B.CONTACT_ID  
+			   AND A.PURCHASE_ID = ?                                                                                                                                                                                                                                          
+		]]>	 
+	</select>
+	 	
+	<delete id="updateOdOrderItm" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CONTACT          
+			   SET NAME =?          
+			     , POSTAL_CODE = ?  
+			     , ADDRESS_1 = ?    
+			     , ADDRESS_2 = ?    
+			     , MOBILE = ?       
+			     , TELEPHONE = ?    
+			     , MOBILE_1 = ?     
+			     , MOBILE_2 = ?     
+			     , MOBILE_3 = ?     
+			     , TELEPHONE_1 = ?  
+			     , TELEPHONE_2 = ?  
+			     , TELEPHONE_3 = ?  
+			 WHERE CONTACT_ID = ?    
+		]]>
+	</delete>	
+	 	
+	<update id="insertOdGiftOrder" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO GIFTICON_ORDER (PURCHASE_ID, REQ_DATE, CANCEL_YN)
+			VALUES (?, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 'N')                                                                                                                             
+		]]>
+	</update>	
+	 	
+</sqlMap>

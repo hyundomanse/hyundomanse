@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Retrieve">
+
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 기부처관리 리스트 카운트 -->
+	<select id="selectRetrieveMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="int">
+			select COUNT(*) as TOTCNT from CU_CNTRER_MAST A
+			WHERE 1=1
+			<isNotEmpty property="search_cntrerNm" prepend="AND">
+			A.CNTRER_NM LIKE '%' || #search_cntrerNm# || '%'
+			</isNotEmpty>
+			<isNotEmpty property="staues" prepend="AND">
+			A.USE_YN =#staues#
+			</isNotEmpty>
+			<isNotEmpty property="search_StrtYmd" prepend="AND">
+				<![CDATA[	CNTR_STRT_YMD >= REPLACE(#search_StrtYmd#,'-') ]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_EndYmd" prepend="AND">
+				<![CDATA[	CNTR_END_YMD <= REPLACE(#search_EndYmd#, '-') ]]>
+			</isNotEmpty>
+	</select>
+
+	<!-- 기부처관리 리스트 -->
+	<select id="selectRetrieveMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT
+			      A.*
+			FROM (
+				SELECT
+						A.*, ROWNUM  AS RNUM
+				FROM
+				(
+					SELECT
+						    CNTRER_CD,
+							CNTRER_SEQ,
+							CNTRER_TYP_CD,
+							CNTRER_NM,
+							CNTRER_TTL,
+							PRSDT_NM,
+							EMAIL,
+							TEL_NO,
+							CNTR_STUS_IMAGE_PATH,
+							NOTIC_SORT_ORDER,
+							USE_YN,
+							SITE_ADDR,
+							CNTR_STRT_YMD,
+							CNTR_END_YMD,
+							CNTR_METH_CD,
+							BANNER_IMAGE.FILE_STRE_PATH || BANNER_IMAGE.STRE_FILE_NM AS MAIN_BANNER_PATH,
+							BANNER_IMAGE.ORIG_FILE_NM AS MAIN_BANNER_IMAGE_ORIG_NM,
+							TO_CHAR(A.REG_DATE, 'YYYY-MM-DD') AS REG_DATE,
+							<![CDATA[CASE WHEN USE_YN = 'N' THEN '강제종료'
+			                   WHEN USE_YN = 'Y' AND CNTR_END_YMD < TO_CHAR(SYSDATE,'YYYYMMDD') THEN '종료' ELSE '시작'
+			             	 END STATE
+			             	 ]]>
+					from CU_CNTRER_MAST A, CM_FILE_MGT BANNER_IMAGE
+					WHERE A.MAIN_BANNER_IMAGE_PATH = BANNER_IMAGE.ATTCHFILE_ID(+)
+					<isNotEmpty property="search_cntrerNm" prepend="AND">
+					A.CNTRER_NM LIKE '%' || #search_cntrerNm# || '%'
+					</isNotEmpty>
+					<isNotEmpty property="staues" prepend="AND">
+					A.USE_YN =#staues#
+					</isNotEmpty>
+					<isNotEmpty property="search_StrtYmd" prepend="AND">
+						<![CDATA[	CNTR_STRT_YMD >= REPLACE(#search_StrtYmd#,'-') ]]>
+					</isNotEmpty>
+					<isNotEmpty property="search_EndYmd" prepend="AND">
+						<![CDATA[	CNTR_END_YMD <= REPLACE(#search_EndYmd#, '-') ]]>
+					</isNotEmpty>
+					ORDER BY NOTIC_SORT_ORDER ASC , CNTRER_SEQ DESC
+					) A
+					WHERE 1=1
+				<![CDATA[ 		AND ROWNUM <= #lastIndex# 	]]>
+			) A
+			WHERE 1=1
+			<![CDATA[ 		AND RNUM >= #firstIndex# ]]>
+
+	</select>
+
+	<!-- 기부처관리 정보조회 -->
+	<select id="selectRetrieveMgrInfo" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		   SELECT A.CNTRER_CD
+				, A.CNTRER_SEQ
+				, A.CNTRER_TYP_CD
+				, A.CNTRER_NM
+				, A.CNTRER_TTL
+				, A.PRSDT_NM
+				, A.EMAIL
+				, A.TEL_NO
+				, A.FAX_NO
+				, A.POST_NO
+				, A.ADDR1
+				, A.ADDR2
+				, A.CNTRER_DTAIL_CONT
+				, A.MAIN_BANNER_IMAGE_PATH
+				, A.PNT_CNTR_IMAGE_PATH
+				, A.CNTR_STUS_IMAGE_PATH
+				, A.CNTR_METH_CD
+				, A.NOTIC_SORT_ORDER
+				, A.SITE_ADDR
+				, A.CNTR_STRT_YMD
+				, A.CNTR_END_YMD
+				, A.USE_YN
+				, BANNER_IMAGE.FILE_STRE_PATH || BANNER_IMAGE.STRE_FILE_NM AS MAIN_BANNER_PATH
+				, BANNER_IMAGE.ORIG_FILE_NM AS MAIN_BANNER_IMAGE_ORIG_NM
+				, PNT_IMAGE.FILE_STRE_PATH || PNT_IMAGE.STRE_FILE_NM AS PNT_CNTR_PATH
+				, PNT_IMAGE.ORIG_FILE_NM AS PNT_CNTR_IMAGE_ORIG_NM
+				, CNTR_IMAGE.FILE_STRE_PATH || CNTR_IMAGE.STRE_FILE_NM AS CNTR_STUS_PATH
+				, CNTR_IMAGE.ORIG_FILE_NM AS CNTR_STUS_IMAGE_ORIG_NM
+		     FROM CU_CNTRER_MAST A
+		        , CM_FILE_MGT BANNER_IMAGE
+		        , CM_FILE_MGT PNT_IMAGE
+		        , CM_FILE_MGT CNTR_IMAGE
+	        WHERE A.MAIN_BANNER_IMAGE_PATH = BANNER_IMAGE.ATTCHFILE_ID(+)
+	          AND A.PNT_CNTR_IMAGE_PATH = PNT_IMAGE.ATTCHFILE_ID(+)
+	          AND A.CNTR_STUS_IMAGE_PATH = CNTR_IMAGE.ATTCHFILE_ID(+)
+	          AND A.CNTRER_CD = #cntrer_cd#
+	          AND A.CNTRER_SEQ = #cntrer_seq#
+	</select>
+
+	<!-- 기부처관리 등록/수정 -->
+	<insert id="updateRetrieveMgrModify" parameterClass="java.util.HashMap">
+			MERGE INTO CU_CNTRER_MAST a
+				USING DUAL ON (a.CNTRER_CD = #cntrer_cd# AND a.CNTRER_SEQ = #cntrer_seq#)
+			    WHEN MATCHED THEN
+					UPDATE
+						SET  CNTRER_NM = #cntrer_nm#
+			                ,PRSDT_NM = #prsdt_nm#
+			                ,TEL_NO = #tel_no#
+			                ,EMAIL = #email#
+			                ,SITE_ADDR = #site_addr#
+			                ,ADDR1 = #addr1#
+			                ,ADDR2 = #addr2#
+			                ,POST_NO = #post_no#
+						<isNotEmpty property="main_banner_image_path" prepend=",">
+							MAIN_BANNER_IMAGE_PATH = #main_banner_image_path#
+						</isNotEmpty>
+						<isNotEmpty property="cntr_stus_image_path" prepend=",">
+							CNTR_STUS_IMAGE_PATH = #cntr_stus_image_path#
+						</isNotEmpty>
+						<isNotEmpty property="pnt_cntr_image_path" prepend=",">
+							PNT_CNTR_IMAGE_PATH = #pnt_cntr_image_path#
+						</isNotEmpty>
+			                ,CNTR_METH_CD = #cntr_meth_cd#
+			                ,NOTIC_SORT_ORDER = #notic_sort_order#
+			                ,CNTRER_DTAIL_CONT = #cntrer_dtail_cont#
+			                ,CNTR_STRT_YMD = REPLACE(#cntr_strt_ymd#, '-')
+			                ,CNTR_END_YMD = REPLACE(#cntr_end_ymd#, '-')
+			                ,CHGER_ID = NVL(#login_usr_id#, 'ADMIN')
+			                ,CHG_DATE = SYSDATE
+			                ,USE_YN = #use_yn#
+					WHERE CNTRER_CD = #cntrer_cd#
+						AND CNTRER_SEQ  = #cntrer_seq#
+					WHEN NOT MATCHED THEN
+					INSERT
+					(
+						CNTRER_CD, CNTRER_SEQ,
+						CNTRER_NM, PRSDT_NM, TEL_NO, EMAIL, SITE_ADDR, ADDR1, ADDR2, POST_NO,
+           				MAIN_BANNER_IMAGE_PATH, PNT_CNTR_IMAGE_PATH, CNTR_STUS_IMAGE_PATH, CNTR_METH_CD,
+            			NOTIC_SORT_ORDER, CNTRER_DTAIL_CONT, CNTR_STRT_YMD, CNTR_END_YMD, REGER_ID, REG_DATE, USE_YN
+					) VALUES (
+						(SELECT 'C789' || NVL(LPAD(TO_CHAR(MAX(TO_NUMBER(SUBSTR(CNTRER_CD,5,8)))+1),4,'0'), '0001') NEW_BIZ_CODE FROM CU_CNTRER_MAST),
+						(SELECT NVL(MAX(CNTRER_SEQ),0)+1 FROM CU_CNTRER_MAST),
+						#cntrer_nm#, #prsdt_nm#, #tel_no#, #email#, #site_addr#, #addr1#, #addr2#, #post_no#,
+            			#main_banner_image_path#, #pnt_cntr_image_path#, #cntr_stus_image_path#, #cntr_meth_cd#,
+            			#notic_sort_order#, #cntrer_dtail_cont#, REPLACE(#cntr_strt_ymd#,'-') ,REPLACE(#cntr_end_ymd#, '-'), NVL(#login_usr_id#, 'ADMIN'), SYSDATE, #use_yn#
+ 					)
+	</insert>
+
+	<!-- 기부처 관리 리스트 - 콤보 -->
+	<select id="selectRetrieveMgrListCombo" parameterClass ="java.util.HashMap" resultClass="commMap">
+			SELECT
+			       CNTRER_CD,
+			       CNTRER_SEQ,
+			       CNTRER_NM
+			FROM CU_CNTRER_MAST
+			ORDER BY NOTIC_SORT_ORDER
+	</select>
+
+	<!-- 기부금 내역_포인트기부 및 우체국 계좌이체 포인트기부 old  -->
+	<select id="selectRetrieveUsePointList_old" parameterClass ="java.util.HashMap" resultClass="commMap">
+			/* SQL_ID : selectRetrieveUsePointList*/
+			SELECT  /*+  Leading(A) use_NL(A MEM) index(MEM UX_MEMINFO)   */
+					   A.*
+				      ,B.CNTRER_NM                                         /* 기부쳐명 */
+				      ,A.ACCESS_NAME || '(' || MEM.NAME || ')' AS MEM_ID   /*회원아이디(회원성명)*/
+				      ,MEM.NAME                                /* 회원성명 */
+				      ,SUM(A.USE_PRICE) OVER() AS TOT_CNTR_PNT /* 총 기부금 */
+				      ,ROWNUM AS RNUM
+				  FROM (SELECT A.ACCESS_NAME
+				              ,A.CBIZ_CODE                                                 /* 기부처코드 */
+				              ,SUM(A.USE_POINT) AS USE_POINT                               /* 기부 포인트 */
+				              ,SUM(A.USE_POINT * 10 + NVL(A.COR_POINT, 0)) AS USE_PRICE    /* 기부금(원) */
+				              ,A.REG_DATE                                                  /* 기부일자 */
+				          FROM MB_MEM_ACCMLAMT_HISTOR A
+				         WHERE A.CBIZ_CODE IS NOT NULL
+				         	AND A.RM_TYPE = 'U'
+				           AND A.STATUS NOT IN ('0', '3')
+				           <!-- 포인트기부 일때-->
+							<isEqual property="cuGbn" compareValue="01">
+								AND A.JOBGBN IS NULL
+							</isEqual>
+							<!-- 우체국 계좌이체 포인트기부 일때-->
+							<isEqual property="cuGbn" compareValue="03">
+								<!-- 구분 (쇼핑,장터,우편) 검색-->
+								AND A.JOBGBN = #cuShop#
+			    				AND A.JOBGBN IS NOT NULL
+							</isEqual>
+							<!-- 기부처 검색 -->
+							<isNotEmpty property="cntrer_cd">
+								AND A.CBIZ_CODE = #cntrer_cd#
+							</isNotEmpty>
+				           AND A.REG_DATE BETWEEN #search_strt_ymd#||'00000000' AND #search_end_ymd#||'9999999'
+				         GROUP BY A.ACCESS_NAME
+				                 ,A.REG_DATE
+				                 ,A.CBIZ_CODE) A
+				 INNER JOIN CU_CNTRER_MAST B ON A.CBIZ_CODE = B.CNTRER_CD
+				 INNER JOIN MEMINFO MEM ON A.ACCESS_NAME = MEM.ACCESS_NAME
+	</select>
+
+	<!-- 기부금 내역_포인트기부 및 우체국 계좌이체 포인트기부 튜닝  -->
+	<select id="selectRetrieveUsePointList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			/* SQL_ID : selectRetrieveUsePointList*/
+			SELECT /*+ ORDERED USE_NL(A B) */
+					A.*
+				      ,B.CNTRER_NM                                         /* 기부쳐명 */
+				      ,A.ACCESS_NAME || '(' || MEM.NAME || ')' AS MEM_ID   /*회원아이디(회원성명)*/
+				      ,MEM.NAME                                /* 회원성명 */
+				      ,SUM(A.USE_PRICE) OVER() AS TOT_CNTR_PNT /* 총 기부금 */
+				      ,ROWNUM AS RNUM
+				  FROM (
+				  		SELECT A.ACCESS_NAME
+				              ,A.CBIZ_CODE                                                 /* 기부처코드 */
+				              ,SUM(A.USE_POINT) AS USE_POINT                               /* 기부 포인트 */
+				              ,SUM(A.USE_POINT * 10 + NVL(A.COR_POINT, 0)) AS USE_PRICE    /* 기부금(원) */
+				              ,A.REG_DATE                                                  /* 기부일자 */
+				          FROM MB_MEM_ACCMLAMT_HISTOR A
+				         WHERE A.RM_TYPE = 'U'
+				           AND A.STATUS NOT IN ('0', '3')
+				           AND A.CBIZ_CODE LIKE 'C%'
+				           <!-- 포인트기부 일때-->
+							<isEqual property="cuGbn" compareValue="01">
+								AND A.JOBGBN IS NULL
+							</isEqual>
+							<!-- 우체국 계좌이체 포인트기부 일때-->
+							<isEqual property="cuGbn" compareValue="03">
+								<!-- 구분 (쇼핑,장터,우편) 검색-->
+								AND A.JOBGBN = #cuShop#
+			    				AND A.JOBGBN IS NOT NULL
+							</isEqual>
+							<!-- 기부처 검색 -->
+							<isNotEmpty property="cntrer_cd">
+								AND A.CBIZ_CODE = #cntrer_cd#
+							</isNotEmpty>
+				           AND A.REG_DATE BETWEEN #search_strt_ymd#||'00000000' AND #search_end_ymd#||'9999999'
+				         GROUP BY A.ACCESS_NAME
+				                 ,A.REG_DATE
+				                 ,A.CBIZ_CODE) A
+				 INNER JOIN CU_CNTRER_MAST B ON A.CBIZ_CODE = B.CNTRER_CD
+				 INNER JOIN MEMINFO MEM ON A.ACCESS_NAME = MEM.ACCESS_NAME
+	</select>
+
+	<!-- 기부금 내역_상품기부 및 정기후원 -->
+	<select id="selectRetrieveUseOrderList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			/* SQL_ID : selectRetrieveUseOrderList*/
+			 SELECT
+				        A.*
+				        ,B.CNTRER_NM
+				        ,A.ACCESS_NAME||'('||MEM.NAME||')' AS MEM_ID           /*회원아이디(회원성명)*/
+				        ,SUM(A.USE_PRICE) OVER() AS TOT_CNTR_PNT                /* 총 기부금 */
+				        ,ROWNUM AS RNUM
+				 FROM
+				 (
+				          SELECT A.ACCESS_NAME
+				              ,TO_DATE(A.REG_DATE, 'YYYY-MM-DD') AS REG_DATE /* 기부일자 */
+				              ,A.GOODS_CD
+				              ,MAX(OOI.GOODS_NM) AS GOODS_NM                 /* 상품명 */
+				              ,MAX(OOI.CNSMR_PRC) AS CNSMR_PRC               /* 판매금액 */
+				              ,SUM(NVL(OOI.CPN_DC_AMT, 0)) AS CPN_DC_AMT     /* 쿠폰금액 */
+				              ,SUM(OOI.CNSMR_PRC - NVL(OOI.CPN_DC_AMT, 0)) AS USE_PRICE    /* 기부금액 */
+				              ,MAX(A.ORDER_CNT) ORDER_CNT                  /* 주문수량 */
+				              ,SUM(A.ORDER_AMT) AS ORDER_AMT                 /* 주문금액 */
+				              ,A.CNTRER_CD
+				          FROM CU_GOODS_CNTR A
+				         INNER JOIN OD_ORDER_ITM OOI ON A.ORDER_ID = OOI.ORDER_ID AND A.GOODS_CD = OOI.GOODS_CD
+				         INNER JOIN OD_ORDER_MAST OOM ON OOI.ORDER_ID = OOM.ORDER_ID AND A.ORDER_ID =OOM.ORDER_ID
+				         WHERE A.REG_DATE BETWEEN TO_DATE(#search_strt_ymd#) AND TO_DATE(#search_end_ymd#||'235959','YYYY-MM-DD HH24MISS')
+				         /*as-is : 상품대금송금전이 아닌 상태 and 취소여부가 'N'인 상태*/
+				         AND OOI.GOODS_CANCEL_YN = 'N'
+				         AND OOM.ORDER_STUS_CD NOT IN ('O01')
+				         <!-- 상품기부 일때 -->
+						 <isEqual property="cuGbn" compareValue="02">
+						 	AND OOI.FIX_RESRV_ORDER_GOODS_YN = 'N'
+						 </isEqual>
+						 <!-- 정기후원 일때-->
+						 <isEqual property="cuGbn" compareValue="04">
+						 	AND OOI.FIX_RESRV_ORDER_GOODS_YN = 'Y'
+						 </isEqual>
+						 <!-- 기부처 검색 -->
+						<isNotEmpty property="cntrer_cd">
+							AND A.CNTRER_CD = #cntrer_cd#
+						</isNotEmpty>
+				         GROUP BY A.ACCESS_NAME
+				                 ,TO_DATE(A.REG_DATE, 'YYYY-MM-DD')
+				                 ,A.CNTRER_CD
+				                 ,A.GOODS_CD
+				) A INNER JOIN MEMINFO MEM ON A.ACCESS_NAME = MEM.ACCESS_NAME
+				 INNER JOIN CU_CNTRER_MAST B ON A.CNTRER_CD = B.CNTRER_CD
+
+	</select>
+
+	<!-- 기부처별 기부금내역 -->
+	<select id="selectRetrievecUseTotList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			/* SQL_ID : selectRetrievecUseTotList*/
+			SELECT
+					A.*
+					,ROWNUM AS RNUM
+			FROM
+			(
+				SELECT
+				       CNT.CNTRER_CD
+				       ,CNT.CNTRER_NM
+				       ,NVL(A.USE_POINT,0) USE_POINT
+				       ,NVL(A.ORDER_PRICE,0) ORDER_PRICE
+				       ,NVL(A.USE_PRICE, 0) USE_PRICE
+				       ,NVL(SUM(A.USE_PRICE)OVER(),0) AS TOT_CNTR_PNT	/* 총 기부금 */
+				FROM CU_CNTRER_MAST CNT
+				LEFT OUTER JOIN (
+				SELECT A.CNTRER_CD
+				      ,SUM(NVL(A.USE_POINT, 0)) AS USE_POINT		/* 포인트 기부금 */
+				      ,SUM(NVL(A.USE_ORDER, 0)) AS ORDER_PRICE	/* 상품 기부금 */
+				      ,SUM(NVL(A.USE_POINT, 0) + NVL(A.USE_ORDER, 0)) AS USE_PRICE	/* 포인트+상품 기부금 */
+				  FROM (SELECT A.CBIZ_CODE AS CNTRER_CD
+				                  ,SUM(A.USE_POINT * 10 + NVL(A.COR_POINT, 0)) USE_POINT
+				                  ,0 AS USE_ORDER
+				          FROM MB_MEM_ACCMLAMT_HISTOR A
+				          WHERE A.REG_DATE BETWEEN #search_strt_ymd#||'00000000' AND #search_end_ymd#||'9999999'
+				          AND CBIZ_CODE IS NOT NULL
+				          AND A.RM_TYPE = 'U'
+				          GROUP BY A.CBIZ_CODE
+				        UNION ALL
+				        SELECT A.CNTRER_CD
+				              ,0 AS USE_POINT
+				              ,SUM(OOI.CNSMR_PRC - NVL(OOI.CPN_DC_AMT, 0)) AS USE_ORDER
+				          FROM CU_GOODS_CNTR A
+				         INNER JOIN OD_ORDER_MAST OOM ON A.ORDER_ID = OOM.ORDER_ID
+				         INNER JOIN OD_ORDER_ITM OOI ON OOM.ORDER_ID = OOI.ORDER_ID AND A.GOODS_CD = OOI.GOODS_CD
+				         WHERE A.REG_DATE BETWEEN TO_DATE(#search_strt_ymd#) AND TO_DATE(#search_end_ymd#||'235959','YYYY-MM-DD HH24MISS')
+				         GROUP BY A.CNTRER_CD
+				   ) A
+				   GROUP BY A.CNTRER_CD
+				) A ON CNT.CNTRER_CD = A.CNTRER_CD
+				ORDER BY CNT.NOTIC_SORT_ORDER
+			) A
+	</select>
+
+	<!-- 영수증 신청내역 -->
+	<select id="selectRetrievecRciptReqList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			/* SQL_ID : selectRetrievecRciptReqList*/
+			SELECT
+					A.*,
+					ROWNUM AS RNUM
+			FROM (
+					SELECT
+		        			A.*
+					FROM
+						(  SELECT
+						        A.*
+						        ,B.CNTRER_NM
+						        ,SUM(USE_PRICE)OVER() AS TOT_CNTR_PNT	/* 총 기부금 */
+						        ,A.ACCESS_NAME||'('||MEM.NAME||')' MEM_ID
+						        ,MEM.NAME
+						  FROM
+						  (
+							  SELECT
+							        A.ACCESS_NAME
+							        <!-- 포인트 기부금이 원단위로 들어오는지 확인 필요
+							        포인트 단위로 들어오면 포인트*10 + (MB_MEM_ACCMLAMT_HISTOR) COR_POINT 값을 가져와야함-->
+							        ,SUM(A.PNT_CNTR_AMT) AS PNT_CNTR_AMT
+							        ,SUM(A.GOODS_CNTR_AMT) AS GOODS_CNTR_AMT
+							        ,SUM(A.PNT_CNTR_AMT+A.GOODS_CNTR_AMT) USE_PRICE
+							        ,MAX(A.TELNO) AS TELNO
+							        ,MAX(A.ADDR) AS ADDR
+							        ,MAX(A.REG_DATE) AS REG_DATE
+							        ,A.CNTRER_CD
+							  FROM CU_CNTR_RCIPT_REQ  A
+							  WHERE A.CNTR_YMD BETWEEN #search_strt_ymd# AND #search_end_ymd#
+							  <!-- 기부처 검색 -->
+								<isNotEmpty property="cntrer_cd">
+									AND A.CNTRER_CD = #cntrer_cd#
+								</isNotEmpty>
+							  GROUP BY A.ACCESS_NAME, A.CNTRER_CD
+							  HAVING SUM(A.PNT_CNTR_AMT)+SUM(A.GOODS_CNTR_AMT) >= 5000
+						  ) A INNER JOIN CU_CNTRER_MAST B ON A.CNTRER_CD = B.CNTRER_CD
+						  INNER JOIN MEMINFO MEM ON A.ACCESS_NAME = MEM.ACCESS_NAME
+					) A ORDER BY A.ACCESS_NAME,A.CNTRER_CD,A.NAME
+			) A
+	</select>
+
+	<!-- 기부처관리 useYn 업데이트 -->
+	<update id="updateRetrieveUseYn" parameterClass="java.util.HashMap">
+			UPDATE CU_CNTRER_MAST
+				SET USE_YN = #use_yn#
+				WHERE CNTRER_CD = #cntrer_cd#
+				  AND CNTRER_SEQ = #cntrer_seq#
+	</update>
+
+	<!-- 기부처관리 상품 리스트 카운트 -->
+	<select id="selectRetrieveGoodsMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="int">
+			select COUNT(*) as TOTCNT from CU_CNTR_GOODS A WHERE CNTRER_CD = #cntrer_cd# AND CNTRER_SEQ = #cntrer_seq#
+	</select>
+
+	<!-- 기부처관리 상품 리스트 -->
+	<select id="selectRetrieveGoodsMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+			      A.*
+			FROM (
+				SELECT
+						A.*, ROWNUM  AS RNUM
+				FROM
+				(
+					SELECT
+
+							A.CNTRER_CD,
+							A.CNTRER_SEQ,
+							A.CTGRY_CD,
+							A.GOODS_CD,
+							A.USE_YN,
+							TO_CHAR(TO_DATE(A.REG_DATE), 'YYYY-MM-DD') AS REG_DATE,
+							A.REGER_ID,
+							B.GOODS_NM
+
+					from CU_CNTR_GOODS A, GD_GOODS_MAST B
+					WHERE 1=1
+						AND A.CNTRER_CD = #cntrer_cd#
+						AND A.CNTRER_SEQ = #cntrer_seq#
+						AND A.GOODS_CD = B.GOODS_CD
+						AND A.USE_YN = 'Y'
+					ORDER BY A.CNTRER_CD DESC
+					) A
+					WHERE 1=1
+					 AND ROWNUM <= #lastIndex#
+			) A
+			WHERE 1=1
+				AND RNUM >= #firstIndex#
+			]]>
+	</select>
+
+	<!-- 상품 카테고리 리스트 -->
+	<select id="selectRetrieveGoodsCategoryMgr" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+			SELECT CTGRY_CD, GOODS_CD FROM GD_GOODS_CTGRY
+			WHERE 1=1
+				AND USE_YN = #use_yn#
+				AND GOODS_CD = #goods_cd#
+		]]>
+	</select>
+
+	<!-- 기부처 상품 삭제 -->
+	<update id="deleteRetrieveGoodsMgr" parameterClass="java.util.HashMap">
+			DELETE CU_CNTR_GOODS WHERE 1=1 AND GOODS_CD = #goodsCd# AND  CNTRER_CD = #cntrerCd# AND CTGRY_CD = #ctgryCd# AND CNTRER_SEQ = #cntrerSeq#
+			<!-- UPDATE CU_CNTR_GOODS SET USE_YN = 'N' WHERE 1=1 AND GOODS_CD = #goods_cd# AND  CNTRER_CD = #cntrer_cd# -->
+	</update>
+
+	<!-- 기부처관리 등록/수정 -->
+	<insert id="insertRetrieveMgr" parameterClass="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO CU_CNTR_GOODS A
+				USING (
+			 	        SELECT CTGRY_CD
+			 				FROM
+			 			GD_GOODS_CTGRY B
+			 			WHERE B.GOODS_CD = #goodsCd#
+			 			AND B.BASIC_CTGRY_YN = 'Y'
+		 		   	   ) C ON (A.CNTRER_CD = #cntrerCd# AND GOODS_CD = #goodsCd# AND A.CTGRY_CD = C.CTGRY_CD AND A.CNTRER_SEQ = #cntrerSeq#)
+					WHEN NOT MATCHED THEN
+					INSERT
+					(
+						  CNTRER_CD, CNTRER_SEQ, CTGRY_CD, GOODS_CD, USE_YN, REG_DATE, REGER_ID,CHG_DATE,CHGER_ID
+					)VALUES(
+						 #cntrerCd#, #cntrerSeq#, C.CTGRY_CD , #goodsCd#, 'Y', SYSDATE, #reger_id#,SYSDATE,#chger_id#
+					)
+			]]>
+	</insert>
+	<insert id="insertRetrieveCtgryMgr" parameterClass="java.util.HashMap">
+		MERGE INTO CU_CNTR_GOODS_CTGRY A
+		 	USING (
+		 	        SELECT CTGRY_CD
+		 				FROM
+		 			GD_GOODS_CTGRY B
+		 			WHERE B.GOODS_CD = #goodsCd#
+		 			AND B.BASIC_CTGRY_YN = 'Y'
+		 		   ) C  ON (A.CNTRER_CD = #cntrerCd# AND A.CTGRY_CD = C.CTGRY_CD AND A.CNTRER_SEQ = #cntrerSeq#)
+		 	WHEN NOT MATCHED THEN
+					INSERT
+					( CNTRER_CD,
+					  CNTRER_SEQ,
+					  CTGRY_CD,
+					  USE_YN,
+					  REG_DATE,
+					  REGER_ID,
+					  CHG_DATE,
+					  CHGER_ID
+					 )VALUES
+					 (
+					  #cntrerCd#,
+					  #cntrerSeq#,
+					  C.CTGRY_CD,
+					  'Y',
+					  SYSDATE,
+					  #reger_id#,
+					  SYSDATE,
+					  #CHGER_ID#
+					 )
+	</insert>
+</sqlMap>

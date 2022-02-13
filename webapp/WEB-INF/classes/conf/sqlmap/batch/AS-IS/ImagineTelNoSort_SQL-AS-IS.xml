@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.ImagineTelNoSort">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectUserSequencesList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				GETIMAGINETELNOLIST_SEQ(#loc_div_cd#, LAST_NUMBER, #buffer_num# ) AS BUFFER_LASTNUMBER , 
+				LAST_NUMBER AS LASTNUMBER
+			FROM USER_SEQUENCES    
+			WHERE SEQUENCE_NAME = #sequenceName#                                                                                           
+		]]>	 
+	</select>
+	
+	<select id="selectImagineTelNoMgmtCnt1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				COUNT(*) AS CNT           
+			FROM IMAGINE_TEL_NO_MGMT      
+			WHERE SEQ >= #start_seqence_num#                      
+			AND LOC_DIV_CD = #loc_div_cd#              
+			AND USE_YN='Y'                                                                  					                                                                          
+		]]>	 
+	</select>
+
+	<select id="selectImagineTelNoMgmtCnt2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				COUNT(*) AS CNT                                     
+			FROM IMAGINE_TEL_NO_MGMT                                    
+			WHERE SEQ >= '1'                                           
+			AND   SEQ <= #start_seqence_num#                                             
+			AND LOC_DIV_CD = #loc_div_cd#                                          
+			AND USE_YN='Y'                                                                                                       					                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectImagineTelNoMgmtCnt3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				/*+ INDEX_DESC(IMAGINE_TEL_NO_MGMT IMAGINE_TEL_NO_MGMT_IX01) */ DECODE(MAX(SEQ),NULL,0,MAX(SEQ)) AS NSEQ
+			FROM IMAGINE_TEL_NO_MGMT
+			WHERE SEQ >= #Yseq#
+			AND LOC_DIV_CD =#loc_div_cd#      
+			AND USE_YN='N'         
+			AND ROWNUM =1                                                                                                        					                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectImagineTelNoMgmtList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				YSEQ, 
+				YIMAGINETELNO  
+			FROM (                         	
+					SELECT SEQ AS YSEQ, IMAGINE_TEL_NO AS YIMAGINETELNO 	
+					FROM IMAGINE_TEL_NO_MGMT                                    		
+					WHERE SEQ >= #buffer_lastnumber#                                             			
+					AND LOC_DIV_CD = #loc_div_cd#                                         			
+					AND USE_YN='Y'                                             				
+					AND ROWNUM <= 10000                                        		
+					ORDER BY SEQ                                               			
+				 )                                                          					                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectImagineTelNoMgmtList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				/*+ INDEX_DESC(IMAGINE_TEL_NO_MGMT IMAGINE_TEL_NO_MGMT_IX01) */ DECODE(MAX(SEQ),NULL,0,MAX(SEQ)) AS NSEQ
+			FROM IMAGINE_TEL_NO_MGMT
+			WHERE SEQ >= #Yseq#
+			AND LOC_DIV_CD = #loc_div_cd#      
+			AND USE_YN='N'         
+			AND ROWNUM =1                                                    					                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectImagineTelNoMgmtList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				/*+ INDEX_DESC(IMAGINE_TEL_NO_MGMT IMAGINE_TEL_NO_MGMT_IX01) */ DECODE(MAX(SEQ),NULL,0, MAX(SEQ)) AS NSEQ
+			FROM IMAGINE_TEL_NO_MGMT
+			WHERE SEQ >=  '1'      
+			AND   SEQ <= #start_seqence_num#         
+			AND LOC_DIV_CD =#loc_div_cd#      
+			AND USE_YN='N'         
+			AND ROWNUM =1                                                              					                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectImagineTelNoMgmtList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				YSEQ, 
+				YIMAGINETELNO  
+			FROM (                         	
+					SELECT 
+						SEQ AS YSEQ, 
+						IMAGINE_TEL_NO AS YIMAGINETELNO 	
+					FROM IMAGINE_TEL_NO_MGMT                                    		
+					WHERE SEQ >= '1'                                           			
+					AND   SEQ <=  #lastnumber#                                            			
+					AND LOC_DIV_CD = #loc_div_cd#                                          			
+					AND USE_YN='Y'                                             			
+					AND ROWNUM <= 10000                                        	
+					ORDER BY SEQ                                               			
+				 )                                                                            					                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectImagineTelNoMgmtList5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				/*+ INDEX_DESC(IMAGINE_TEL_NO_MGMT IMAGINE_TEL_NO_MGMT_IX01) */ DECODE(MAX(SEQ),NULL,0, MAX(SEQ)) AS NSEQ
+			FROM IMAGINE_TEL_NO_MGMT
+			WHERE SEQ >= #YSeq#         
+			AND   SEQ <  #start_seqence_num#         
+			AND LOC_DIV_CD =#loc_div_cd#      
+			AND USE_YN='N'         
+			AND ROWNUM =1                                                               					                                                                          
+		]]>	 
+	</select>
+	
+	<update id="updateImagineTelNoMgmt1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE IMAGINE_TEL_NO_MGMT SET 
+				SEQ = #Yseq# 
+			WHERE LOC_DIV_CD = #loc_div_cd#  
+			AND SEQ = #Nseq#   
+		]]>
+	</update>	
+	
+	<update id="updateImagineTelNoMgmt2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE IMAGINE_TEL_NO_MGMT SET 
+				SEQ = #Nseq# 
+			WHERE LOC_DIV_CD = #loc_div_cd# 
+			AND IMAGINE_TEL_NO = #YimagineTelNo# 
+		]]>
+	</update>	
+	
+
+		
+</sqlMap>

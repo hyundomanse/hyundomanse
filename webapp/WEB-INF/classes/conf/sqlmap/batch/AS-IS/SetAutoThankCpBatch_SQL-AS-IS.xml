@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchSetAutoThankCpBatch">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<select id="select_f_Goods_Master_Thank_Clear_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  goods_Idn  as iGoods_idn
+	        FROM GOODS_MASTER
+	         WHERE CP_THANK_YN = 'Y'
+		]]>	 
+	</select>	
+	
+	<update id="update_ST_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE  ST_GOODS_MASTER
+             SET CP_THANK_YN = 'N'
+             where goods_idn  = #iGoodsidn#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE  GOODS_MASTER
+             SET CP_THANK_YN = 'N'
+             where goods_idn  = #iGoodsidn#
+		]]>	 
+	</update>
+	
+	<select id="select_f_Select_TxorderInfo_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT distinct purchase_id as sPurchaseId, access_name as sAccess_Name
+            FROM TXORDER
+            WHERE 1=1
+              AND COMPLETE_DATE BETWEEN #sUseFrom#  AND #sUseTo# ||'999999'
+              AND BIZ_CODE          = #sBizCode#
+              AND STATUS              = '5'
+			  AND CANCEL_STATE = 'N'
+              AND RECEV_PO_REGIPOCD IN ('89903','85414')
+              AND ACCESS_NAME <> ' '
+              AND CP_THANK_REG_DATE is null
+		]]>	 
+	</select>	
+	
+	<select id="select_f_Select_Insert_CpUserInfo_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT count(*) as i_cnt  
+		     FROM  TXORDER
+		     WHERE  purchase_id = #sPurchaseId#
+		            and BIZ_CODE    = #sBizCode#
+		            and CP_THANK_REG_DATE is not null
+		]]>	 
+	</select>
+	
+	<select id="select_f_Select_Insert_CpUserInfo_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 Select  TYPE || APPLY_TYPE || TO_CHAR(SYSDATE, 'YYMMDDHH24MI') || LPAD( CP_USERINFO_SEQ.NEXTVAL, 8, 0) as sCp_No
+             from cp_master
+             where 1=1
+                AND CP_EVENT_ID = #iCpEventId#
+		]]>	 
+	</select>
+	
+	<insert id="insert_CP_USERINFO_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 INSERT INTO CP_USERINFO (ACCESS_NAME,
+                             CP_EVENT_ID,
+                             CP_NO,
+                             IP_ADDR,
+                             CREATE_DATE,
+                             USE_FROM,
+                             USE_TO)
+             VALUES (#sAccessName#,
+                     #iCpEventId#, 
+                     #sCpNo#,
+                     'auto',
+                     TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+                     TO_CHAR(SYSDATE, 'YYYYMMDD')         || '000000',
+                     TO_CHAR(SYSDATE+13, 'YYYYMMDD')   || '999999')
+		]]>	 
+	</insert>
+	
+	<update id="update_TXORDER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE TXORDER
+	         SET CP_THANK_REG_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+	         WHERE  purchase_id = #sPurchaseId#
+	         and   BIZ_CODE    = #sBizCode#
+		]]>	 
+	</update>
+	
+	<select id="select_f_Select_Insert_CpUserInfo_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 select max(substr(complete_date,1,8))  as sComplete_Date 
+	         from txorder
+	         where purchase_id =  #sPurchaseId#
+		]]>	 
+	</select>
+	
+	<select id="select_f_Select_Insert_CpUserInfo_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT count(A.purchase_id)  as i_cnt  
+	         FROM  txorder A , cp_master B
+	          where A.biz_code = B.BIZ_CODE
+	              AND  A.purchase_id = #sPurchaseId#
+	                            AND  B.USE_FROM <= #sCompleteDate# ||  '000000'  AND B.USE_TO >= #sCompleteDate# || '999999'
+	                            AND  B.cp_cmp  = 2
+	              AND  B.type    = 'G' 
+	              AND  B.mem_gbn = 1 
+	              AND  B.apply_type = 'B'        
+	              AND  B.stop_date is null
+	              AND A.cancel_state = 'N'
+	              AND A.status > '1'
+	              AND A.CP_THANK_REG_DATE is null
+		]]>	 
+	</select>
+	
+	<select id="select_f_Select_Insert_CpUserInfo_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT count(*) as i_mail_cnt  
+             FROM  TXORDER
+             WHERE purchase_id = #sPurchaseId#
+               AND CP_THANK_MAIL_DATE is not null
+		]]>	 
+	</select>
+	
+	<select id="select_SendMailToUser_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT 
+			 		EMAIL as sMail_email,
+			 		NAME as sMail_name, 
+			 		to_char(sysdate, 'yyyy') || '년' || to_char(sysdate, 'mm') || '월' || to_char(sysdate, 'dd') || '일' as sStdDate
+		     FROM MEMINFO
+		     WHERE access_name = #sAccessName#
+		]]>	 
+	</select>
+	
+	<select id="select_SendMailToUser_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 Select max(substr(order_date,1,4) || '-' || substr(order_date,5,2) || '-' || substr(order_date,7,2) ) as sOrderDate,
+		               max(substr(order_date,1,4) || '년' || substr(order_date,5,2) || '월' || substr(order_date,7,2)  || '일'  || substr(order_date,9,2)  || '시'  || substr(order_date,11,2)  || '분') as sOrderDate1,
+		               substr(max(purchase_id), 1, 1) || '-' || substr(max(purchase_id), 2, 6) || '-' || substr(max(purchase_id), 8, 5) || '-' || substr(max(purchase_id), 13, 7) as sfmtPurchaseId
+		     From txorder
+		     WHERE purchase_id = #sPurchaseId#
+		]]>	 
+	</select>
+	
+	<select id="select_SendMailToUser_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT DISTINCT BIZ_NAME  as sTempBizName
+	         FROM  TXORDER
+	         WHERE   PURCHASE_ID  = #sPurchaseId#
+	               AND   CP_THANK_REG_DATE IS NOT NULL
+	               AND   STATUS = '5'
+	               AND   CANCEL_STATE = 'N'
+		]]>	 
+	</select>
+	
+	<select id="select_SendMailToUser_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT B.CP_NO as sCpNo,
+		       A.TITLE as sTitle,
+		       A.RATE_TYPE || '%' as sRateType,
+		       SUBSTR(B.USE_FROM, 1, 4)  || '/' || SUBSTR(B.USE_FROM, 5, 2) ||'/' || SUBSTR(B.USE_FROM, 7, 2)  || '~' || 
+		        SUBSTR(B.USE_TO, 1, 4)  || '/' || SUBSTR(B.USE_TO, 5, 2) ||'/' || SUBSTR(B.USE_TO, 7, 2)  as sUseFrom,
+		       A.BIZ_CODE as sBizCode,
+		       B.CREATE_DATE as sCreateDate
+		      FROM CP_MASTER A, CP_USERINFO B
+		     WHERE A.CP_EVENT_ID = B.CP_EVENT_ID
+		       AND B.ACCESS_NAME = #sAccessName#
+		       AND A.CP_CMP = '2'
+		       AND A.TYPE = 'G'
+		       AND A.BIZ_CODE IN (
+		            SELECT DISTINCT BIZ_CODE  
+		            FROM  TXORDER
+		            WHERE   PURCHASE_ID  = #sPurchaseId#
+		                   AND   CP_THANK_REG_DATE IS NOT NULL
+		                   AND   STATUS = '5'
+		                   AND   CANCEL_STATE = 'N'
+		                )
+		       AND B.STOP_DATE IS NULL
+		       AND B.USE_DATE IS NULL
+		       AND TO_CHAR(SYSDATE,'YYYYMMDD') - SUBSTR(B.USE_TO, 1, 8) < 1
+		       AND B.USE_TO >= TO_CHAR(ADD_MONTHS(SYSDATE, -3), 'YYYYMMDD')
+		     GROUP BY B.CP_NO,
+		           A.TITLE,
+		           A.RATE_TYPE || '%',
+		          SUBSTR(B.USE_FROM, 1, 4)  || '/' || SUBSTR(B.USE_FROM, 5, 2) ||'/' || SUBSTR(B.USE_FROM, 7, 2)  || '~' ||  SUBSTR(B.USE_TO, 1, 4)  || '/' || SUBSTR(B.USE_TO, 5, 2) ||'/' || SUBSTR(B.USE_TO, 7, 2),
+		           A.BIZ_CODE,
+		           B.CREATE_DATE
+		    ORDER BY B.CREATE_DATE DESC
+		]]>	 
+	</select>
+	
+	<select id="select_f_Select_Cp_Thank_Goods_Mark_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 Select cp_event_id as iCp_EventId
+                     ,BIZ_CODE as sBizCode
+             from cp_master
+             where 1=1
+                AND USE_FROM <= to_char(sysdate, 'yyyymmdd') || '000000'
+                AND USE_TO >= to_char(sysdate, 'yyyymmdd') || '999999'
+                AND cp_cmp  = 2
+                AND  type    = 'G' 
+                AND  mem_gbn = 1 
+                AND  apply_type = 'B'        
+                AND  stop_date is null
+		]]>	 
+	</select>
+	
+	<insert id="insert_cp_goods_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 insert into cp_goods (cp_event_id,goods_idn,create_date,reg_id) 
+	            select  #iCpEventId#,goods_idn,to_char(sysdate,'yyyymmddhh24miss'),'auto' 
+	             from (
+	             select goods_idn
+	             from GOODS_MASTER
+	             where supplier_code = #sBizCode#
+	               and language  = 'KO'
+	             minus
+	             select goods_idn 
+	             from cp_goods
+	             where cp_event_id =   #iCpEventId#
+	             )
+		]]>	 
+	</insert>
+	
+	<update id="select_ST_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE  ST_GOODS_MASTER
+             SET CP_THANK_YN = 'Y'
+             where supplier_code = #sBizCode#
+		]]>	 
+	</update>
+	
+	<update id="select_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			 UPDATE  GOODS_MASTER
+             SET CP_THANK_YN = 'Y'
+             where supplier_code = #sBizCode#
+		]]>	 
+	</update>
+	
+	<select id="select_f_Select_Cp_Thank_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 Select cp_event_id as iCp_EventId
+                     ,SUBSTR(USE_FROM,1,8) as sUse_From
+                     ,SUBSTR(USE_TO,1,8) as sUse_To
+                     ,BIZ_CODE as sBizCode
+             from cp_master
+             where 1=1
+                AND USE_FROM <= to_char(sysdate, 'yyyymmdd') || '000000'
+                AND USE_TO >= to_char(sysdate, 'yyyymmdd') || '999999'
+                AND cp_cmp  = 2
+                AND  type    = 'G' 
+                AND  mem_gbn = 1 
+                AND  apply_type = 'B'        
+                AND  stop_date is null
+		]]>	 
+	</select>
+	
+	<select id="select_f_Select_TxorderInfo_Mobile_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT PURCHASE_ID,ACCESS_NAME
+		     FROM (
+		           SELECT PURCHASE_ID,ACCESS_NAME ,MAX(COMPLETE_DATE) COMPLETE_DATE ,SUM(AMOUNT) AMOUNT
+		           FROM TXORDER
+		           WHERE COMPLETE_DATE >= TO_CHAR(SYSDATE,'YYYYMMDD') AND COMPLETE_DATE <='20150921999999'
+		             AND COMPLETE_DATE >= '20150901000000'
+		             AND CANCEL_STATE = 'N'
+		             AND MOBILE_GBN = 'M'
+		             AND MOBILE_WEB_GBN = 'N'
+		             AND AMOUNT > 0
+		           GROUP BY   PURCHASE_ID,ACCESS_NAME
+		          )
+		   ORDER BY   COMPLETE_DATE
+		]]>	 
+	</select>
+	
+</sqlMap>

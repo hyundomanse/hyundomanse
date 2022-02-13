@@ -1,0 +1,860 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Regular">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<sql id="selectRegularRule">
+			SELECT
+				RULE_SEQ
+				,STD_TERM_MMCNT
+				,APPLY_STD_CD
+				,(CASE WHEN
+				  LPAD(APPLY_DIV_CD,2,'0') = '01' THEN '구매회수'
+				      WHEN
+				  LPAD(APPLY_DIV_CD,2,'0') = '01' THEN '구매갯수'
+				      ELSE '' END ) APPLY_DIV_CD
+				,RGR_MAINT_TERM_MMCNT
+				,TO_CHAR(TRUNC(ADD_MONTHS(SYSDATE,-STD_TERM_MMCNT)+1)-TO_CHAR(SYSDATE,'DD'), 'YYYY-MM-DD') START_TERM
+				,TO_CHAR(TRUNC(LAST_DAY(ADD_MONTHS(SYSDATE, -1)))+0.99999421, 'YYYY-MM-DD') END_TERM
+				,CHG_DATE
+				,CHGER_ID
+		   FROM EV_RGR_ORDER_SRVC_RULE ORDER BY TO_NUMBER(RULE_SEQ) DESC
+	</sql>
+	<select id="selectRegularRuleList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY RULE_SEQ DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectRegularRule" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectRegularRuleListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectRegularRule" />)
+	</select>
+	<insert id="regularRuleRegist" parameterClass="java.util.HashMap">
+	INSERT INTO EV_RGR_ORDER_SRVC_RULE
+	VAlUES
+	(
+	(SELECT NVL(MAX(TO_NUMBER(RULE_SEQ))+1,1) FROM EV_RGR_ORDER_SRVC_RULE),
+	#std_term_mmcnt#,
+	#apply_std_cd#,
+	#apply_div_cd#,
+	#rgr_maint_term_mmcnt#,
+	SYSDATE,
+	SYSDATE,
+	#reger_id#,
+	#reger_id#
+	)
+	</insert>
+	<sql id="selectRegularGoods">
+		SELECT
+			B.RGR_GOODS_SEQ,
+			A.GOODS_CD,
+			A.GOODS_NM,
+			A.STD_SELL_PRC,
+			FN_GOODS_PRICE(A.GOODS_CD,'02') REGULAR_SELL_PRC,
+			TO_CHAR(TO_DATE(B.EVENT_STRT_YMD), 'YYYY-MM-DD') EVENT_STRT_YMD,
+			TO_CHAR(TO_DATE(B.EVENT_END_YMD), 'YYYY-MM-DD') EVENT_END_YMD,
+			TO_CHAR(B.CHG_DATE, 'YYYY-MM-DD HH24:MI') AS CHG_DATE,
+			B.CHGER_ID
+		FROM
+		  GD_GOODS_MAST A,
+		  GD_RGR_GOODS B
+		WHERE A.GOODS_CD = B.GOODS_CD
+		<isNotEmpty property="search_goodsCd" prepend="AND">
+				A.GOODS_CD = #search_goodsCd#
+		</isNotEmpty>
+		<isNotEmpty property="search_goodsNm" prepend="AND">
+				A.GOODS_NM Like '%'|| #search_goodsNm# ||'%'
+		</isNotEmpty>
+		<isNotEmpty property="search_eventStrtYmd" prepend="AND">
+			<![CDATA[	TO_DATE(B.EVENT_STRT_YMD,'YYYY-MM-DD') >= #search_eventStrtYmd# ]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_eventEndYmd" prepend="AND">
+			<![CDATA[	TO_DATE(B.EVENT_END_YMD,'YYYY-MM-DD') <= #search_eventEndYmd# ]]>
+		</isNotEmpty>
+		ORDER BY B.RGR_GOODS_SEQ DESC, A.GOODS_CD DESC , B.SORT_ORDER
+	</sql>
+	<select id="selectRegularGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY RGR_GOODS_SEQ DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectRegularGoods" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectRegularGoodsListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectRegularGoods" />)
+	</select>
+	<insert id="regularGoodsExcelRegist" parameterClass="java.util.HashMap">
+	  MERGE INTO GD_RGR_GOODS A
+		USING DUAL
+  		ON ( A.GOODS_CD = #goodsCd# )
+      WHEN MATCHED THEN
+		UPDATE
+		   	SET EVENT_STRT_YMD = REPLACE(#eventStrtYmd#, '-', ''),
+		        EVENT_END_YMD = REPLACE(#eventEndYmd#, '-', ''),
+		        SORT_ORDER = #sortOrder# ,
+		        CHGER_ID = #chger_id#,
+		        CHG_DATE = SYSDATE
+	   WHEN NOT MATCHED THEN
+		INSERT
+			  ( GOODS_CD,
+	            RGR_GOODS_SEQ,
+	            EVENT_STRT_YMD,
+	            EVENT_END_YMD,
+	            SORT_ORDER,
+	            RGR_GOODS_DIV_CD,
+	            REG_DATE,
+	            CHG_DATE,
+	            REGER_ID,
+	            CHGER_ID )
+			  VAlUES
+			  ( #goodsCd#,
+	            SEQ_RGR_GOODS.nextval,
+	            REPLACE(#eventStrtYmd#, '-', ''),
+	            REPLACE(#eventEndYmd#, '-', ''),
+	            #sortOrder#,
+	            '01',
+	            SYSDATE,
+	            SYSDATE,
+	            #reger_id#,
+	            #reger_id# )
+	   WHERE  EXISTS (SELECT 1 FROM GD_GOODS_MAST B WHERE A.GOODS_CD  = B.GOODS_CD )
+	</insert>
+	<insert id="regularGoodsRegist" parameterClass="java.util.HashMap">
+	  MERGE INTO GD_RGR_GOODS
+		USING DUAL
+  		ON ( GOODS_CD = #goodsCd#  AND RGR_GOODS_SEQ = #rgrGoodsSeq#)
+      WHEN MATCHED THEN
+		UPDATE
+		   	SET EVENT_STRT_YMD = REPLACE(#eventStrtYmd#, '-', ''),
+		       EVENT_END_YMD = REPLACE(#eventEndYmd#, '-', ''),
+		       CHGER_ID = #chger_id#,
+		       CHG_DATE = SYSDATE
+	   WHEN NOT MATCHED THEN
+		INSERT
+			  ( GOODS_CD,
+	            RGR_GOODS_SEQ,
+	            EVENT_STRT_YMD,
+	            EVENT_END_YMD,
+	            SORT_ORDER,
+	            RGR_GOODS_DIV_CD,
+	            REG_DATE,
+	            CHG_DATE,
+	            REGER_ID,
+	            CHGER_ID )
+			  VAlUES
+			  ( #goodsCd#,
+	            SEQ_RGR_GOODS.nextval,
+	            REPLACE(#eventStrtYmd#, '-', ''),
+	            REPLACE(#eventEndYmd#, '-', ''),
+	            (SELECT NVL(MAX(SORT_ORDER)+1, 1)
+	               FROM GD_RGR_GOODS ),
+	            '01',
+	            SYSDATE,
+	            SYSDATE,
+	            #reger_id#,
+	            #reger_id# )
+	</insert>
+	<delete id="deleteRegularGoods" parameterClass="java.util.HashMap">
+	DELETE FROM GD_RGR_GOODS
+			WHERE GOODS_CD = #GOODS_CD# AND RGR_GOODS_SEQ =#RGR_GOODS_SEQ#
+
+	</delete>
+	<select id="selectMastGoodsCd" parameterClass="java.util.Map" resultClass="java.lang.String">
+		SELECT GOODS_CD FROM GD_GOODS_MAST WHERE GOODS_CD =#goodsCd#
+	</select>
+	<select id ="selectRegularNewRule" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+			APPLY_DIV_CD,
+			APPLY_STD_CD,
+			RGR_MAINT_TERM_MMCNT,
+			(TO_DATE(LAST_DAY(ADD_MONTHS(SYSDATE,-1)))+.99999) END_TERM ,
+			TO_DATE(TO_CHAR(ADD_MONTHS(SYSDATE,-(1+STD_TERM_MMCNT)),'YYYYMM') || '010000',  'YYYYMMDDHH24MISS') START_TERM
+		FROM EV_RGR_ORDER_SRVC_RULE
+		WHERE RULE_SEQ = (SELECT MAX(RULE_SEQ) FROM EV_RGR_ORDER_SRVC_RULE)
+	</select>
+	<sql id="selectRegularNewMem">
+		SELECT
+		 ROWNUM SEQ,
+		 MEM.ACCESS_NAME,
+		 MEM.NAME,
+		 MEM.MOBILE,
+		 MEM.EMAIL,
+		 SUBSTR(CREATE_DATE,0,4)||'-'||SUBSTR(CREATE_DATE,5,2)||'-'||SUBSTR(CREATE_DATE,7,2) CREATE_DATE,
+		 OD.CNT_01,
+		 OD.CNT_02,
+		 #RGR_MAINT_TERM_MMCNT# RGR_MAINT_TERM_MMCNT
+		FROM
+		(			SELECT
+						ACCESS_NAME,
+						SUM(CNT_02) CNT_02,
+						COUNT(*) CNT_01
+					FROM
+						(
+								SELECT
+									OD_MAST.ACCESS_NAME,
+									OD_MAST.ORDER_ID,
+									OD_MAST.ORDER_DATE,
+									SUM(REQ_CNT) CNT_02,
+									SUM(STD_SELL_PRC) RRICE
+								FROM
+									OD_ORDER_MAST OD_MAST,
+									OD_ORDER_ITM OD_ITM
+								WHERE   OD_MAST.ORDER_DATE BETWEEN #START_TERM# AND #END_TERM#
+									AND OD_MAST.ORDER_ID = OD_ITM.ORDER_ID
+									<![CDATA[ AND OD_ITM.ORDER_DTAIL_STUS_CD <> 'O01']]>/*결제대기*/
+									AND NVL(OD_ITM.GOODS_CANCEL_YN,'N') ='N' /*상품취소가 아닌건*/
+									AND OD_ITM.GOODS_CD IS NOT NULL
+									AND OD_MAST.ACCESS_NAME IS NOT NULL
+								GROUP BY  OD_MAST.ORDER_ID,OD_MAST.ACCESS_NAME,OD_MAST.ORDER_DATE
+						)
+					GROUP BY ACCESS_NAME
+						<isEqual property="APPLY_DIV_CD" compareValue="01">
+						<![CDATA[ HAVING COUNT(*) > #APPLY_STD_CD#  ]]>
+						</isEqual>
+						<isEqual property="APPLY_DIV_CD" compareValue="02">
+						<![CDATA[ HAVING SUM(RRICE) >= #APPLY_STD_CD# ]]>
+						</isEqual>
+	    ) OD, MEMINFO MEM
+	   WHERE OD.ACCESS_NAME =  MEM.ACCESS_NAME
+	   AND NOT EXISTS (
+		   	SELECT 1 FROM
+		   	EV_RGR_CUST RGR
+		   	WHERE OD.ACCESS_NAME = RGR.ACCESS_NAME
+		   	AND SYSDATE BETWEEN TO_DATE(TERM_STRT_YMD || '00000','YYYYMMDDHH24MISS')
+		   				AND TO_DATE(TERM_END_YMD || '00000','YYYYMMDDHH24MISS')+.99999421
+	   					)
+	   	<isNotEmpty property="search_newId" prepend ="AND">
+	   		MEM.ACCESS_NAME LIKE '%'|| #search_newId# ||'%'
+	   	</isNotEmpty>
+	   	<isNotEmpty property="search_newNm"  prepend ="AND">
+	   		MEM.NAME LIKE '%'|| #search_newNm# ||'%'
+	   	</isNotEmpty>
+	</sql>
+	<select id="selectRegularNewMemListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectRegularNewMem" />)
+	</select>
+	<select id="selectRegularNewMemList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY SEQ DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectRegularNewMem" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<sql id ="selectRegularOriginMem">
+		SELECT
+			RGR.SEQ,
+			RGR.ACCESS_NAME,
+			TO_CHAR(TO_DATE(RGR.TERM_STRT_YMD), 'YYYY-MM-DD') TERM_STRT_YMD,
+			TO_CHAR(TO_DATE(RGR.TERM_END_YMD), 'YYYY-MM-DD') TERM_END_YMD,
+			MEM.NAME,
+			MEM.MOBILE,
+			MEM.EMAIL,
+			TO_CHAR(RGR.REG_DATE, 'YYYY-MM-DD HH24:MI') REG_DATE,
+			'N' GUBUN,
+            (SELECT NVL(COUNT(*),0)
+                FROM MEMINFO MEM, EV_RGR_CUST RGR
+                WHERE MEM.ACCESS_NAME = RGR.ACCESS_NAME
+                <![CDATA[ AND SYSDATE >  TO_DATE(TERM_END_YMD || '235959','YYYYMMDDHH24MISS') ]]>
+              ) CNT
+		FROM MEMINFO MEM, EV_RGR_CUST RGR
+		WHERE MEM.ACCESS_NAME = RGR.ACCESS_NAME
+		<![CDATA[ AND SYSDATE >  TO_DATE(TERM_END_YMD || '235959','YYYYMMDDHH24MISS') ]]>
+		 UNION
+		 SELECT
+			RGR.SEQ,
+			RGR.ACCESS_NAME,
+			TO_CHAR(TO_DATE(RGR.TERM_STRT_YMD), 'YYYY-MM-DD') TERM_STRT_YMD,
+			TO_CHAR(TO_DATE(RGR.TERM_END_YMD), 'YYYY-MM-DD') TERM_END_YMD,
+			MEM.NAME,
+			MEM.MOBILE,
+			MEM.EMAIL,
+			TO_CHAR(RGR.REG_DATE, 'YYYY-MM-DD HH24:MI') REG_DATE,
+			'Y' GUBUN,
+			0 CNT
+		FROM MEMINFO MEM, EV_RGR_CUST RGR
+		WHERE MEM.ACCESS_NAME = RGR.ACCESS_NAME
+		AND MEM.ACCESS_NAME NOT IN  (
+			SELECT
+				MEM2.ACCESS_NAME
+			FROM MEMINFO MEM2, EV_RGR_CUST RGR2
+			WHERE MEM2.ACCESS_NAME = RGR2.ACCESS_NAME
+			<![CDATA[ AND SYSDATE >  TO_DATE(RGR2.TERM_END_YMD || '235959','YYYYMMDDHH24MISS') ]]>
+
+		)
+		<isNotEmpty property="search_orginId" prepend ="AND">
+	   		MEM.ACCESS_NAME LIKE '%'|| #search_orginId# ||'%'
+	   	</isNotEmpty>
+	   	<isNotEmpty property="search_orginNm"  prepend ="AND">
+	   		MEM.NAME LIKE '%'|| #search_orginNm# ||'%'
+	   	</isNotEmpty>
+
+	</sql>
+	<select id="selectRegularOriginMemListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectRegularOriginMem" />)
+	</select>
+	<select id ="selectRegularOriginMemList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY GUBUN ASC, SEQ DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectRegularOriginMem" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<insert id ="insertRegularMember" parameterClass="java.util.HashMap">
+				INSERT INTO EV_RGR_CUST
+				(
+				ACCESS_NAME,
+				SEQ,
+				TERM_STRT_YMD,
+				TERM_END_YMD,
+				RULE_SEQ,
+				USE_YN,
+				REG_DATE,
+				CHG_DATE,
+				REGER_ID,
+			    CHGER_ID
+				)
+				VALUES
+				(
+				#ACCESS_NAME#,
+				(SELECT NVL(MAX(SEQ) +1,1) FROM EV_RGR_CUST),
+				TO_CHAR(SYSDATE, 'YYYYMM') || '01' TERM_STRT_YMD,
+				TO_CHAR(TRUNC(LAST_DAY(ADD_MONTHS(SYSDATE, #RGR_MAINT_TERM_MMCNT# - 1)))+.99999, 'YYYYMMDD') TERM_END_YMD
+				(SELECT NVL(MAX(RULE_SEQ),1) FROM EV_RGR_ORDER_SRVC_RULE),
+				'Y',
+				SYSDATE,
+				SYSDATE,
+				#reger_id#,
+			    #reger_id#
+				)
+
+
+	</insert>
+	<insert id ="insertEAIRgrInterface" parameterClass="java.util.HashMap">
+	INSERT INTO eai.rgr_interface
+							(epost_id,
+                              goods_code,
+                              price,
+                              sale_price,
+                              buy_want_date,
+                              buy_period,
+                              create_date,
+                              delete_date,
+                              regist_id,
+                              cust_type,
+                              adb_sequence,
+                              adb_timestamp,
+                              adb_opcode,
+                              adb_l_delivery_status)
+                             VALUES
+		                ( #ACCESS_NAME#,
+		                       '1',
+		                        1,
+		                        1,
+		                       '1',
+		                       '1',
+		                       #CREATE_DATE#,
+		                        null ,
+		                       #reger_id#,
+		                       '2',
+		                       EAI.RGR_INTERFACE_SQ01.NEXTVAL,
+		                       SYSDATE,
+		                        4,
+		                       'N'
+		                       )
+	</insert>
+	<insert id="insertRgrMemberHistory" parameterClass="java.util.HashMap">
+		INSERT INTO EV_RGR_CUST_HISTOR
+		(SEQ,
+		RULE_SEQ,
+		ACCESS_NAME,
+		TERM_END_YMD,
+		REG_DATE,
+		CHG_DATE,
+		REGER_ID,
+	    CHGER_ID
+		)
+		VALUES
+		(
+		(SELECT NVL(MAX(SEQ)+1,1) FROM EV_RGR_CUST_HISTOR ),
+		(SELECT MAX(RULE_SEQ) FROM EV_RGR_ORDER_SRVC_RULE ),
+		#ACCESS_NAME#,
+		REPLACE(#TERM_END_YMD#,'-',''),
+		SYSDATE,
+		SYSDATE,
+		#reger_id#,
+		#reger_id#
+		)
+
+	</insert>
+	<delete id ="deleteRegularMember" parameterClass="java.util.HashMap">
+	DELETE FROM EV_RGR_CUST WHERE ACCESS_NAME = #ACCESS_NAME# AND SEQ = #SEQ#
+	</delete>
+	<sql id="selectRgrSale">
+
+	          SELECT /*+ NO_MERGE LEADING(ODM) USE_NL(ODI) INDEX(ODM OD_ORDER_MAST_IX09) INDEX(ODI OD_ORDER_ITM_IX14) */
+	                 ODM.ACCESS_NAME,
+	                 ODM.ORDER_ID,
+	                 TO_CHAR(ODM.APPR_DATE,'YYYYMMDD') ORDER_DATE,
+	                 SUM(NVL(ODI.DC_APPLY_PRC,0) + NVL(ODI.OPTN_GOODS_APPLY_PRC,0) + NVL(ODI.SEND_PRC,0)) STD_SELL_PRC
+	             FROM
+	                OD_ORDER_MAST ODM, OD_ORDER_ITM ODI , GD_GOODS_MAST GD
+	             WHERE ODM.ORDER_ID = ODI.ORDER_ID
+	             AND   GD.GOODS_CD = ODI.GOODS_CD
+	             AND   ODI.RGR_GOODS_YN= 'Y'
+	             AND   ODI.GOODS_CANCEL_YN = 'N'
+	             AND   ODI.PAVLN_DIV_CD IN ('01', '02', '03', '04', '05', '06', '07', '08', '09', '90', '91', '92', '93', '94', '99')
+	             AND   ODM.APPR_DATE BETWEEN TO_DATE(#search_StrtYmd# || '000000','YYYYMMDDHH24MISS') AND TO_DATE(#search_EndYmd# || '235959','YYYYMMDDHH24MISS')
+	             GROUP BY ODM.ACCESS_NAME, ODM.ORDER_ID, ODM.APPR_DATE
+
+
+	</sql>
+	<sql id="selectRgrSaleGoods">
+
+				SELECT
+				GOODS_CD,
+				GOODS_NM,
+				COUNT(DISTINCT ORDER_ID) ORDER_CNT,
+				SUM(STD_SELL_PRC) STD_SELL_PRC
+				FROM
+				(	SELECT /*+ NO_MERGE LEADING(ODM) USE_NL(ODI) INDEX(ODM OD_ORDER_MAST_IX09) INDEX(ODI OD_ORDER_ITM_IX14) */
+		                 GD.GOODS_CD,
+		                 GD.GOODS_NM,
+		                 ODM.ORDER_ID,
+		                 SUM(NVL(ODI.DC_APPLY_PRC,0) + NVL(ODI.OPTN_GOODS_APPLY_PRC,0) + NVL(ODI.SEND_PRC,0)) STD_SELL_PRC
+		             FROM
+		                OD_ORDER_MAST ODM, OD_ORDER_ITM ODI , GD_GOODS_MAST GD
+		             WHERE ODM.ORDER_ID = ODI.ORDER_ID
+		             AND   GD.GOODS_CD = ODI.GOODS_CD
+		             AND   ODI.RGR_GOODS_YN= 'Y'
+		             AND   ODI.STD_SELL_PRC > 0
+		             AND   ODI.GOODS_CANCEL_YN = 'N'
+		             AND   ODI.PAVLN_DIV_CD IN ('01', '02', '03', '04', '05', '06', '07', '08', '09', '90', '91', '92', '93', '94', '99')
+	             	 AND   ODM.APPR_DATE BETWEEN TO_DATE(#search_StrtYmd# || '000000','YYYYMMDDHH24MISS') AND TO_DATE(#search_EndYmd# || '235959','YYYYMMDDHH24MISS')
+		             GROUP BY GD.GOODS_CD,GD.GOODS_NM, ODM.ORDER_ID
+	             )GROUP BY GOODS_CD,GOODS_NM
+	</sql>
+
+	<select id ="selectRgrSaleGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY STD_SELL_PRC DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+
+								<include refid="selectRgrSaleGoods" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectRgrSaleGoodsListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (			<include refid="selectRgrSaleGoods" />
+							 )
+	</select>
+
+	<select id="selectRgrSaleTot" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		   SELECT /*+ LEADING(X) USE_NL(Y) */
+			       COUNT(DISTINCT Y.ACCESS_NAME) AS TO_ACCESS,
+			       COUNT(DISTINCT X.ORDER_ID) AS TOT_ORDER,
+			       SUM(X.STD_SELL_PRC) AS TO_PRC
+			FROM   (
+			        SELECT /*+ NO_MERGE LEADING(ODM) USE_NL(ODI) INDEX(ODM OD_ORDER_MAST_IX09) INDEX(ODI OD_ORDER_ITM_IX14) */
+			               ODM.ROWID AS RID
+			              ,ODM.ORDER_ID
+			              ,NVL(ODI.DC_APPLY_PRC,0) + NVL(ODI.OPTN_GOODS_APPLY_PRC,0) + NVL(ODI.SEND_PRC,0) AS STD_SELL_PRC
+			        FROM   OD_ORDER_MAST ODM, OD_ORDER_ITM ODI
+			        WHERE  ODM.ORDER_ID = ODI.ORDER_ID
+			        AND    ODI.RGR_GOODS_YN = 'Y'
+			        AND    ODI.STD_SELL_PRC > 0
+			        AND    ODI.GOODS_CANCEL_YN = 'N'
+			        AND    ODI.PAVLN_DIV_CD IN ('01', '02', '03', '04', '05', '06', '07', '08', '09', '90', '91', '92', '93', '94', '99')
+			        AND    ODM.APPR_DATE BETWEEN TO_DATE(#search_StrtYmd# || '000000','YYYYMMDDHH24MISS') AND TO_DATE(#search_EndYmd# || '235959','YYYYMMDDHH24MISS')
+			       ) X, OD_ORDER_MAST Y
+			WHERE  X.RID = Y.ROWID
+	</select>
+	<sql id="selectRgrSaleYear" >
+	 SELECT
+	     STD_YM,
+	     NVL(ACCESS_CNT,0) ACCESS_CNT,
+	     NVL(ORDER_CNT,0) ORDER_CNT,
+	     NVL(STD_SELL_PRC,0) STD_SELL_PRC
+	  FROM
+	     (
+		     SELECT
+		        LEVEL AS STD_YM
+		        FROM DUAL
+		     <![CDATA[   WHERE LEVEL >= to_number(substr(#search_StrtYmd#,1,4))
+		     CONNECT BY LEVEL <= to_number(substr(#search_EndYmd#,1,4) ]]>)
+	     ) YYYY,
+	    (
+	         SELECT
+	            COUNT(DISTINCT ACCESS_NAME) ACCESS_CNT,
+	            COUNT(ORDER_ID) ORDER_CNT,
+	            SUM(STD_SELL_PRC) STD_SELL_PRC,
+	            SUBSTR(ORDER_DATE,1,4) OD_YEAR
+	         FROM
+	        (
+	       		<include refid="selectRgrSale" />
+	        ) GROUP BY SUBSTR(ORDER_DATE,1,4)
+
+	     )OD
+	     WHERE YYYY.STD_YM =  OD.OD_YEAR(+)
+	</sql>
+	<sql id="selectRgrSaleYearMonth" >
+	 SELECT
+	     STD_YM,
+	     NVL(ACCESS_CNT, 0) ACCESS_CNT,
+	     NVL(ORDER_CNT,0) ORDER_CNT,
+	     NVL(STD_SELL_PRC,0) STD_SELL_PRC
+	  FROM
+	     (
+	       SELECT
+		     TO_CHAR(START_DT+LEVEL,'YYYYMM') STD_YM
+		     FROM
+		      (
+			    SELECT
+			      TO_DATE(#search_StrtYmd#,'YYYYMMDD')  START_DT,
+			      TO_DATE(#search_EndYmd#,'YYYYMMDD')  END_DT
+		     	FROM
+		        DUAL
+		     )
+		    CONNECT BY LEVEL <![CDATA[ <= END_DT - START_DT ]]>
+		    GROUP BY  TO_CHAR(START_DT+LEVEL,'YYYYMM')
+		    ORDER BY TO_CHAR(START_DT+LEVEL,'YYYYMM')) YYYY,
+	    (
+	         SELECT
+	            COUNT(DISTINCT ACCESS_NAME) ACCESS_CNT,
+	            COUNT(ORDER_ID) ORDER_CNT,
+	            SUM(STD_SELL_PRC) STD_SELL_PRC,
+	            SUBSTR(ORDER_DATE,1,6) OD_YEAR
+	         FROM
+	        (
+	       		<include refid="selectRgrSale" />
+	        ) GROUP BY SUBSTR(ORDER_DATE,1,6)
+
+	     )OD
+	     WHERE YYYY.STD_YM =  OD.OD_YEAR(+)
+
+	</sql>
+	<sql id="selectRgrSaleYearMonthDay" >
+	 SELECT
+	     OD_YEAR STD_YM,
+	     NVL(ACCESS_CNT, 0) ACCESS_CNT,
+	     NVL(ORDER_CNT,0) ORDER_CNT,
+	     NVL(STD_SELL_PRC,0) STD_SELL_PRC
+	  FROM
+	     (
+	       SELECT
+	            COUNT(DISTINCT ACCESS_NAME) ACCESS_CNT,
+	            COUNT(ORDER_ID) ORDER_CNT,
+	            SUM(STD_SELL_PRC) STD_SELL_PRC,
+	            ORDER_DATE OD_YEAR
+	         FROM
+	        (
+	       		<include refid="selectRgrSale" />
+	        ) GROUP BY ORDER_DATE
+
+	     )OD
+	</sql>
+	<select id="selectRgrSaleListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (			<isEqual property="div_cd" compareValue="01">
+								<include refid="selectRgrSaleYear" />
+							</isEqual>
+							<isEqual property="div_cd" compareValue="02">
+								<include refid="selectRgrSaleYearMonth" />
+							</isEqual>
+							<isEqual property="div_cd" compareValue="03">
+								<include refid="selectRgrSaleYearMonthDay" />
+							</isEqual>
+							 )
+	</select>
+
+	<select id ="selectRgrSaleList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY STD_YM DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<isEqual property="div_cd" compareValue="01">
+								<include refid="selectRgrSaleYear" />
+							</isEqual>
+							<isEqual property="div_cd" compareValue="02">
+								<include refid="selectRgrSaleYearMonth" />
+							</isEqual>
+							<isEqual property="div_cd" compareValue="03">
+								<include refid="selectRgrSaleYearMonthDay" />
+							</isEqual>
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<sql id="selectRgrSaleCtgry">
+				SELECT
+                        CTGRY_CD,
+			            DECODE(CATE.CTGRY_CD ,'기타','기타',NVL((SELECT CTGRY_NM FROM  GD_CTGRY_MAST GC WHERE POSTNET_CTGRY_YN='Y' AND GC.CTGRY_CD = CATE.CTGRY_CD ),'합계(대)')) CTGRY_NM,
+			            SUPP_COMP_ID,
+			            DECODE(CATE.SUPP_COMP_ID ,'기타','기타',NVL((SELECT BCNC_NM FROM  CO_SUPP_COMP_MAST SU WHERE SU.SUPP_COMP_ID = CATE.SUPP_COMP_ID),'합계(소)')) BCNC_NM,
+			            SUM(ORDER_CNT) ORDER_CNT,
+			            SUM(STD_SELL_PRC) STD_SELL_PRC,
+			            (CASE WHEN SUPP_COMP_ID IS NOT NULL THEN MAX(RANKS) ELSE MAX(RANKS)+1 END) RANKS
+                   FROM
+                    (
+                         SELECT
+                             NVL(GD.POSTNET_CTGRY_CD,'기타') CTGRY_CD,
+                 			 NVL(DECODE(GD.POSTNET_CTGRY_CD, '','','-','', ODI.SUPP_COMP_ID ),'기타')  SUPP_COMP_ID,
+                             COUNT( DISTINCT ODM.ORDER_ID ) ORDER_CNT,
+                             SUM(ODI.STD_SELL_PRC) STD_SELL_PRC,
+                             RANK() OVER(PARTITION BY POSTNET_CTGRY_CD ORDER BY SUM(ODI.STD_SELL_PRC) DESC) RANKS
+                         FROM
+                            OD_ORDER_MAST ODM, OD_ORDER_ITM ODI , GD_GOODS_MAST GD
+                         WHERE ODM.ORDER_ID = ODI.ORDER_ID
+                         AND   GD.GOODS_CD = ODI.GOODS_CD
+                         AND   ODI.RGR_GOODS_YN = 'Y'
+                         AND   ODI.STD_SELL_PRC > 0
+                         AND   ODI.GOODS_CANCEL_YN = 'N'
+	             	     AND   ODM.APPR_DATE BETWEEN TO_DATE(#search_StrtYmd# || '000000','YYYYMMDDHH24MISS') AND TO_DATE(#search_EndYmd# || '235959','YYYYMMDDHH24MISS')
+                         GROUP BY GD.POSTNET_CTGRY_CD,DECODE(GD.POSTNET_CTGRY_CD, '','','-','', ODI.SUPP_COMP_ID )
+                     ) CATE GROUP BY ROLLUP (CTGRY_CD,SUPP_COMP_ID)
+                     ORDER BY CTGRY_CD ASC, RANKS ASC
+
+	</sql>
+	<select id="selectRgrSaleCtgryList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+				SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER ()  OVER (ORDER BY CTGRY_CD ASC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							   <include refid="selectRgrSaleCtgry" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectRgrSaleCtgryListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+			SELECT COUNT(*) AS CNT
+		  FROM (
+		  			<include refid="selectRgrSaleCtgry" />
+		  		)
+	</select>
+	<sql id="selectRgrSaleSupp">
+		      SELECT
+                    ODI.SUPP_COMP_ID,
+                    (SELECT BCNC_NM FROM  CO_SUPP_COMP_MAST SU WHERE SU.SUPP_COMP_ID = ODI.SUPP_COMP_ID) BCNC_NM,
+                    COUNT( DISTINCT ODM.ORDER_ID ) ORDER_CNT,
+                    SUM(ODI.STD_SELL_PRC) STD_SELL_PRC,
+                    RANK() OVER( ORDER BY SUM(ODI.STD_SELL_PRC) DESC) RANKS
+                FROM
+                   OD_ORDER_MAST ODM, OD_ORDER_ITM ODI , GD_GOODS_MAST GD
+                WHERE ODM.ORDER_ID = ODI.ORDER_ID
+                AND   GD.GOODS_CD = ODI.GOODS_CD
+                AND   ODI.RGR_GOODS_YN= 'Y'
+                AND   ODI.STD_SELL_PRC > 0
+                AND   ODI.GOODS_CANCEL_YN = 'N'
+	            AND   ODM.APPR_DATE BETWEEN TO_DATE(#search_StrtYmd# || '000000','YYYYMMDDHH24MISS') AND TO_DATE(#search_EndYmd# || '235959','YYYYMMDDHH24MISS')
+                GROUP BY ODI.SUPP_COMP_ID
+	</sql>
+		<select id="selectRgrSaleSuppList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+				SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY STD_SELL_PRC DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							   <include refid="selectRgrSaleSupp" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectRgrSaleSuppListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+			SELECT COUNT(*) AS CNT
+		  FROM (
+		  			<include refid="selectRgrSaleSupp" />
+		  		)
+	</select>
+	<select id="selectRgrDownGradeMem" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" >
+		SELECT
+			RGR.SEQ,
+			RGR.ACCESS_NAME,
+			TO_CHAR(TO_DATE(RGR.TERM_STRT_YMD), 'YYYY-MM-DD') TERM_STRT_YMD,
+			TO_CHAR(TO_DATE(RGR.TERM_END_YMD), 'YYYY-MM-DD') TERM_END_YMD,
+			MEM.NAME,
+			MEM.MOBILE,
+			MEM.EMAIL,
+			TO_CHAR(RGR.REG_DATE, 'YYYY-MM-DD HH24:MI') REG_DATE,
+			'N' GUBUN
+		FROM MEMINFO MEM, EV_RGR_CUST RGR
+		WHERE MEM.ACCESS_NAME = RGR.ACCESS_NAME
+		<![CDATA[ AND SYSDATE >  TO_DATE(TERM_END_YMD || '00000','YYYYMMDDHH24MISS')+.99999421 ]]>
+	</select>
+
+
+	<sql id="rgrGoodsReq_list">
+		SELECT A.GOODS_CD
+			 , A.RGR_GOODS_SEQ
+			 , A.FIXAMT_DC
+			 , A.EVENT_STRT_YMD
+			 , A.EVENT_END_YMD
+			 , A.SORT_ORDER
+			 , B.GOODS_NM
+			 , B.SUPP_COMP_ID
+			 , C.BCNC_NM
+			 , B.STD_SELL_PRC
+			 , A.RGR_GOODS_STUS_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'RGR_GOODS_STUS_CD' AND COMN_CD_ID = A.RGR_GOODS_STUS_CD) AS RGR_GOODS_STUS_NM
+			 , (SELECT MAX(RGR_GOODS_SEQ) FROM GD_RGR_GOODS WHERE GOODS_CD = A.GOODS_CD) AS MAX_GOODS_SEQ
+			 , A.REG_DATE
+		  FROM GD_RGR_GOODS A, GD_MGT_GOODS_MAST B
+			 , CO_SUPP_COMP_MAST C
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND B.SUPP_COMP_ID = C.SUPP_COMP_ID
+		   AND A.RGR_GOODS_STUS_CD IS NOT NULL
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="goods_cd">
+					A.GOODS_CD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					B.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( A.GOODS_CD LIKE '%'||#search_text#||'%' OR B.GOODS_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="supp_comp_id" prepend="AND">
+			B.SUPP_COMP_ID = #supp_comp_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="goods_cd" prepend="AND">
+			A.GOODS_CD = #goods_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="rgr_goods_seq" prepend="AND">
+			A.RGR_GOODS_SEQ = #rgr_goods_seq#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_rgr_goods_stus_cd" prepend="AND">
+			A.RGR_GOODS_STUS_CD = #search_rgr_goods_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			A.REG_DATE BETWEEN TO_DATE(REPLACE(#search_strt_ymd#, '-') || '000000','YYYYMMDDHH24MISS') AND TO_DATE(REPLACE(#search_end_ymd#, '-')||'235959','YYYYMMDDHH24MISS')
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectRgrGoodsReqList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY REG_DATE DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="rgrGoodsReq_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectRgrGoodsReqCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="rgrGoodsReq_list" />)
+	</select>
+
+	<update id="updateRgrGoodsAppr" parameterClass="java.util.HashMap">
+		UPDATE GD_RGR_GOODS
+		   SET RGR_GOODS_STUS_CD = #rgr_goods_stus_cd#
+			 , CHG_DATE			= SYSDATE
+			 , CHGER_ID			= NVL(#login_usr_id#, 'ADMIN')
+		 WHERE GOODS_CD			= #goods_cd#
+		   AND RGR_GOODS_SEQ	= #rgr_goods_seq#
+	</update>
+
+	<update id="updateRgrGoodsSortOrder" parameterClass="java.util.HashMap">
+		UPDATE GD_RGR_GOODS
+		   SET SORT_ORDER		= #sort_order#
+			 , CHG_DATE			= SYSDATE
+			 , CHGER_ID			= NVL(#login_usr_id#, 'ADMIN')
+		 WHERE GOODS_CD			= #goods_cd#
+		   AND RGR_GOODS_SEQ	= #rgr_goods_seq#
+	</update>
+
+</sqlMap>

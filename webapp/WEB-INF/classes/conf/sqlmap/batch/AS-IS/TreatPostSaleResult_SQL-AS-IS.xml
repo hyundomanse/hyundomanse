@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.TreatPostSaleResult">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTxorderList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT RECEV_PO_REGIPOCD,to_char(add_months(sysdate,-1),'yyyymm') INVOICE_YM            
+		      , CEIL(CASE WHEN NVL(SUM( NVL(TREAT_POST_AMT, 0)),0) <= 10000000 THEN NVL(SUM( NVL(TREAT_POST_AMT, 0)),0) * 0.1 /* 1000 만원이하 10%*/   
+		                  WHEN NVL(SUM( NVL(TREAT_POST_AMT, 0) ),0) <= 30000000 THEN 1000000 + ((NVL(SUM( NVL(TREAT_POST_AMT, 0) ),0) -10000000 ) * 0.08) /* 3000 만원이하 8%*/  
+		                  WHEN NVL(SUM( NVL(TREAT_POST_AMT, 0) ),0) <= 50000000 THEN 2600000 + ((NVL(SUM( NVL(TREAT_POST_AMT, 0) ),0) -30000000 ) * 0.05) /* 5000 만원이하 5%*/  
+		                  ELSE 3600000 + ((NVL(SUM( NVL(TREAT_POST_AMT, 0)),0) -50000000 ) * 0.005) /* 5000 만원초과 0.5% */  
+		             END * 0.1) * 10 AS TREAT_POST_FEE      
+		               ,SUM(TREAT_POST_AMT) TREAT_POST_AMT 
+		               ,SUM(TREAT_POST_CNT) TREAT_POST_CNT 
+		         FROM (                                      
+		          SELECT '1',A.RECEV_PO_REGIPOCD            
+		         , SUBSTR(A.INVOICE_DATE,1,6) AS INVOICE_YM  
+		         , CEIL(NVL(SUM( NVL(IMMEDIATE_PRCL_PRC, 0) + NVL(LATER_PRCL_PRC, 0) ),0)) AS TREAT_POST_AMT  
+		         , COUNT(1) AS TREAT_POST_CNT                  
+		    FROM TXORDER A , PICMT0060 B                    
+		    WHERE A.RECEV_PO_REGIPOCD = B.REGIPOCD            
+		      AND A.STATUS IN ('4','5')                      
+		      AND B.PODIVCD = '08'                           
+		      AND B.USEYN = 'Y'                             
+		      AND A.INVOICE_DATE LIKE ?||'%'           
+		      AND A.SHOP_ID IN('1')                           
+		    GROUP BY A.RECEV_PO_REGIPOCD , SUBSTR(A.INVOICE_DATE,1,6)            
+		    HAVING SUM(NVL(IMMEDIATE_PRCL_PRC, 0) + NVL(LATER_PRCL_PRC, 0))> 0   			       
+		    union all                                        
+		   SELECT '2',A.REGIPOCD                                
+		        , SUBSTR(A.SELLRECEVYMD,1,6) AS INVOICE_YM   
+		        ,SUM(PRCLAMT)  TREAT_POST_AMT                
+		        ,SUM(GOODSCNT) TREAT_POST_CNT                  
+		   FROM  PBSDT0160 A , PICMT0060 B                    
+		   WHERE 1=1                                          
+		     AND A.REGIPOCD = B.REGIPOCD                      
+		     AND A.sellrecevymd like ?||'%'                  
+		     AND A.SELLRECEVDIVCD = '005' and A.shopdivcd ='008'  
+		     AND B.PODIVCD = '08'                              
+		     AND B.USEYN = 'Y'                                 
+		     AND A.prclamt > 0                               
+		    GROUP BY A.REGIPOCD , SUBSTR(A.SELLRECEVYMD,1,6)   
+		    union all                                          
+		   SELECT '3',A.REGIPOCD                             
+		        , SUBSTR(A.SELLRECEVYMD,1,6) AS INVOICE_YM   
+		        ,SUM(PRCLAMT)  TREAT_POST_AMT                
+		        ,SUM(GOODSCNT) TREAT_POST_CNT                   
+		   FROM  PBSDT0160 A , PICMT0060 B                      
+		   WHERE 1=1                                          
+		     AND A.REGIPOCD = B.REGIPOCD                     
+		     AND A.sellrecevymd like ?||'%'                  
+		     AND A.shopdivcd in ('005','013')                
+		     AND B.PODIVCD = '08'                            
+		     AND B.USEYN = 'Y'                                
+		     AND A.prclamt > 0                                
+		    GROUP BY A.REGIPOCD , SUBSTR(A.SELLRECEVYMD,1,6)  
+		)                                                     
+		GROUP BY RECEV_PO_REGIPOCD                                                                                                         
+		]]>	 
+	</select>
+	
+	<update id="insertIfTreatPostSaleResult" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO if_treat_post_sale_result                      
+											        ( raise_seq, invoice_ym, recev_po_regipocd, treat_post_fee  
+											         , TREAT_POST_AMT, TREAT_POST_CNT                           
+											        , if_id, init_time, deal_state, wrk_gbn                     
+											    ) VALUES (                                                      
+											        if_treat_post_sale_result_sq01.NEXTVAL                      
+											        , ?                                                         
+											        , ?                                                         
+											        , ?                                                         
+											        , ?                                                         
+											        , ?                                                         
+											        , 'IF-ESHPSH-029-P01I'                                      
+											        , TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')                       
+											        , 'N'                                                       
+											        , '1'                                                       
+											    )                                                               	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	 	
+</sqlMap>

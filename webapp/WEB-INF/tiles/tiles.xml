@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN" 
+"http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+
+<tiles-definitions>
+	
+	<!-- FO MAIN TEMPLETE -->
+	<definition name="foMainTemplate" template="/WEB-INF/jsp/tiles/fo/mainLayout.jsp">
+		<put-attribute name="popup" value="/WEB-INF/jsp/tiles/fo/popup/popup.jsp" />
+		<put-attribute name="header" value="/WEB-INF/jsp/tiles/fo/header.jsp" />
+		<put-attribute name="content" value="" />
+		<put-attribute name="footer" value="/WEB-INF/jsp/tiles/fo/footer.jsp" />
+	</definition>
+	
+	<definition name="*" extends="foMainTemplate">
+ 		<put-attribute name="content" value="/WEB-INF/jsp/fo/{1}.jsp" /> 
+	</definition>
+		
+	<definition name="fo/*" extends="foMainTemplate">
+		<put-attribute name="content" value="/WEB-INF/jsp/fo/{1}.jsp" /> 
+	</definition>	
+		
+	<!-- FO SUB MAIN TEMPLETE -->
+	<definition name="foSubMainTemplate" template="/WEB-INF/jsp/tiles/fo/subMainLayout.jsp">
+		<put-attribute name="header" value="/WEB-INF/jsp/tiles/fo/header.jsp" />
+		<put-attribute name="content" value="" />
+		<put-attribute name="footer" value="/WEB-INF/jsp/tiles/fo/footer.jsp" />
+	</definition>
+	
+	<definition name="fo/mypage/cartList/*" extends="foSubMainTemplate">
+		<put-attribute name="content" value="/WEB-INF/jsp/fo/mypage/cartList/{1}.jsp" />
+	</definition>
+
+	<definition name="fo/order/*" extends="foSubMainTemplate">
+		<put-attribute name="content" value="/WEB-INF/jsp/fo/order/{1}.jsp" />
+	</definition>
+
+	<definition name="fo/subMain/*" extends="foSubMainTemplate">
+		<put-attribute name="content" value="/WEB-INF/jsp/fo/subMain/{1}.jsp" />
+	</definition>
+	
+	<definition name="fo/brand/*" extends="foSubMainTemplate">
+		<put-attribute name="content" value="/WEB-INF/jsp/fo/brand/{1}.jsp" />
+	</definition>
+	
+	<definition name="fo/product/*" extends="foSubMainTemplate">
+		<put-attribute name="content" value="/WEB-INF/jsp/fo/product/{1}.jsp" /> 
+	</definition>
+	
+	<definition name="fo/search/*" extends="foSubMainTemplate">
+		<put-attribute name="content" value="/WEB-INF/jsp/fo/search/{1}.jsp" /> 
+	</definition>
+	
+	<!-- BO LOGIN TEMPLETE -->
+	<definition name="boTemplate" template="/WEB-INF/jsp/tiles/bo/indexLayout.jsp">
+		<put-attribute name="content" value="/WEB-INF/jsp/tiles/bo/main.jsp" />
+	</definition>
+	
+	<definition name="bo/index" extends="boTemplate">
+ 		<put-attribute name="content" value="/WEB-INF/jsp/bo/index.jsp" /> 
+	</definition>	
+	
+	<!--BO POPUP TEMPLETE -->
+	<definition name="boPopupTemplate" template="/WEB-INF/jsp/tiles/bo/popup/popupLayout.jsp">
+		<put-attribute name="popup" value="/WEB-INF/jsp/tiles/bo/popup/popupMain.jsp" />
+	</definition>
+
+	<definition name="bo/*/popup/*" extends="boPopupTemplate">
+ 		<put-attribute name="popup" value="/WEB-INF/jsp/bo/{1}/popup/{2}.jsp" /> 
+	</definition>
+	
+	<!-- BO COMMON TEMPLETE -->
+	<definition name="boDefaultTemplate" template="/WEB-INF/jsp/tiles/bo/layout.jsp">
+		<put-attribute name="header" value="/WEB-INF/jsp/tiles/bo/header.jsp" />
+		<put-attribute name="left" value="/WEB-INF/jsp/tiles/bo/left.jsp" />
+		<put-attribute name="content" value="/WEB-INF/jsp/bo/main.jsp" />
+		<put-attribute name="footer" value="/WEB-INF/jsp/tiles/bo/footer.jsp" />
+	</definition>
+
+	<definition name="bo/*/*" extends="boDefaultTemplate">
+ 		<put-attribute name="content" value="/WEB-INF/jsp/bo/{1}/{2}.jsp" /> 
+	</definition>
+
+	<definition name="bo/main" extends="boDefaultTemplate">
+ 		<put-attribute name="content" value="/WEB-INF/jsp/bo/main.jsp" /> 
+	</definition>
+	
+</tiles-definitions>

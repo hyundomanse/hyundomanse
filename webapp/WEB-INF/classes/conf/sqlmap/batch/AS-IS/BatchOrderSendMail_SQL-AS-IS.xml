@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchOrderSendMail">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectOdOrderMastList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT /*+ use_nl(a b) index( a IDX_TXORDER_01)*/          
+			        a.purchase_id ,max(decode(a.shop_id,'10','5',a.shop_id)) shop_id ,max(paymethod) paymethod 
+			 FROM txorder a , orderinfo b                                
+			 Where a.purchase_id = b.purchase_id                         
+			   and a.order_date >= to_char(sysdate - 0.1 ,'yyyymmddhh24') 
+			   And a.status <> '9'                          
+			   And a.cancel_state = 'N'                      
+			   and b.MailSendGbn is null                    
+			   and a.RECEV_PO_REGIPOCD in('89903','85414')  
+			   and a.shop_id not in ('4','6','7')               
+			 Group by a.purchase_id                          
+			 UNION ALL                                       
+			 SELECT /*+ index( b ORDERINFO_IX01)*/            
+			        a.purchase_id ,max(decode(a.shop_id,'10','5',a.shop_id)),max(paymethod) 
+			 FROM orderinfo b , txorder a                      
+			 Where b.purchase_id = a.purchase_id             
+			   and b.MAILSENDDATE >= to_char(sysdate - 0.1 ,'yyyymmddhh24') 
+			   and b.MailSendGbn ='3'                        
+			   And a.status <> '9'                            
+			   And a.cancel_state = 'N'                     
+			   and a.RECEV_PO_REGIPOCD in('89903','85414')  
+			   and a.shop_id not in ('4','6','7')               
+			 Group by a.purchase_id 		                                                                                                  
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderinfoCnt" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT count(*) cnt               
+			 FROM ORDERINFO                      
+			 WHERE PURCHASE_ID = ?             
+			   and MailSendGbn in ('1','2')                                                                                                                
+		]]>	 
+	</select>
+	
+	<select id="selectOdFixResrvYmdCnt" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT count(*) cnt    
+			 FROM ORDER_RESERVE     
+			 WHERE purchase_id =  ?                                                                                                                 
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			   Select case when length(max(purchase_id)) = 19 then  
+				  	       substr(max(purchase_id), 1, 1) || '-' || substr(max(purchase_id), 2, 6) || '-' || substr(max(purchase_id), 8, 5) || '-' || substr(max(purchase_id), 13, 7) 
+				  	   else                                             
+				  	       max(purchase_id)                              
+				  	   end sfmtPurchaseId,                              
+				         max(substr(order_date,1,4) || '.' || substr(order_date,5,2) || '.' || substr(order_date,7,2) ) sOrderDate,  
+				         max(substr(order_date,1,4) || '년' || substr(order_date,5,2) || '월' || substr(order_date,7,2) || '일 ' || substr(order_date,9,2) || '시' || substr(order_date,11,2) || '분') sOrderDateTime, 
+				         max(access_name) sAccess_name,                              
+				         max(paymethod) gPayMethod,                                 
+				         sum(amount) amt,                                
+				         sum(nvl(invoice_amt,0)) invoice_amt,           
+				         sum(nvl(option_amt,0)) option_amt,            
+				         sum(nvl(rm_amount,0) + nvl(rm_pef_amount,0)) rm_amt, 
+				         sum(nvl(coupon_amount,0)) cp_amt,                      
+				  	   sum(nvl(sp_amount,0) + nvl(sp_pef_amount,0)) sp_amt, 
+				  	   sum(nvl(rm_point,0)) * 10 rm_point,                   
+				  	   count(distinct SHIP_TO_ID) qty,                        
+				  	   sum(nvl(amount_okcash,0)) amount_okcash               
+				 From txorder                                            
+				 WHERE purchase_id = ?                                                                                                                                      
+		]]>	 
+	</select>
+	
+	<select id="selectMbSpMasterCnt" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) cnt   
+			  FROM SP_MASTER          
+			  WHERE ACCESS_NAME = ?                                                                                                                 
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderinfoList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT  max(BILLTO_EMAIL) billto_email  
+			  from orderinfo              
+			  WHERE purchase_id =  ?                                                                                                             
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT decode(count(distinct c.name) , 1 ,                             
+		                          substrb(max(c.name),1,200),                   
+		                          substrb(max(c.name) || ' 외 ' || to_char(count(distinct c.name) - 1 ) || ' 명',1,200)) shipto_name, 
+			         '.' shipto_zipcode,                      
+			         '.' shipto_addr1,                        
+			         '.' shipto_addr2,                         
+				       decode(b.goods_idn,0,'[경조문구]'|| b.msg,b.goods_name) goods_name, 
+					     b.goods_idn,                                                        
+					     b.goods_code,                                                        
+					     TO_CHAR(max(nvl(b.price,0) - nvl(a.option_amt,0)  - NVL(invoice_amt,0) ),'99,999,990') sprice,  
+					     max(nvl(b.price,0)- nvl(a.option_amt,0) - NVL(a.invoice_amt,0) ) price,                           
+			         sum(nvl(b.quantity,0)) quantity,                                                                   
+			         to_char(max(nvl(b.price,0) - nvl(a.option_amt,0) - NVL(invoice_amt,0)) * sum(nvl(b.quantity,0)),'999,999,990') stotprice, 
+			         a.shop_id,                  
+			         substr(a.WISH_DATE,1,4) ||'/' || substr(a.WISH_DATE,5,2) || '/' || substr(a.WISH_DATE,7,2) cf__pra_dely,    
+			         substr(a.WISH_DATE,1,4) ||'/' || substr(a.WISH_DATE,5,2) || '/' || substr(a.WISH_DATE,7,2) || ' ' || substr(a.WISH_DATE,9,2) || '시' cf__pra_dely_f,    
+			         b.option_desc,               
+				       max(NVL( decode(b.goods_idn,0,0,a.RM_POINT * 10 ), 0)) rm_point, 
+					     to_char(max(NVL( decode(b.goods_idn,0,0,a.RM_POINT * 10 ), 0)) * sum(nvl(b.quantity,0)),'999,999,990') str_rm_point, 
+					     SUM(NVL(invoice_amt,0)) invoice_amt,                                    
+					     to_char(SUM(NVL(a.invoice_amt,0)),'999,999,990') str_invoice_amt,       
+					     MAX(NVL(option_amt,0)) option_amt,                                       
+					     to_char(MAX(NVL(a.option_amt,0)),'S999,999,990') str_option_amt,       
+					     to_char(SUM(NVL(a.amount,0)),'999,999,990') str_totprice,               
+					     to_char(SUM(NVL(a.amount_okcash,0)),'999,999,990') str_amount_okcash   
+				FROM DI_SHOPUSR.TXORDER a , DI_SHOPUSR.TXORDER_ITEM b, DI_SHOPUSR.CONTACT c                          
+				WHERE a.TXORDER_ID = b.TXORDER_ID                                 
+			      and a.SHIP_TO_ID = c.CONTACT_ID                                
+				  and a.PURCHASE_ID = ?                                             
+				  and b.goods_idn > 0                                              
+				group by decode(b.goods_idn,0,'[경조문구]'|| b.msg,b.goods_name), 
+					       b.goods_idn,                                               
+					       b.goods_code,			                                       
+			           a.shop_id,                                               
+			           a.WISH_DATE,                                               
+			           b.option_desc                                             
+			      ORDER BY a.shop_id, b.GOODS_IDN desc, b.OPTION_DESC                                                                                                               
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT c.name  shipto_name,                                     
+		             case when length(c.POSTAL_CODE) = 5 then c.POSTAL_CODE   
+		             when length(c.POSTAL_CODE) = 6 then substr(c.POSTAL_CODE,1,3)||'-'||substr(c.POSTAL_CODE,4)  
+		             else c.POSTAL_CODE  
+		             end shipto_zipcode, 
+			         c.address_1 shipto_addr1,                  
+			         c.address_2 shipto_addr2,                  
+				       decode(b.goods_idn,0,decode(GIFTICON_YN,'Y','[기프티콘 메세지]','[경조문구]') || b.msg,b.goods_name) goods_name, 
+					     b.goods_idn,                  
+					     b.goods_code,                 
+					     TO_CHAR(max(nvl(b.price,0) - nvl(a.option_amt,0)  - NVL(invoice_amt,0) ),'99,999,990') sprice, 
+					     max(nvl(b.price,0)- nvl(a.option_amt,0) - NVL(a.invoice_amt,0) ) price,                        
+			         sum(nvl(b.quantity,0)) quantity,                                                               
+			         to_char(max(nvl(b.price,0) - nvl(a.option_amt,0) - NVL(invoice_amt,0)) * sum(nvl(b.quantity,0)),'999,999,990') stotprice, 
+			         a.shop_id,                    
+			         substr(a.WISH_DATE,1,4) ||'/' || substr(a.WISH_DATE,5,2) || '/' || substr(a.WISH_DATE,7,2) cf__pra_dely,       
+			         substr(a.WISH_DATE,1,4) ||'/' || substr(a.WISH_DATE,5,2) || '/' || substr(a.WISH_DATE,7,2) || ' ' || substr(a.WISH_DATE,9,2) || '시'  cf__pra_dely_f,       
+			         b.option_desc,                  
+				       max(NVL( decode(b.goods_idn,0,0,a.RM_POINT * 10 ), 0)) rm_point, 
+					     to_char(max(NVL( decode(b.goods_idn,0,0,a.RM_POINT * 10 ), 0)) * sum(nvl(b.quantity,0)),'999,999,990') str_rm_point, 
+					     SUM(NVL(invoice_amt,0)) invoice_amt,      
+					     to_char(SUM(NVL(a.invoice_amt,0)),'999,999,990') str_invoice_amt, 
+					     MAX(NVL(option_amt,0)) option_amt,       
+					     to_char(MAX(NVL(a.option_amt,0)),'S999,999,990') str_option_amt,  
+					     to_char(SUM(NVL(a.amount,0)),'999,999,990') str_totprice,           
+					     to_char(SUM(NVL(a.amount_okcash,0)),'999,999,990') str_amount_okcash    
+				FROM DI_SHOPUSR.TXORDER a , DI_SHOPUSR.TXORDER_ITEM b, DI_SHOPUSR.CONTACT c                
+				WHERE a.TXORDER_ID = b.TXORDER_ID                         
+			    and a.SHIP_TO_ID = c.CONTACT_ID                           
+				  and a.PURCHASE_ID = ?                                   
+				group by c.name,                                          
+			           c.postal_code,                                   
+			           c.address_1,                                    
+			           c.address_2,                                     
+					   		 decode(b.goods_idn,0,decode(GIFTICON_YN,'Y','[기프티콘 메세지]','[경조문구]') || b.msg,b.goods_name), 
+					       b.goods_idn,                                     
+					       b.goods_code,			                             
+			           a.shop_id,                                        
+			           a.WISH_DATE,                                     
+			           b.option_desc                                   
+			  ORDER BY c.name, c.address_1, c.address_2, a.shop_id, b.GOODS_IDN desc, b.OPTION_DESC                                                                                                      
+		]]>	 
+	</select>
+	
+	<select id="selectOdCreditCardSetlInfoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT MAX(TERMINAL_ID) TERMINAL_ID ,NVL(MAX(CARD_INSTALLMENT),0) CARD_INSTALLMENT 
+			  FROM KICC_CREDIT     
+			 WHERE PURCHASE_ID = ?                                                                                                        
+		]]>	 
+	</select>
+	
+	<select id="selectOdOnlinePaymentList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT finance_name,account_no  
+			FROM online_payment	            
+			WHERE	PURCHASE_ID = ?                                                                                                                 
+		]]>	 
+	</select>
+	
+	<select id="selectAmtList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT     trim(TO_CHAR(NVL(?, 0),'99,999,990')) sRmPayAmt,       
+				   trim(TO_CHAR(NVL(?, 0),'99,999,990')) sRmPayAmtWon ,    
+				   trim(TO_CHAR(NVL(? - ? - ? - ? * 1 - ? , 0),'99,999,990')) sRealAmount, 
+				   trim(TO_CHAR(NVL(?, 0),'99,999,990')) sTotRmPoint ,    
+				   trim(TO_CHAR(NVL(?, 0),'99,999,990')) sCpAmtSum   ,    
+				   trim(TO_CHAR(NVL(?, 0),'99,999,990')) sSpPayAmt   ,    
+				   trim(TO_CHAR(NVL(? * 1, 0),'99,999,990')) sSpPayAmtWon, 
+				   trim(TO_CHAR(NVL(? , 0),'99,999,990')) sOkCashPayAmtWon 
+			FROM DUAL                                                                                                                
+		]]>	 
+	</select>
+	
+	<select id="selectMeminfoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT DECODE(member_type, 2, ?,                                                     
+			   DECODE(FOREIGN_YN, 'Y', substr( ?,1,1) || '**' || substr(?,4,length(?)),      
+			                           substr( ?,1,1) || '*' || substr(?,3,length(?)))) billto_name 
+			FROM MEMINFO              
+			where access_name = ?                                                                                                       
+		]]>	 
+	</select>
+	
+	<select id="selectBilltoNameList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT substr( ?,1,1) || '*' || substr(?,3,length(?))  billto_name 
+				FROM Dual 
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT sum(a.amount) sum_amount,                                      
+			        to_char(sum(a.amount)) str_sum_amt,                              
+			        to_char(sum(a.amount),'9,999,999,990') str_sum_amount,           
+						   ' ' str_us_sum_amount,                                            
+						   TO_CHAR(count(txorder_id), '9,999,999,990') str_sum_quantity,   
+				       max(a.access_name) access_name,                                 
+				       max(c.name) billto_name,                                        
+						   max(c.address_1) billto_addr1,                                  
+				       max(c.address_2) billto_addr2,                                   
+						   max(c.postal_code) billto_zipcode,                             
+						   nvl(max(c.email),' ') billto_email,                              
+						   max(c.telephone) billto_telno,                                  
+						   max(c.mobile)    billto_mobile                                   
+					FROM TXORDER a , CONTACT c                                             
+					WHERE a.BILL_TO_ID = c.CONTACT_ID                                    
+					  and a.PURCHASE_ID = ?                                              
+					  and a.cancel_state = 'N'                                                                                                                
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderinfoList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  SUM(PRICE * QUANTITY) sum_amount,                                 
+						TO_CHAR(SUM(PRICE * QUANTITY)) str_sum_amt,                          
+						TO_CHAR(SUM(PRICE * QUANTITY), '9,999,999,990') str_sum_amount,       
+						TO_CHAR(SUM(US_PRICE * QUANTITY),'99,999,990.00') str_us_sum_amount,   
+						TO_CHAR(SUM(DECODE(GOODS_IDN,0,0,QUANTITY)), '9,999,999,990') str_sum_quantity, 
+				   	    NVL(MAX(ACCESS_NAME),' ') access_name,         
+						MAX(BILLTO_NAME) billto_name,                  
+						MAX(BILLTO_ADDR1) billto_addr1,                
+						MAX(BILLTO_ADDR2 || ' ' || BILLTO_ADDR3) billto_addr2, 
+						MAX(case when length(BILLTO_ZIPCODE) = 5 then BILLTO_ZIPCODE 
+						         when length(BILLTO_ZIPCODE) = 6 then substr(BILLTO_ZIPCODE,1,3)||'-'||substr(BILLTO_ZIPCODE,4)  
+						         else BILLTO_ZIPCODE  
+						    end   
+						) BILLTO_ZIPCODE, 
+						NVL(MAX(BILLTO_EMAIL),' ') billto_email,      
+						MAX(BILLTO_TELNO) billto_telno,                
+						MAX(BILLTO_MOBILE)   billto_mobile              
+			FROM  ORDERINFO                        
+			WHERE	PURCHASE_ID = ?                                                                                                                          
+		]]>	 
+	</select>
+	
+	<update id="updateOdOrderinfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE ORDERINFO           
+			  SET MailSendGbn = '2',MailSendDate = to_char(sysdate,'yyyymmddhh24miss') 
+			  WHERE PURCHASE_ID   = ?  
+		]]>
+	</update>	
+</sqlMap>

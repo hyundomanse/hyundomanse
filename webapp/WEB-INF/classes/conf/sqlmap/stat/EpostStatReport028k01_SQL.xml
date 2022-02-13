@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatReport028k01">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="retrieveRealOrderList01_O" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+			        A.ORDER_ID ORDER_ID,
+                    DECODE(SUBSTR(F3.CTGRY_CD,1,1),'6','ePOST마트','2','꽃배달','3','인터넷PC',
+                               '5','참좋은소프트웨어','7','향수','우편주문판매') CODENAME1,
+                    '' CHUNGNAME,                     
+					NVL(B.SEND_PRC, 0) SHIP_PRICE,
+                    F.CTGRY_CD CODENAME2,
+                    '' CODENAME3,
+                    F3.CTGRY_NM CATEGORY_NAME,
+                    A.ORDER_DATE ORDER_DATE,
+                    B.ORDER_ITM_ID TXORDER_ID,
+                    B.ORDER_STUS_CD STATUS,
+                    B.SENDER_NM BILL_NAME,
+                    B.RECPTER_NM SHIP_NAME,
+                    B.GOODS_CD GOODS_CD,
+                    B.GOODS_NM GOODS_NM,
+                    D.BCNC_NM BIZ_NAME,
+                    E.PONM POSTOFFICE_NAME,
+                    NVL(B.REQ_CNT ,0) GOODS_QTY,
+                    NVL(B.EXTRA_GOODS_CNT ,0) DUM_QTY,
+                    NVL(B.DC_APPLY_PRC ,0) GOODS_PRICE,
+                    NVL((SELECT OOF.CONG_CARD_FEE FROM OD_ORDER_FEE OOF WHERE OOF.ORDER_ITM_ID = B.ORDER_ITM_ID),0)   MSG_PRICE,
+                    C.SETL_MEAN_CD PAYMETHOD ,
+                    C.SETL_STUS_CD PMT_STATE,
+                    B.ORDER_DTAIL_STUS_CD STATUS_DETAIL,
+                    NVL((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0)  AMOUNT,
+                    H.COMN_CD_NM PAYMETHOD_NAME,
+                    I.COMN_CD_NM PMT_STATE_NAME,
+                    J.COMN_CD_NM STATUS_NAME,
+                    B.WISH_SEND_DATE WISH_DATE 
+		      FROM PICMT0060 E,
+					OD_ORDER_MAST A ,
+					OD_ORDER_ITM B,
+					OD_ORDER_SETL C,
+					CO_SUPP_COMP_MAST D ,
+					GD_GOODS_MAST G,
+					( SELECT A.CTGRY_CD
+                  			,A.GOODS_CD
+              			FROM GD_MGT_GOODS_CTGRY A,GD_CTGRY_MAST B
+                       WHERE B.CTGRY_CD = A.CTGRY_CD(+)
+                         AND A.BASIC_CTGRY_YN = 'Y'
+                    GROUP BY A.CTGRY_CD ,A.GOODS_CD) F,			
+					GD_CTGRY_MAST F3,
+					CM_COMN_CD H,
+					CM_COMN_CD I,
+					CM_COMN_CD J
+		     WHERE  A.ORDER_ID = B.ORDER_ID(+)
+				AND A.ORDER_ID = C.ORDER_ID(+)
+				AND B.SUPP_COMP_ID = D.SUPP_COMP_ID(+)
+				AND A.RECEVPO_RGISTPOCD = E.REGIPOCD(+)
+				AND b.GOODS_CD =  G.GOODS_CD(+)
+				AND B.GOODS_CD = F.GOODS_CD(+)
+				AND F.CTGRY_CD = F3.CTGRY_CD(+)			
+		    ]]>
+		<isNotEmpty property="hFromDate" prepend="AND">
+			<![CDATA[	A.ORDER_DATE >= TO_DATE(#hFromDate#||'0000', 'YYYYMMDDHH24MI')]]>
+		</isNotEmpty>
+		<isNotEmpty property="hToDate" prepend="AND">
+			<![CDATA[	A.ORDER_DATE <= TO_DATE(#hToDate#||'2359','YYYYMMDDHH24MI')]]>
+		</isNotEmpty>
+		<isEqual property="cbSearch" compareValue="PRODUCTCODE" prepend="AND">
+			<isNotEmpty property="goods_code" prepend="AND">
+				<![CDATA[	B.GOODS_CD IN (#newData#)]]>
+			</isNotEmpty>
+		</isEqual>
+		<isNotEmpty property="cbList" >
+			<![CDATA[AND B.PAVLN_DIV_CD = #cbList#  ]]>
+		</isNotEmpty>
+		<isNotEmpty property="mcList" prepend="AND">
+			<isEqual property="mcList" compareValue="03">
+		  	<![CDATA[	A.ORDER_MDA_DIV_CD IN ('03','06')  ]]>
+		   </isEqual>
+		   <isNotEqual property="mcList" compareValue="03">
+		  	<![CDATA[	A.ORDER_MDA_DIV_CD = #mcList#  ]]>
+		   </isNotEqual>
+		</isNotEmpty>
+	  <![CDATA[ AND E.USEYN = 'Y'
+				AND NVL(C.USE_YN,'Y') = 'Y'
+				AND H.CD_GRP_ID(+) = 'SETL_MEAN_CD'
+                AND A.SETL_MEAN_CD = H.COMN_CD_ID(+)
+                AND I.CD_GRP_ID(+) = 'SETL_STUS_CD'
+                AND C.SETL_STUS_CD = I.COMN_CD_ID(+)
+                AND J.CD_GRP_ID(+) = 'ORDER_STUS_CD'
+                AND B.ORDER_STUS_CD = J.COMN_CD_ID(+)			
+				AND B.DC_APPLY_PRC(+) > 0
+				AND D.NATION_CD = 'KO'
+	]]>			
+				<isNotEmpty property="searchType">
+					<isEqual property="searchType" compareValue="01">
+				  	<![CDATA[	
+				AND B.ORDER_DTAIL_STUS_CD = 'O02'
+				AND B.GOODS_CANCEL_YN = 'N'
+				  	]]>
+				   </isEqual>
+				</isNotEmpty>
+	 <![CDATA[			
+				AND C.SETL_STUS_CD IN (#PMTSTATUS_APPROVAL#,#PMTSTATUS_PAY#)
+	 ]]>
+			 	<isEqual property="cbSearch" compareValue="ORDERNUM">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND A.ORDER_ID = #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="POSTOFFICE">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND E.PONM = #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="STORENAME">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND D.BCNC_NM LIKE #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="PRODUCTNAME">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND B.GOODS_NM LIKE #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="CAT">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND  F3.CTGRY_NM LIKE #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+<!-- 	 AND  A.RECEVPO_RGISTPOCD = DECODE(#sEcodeGubun#, 'ECODE', #ecode#, A.RECEVPO_RGISTPOCD)	 -->
+<!-- 	  AND B.ORDER_DTAIL_STUS_CD    = #STATUS_NORMAL# -->
+	  <isEqual property="cbSearch" compareValue="CAT" prepend="ORDER BY">
+	  	<![CDATA[
+	  		F3.CTGRY_CD, A.ORDER_DATE DESC, A.ORDER_ID DESC
+	  	]]>
+	  </isEqual>
+	  <isNotEqual property="cbSearch" compareValue="CAT" prepend="ORDER BY">
+	  	<![CDATA[
+	  		A.ORDER_DATE DESC, A.ORDER_ID DESC
+	  	]]>
+	  </isNotEqual>
+  </select>
+
+	<select id="retrieveRealOrderList01_C" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+                    A.ORDER_ID ORDER_ID,
+                    DECODE(SUBSTR(F3.CTGRY_CD,1,1),'6','ePOST마트','2','꽃배달','3','인터넷PC',
+                               '5','참좋은소프트웨어','7','향수','우편주문판매') CODENAME1,
+                    '' CHUNGNAME,                     
+					NVL(B.SEND_PRC, 0) SHIP_PRICE,
+                    F.CTGRY_CD CODENAME2,
+                    '' CODENAME3,                
+                    F3.CTGRY_NM CATEGORY_NAME,
+                    A.ORDER_DATE ORDER_DATE,
+                    B.ORDER_ITM_ID TXORDER_ID,
+                    B.ORDER_STUS_CD STATUS,
+                    B.SENDER_NM BILL_NAME,
+                    B.RECPTER_NM SHIP_NAME,
+                    B.GOODS_CD GOODS_CD,
+                    B.GOODS_NM GOODS_NM,
+                    D.BCNC_NM BIZ_NAME,
+                    E.PONM POSTOFFICE_NAME,
+                    NVL(B.REQ_CNT ,0) GOODS_QTY,
+                    NVL(B.EXTRA_GOODS_CNT ,0) DUM_QTY,
+                    NVL(B.DC_APPLY_PRC ,0) GOODS_PRICE,
+                    NVL((SELECT OOF.CONG_CARD_FEE FROM OD_ORDER_FEE OOF WHERE OOF.ORDER_ITM_ID = B.ORDER_ITM_ID),0)   MSG_PRICE,
+                    C.SETL_MEAN_CD PAYMETHOD ,
+                    C.SETL_STUS_CD PMT_STATE,
+                    B.ORDER_DTAIL_STUS_CD STATUS_DETAIL,
+                    NVL((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0)  AMOUNT,
+                    H.COMN_CD_NM PAYMETHOD_NAME,
+                    I.COMN_CD_NM PMT_STATE_NAME,
+                    J.COMN_CD_NM STATUS_NAME,
+                    B.WISH_SEND_DATE WISH_DATE 
+		       FROM PICMT0060 E,
+					OD_ORDER_MAST A ,
+					OD_ORDER_ITM B,
+					OD_ORDER_SETL C,
+					CO_SUPP_COMP_MAST D ,
+					GD_GOODS_MAST G,
+					( SELECT A.CTGRY_CD
+                  			,A.GOODS_CD
+              			FROM GD_MGT_GOODS_CTGRY A,GD_CTGRY_MAST B
+                       WHERE B.CTGRY_CD = A.CTGRY_CD(+)
+                         AND A.BASIC_CTGRY_YN = 'Y'
+                    GROUP BY A.CTGRY_CD ,A.GOODS_CD) F,
+                    GD_CTGRY_MAST F3,
+					CM_COMN_CD H,
+					CM_COMN_CD I,
+					CM_COMN_CD J
+		     WHERE  A.ORDER_ID = B.ORDER_ID(+)
+				AND A.ORDER_ID = C.ORDER_ID(+)
+				AND B.SUPP_COMP_ID = D.SUPP_COMP_ID(+)
+				AND A.RECEVPO_RGISTPOCD = E.REGIPOCD(+)
+				AND b.GOODS_CD =  G.GOODS_CD(+)
+				AND B.GOODS_CD = F.GOODS_CD(+)
+				AND F.CTGRY_CD = F3.CTGRY_CD(+)			
+		       ]]>
+		<isEqual property="cbSearch" compareValue="PRODUCTCODE" prepend="AND">
+			<isNotEmpty property="goods_code" prepend="AND">
+				<![CDATA[	B.GOODS_CD IN (#newData#)]]>
+			</isNotEmpty>
+		</isEqual>
+		
+		
+		<isNotEmpty property="hFromDate" >
+			<![CDATA[AND	A.APPR_DATE >= TO_DATE(#hFromDate#||'0000', 'YYYYMMDDHH24MI')]]>
+		</isNotEmpty>
+		<isNotEmpty property="hToDate" >
+			<![CDATA[AND	A.APPR_DATE <= TO_DATE(#hToDate#||'2359','YYYYMMDDHH24MI')]]>
+		</isNotEmpty>		
+		  
+		<isNotEmpty property="cbList" prepend="AND">
+			<![CDATA[	B.PAVLN_DIV_CD = #cbList#  ]]>
+		</isNotEmpty>
+		
+		<isNotEmpty property="mcList" prepend="AND">
+			<isEqual property="mcList" compareValue="03">
+		  	<![CDATA[	A.ORDER_MDA_DIV_CD IN ('03','06')  ]]>
+		   </isEqual>
+		   <isNotEqual property="mcList" compareValue="03">
+		  	<![CDATA[	A.ORDER_MDA_DIV_CD = #mcList#  ]]>
+		   </isNotEqual>
+		</isNotEmpty>
+		
+	  <![CDATA[ AND E.USEYN = 'Y'
+				AND NVL(C.USE_YN,'Y') = 'Y'
+				AND H.CD_GRP_ID(+) = 'SETL_MEAN_CD'
+                AND A.SETL_MEAN_CD = H.COMN_CD_ID(+)
+                AND I.CD_GRP_ID(+) = 'SETL_STUS_CD'
+                AND C.SETL_STUS_CD = I.COMN_CD_ID(+)
+                AND J.CD_GRP_ID(+) = 'ORDER_STUS_CD'
+                AND B.ORDER_STUS_CD = J.COMN_CD_ID(+)			
+				AND B.DC_APPLY_PRC(+) > 0
+				AND D.NATION_CD = 'KO'
+	]]>			
+				<isNotEmpty property="searchType">
+					<isEqual property="searchType" compareValue="01">
+				  	<![CDATA[	
+				AND B.ORDER_DTAIL_STUS_CD = 'O02'
+				AND B.GOODS_CANCEL_YN = 'N'
+				  	]]>
+				   </isEqual>
+				</isNotEmpty>
+	<![CDATA[		
+				AND C.SETL_STUS_CD IN (#PMTSTATUS_APPROVAL#,#PMTSTATUS_PAY#)
+	]]>			
+				<isEqual property="cbSearch" compareValue="ORDERNUM">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND A.ORDER_ID = #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="POSTOFFICE">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND E.PONM = #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="STORENAME">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND D.BCNC_NM LIKE #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="PRODUCTNAME">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND B.GOODS_NM LIKE #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+				<isEqual property="cbSearch" compareValue="CAT">
+					<isNotEmpty property="sTxWord">
+						<![CDATA[ AND  F3.CTGRY_NM LIKE #sTxWord#	]]>
+					</isNotEmpty>
+				</isEqual>
+<!-- 	  AND  A.RECEVPO_RGISTPOCD = DECODE(#sEcodeGubun#, 'ECODE', #ecode#, A.RECEVPO_RGISTPOCD)	 -->
+<!-- 	  AND B.ORDER_DTAIL_STUS_CD    = #STATUS_NORMAL# -->
+	  <isEqual property="cbSearch" compareValue="CAT" prepend="ORDER BY">
+	  	<![CDATA[
+	  		F3.CTGRY_CD, A.ORDER_DATE DESC, A.ORDER_ID DESC
+	  	]]>
+	  </isEqual>
+	  <isNotEqual property="cbSearch" compareValue="CAT" prepend="ORDER BY">
+	  	<![CDATA[
+	  		A.ORDER_DATE DESC, A.ORDER_ID DESC
+	  	]]>
+	  </isNotEqual>
+  </select>
+  
+  
+  
+
+  <!--
+    처리내용   : 실매출 현황 조회
+  -->
+  <select id="retrieveRealOrderList02" parameterClass ="java.util.HashMap" resultClass="commMap">
+	 	<![CDATA[
+	    	SELECT  
+		        N.NATION_NM_KO NATION_NM_KO,
+	            DECODE(SUBSTR(F3.CTGRY_CD,1,1),'6','ePOST마트','2','꽃배달','3','인터넷PC',
+	                       '5','참좋은소프트웨어','7','향수','우편주문판매') CODENAME1,
+	            '' CHUNGNAME,
+	            NVL(B.SEND_PRC, 0) SHIP_PRICE,
+	            F1.CTGRY_NM CODENAME2,
+	            F2.CTGRY_NM CODENAME3,
+	            F3.CTGRY_NM CATEGORY_NAME,
+	            A.ORDER_DATE ORDER_DATE,
+	            B.ORDER_ITM_ID TXORDER_ID,
+	            B.ORDER_STUS_CD STATUS,
+	            B.SENDER_NM BILL_NAME,
+	            B.RECPTER_NM SHIP_NAME,
+	            B.GOODS_CD GOODS_CD,
+	            B.GOODS_NM GOODS_NM,
+	            D.BCNC_NM BIZ_NAME,
+	            '' POSTOFFICE_NAME,
+	            NVL(B.REQ_CNT ,0) GOODS_QTY,
+	            NVL(B.EXTRA_GOODS_CNT ,0) DUM_QTY,
+	            NVL(B.DC_APPLY_PRC ,0) GOODS_PRICE,
+	            NVL((SELECT OOF.CONG_CARD_FEE FROM OD_ORDER_FEE OOF WHERE OOF.ORDER_ITM_ID = B.ORDER_ITM_ID),0)   MSG_PRICE,
+	            C.SETL_MEAN_CD PAYMETHOD ,
+	            C.SETL_STUS_CD PMT_STATE,
+	            B.ORDER_DTAIL_STUS_CD STATUS_DETAIL,
+	            NVL((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0)  AMOUNT,
+	            H.COMN_CD_NM PAYMETHOD_NAME,
+	            I.COMN_CD_NM PMT_STATE_NAME,
+	            J.COMN_CD_NM STATUS_NAME,
+	            B.WISH_SEND_DATE
+	      FROM  OD_ORDER_MAST A,
+	            OD_ORDER_ITM B,
+	            OD_ORDER_SETL C,
+	            CO_SUPP_COMP_MAST D,
+	            CM_OVSEA_SEND_NATION_CD N,
+	            GD_CTGRY_MAST F1,
+	            GD_CTGRY_MAST F2,
+	            GD_CTGRY_MAST F3,
+	            GD_GOODS_MAST G,
+	            GD_MGT_GOODS_CTGRY F,
+	            CM_COMN_CD H,
+	            CM_COMN_CD I,
+				CM_COMN_CD J
+	    WHERE  A.ORDER_ID = B.ORDER_ID(+)
+	           AND A.ORDER_ID = C.ORDER_ID(+)
+	           AND B.SUPP_COMP_ID = D.SUPP_COMP_ID(+)
+	           AND b.GOODS_CD =  G.GOODS_CD(+)
+	           AND B.GOODS_CD = F.GOODS_CD(+)
+	           AND F.CTGRY_CD = F3.CTGRY_CD(+)
+	           AND F2.CTGRY_CD(+) = SUBSTR(F.CTGRY_CD,1, LENGTH(F.CTGRY_CD)-2)||'00'
+	           AND F1.CTGRY_CD(+) = SUBSTR(F.CTGRY_CD,1, LENGTH(F.CTGRY_CD)-4)||'0000'
+	           AND H.CD_GRP_ID(+) = 'SETL_MEAN_CD'
+               AND A.SETL_MEAN_CD = H.COMN_CD_ID(+)
+               AND I.CD_GRP_ID(+) = 'SETL_STUS_CD'
+               AND C.SETL_STUS_CD = I.COMN_CD_ID(+)
+               AND J.CD_GRP_ID(+) = 'ORDER_STUS_CD'
+               AND B.ORDER_STUS_CD = J.COMN_CD_ID(+)
+       ]]>
+	    <isEqual property="rdTermSearchType" compareValue="ORDER_DATE">
+	    	<isNotEmpty property="hFromDate" prepend="AND">
+				<![CDATA[ A.ORDER_DATE >= DECODE(#rdTermType#, 'PART', TO_DATE(#hFromDate#||'0000', 'YYYYMMDDHH24MI'), A.ORDER_DATE) ]]>
+			</isNotEmpty>
+		</isEqual>
+		
+		
+		<isNotEqual property="rdTermSearchType" compareValue="ORDER_DATE">
+			<isNotEmpty property="hFromDate">
+				<![CDATA[AND A.APPR_DATE >= DECODE(#rdTermType#, 'PART', TO_DATE(#hFromDate#||'0000', 'YYYYMMDDHH24MI'), A.APPR_DATE) ]]>
+			</isNotEmpty>
+		</isNotEqual>
+		
+		
+	    <isEqual property="rdTermSearchType" compareValue="ORDER_DATE">
+	    	<isNotEmpty property="hToDate" >
+				<![CDATA[AND A.ORDER_DATE <= DECODE(#rdTermType#, 'PART', TO_DATE(#hToDate#||'2359','YYYYMMDDHH24MI'), A.ORDER_DATE) ]]>
+			</isNotEmpty>
+		</isEqual>
+		
+		
+		<isNotEqual property="rdTermSearchType" compareValue="ORDER_DATE">
+			<isNotEmpty property="hToDate" prepend="AND">
+				<![CDATA[ A.APPR_DATE <= DECODE(#rdTermType#, 'PART', TO_DATE(#hToDate#||'2359','YYYYMMDDHH24MI'), A.APPR_DATE) ]]>
+			</isNotEmpty>
+		</isNotEqual>
+		 
+	    <isNotEmpty property="cbList" prepend="AND">
+			<![CDATA[	B.PAVLN_DIV_CD = #cbList#  ]]>
+		</isNotEmpty>
+		
+		
+		<isNotEmpty property="mcList" prepend="AND">
+			<isEqual property="mcList" compareValue="03">
+		  	<![CDATA[	A.ORDER_MDA_DIV_CD IN ('03','06')  ]]>
+		   </isEqual>
+		   <isNotEqual property="mcList" compareValue="03">
+		  	<![CDATA[	A.ORDER_MDA_DIV_CD = #mcList#  ]]>
+		   </isNotEqual>
+		</isNotEmpty>
+		<isNotEmpty property="sTxWord" prepend="AND">
+			<![CDATA[N.NATION_NM_KO LIKE '%'||#sTxWord#||'%' ]]>
+		</isNotEmpty>
+	    <![CDATA[
+           AND  B.DC_APPLY_PRC > 0
+    ]]>			
+				<isNotEmpty property="searchType">
+					<isEqual property="searchType" compareValue="01">
+				  	<![CDATA[	
+				AND B.ORDER_DTAIL_STUS_CD = 'O02'
+				AND B.GOODS_CANCEL_YN = 'N'
+				  	]]>
+				   </isEqual>
+				</isNotEmpty>
+	<![CDATA[		
+           AND  C.SETL_STUS_CD IN (#PMTSTATUS_APPROVAL#, #PMTSTATUS_PAY#)
+           AND  NVL(C.USE_YN,'Y') = 'Y'
+           AND  A.SETL_MEAN_CD = DECODE(A.SETL_MEAN_CD, '01', '01', '02')
+ 	 	]]>
+  </select>
+	
+</sqlMap>

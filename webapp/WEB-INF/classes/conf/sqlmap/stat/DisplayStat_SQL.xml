@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.DisplayStat">
+
+	<sql id="plnbef_list">
+		SELECT A.PLNBEF_ID
+			 , B.PLNBEF_NM
+			 , A.ORDER_ID
+			 , A.GOODS_CD
+			 , A.GOODS_NM
+			 , A.REQ_CNT
+			 , A.SUPP_COMP_ID
+			 , A.SUPP_COMP_NM
+			 , TO_CHAR(C.ORDER_DATE, 'YYYY-MM-DD') AS ORDER_DATE
+			 , TO_CHAR(A.SEND_DONE_DATE, 'YYYY-MM-DD') AS SEND_DONE_DATE
+			 , A.ORDER_STUS_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_STUS_CD' AND COMN_CD_ID = C.ORDER_STUS_CD) AS ORDER_STUS_NM
+			 , D.SETL_REQ_AMT
+			 , D.SETL_MEAN_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SETL_MEAN_CD' AND COMN_CD_ID = D.SETL_MEAN_CD) AS SETL_MEAN_NM
+			 , C.ORDER_MDA_DIV_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_MDA_DIV_CD' AND COMN_CD_ID = C.ORDER_MDA_DIV_CD) AS ORDER_MDA_DIV_NM
+			 , TO_CHAR(B.PLNBEF_STRT_DATE, 'YYYY-MM-DD') AS PLNBEF_STRT_DATE
+			 , TO_CHAR(B.PLNBEF_END_DATE, 'YYYY-MM-DD') AS PLNBEF_END_DATE
+		  FROM EV_PLNBEF_MAST B, OD_ORDER_ITM A, OD_ORDER_MAST C, OD_ORDER_SETL D
+		 WHERE B.PLNBEF_ID = A.PLNBEF_ID
+		   AND A.ORDER_ID = C.ORDER_ID
+		   AND A.ORDER_ID = D.ORDER_ID
+		   AND D.SETL_SEQ = 1
+		   AND A.GOODS_CANCEL_YN = 'N'
+	   <isNotEmpty property="search_order_stus_cd" prepend="AND">
+			A.ORDER_STUS_CD = #search_order_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_setl_mean_cd" prepend="AND">
+			D.SETL_MEAN_CD = #search_setl_mean_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_order_mda_div_cd" prepend="AND">
+			C.ORDER_MDA_DIV_CD = #search_order_mda_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_goods_cd" prepend="AND">
+			A.GOODS_CD = #search_goods_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_plnbef_id" prepend="AND">
+			A.PLNBEF_ID = #search_plnbef_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_supp_comp_id" prepend="AND">
+			A.SUPP_COMP_ID = #search_supp_comp_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+            C.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd#) AND TO_DATE(#search_end_ymd#)
+	   </isNotEmpty>
+	</sql>
+    <!-- 2016.11.25수정_기획전통계(search_strt_ymd)  A.REG_DATE BETWEEN TO_DATE(#search_strt_ymd#) AND TO_DATE(#search_end_ymd#) -->
+
+	<select id="selectPlnbefStatList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY ORDER_ID DESC ) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="plnbef_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectPlnbefStatCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="plnbef_list" />)
+	</select>
+
+	<sql id="event_list">
+		SELECT A.EVENT_ID
+			 , B.EVENT_NM
+			 , A.ORDER_ID
+			 , A.GOODS_CD
+			 , A.GOODS_NM
+			 , A.REQ_CNT
+			 , A.SUPP_COMP_ID
+			 , A.SUPP_COMP_NM
+			 , TO_CHAR(C.ORDER_DATE, 'YYYY-MM-DD') AS ORDER_DATE
+			 , TO_CHAR(A.SEND_DONE_DATE, 'YYYY-MM-DD') AS SEND_DONE_DATE
+			 , A.ORDER_STUS_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_STUS_CD' AND COMN_CD_ID = C.ORDER_STUS_CD) AS ORDER_STUS_NM
+			 , D.SETL_REQ_AMT
+			 , D.SETL_MEAN_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SETL_MEAN_CD' AND COMN_CD_ID = D.SETL_MEAN_CD) AS SETL_MEAN_NM
+			 , C.ORDER_MDA_DIV_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_MDA_DIV_CD' AND COMN_CD_ID = C.ORDER_MDA_DIV_CD) AS ORDER_MDA_DIV_NM
+			 , TO_CHAR(B.EVENT_STRT_DATE, 'YYYY-MM-DD') AS EVENT_STRT_DATE
+			 , TO_CHAR(B.EVENT_END_DATE, 'YYYY-MM-DD') AS EVENT_END_DATE
+		  FROM EV_EVENT_MAST B, OD_ORDER_ITM A, OD_ORDER_MAST C, OD_ORDER_SETL D
+		 WHERE B.EVENT_ID = A.EVENT_ID
+		   AND A.ORDER_ID = C.ORDER_ID
+		   AND A.ORDER_ID = D.ORDER_ID
+		   AND D.SETL_SEQ = 1
+		   AND A.GOODS_CANCEL_YN = 'N'
+	   <isNotEmpty property="search_order_stus_cd" prepend="AND">
+			A.ORDER_STUS_CD = #search_order_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_setl_mean_cd" prepend="AND">
+			D.SETL_MEAN_CD = #search_setl_mean_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_order_mda_div_cd" prepend="AND">
+			C.ORDER_MDA_DIV_CD = #search_order_mda_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_goods_cd" prepend="AND">
+			A.GOODS_CD = #search_goods_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_event_id" prepend="AND">
+			A.EVENT_ID = #search_event_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_supp_comp_id" prepend="AND">
+			A.SUPP_COMP_ID = #search_supp_comp_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			A.REG_DATE BETWEEN TO_DATE(#search_strt_ymd#) AND TO_DATE(#search_end_ymd#)
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectEventStatList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY ORDER_ID DESC ) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="event_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectEventStatCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="event_list" />)
+	</select>
+	
+</sqlMap>

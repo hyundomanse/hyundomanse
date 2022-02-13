@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.UpdateImagineTelNoToUnused">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	
+	<update id="updateImagineTelNoMgmt" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE imagine_tel_no_mgmt 				
+			SET use_yn = 'N' 								
+			WHERE imagine_tel_no IN 						
+									( 												
+										SELECT X.imagine_tel_no				
+										FROM imagine_tel_no_info X		
+										WHERE X.init_time LIKE TO_CHAR(SYSDATE-10, 'YYYYMMDD') || LPAD(?,2,'0') || '%'
+										AND X.status IN ('C','U') 		
+									) 												                                                                                                                                                                                                      
+		]]>
+	</update>	
+	 	
+	<update id="updateImagineTelNoInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE imagine_tel_no_info  X				
+			SET X.status='D'								
+			  , X.deal_state='N'						    
+			WHERE X.init_time LIKE TO_CHAR(SYSDATE-10, 'YYYYMMDD') || LPAD(?,2,'0') || '%'
+			AND X.status IN ('C','U') 					                                                                                                                                                                                            
+		]]>
+	</update>	
+	 	
+</sqlMap>

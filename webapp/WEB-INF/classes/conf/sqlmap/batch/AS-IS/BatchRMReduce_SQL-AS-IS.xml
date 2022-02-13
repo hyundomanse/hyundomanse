@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchRMReduce">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') AS startdt,
+				TO_CHAR(sysdate-1, 'YYYYMMDD') AS startdt_key,
+				to_char(sysdate,'yyyymmdd') AS startdt_stat
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_update_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				access_name as sAccess_Name,
+				reg_date as sReg_date,
+				sum(accu_point) as iAccu_Point
+			FROM RM_HISTORY 
+			WHERE reg_date like #startdtkey# || '%'
+			  AND TYPE_CD = 'A3'
+			  AND STATUS = '1'
+			  AND POINT_APP_EX_YN is null
+			group by access_name,reg_date
+			order by reg_date desc
+		]]>	 
+	</select>
+	
+	<select id="f_update_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				reg_date as sReg_date11,
+				seq as i_seq,
+				accu_point as iAccu_Point11
+			FROM RM_HISTORY 
+			WHERE access_name = #sAccessName#
+			  and reg_date <= #sRegdate#
+			  and status = '1'
+			  and type_cd <> 'A3'
+			  and nvl(POINT_APP_EX_YN,'Y') = 'Y'
+			order by reg_date desc, create_date asc, seq desc
+		]]>	 
+	</select>
+	
+	<update id="update_RM_HISTORY_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_HISTORY 
+			SET POINT_APP_EX_YN = 'N'
+			WHERE ACCESS_NAME = #sAccessName#
+			  and SEQ         = #iseq#
+		]]>	 
+	</update>
+	
+	<update id="update_RM_HISTORY_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_HISTORY 
+			SET POINT_APP_EX_YN = 'N'
+			WHERE ACCESS_NAME = #sAccessName#
+			  and SEQ         = #iseq#
+		]]>	 
+	</update>
+	
+	<update id="update_RM_HISTORY_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_HISTORY 
+			SET POINT_APP_EX_YN = 'N'
+			WHERE ACCESS_NAME = #sAccessName#
+			  and SEQ         = #iseq#
+		]]>	 
+	</update>
+	
+	<update id="update_RM_HISTORY_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_HISTORY 
+			SET POINT_APP_EX_YN = 'Y'
+			WHERE ACCESS_NAME = #sAccessName#
+			  and reg_date like #sRegdate# || '%'
+			  and TYPE_CD = 'A3'
+			  AND STATUS = '1'
+		]]>	 
+	</update>
+	
+	<select id="f_rm_history_insert_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ index( A IDX_RM_HISTORY_03 )*/  
+			    A.ACCESS_NAME as sAccess_Name,
+			    NVL(SUM(A.ACCU_POINT),0) as iAccu_Point,
+			    NVL(MAX(POINT_APP_EX_YN),'Y') as sPointAppExYn
+			FROM RM_HISTORY A
+			WHERE A.VALID_DATE  = #startdtkey#
+			  AND A.ACCU_POINT > 0
+			  AND A.STATUS = '1'
+			  AND NVL(A.POINT_APP_YN,'N') = 'N' 
+			GROUP BY A.ACCESS_NAME
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_insert_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(CUR_POINT,0)  as iCur_Point
+				 , NVL(POST_POINT,0) as iTot_Post_Point  
+            FROM RM_MASTER
+            WHERE ACCESS_NAME  = #sAccessName#
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_insert_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(SUM(ACCU_POINT),0) as iTot_Accu_Point
+                 , NVL(MIN(REG_DATE),'99991231010101') as sMinRegDate
+         	FROM RM_HISTORY
+         	WHERE ACCESS_NAME  = #sAccessName#
+         	      AND VALID_DATE  = #startdtkey#
+         	      AND TYPE_CD  IN ('A1','A3','A5')
+         	      AND ACCU_POINT > 0
+         	      AND STATUS = '1'
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_insert_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(sum(use_point),0) as iTot_Use_Point0
+       		FROM RM_HISTORY
+       		WHERE ACCESS_NAME = #sAccessName# 
+       		      AND  type_cd in ('U1','U3','U5')
+       		      AND  use_point > 0
+       		      AND REG_DATE >=  #sMinRegDate#  
+       		      AND  status = '2'
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_insert_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(sum(use_point),0) as iTot_Use_Point1
+       		FROM RM_HISTORY
+       		WHERE ACCESS_NAME = #sAccessName# 
+       		      AND REG_DATE > #startdtkey#
+       		      AND  type_cd = 'U4'
+       		      AND  use_point > 0
+       		      AND  status = '2'
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_insert_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(SUM(ACCU_POINT),0) as iTotReAccuPoint 
+	                     , NVL(SUM(DECODE(JOBGBN,'02', NVL(ACCU_POINT,0) ,0)),0)  as iReEscrowAccuPoint 
+	        FROM RM_HISTORY
+	        WHERE ACCESS_NAME = #sAccessName#
+	              AND VALID_DATE =#startdtkey#
+	              AND TYPE_CD = 'A1' 
+	              AND POST_GBN = 'P'
+	              AND CASE_CONT = '우체국계좌 적립포인트'  
+	              AND REG_DATE >= '20120621'
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_insert_07" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(SUM(TOT_USE_POINT),0) as iTotUsePoint 
+                         , NVL(SUM(ESCROW_POST_USE_POINT),0) as iEscrowPostUsePoint
+            FROM (
+             SELECT  '1'
+                   ,NVL(sum(POST_USE_POINT),0) TOT_USE_POINT 
+                   ,NVL(SUM(DECODE(JOBGBN,'02', NVL(POST_USE_POINT,0) ,0)),0)  ESCROW_POST_USE_POINT 
+             FROM RM_HISTORY
+             WHERE ACCESS_NAME  = #sAccessName#
+                   AND TYPE_CD = 'U1' 
+                   AND STATUS = '2'
+                   AND REG_DATE >= '20120621'  
+                   AND REG_DATE >= to_char(add_months(sysdate,-24),'yyyymmdd') || '010101'
+             UNION ALL
+             SELECT  '2'
+                   ,NVL(sum(USE_POINT),0) TOT_USE_POINT 
+                   ,NVL(SUM(DECODE(JOBGBN,'02', NVL(USE_POINT,0) ,0)),0)  ESCROW_POST_USE_POINT 
+             FROM RM_HISTORY
+             WHERE ACCESS_NAME = #sAccessName#
+                   AND TYPE_CD = 'U3' 
+                   AND STATUS = '2'
+                   AND CASE_CONT ='우체국계좌 적립포인트 회수'
+                   AND REG_DATE >= '20120621'
+                   AND REG_DATE >= to_char(add_months(sysdate,-24),'yyyymmdd') || '010101'
+             UNION ALL
+             SELECT  '3'
+                   ,NVL(SUM(NVL(GIVE_USE_POINT,0) + NVL(GIVE_USE_SHOP_POINT,0) ),0) TOT_USE_POINT 
+                   ,NVL(SUM(NVL(GIVE_USE_POINT,0)),0)  ESCROW_POST_USE_POINT 
+             FROM RM_HISTORY
+             WHERE ACCESS_NAME = #sAccessName#   
+                   AND TYPE_CD = 'U4'
+                   AND STATUS = '2'
+                   AND CASE_CONT ='미사용분 자동소멸'
+                   AND REG_DATE >= '20120621'
+                   AND REG_DATE >= to_char(sysdate,'yyyymmdd') || '010101'
+           )
+		]]>	 
+	</select>
+	
+	<select id="f_rm_history_insert_08" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 as i_seq
+ 			FROM RM_HISTORY 
+ 			WHERE ACCESS_NAME = #sAccessName#   
+		]]>	 
+	</select>
+	
+	<insert id="insert_RM_HISTORY_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO RM_HISTORY (
+													ACCESS_NAME, 
+													SEQ, 
+													RM_TYPE, 
+													PRE_ACCU_POINT,
+													ACCU_POINT,
+													USE_POINT,
+													CUR_POINT, 
+													CASE_CONT, 
+													STATUS, 
+													TYPE_CD, 
+													REG_DATE,
+													CREATE_DATE,
+													GIVE_USE_POINT,
+													GIVE_USE_SHOP_POINT,
+													JUNG_DATE,
+													POST_GBN
+												)
+			VALUES(
+					#sAccessName#,
+					#iseq#,
+					'U',
+					0,
+					0,  
+					#iOldNouseMasterPoint#, 
+					#iCurPoint# - #iOldNouseMasterPoint#,
+					'미사용분 자동소멸', 
+					'2',
+					'U4', 
+					TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+					TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+					#iGiveUsePoint#,
+					#iGiveUseShopPoint#,
+					TO_CHAR(SYSDATE, 'YYYYMMDD'),
+					#sPostGbn#
+				)
+		]]>	 
+	</insert>
+	
+	<update id="update_RM_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_MASTER 
+       		SET CUR_POINT               = NVL(CUR_POINT,0)   - #iOldNouseMasterPoint#,
+       		   	POST_POINT              = NVL(POST_POINT,0)  - #iPostPoint# 
+       		WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</update>
+	
+	<update id="update_RM_HISTORY_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_HISTORY 
+			SET POINT_APP_YN = 'Y'
+			WHERE ACCESS_NAME = #sAccessName#
+			  AND VALID_DATE  = #startdtkey#
+		]]>	 
+	</update>
+	
+	<select id="f_rm_stat_insert_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				sum(tot_no_use_inwon) as i_tot_no_use_inwon,
+				sum(tot_no_use_point) as i_tot_no_use_point,
+				sum(accu_point) as i_accu_point,
+				sum(cancel_point) as i_cancel_point,
+				sum(use_point) as i_use_point
+			FROM (			  
+				SELECT nvl(count(distinct access_name),0) tot_no_use_inwon , sum(nvl(use_point,0))  tot_no_use_point ,0 accu_point , 0 cancel_point , 0 use_point
+				FROM RM_HISTORY
+				WHERE REG_DATE like #startdtprekey# || '%' 
+				  AND TYPE_CD  = 'U4'
+			    union all
+				SELECT 0,0,nvl(sum(accu_point),0) accu_point ,0,0
+				FROM RM_HISTORY
+				WHERE REG_DATE like #startdtprekey# || '%' 
+				  AND TYPE_CD  in ( 'A1','A3') 
+				  AND STATUS   = '1'
+				union all  
+				SELECT 0,0,0,nvl(sum(use_point),0)  cancel_point ,0
+				FROM RM_HISTORY
+				WHERE REG_DATE like #startdtprekey# || '%' 
+				  AND TYPE_CD  = 'U3' 
+				  AND STATUS   = '2'
+			    union all	  
+				SELECT 0,0,0,0,nvl(sum(use_point),0) use_point
+				FROM RM_HISTORY
+				WHERE REG_DATE like #startdtprekey# || '%' 
+				  AND TYPE_CD  in ('U1','U5') 
+				  AND STATUS   = '2'
+			)
+		]]>	 
+	</select>
+	
+	<delete id="delete_RM_STAT_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM RM_STAT
+			WHERE DAYS = #startdtkey#
+		]]>	 
+	</delete>
+	
+	<select id="f_rm_stat_insert_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT sum(nvl(cur_point,0)) as i_tot_cur_point
+			FROM rm_master
+		]]>	 
+	</select>
+	
+	<insert id="insert_RM_STAT_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO RM_STAT (
+									DAYS,
+									TOT_NO_USE_POINT,
+									ACCU_POINT,
+									CANCEL_POINT,
+									USE_POINT,
+									TOT_NO_USE_INWON,
+									TOT_CUR_POINT
+								)
+			SELECT 
+						#startdtkey#,
+						#itotnousepoint#,
+						#iaccupoint#,
+						#icancelpoint#,
+						#iusepoint#,
+						#itotnouseinwon#,
+						#itotcurpoint#
+			FROM DUAL
+		]]>	 
+	</insert>
+	
+</sqlMap>

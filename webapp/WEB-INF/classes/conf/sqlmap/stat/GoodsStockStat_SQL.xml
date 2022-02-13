@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.GoodsStockStat">
+
+	<sql id="suppStock_list">
+		SELECT A.SUPPLIER_CODE AS SUPP_COMP_ID
+			 , A.GOODS_CD_YMD
+		     , A.SUPP_COMP_NM SUPP_COMP_NM
+		     , A.GOODS_CD
+		     , A.GOODS_NAME GOODS_NM
+		     , A.PRICE_COST SELL_PRC
+		     , (NVL(A.TOT_SUM_STOCK, 0)) TOT_SUM_STOCK
+		     , (NVL(A.TOT_STOCK, 0)) TOT_STOCK
+		     , (NVL(A.SUPP_CNT_PER_DAY, 0)) SUPPCNTPERDAY
+		     , A.ADD_STOCK ADD_STOCK
+		     , B.COMN_CD_NM AS GOODS_STUS_NM
+		  FROM GD_GOODS_STOCK_HISTORY A, CM_COMN_CD B
+		 WHERE A.STATUS = B.COMN_CD_ID
+		   AND B.CD_GRP_ID = 'GOODS_STUS_CD'
+	   <isNotEmpty property="search_ymd" prepend="AND">
+	   		A.GOODS_CD_YMD = REPLACE(#search_ymd#,'-')
+	   </isNotEmpty>
+	   <isNotEmpty property="search_supp_comp_id" prepend="AND">
+	   		A.SUPPLIER_CODE = #search_supp_comp_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_goods_text">
+			<isNotEmpty property="search_goods_type" prepend="AND">
+				<isEqual property="search_goods_type" compareValue="goods_cd">
+					A.GOODS_CD LIKE #search_goods_text#||'%'
+				</isEqual>
+				<isEqual property="search_goods_type" compareValue="goods_nm">
+					A.GOODS_NM LIKE '%'||#search_goods_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_goods_type" prepend="AND">
+				(A.GOODS_CD LIKE #search_goods_text#||'%' OR A.GOODS_NM LIKE '%'||#search_goods_text#||'%')
+			</isEmpty>
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectGoodsStockList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY GOODS_CD DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT A.*
+							FROM(
+							<include refid="suppStock_list" />
+							)A
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectGoodsStockCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (
+			<include refid="suppStock_list" />
+		  )
+	</select>
+
+	<!-- 튜닝전 -->
+	<sql id="stockHist_list_old">
+        SELECT A.SUPP_COMP_ID
+             , B.BCNC_NM
+             , A.GOODS_CD
+             , A.GOODS_NM
+             , A.GOODS_CHG_DATE
+             , TO_DATE(SUBSTR(A.GOODS_CHG_DATE, 0, 14), 'YYYY-MM-DD HH24:MI SS') AS CHG_DATE
+             , C.REGIPOCD RCODE
+             , C.PONM POST_NAME
+             , A.STOCK_VOLM
+             , A.DD_SUPP_PSSB_VOLM
+             , A.TOT_ACCUM_STOCK_VOLM
+             , A.ADD_STOCK_VOLM
+             , D.COMN_CD_NM AS GOODS_STUS_NM
+        FROM GD_MGT_GOODS_HISTOR A, CO_SUPP_COMP_MAST B, PICMT0060 C, CM_COMN_CD D
+        WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+          AND B.SUPPO_RGIST_POCD = C.REGIPOCD
+          AND A.GOODS_STUS_CD = D.COMN_CD_ID
+          AND D.CD_GRP_ID = 'GOODS_STUS_CD'
+          AND C.USEYN='Y'
+          AND C.DSCDPOYN = 'N'
+	   <isNotEmpty property="search_strt_ymd">
+	   		<isNotEmpty property="search_end_ymd" prepend="AND">
+	   			A.GOODS_CHG_DATE BETWEEN REPLACE(#search_strt_ymd#,'-')||'000000000000' AND REPLACE(#search_end_ymd#,'-')||'999999999999'
+   			</isNotEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_supp_comp_id" prepend="AND">
+	   		A.SUPP_COMP_ID = #search_supp_comp_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_goods_text">
+			<isNotEmpty property="search_goods_type" prepend="AND">
+				<isEqual property="search_goods_type" compareValue="goods_cd">
+					A.GOODS_CD LIKE #search_goods_text#||'%'
+				</isEqual>
+				<isEqual property="search_goods_type" compareValue="goods_nm">
+					A.GOODS_NM LIKE '%'||#search_goods_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_goods_type" prepend="AND">
+				(A.GOODS_CD LIKE #search_goods_text#||'%' OR A.GOODS_NM LIKE '%'||#search_goods_text#||'%')
+			</isEmpty>
+	   </isNotEmpty>
+	</sql>
+
+	<!-- 튜닝후 -->
+	<sql id="stockHist_list">
+        SELECT /*+ ORDERED USE_NL(A B C D) INDEX(C IX_PICMT0060_06 */  A.SUPP_COMP_ID
+             , B.BCNC_NM
+             , A.GOODS_CD
+             , A.GOODS_NM
+             , A.GOODS_CHG_DATE
+             , TO_DATE(SUBSTR(A.GOODS_CHG_DATE, 0, 14), 'YYYY-MM-DD HH24:MI SS') AS CHG_DATE
+             , C.REGIPOCD RCODE
+             , C.PONM POST_NAME
+             , A.STOCK_VOLM
+             , A.DD_SUPP_PSSB_VOLM
+             , A.TOT_ACCUM_STOCK_VOLM
+             , A.ADD_STOCK_VOLM
+             , D.COMN_CD_NM AS GOODS_STUS_NM
+        FROM GD_MGT_GOODS_HISTOR A, CO_SUPP_COMP_MAST B, PICMT0060 C, CM_COMN_CD D
+        WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+          AND B.SUPPO_RGIST_POCD = C.REGIPOCD
+          AND A.GOODS_STUS_CD = D.COMN_CD_ID
+          AND D.CD_GRP_ID = 'GOODS_STUS_CD'
+          AND C.USEYN='Y'
+          AND C.DSCDPOYN = 'N'
+	   <isNotEmpty property="search_strt_ymd">
+	   		<isNotEmpty property="search_end_ymd" prepend="AND">
+	   			A.GOODS_CHG_DATE BETWEEN REPLACE(#search_strt_ymd#,'-')||'000000000000' AND REPLACE(#search_end_ymd#,'-')||'999999999999'
+   			</isNotEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_supp_comp_id" prepend="AND">
+	   		A.SUPP_COMP_ID = #search_supp_comp_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_goods_text">
+			<isNotEmpty property="search_goods_type" prepend="AND">
+				<isEqual property="search_goods_type" compareValue="goods_cd">
+					A.GOODS_CD LIKE #search_goods_text#||'%'
+				</isEqual>
+				<isEqual property="search_goods_type" compareValue="goods_nm">
+					A.GOODS_NM LIKE '%'||#search_goods_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_goods_type" prepend="AND">
+				(A.GOODS_CD LIKE #search_goods_text#||'%' OR A.GOODS_NM LIKE '%'||#search_goods_text#||'%')
+			</isEmpty>
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectGoodsStockHistList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY GOODS_CHG_DATE DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT A.*
+							FROM(
+							<include refid="stockHist_list" />
+							)A
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectGoodsStockHistCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (
+			<include refid="stockHist_list" />
+		  )
+	</select>
+
+</sqlMap>

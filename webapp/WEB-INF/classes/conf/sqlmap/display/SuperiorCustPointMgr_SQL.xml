@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Spoint">
+	
+	<sql id="spMgr_list">
+		SELECT SP_CLASS
+			 , SP_NAME
+			 , ORD
+			 , VALID_DATE
+		  FROM MB_SP_CLASS A
+		 WHERE IS_DELETE = 'N'
+	   <isNotEmpty property="search_point_nm" prepend="AND">
+			A.SP_NAME LIKE '%'||#search_point_nm#||'%'
+	   </isNotEmpty>
+	   <isNotEmpty property="sp_class" prepend="AND">
+			A.SP_CLASS = #sp_class#
+	   </isNotEmpty>
+	</sql>
+	
+	<select id="selectSuperiorCustPointList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY ORD DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="spMgr_list" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectSuperiorCustPointCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="spMgr_list" />)
+	</select>
+
+	<insert id="insertSuperiorCustPointInfo" parameterClass="java.util.HashMap">
+		INSERT INTO MB_SP_CLASS 
+			 ( SP_CLASS
+			 , SP_NAME
+			 , ORD
+			 , VALID_DATE
+			 , IS_DELETE )
+	    VALUES
+			 ( ( SELECT NVL(MAX(TO_NUMBER(SP_CLASS))+1, 1) FROM MB_SP_CLASS )
+			 , #sp_name#
+			 , #ord#
+			 , sysdate
+			 , 'N' )
+	</insert>
+
+	<update id="updateSuperiorCustPointInfo" parameterClass="java.util.HashMap">
+		UPDATE MB_SP_CLASS
+		   SET SP_NAME		 = #sp_name#
+			 , ORD			 = #ord#
+			 , VALID_DATE	 = TO_CHAR(SYSDATE, 'YYYYMMDD')
+	   <isEqual property="reg_type" compareValue="delete" prepend=",">
+			IS_DELETE = 'Y'
+	   </isEqual>
+	     WHERE SP_CLASS = #sp_class#
+	</update>
+
+	<update id="updateSuperiorCustPointOrd" parameterClass="java.util.HashMap">
+		UPDATE MB_SP_CLASS
+		   SET 
+		    <isEqual property="reg_type" compareValue="delete">
+		    	ORD = ORD - 1
+		    </isEqual>
+		    <isNotEqual property="reg_type" compareValue="delete">
+		    	ORD = ORD + 1
+		    </isNotEqual>
+		 WHERE ORD &gt;= #ord#
+		   AND IS_DELETE = 'N'
+	</update>
+	
+	<select id="selectSpBeingCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM MB_SP_CLASS
+		 WHERE ORD = #ord#
+		   AND IS_DELETE = 'N'
+	</select>
+
+	<select id="selectSpComboList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.SP_CLASS AS VALUE
+			 , A.SP_NAME AS NAME  
+		  FROM (<include refid="spMgr_list" />) A
+		 ORDER BY ORD
+	</select>
+
+	<select id="selectSpPayInfoRegYn" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT DECODE(COUNT(*), 0, 'N', 'Y') AS YN
+		  FROM MB_SP_GRANT
+		 WHERE PEOPLENUM	= #peoplenum#
+		   AND GRANT_YEAR	= TO_CHAR(SYSDATE, 'YYYY')
+		   AND SP_CLASS		= #sp_class#
+		   AND VALID_DATE	= TO_CHAR(TO_DATE(#valid_date#), 'YYYYMMDD')
+	</select>
+	
+	<insert id="insertSpPayment" parameterClass="java.util.HashMap">
+		INSERT INTO MB_SP_GRANT
+			 ( PEOPLENUM
+			 , GRANT_YEAR
+			 , SP_CLASS
+			 , VALID_DATE
+			 , NAME
+			 , ACCESS_NAME
+			 , ECODE
+			 , ACCU_POINT
+			 , STATUS	/* AS-IS 기준 ID불일치:0, ID일치 및 포인트확정 :1, 기타:9 */
+			 , REG_DATE
+			 , RECEIVE_DATE
+			 , LASTCHANGE )
+		VALUES
+			 ( #peoplenum#
+			 , TO_CHAR(SYSDATE, 'YYYY')
+			 , #sp_class#
+			 , TO_CHAR(TO_DATE(#valid_date#), 'YYYYMMDD')
+			 , #name#
+			 , #access_name#
+			 , #ecode#
+			 , #accu_point#
+			 , '9'
+			 , TO_CHAR(SYSDATE, 'YYYYMMDD')
+			 , NULL
+			 , TO_CHAR(SYSDATE, 'YYYYMMDD') )
+	</insert>
+
+	<sql id="spDecision_list">
+		SELECT A.PEOPLENUM
+			 , A.GRANT_YEAR
+			 , A.SP_CLASS
+			 , B.SP_NAME SP_CLASS_NAME
+			 , A.NAME USER_NAME
+			 , A.ACCESS_NAME
+			 , A.ECODE
+			 , C.PONM
+			 , A.ACCU_POINT
+			 , A.STATUS
+			 , TO_CHAR(TO_DATE(A.VALID_DATE), 'YYYY-MM-DD') AS VALID_DATE
+			 , TO_CHAR(TO_DATE(A.REG_DATE), 'YYYY-MM-DD') AS REG_DATE
+			 , A.RECEIVE_DATE
+			 , DECODE((SELECT COUNT(*) FROM MEMINFO C WHERE C.ACCESS_NAME = A.ACCESS_NAME), 0, 'N', 'Y') YN
+          FROM MB_SP_GRANT A, MB_SP_CLASS B
+          	 , (SELECT EDPSCD, PONM FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N') C
+         WHERE A.SP_CLASS = B.SP_CLASS
+           AND A.STATUS != '1'
+           AND A.ECODE = C.EDPSCD(+)
+	   <isEqual property="search_date_type" compareValue="01" prepend="AND">
+			A.REG_DATE BETWEEN REPLACE(#search_strt_ymd#,'-') AND REPLACE(#search_end_ymd#,'-')
+	   </isEqual>
+	   <isEqual property="search_date_type" compareValue="02" prepend="AND">
+			A.VALID_DATE BETWEEN REPLACE(#search_strt_ymd#,'-') AND REPLACE(#search_end_ymd#,'-')
+	   </isEqual>
+	</sql>
+	
+	<select id="selectSpDecisionList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY REG_DATE DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="spDecision_list" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectSpDecisionCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="spDecision_list" />)
+	</select>
+	
+	<delete id="deleteSpGrant" parameterClass="java.util.HashMap">
+		DELETE MB_SP_GRANT
+		 WHERE PEOPLENUM = #peoplenum#
+		   AND GRANT_YEAR = #grant_year#
+		   AND SP_CLASS = #sp_class#
+		   AND STATUS != '1'
+	</delete>
+	
+	<update id="updateSpDecision" parameterClass="java.util.HashMap">
+		UPDATE MB_SP_GRANT
+		   SET STATUS = #status#
+		     , LASTCHANGE = TO_CHAR(SYSDATE, 'YYYYMMDD')
+		 WHERE PEOPLENUM = #peoplenum#
+		   AND GRANT_YEAR = #grant_year#
+		   AND SP_CLASS = #sp_class#
+		   AND STATUS != '1'
+	</update>
+
+	<select id="selectCurPoint" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT *
+		  FROM (SELECT NVL(CUR_POINT, 0)
+				  FROM MB_SP_MASTER
+				 WHERE ACCESS_NAME = #access_name#
+				   AND SP_CLASS = #sp_class#
+				 UNION ALL
+		        SELECT 0 FROM DUAL)
+		 WHERE ROWNUM = 1
+	</select>
+	
+	<insert id="insertSpMasterInfo" parameterClass="java.util.HashMap">
+		MERGE INTO MB_SP_MASTER
+			 USING DUAL
+				ON (ACCESS_NAME = #access_name# AND SP_CLASS = #sp_class#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   CUR_POINT 		= TO_NUMBER(#cur_point#) + TO_NUMBER(#accu_point#)
+				 , TOT_ACCU_POINT	= TOT_ACCU_POINT + TO_NUMBER(#accu_point#)
+				 , LASTCHANGE		= TO_CHAR(SYSDATE, 'YYYYMMDD')
+		WHEN NOT MATCHED THEN
+			INSERT ( ACCESS_NAME
+				   , SP_CLASS
+				   , CUR_POINT
+				   , TOT_ACCU_POINT
+				   , LASTCHANGE )
+			  VALUES
+			  	   ( #access_name#
+				   , #sp_class#
+				   , #accu_point#
+				   , #accu_point#
+				   , TO_CHAR(SYSDATE, 'YYYYMMDD') )
+	</insert>
+	
+	<insert id="insertSpHistoryInfo" parameterClass="java.util.HashMap">
+	    INSERT INTO MB_SP_HISTORY
+	             ( ACCESS_NAME
+	             , MEM_PNT_SEQ
+	             , SP_CLASS
+	             , SP_TYPE
+	             , ACCU_POINT
+	             , CUR_POINT
+	             , CASE_CONT
+	             , REG_DATE
+	             , VALID_DATE
+	             , STATUS
+	             , TYPE_CD
+	             , LASTCHANGE )
+	      VALUES ( #access_name#
+	             , (SELECT NVL(MAX(MEM_PNT_SEQ), 0)+1 FROM MB_SP_HISTORY WHERE ACCESS_NAME = #access_name#)
+	             , #sp_class#
+	             , 'A'
+	             , TO_NUMBER(#accu_point#)
+	             , TO_NUMBER(#accu_point#) + TO_NUMBER(#cur_point#)
+	             , #case_cont#
+	             , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+	             , REPLACE(#valid_date#, '-')
+	             , '1'
+	             , 'A1'
+	             , SYSDATE )
+	</insert>
+
+	<sql id="spPointUserUse_list">
+		SELECT A.ACCESS_NAME AS CODE
+			 , B.NAME
+			 , TOT_ACCU_POINT
+			 , TOT_USE_POINT
+			 , TOT_CUR_POINT
+		  FROM (SELECT ACCESS_NAME AS ACCESS_NAME
+					 , SUM(TOT_ACCU_POINT) AS TOT_ACCU_POINT /*총 포인트 발급액*/
+					 , SUM(TOT_USE_POINT) AS TOT_USE_POINT    /*총 포인트 사용액*/
+					 , SUM(CUR_POINT) AS TOT_CUR_POINT /*현재 포인트 잔액*/
+				  FROM MB_SP_MASTER
+				 GROUP BY ACCESS_NAME) A, MEMINFO B
+		  WHERE A.ACCESS_NAME = B.ACCESS_NAME
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					A.ACCESS_NAME LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					B.NAME LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.ACCESS_NAME LIKE '%'||#search_text#||'%' OR B.NAME LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+	</sql>
+
+	<sql id="spPointEpostUse_list">
+		SELECT B.EDPSCD AS CODE
+			 , B.PONM AS NAME
+			 , SUM(TOT_CUR_POINT) TOT_CUR_POINT
+			 , SUM(TOT_ACCU_POINT) TOT_ACCU_POINT
+			 , SUM(TOT_USE_POINT) TOT_USE_POINT
+		  FROM ( SELECT B.ECODE AS ECODE
+			 		  , SUM(A.TOT_ACCU_POINT) AS TOT_ACCU_POINT /*총 포인트 발급액*/
+			 		  , SUM(A.TOT_USE_POINT) AS TOT_USE_POINT    /*총 포인트 사용액*/
+			 		  , SUM(A.CUR_POINT) AS TOT_CUR_POINT /*현재 포인트 잔액*/ 
+				   FROM MB_SP_MASTER A
+				   	  , (SELECT ACCESS_NAME, ECODE, SUM(ACCU_POINT) FROM MB_SP_GRANT WHERE STATUS = 1 GROUP BY ACCESS_NAME, ECODE) B
+				  WHERE A.ACCESS_NAME = B.ACCESS_NAME
+				  GROUP BY B.ECODE ) A
+			 , ( SELECT EDPSCD, PONM FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' ) B
+		 WHERE A.ECODE = B.EDPSCD
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="01">
+					B.EDPSCD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="02">
+					B.PONM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(B.EDPSCD LIKE '%'||#search_text#||'%' OR B.PONM LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+		 GROUP BY B.EDPSCD, B.PONM
+	</sql>
+
+	<sql id="spPointTermUse_list">
+		SELECT REG_DATE AS CODE
+			 , SUM(CUR_POINT) TOT_CUR_POINT
+			 , SUM(ACCU_POINT) TOT_ACCU_POINT
+			 , SUM(USE_POINT) TOT_USE_POINT
+		  FROM ( SELECT A.REG_DATE
+		  			  , SUM(B.CUR_POINT) AS CUR_POINT
+		  			  , 0 AS ACCU_POINT
+		  			  , 0 AS USE_POINT
+		  		   FROM(SELECT ACCESS_NAME
+							 , SUBSTR(REG_DATE, 1, 6) AS REG_DATE
+							 , SP_CLASS
+							 , MAX(MEM_PNT_SEQ) AS MEM_PNT_SEQ
+                          FROM MB_SP_HISTORY
+                         GROUP BY SUBSTR(REG_DATE, 1, 6), ACCESS_NAME, SP_CLASS) A, MB_SP_HISTORY B
+                WHERE A.ACCESS_NAME = B.ACCESS_NAME
+                  AND A.MEM_PNT_SEQ = B.MEM_PNT_SEQ
+                  AND A.SP_CLASS	= B.SP_CLASS
+			<isNotEmpty property="search_end_ymd" prepend="AND">
+				SUBSTR(B.REG_DATE, 1, 6) BETWEEN TO_CHAR(TO_DATE(#search_strt_ymd#), 'YYYYMM') AND TO_CHAR(TO_DATE(#search_end_ymd#), 'YYYYMM')
+			</isNotEmpty>
+                GROUP BY A.REG_DATE
+                UNION ALL
+               SELECT SUBSTR(REG_DATE, 1, 6) REG_DATE,
+                       0 CUR_POINT,
+                       SUM(ACCU_POINT) ACCU_POINT,
+                       SUM(USE_POINT) USE_POINT
+                  FROM MB_SP_HISTORY
+                 WHERE SP_TYPE != 'A3'
+			<isNotEmpty property="search_end_ymd" prepend="AND">
+				SUBSTR(REG_DATE, 1, 6) BETWEEN TO_CHAR(TO_DATE(#search_strt_ymd#), 'YYYYMM') AND TO_CHAR(TO_DATE(#search_end_ymd#), 'YYYYMM')
+			</isNotEmpty>
+                 GROUP BY SUBSTR(REG_DATE, 1, 6)
+                 )
+         GROUP BY REG_DATE
+	</sql>
+	
+	<select id="selectSpPointStatisticsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY CODE DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<isEqual property="list_type" compareValue="01">
+								<include refid="spPointUserUse_list" />
+							</isEqual>
+							<isEqual property="list_type" compareValue="02">
+								<include refid="spPointEpostUse_list" />
+							</isEqual>
+							<isEqual property="list_type" compareValue="03">
+								<include refid="spPointTermUse_list" />
+							</isEqual>
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectSpPointStatisticsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer" remapResults="true">
+		SELECT COUNT(*) AS CNT
+		  FROM (
+		<isEqual property="list_type" compareValue="01">
+			<include refid="spPointUserUse_list" />
+		</isEqual>
+		<isEqual property="list_type" compareValue="02">
+			<include refid="spPointEpostUse_list" />
+		</isEqual>
+		<isEqual property="list_type" compareValue="03">
+			<include refid="spPointTermUse_list" />
+		</isEqual>
+		  )
+	</select>
+	
+	<sql id="spPointAdjust_list">
+		SELECT A.FROM_DATE ||'~'|| A.TO_DATE AS ADJ_TERM
+			 , A.FROM_DATE
+			 , A.TO_DATE
+			 , B.SP_NAME AS SP_GUBUN
+			 , A.TOT_ACCU_POINT
+			 , A.TOT_USE_POINT
+			 , A.TOT_CURUSE_POINT
+			 , A.CANCEL_POINT
+			 , A.ACCOUNT_POINT
+			 , A.STAT_POINT
+			 , A.ETC1 AS ORDSEQ
+          FROM MB_SP_STAT A, MB_SP_CLASS B
+         WHERE A.ETC1 = B.SP_CLASS
+		   AND A.ETC1 IS NOT NULL
+			<isNotEmpty property="search_sp_class" prepend="AND">
+				A.ETC1 = #search_sp_class#
+			</isNotEmpty>
+			<isNotEmpty property="search_end_ymd" prepend="AND">
+				A.FROM_DATE BETWEEN TO_CHAR(TO_DATE(#search_strt_ymd#), 'YYYYMM') AND TO_CHAR(TO_DATE(#search_end_ymd#), 'YYYYMM')
+			</isNotEmpty>
+		 UNION ALL
+		SELECT FROM_DATE ||'~'|| TO_DATE
+			 , FROM_DATE
+			 , TO_DATE
+			 , 'TOTAL' AS SP_GUBUN
+			 , SUM(TOT_ACCU_POINT)
+			 , SUM(TOT_USE_POINT)
+			 , SUM(TOT_CURUSE_POINT)
+			 , SUM(CANCEL_POINT)
+			 , SUM(ACCOUNT_POINT)
+			 , SUM(STAT_POINT)
+			 , '9' AS ORDSEQ
+		  FROM MB_SP_STAT
+		 WHERE ETC1 IS NOT NULL
+			<isNotEmpty property="search_sp_class" prepend="AND">
+				ETC1 = #search_sp_class#
+			</isNotEmpty>
+			<isNotEmpty property="search_end_ymd" prepend="AND">
+				FROM_DATE BETWEEN TO_CHAR(TO_DATE(#search_strt_ymd#), 'YYYYMM') AND TO_CHAR(TO_DATE(#search_end_ymd#), 'YYYYMM')
+			</isNotEmpty>
+		 GROUP BY FROM_DATE, TO_DATE
+	</sql>
+
+	<select id="selectSpPointAdjustList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY FROM_DATE, ORDSEQ) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(<include refid="spPointAdjust_list" />)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectSpPointAdjustCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="spPointAdjust_list" />)
+	</select>
+	
+</sqlMap>

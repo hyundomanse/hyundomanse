@@ -1,0 +1,702 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboQc">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+<!--***********************************************************************************
+       품질검사 기획 등록/조회
+    ***********************************************************************************-->
+
+	<!-- 품질검사기획 건수 조회 -->
+	<select id="selectQcPlnTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+	      SELECT COUNT(CS.IDX) CNT
+            FROM SC_QC_SURVEY CS , SC_MONITOREMP CM
+		   WHERE CS.DEL_FLAG='N'
+	         AND CS.CHARGE_EMP = CM.EMPID(+)
+	         AND SURVEY_REQDATE >= NVL( REPLACE(#calSurveyFrReqdate#,'-',''), TO_CHAR(SYSDATE,'YYYY/MM/DD'))
+	         AND SURVEY_REQDATE <= NVL( REPLACE(#calSurveyToReqdate#,'-',''), TO_CHAR(SYSDATE,'YYYY/MM/DD'))
+	         AND CS.KINDS IN ('01','02')
+		]]>
+			<isNotEmpty property="schQcName">
+	         	AND CS.NAME like '%' || #schQcName# ||'%'
+	         </isNotEmpty>
+	         <isNotEmpty property="schKinds">
+	         	AND CS.KINDS = #schKinds#
+	         </isNotEmpty>
+	</select>
+
+
+	<!-- 품질검사기획 목록 조회 -->
+	<select id="selectQcPlnList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		      SELECT CS.IDX QCIDX
+		           , CS.NAME QCNAME
+		           , F_GET_COMN_CD_NM( 'QUALITY_KIND_CD', CS.KINDS ) AS KINDS_NM
+		           , SURVEY_REQDATE
+		           , (SELECT ADMIN_NM FROM CM_ADMIN_MAST WHERE ADMIN_ID = CS.CHARGE_EMP) AS CHARGE_EMP_NM
+                   , (SELECT ADMIN_NM FROM CM_ADMIN_MAST WHERE ADMIN_ID = CS.TEAMMANAGER) AS TEAMMANAGER_NM
+                   , CHARGE_EMP
+                   , TEAMMANAGER
+		           , (SELECT COUNT(*) FROM SC_QC_SURVEYTARGET WHERE QC_CODE = CS.IDX) AS ITEMCOUNT
+		       FROM SC_QC_SURVEY CS
+		      WHERE CS.DEL_FLAG='N'
+	             AND SURVEY_REQDATE >= NVL( REPLACE(#calSurveyFrReqdate#,'-',''), TO_CHAR(SYSDATE,'YYYY/MM/DD'))
+	             AND SURVEY_REQDATE <= NVL( REPLACE(#calSurveyToReqdate#,'-',''), TO_CHAR(SYSDATE,'YYYY/MM/DD'))
+	             AND CS.KINDS IN ('01','02')
+	       ]]>
+	         <isNotEmpty property="schQcName">
+	         	AND CS.NAME like '%' || #schQcName# ||'%'
+	         </isNotEmpty>
+	         <isNotEmpty property="schKinds">
+	         	AND CS.KINDS = #schKinds#
+	         </isNotEmpty>
+	        ORDER BY CREATE_DATE DESC
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 품질검사대상 상품목록 건수 -->
+	<select id="selectQcSurveyTargetTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT  COUNT(*) AS CNT
+          FROM SC_QC_SURVEYTARGET A, GD_MGT_GOODS_MAST B
+         WHERE A.QC_CODE = #qcidx#
+           AND A.GOODS_CD = B.GOODS_CD
+		]]>
+	</select>
+
+	<!-- 품질검사대상 상품목록 조회 -->
+	<select id="selectQcSurveyTargetList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+			SELECT  A.GOODS_CD
+                 ,  B.GOODS_NM
+                 ,  B.UNIT
+                /*B.CATEGORYCODE,*/
+                /*
+                CASE WHEN SUBSTR(B.CATEGORYCODE, 1, 1) = '9' THEN '미분류'
+                ELSE (SELECT NAME FROM CF_CATEGORY WHERE IDX = SUBSTR(B.CATEGORYCODE, 1, 2)|| '001')
+                END CA1,*/
+                /*
+                CASE WHEN SUBSTR(B.CATEGORYCODE, 1, 1) = '9' THEN '미분류'
+                ELSE (SELECT NAME FROM CF_CATEGORY WHERE IDX = SUBSTR(B.CATEGORYCODE, 1, 3)|| '001')
+                END CA2*/
+          FROM SC_QC_SURVEYTARGET A, GD_MGT_GOODS_MAST B
+         WHERE A.QC_CODE = #qcidx#
+           AND A.GOODS_CD = B.GOODS_CD
+           ]]>
+  		<isNotEmpty property="searchTxt" prepend="AND">
+  			B.GOODS_NM like '%' || #searchTxt# || '%'
+  		</isNotEmpty>
+          ORDER BY A.GOODS_CD
+
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 품질검사기획 상세조회 -->
+	<select id="selectQcPlnDetail" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT IDX
+			     , DOCID
+			      , ( SELECT COUNT(GOODS_CD)
+			            FROM SC_QC_ITEM
+			           WHERE QC_CODE = #idx#
+			           GROUP BY QC_CODE ) AS GOODS_CNT
+                 , TYPE
+                 , KINDS
+                 , NAME
+                 , TO_CHAR(SURVEY_REQDATE,'YYYY-MM-DD') AS SURVEY_REQDATE
+                 , SURVEY_BIZ
+                 , TO_CHAR(SURVEY_S_DATE,'YYYY/MM/DD') AS SURVEY_FR_REQDATE
+                 , TO_CHAR(SURVEY_E_DATE,'YYYY/MM/DD') AS SURVEY_TO_REQDATE
+                 , (SELECT ADMIN_NM FROM CM_ADMIN_MAST WHERE ADMIN_ID = T1.CHARGE_EMP) AS CHARGE_EMP_NM
+                 , (SELECT ADMIN_NM FROM CM_ADMIN_MAST WHERE ADMIN_ID = T1.TEAMMANAGER) AS TEAMMANAGER_NM
+                 , CHARGE_EMP
+                 , TEAMMANAGER
+                 , TRIM(TO_CHAR(NVL(ITEM_AMT,0),'9,999,999,999')) ITEM_AMT
+                 , TRIM(TO_CHAR(NVL(SURVEY_AMT,0),'9,999,999,999')) SURVEY_AMT
+                 , B_TYPE
+              FROM SC_QC_SURVEY T1
+             WHERE IDX= #idx#
+               AND DEL_FLAG='N'
+		]]>
+	</select>
+
+	<!-- 품질검사기획 저장 -->
+	<insert id="insertQcPln" parameterClass="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO SC_QC_SURVEY T1
+		         USING (
+		           SELECT #idx#                                  AS IDX                                             /*검사코드*/
+		                , #docid#                                AS DOCID                                           /*문서번호*/
+		                , #type#                                 AS TYPE                                            /*품질검사유형*/
+		                , #kinds#                                AS KINDS                                           /*품질검사종류*/
+		                , #name#                                 AS NAME                                            /*품질검사이름*/
+		                , #surveyReqdate#                        AS SURVEY_REQDATE                                  /*검사의뢰일자*/
+		                , #surveyBiz#                            AS SURVEY_BIZ                                      /*검사업체*/
+		                , #surveyFrDate#                         AS SURVEY_S_DATE                                   /*검사시작일자*/
+		                , #surveyToDate#                         AS SURVEY_E_DATE                                   /*검사종료일자*/
+		                , #chargeEmp#                            AS CHARGE_EMP                                      /*담당자아이디*/
+		                , #teammanager#                          AS TEAMMANAGER                                     /*팀장아이디*/
+		                , REPLACE(#itemAmt#, ',', '')            AS ITEM_AMT                                        /*상품가격*/
+		                , REPLACE(#surveyAmt#  , ',', '')        AS SURVEY_AMT                                      /*검사비용*/
+		                , #rdoItemType#                          AS B_TYPE                                          /*구분*/
+		             FROM DUAL
+		          ) T2
+		         ON ( T1.IDX = T2.IDX )
+		         WHEN MATCHED THEN
+		         UPDATE
+		               SET   T1.DOCID                             =  T2.DOCID
+		                   , T1.TYPE                              =  T2.TYPE
+		                   , T1.KINDS                             =  T2.KINDS
+		                   , T1.NAME                              =  T2.NAME
+		                   , T1.SURVEY_REQDATE                    =  T2.SURVEY_REQDATE
+		                   , T1.SURVEY_BIZ                        =  T2.SURVEY_BIZ
+		                   , T1.SURVEY_S_DATE                     =  T2.SURVEY_S_DATE
+		                   , T1.SURVEY_E_DATE                     =  T2.SURVEY_E_DATE
+		                   , T1.CHARGE_EMP                        =  T2.CHARGE_EMP
+		                   , T1.TEAMMANAGER                       =  T2.TEAMMANAGER
+		                   , T1.ITEM_AMT                          =  T2.ITEM_AMT
+		                   , T1.SURVEY_AMT                        =  T2.SURVEY_AMT
+		                   , T1.B_TYPE                            =  T2.B_TYPE
+		          WHEN NOT MATCHED THEN
+					       INSERT(
+						           T1.IDX
+		                         , T1.DOCID
+		                         , T1.TYPE
+		                         , T1.KINDS
+		                         , T1.NAME
+		                         , T1.SURVEY_REQDATE
+		                         , T1.SURVEY_BIZ
+		                         , T1.SURVEY_S_DATE
+		                         , T1.SURVEY_E_DATE
+		                         , T1.CHARGE_EMP
+		                         , T1.TEAMMANAGER
+		                         , T1.CREATE_DATE
+		                         , T1.DEL_FLAG
+		                         , T1.ITEM_AMT
+		                         , T1.SURVEY_AMT
+		                         , T1.B_TYPE
+					       )VALUES(
+					       		   T2.IDX
+		                         , T2.DOCID
+		                         , T2.TYPE
+		                         , T2.KINDS
+		                         , T2.NAME
+		                         , T2.SURVEY_REQDATE
+		                         , T2.SURVEY_BIZ
+		                         , T2.SURVEY_S_DATE
+		                         , T2.SURVEY_E_DATE
+		                         , T2.CHARGE_EMP
+		                         , T2.TEAMMANAGER
+		                         , SYSDATE
+		                         , 'N'
+		                         , T2.ITEM_AMT
+		                         , T2.SURVEY_AMT
+		                         , T2.B_TYPE
+					       )
+		]]>
+	</insert>
+
+	<!-- 상품조회건수 -->
+	<select id="selectQcItemTotCnt" resultClass="int">
+		SELECT COUNT(*) AS CNT FROM (
+          SELECT GOODS_CD
+               , GOODS_NM
+               , UNIT
+            FROM GD_MGT_GOODS_MAST) LAFJSUBQUERY
+	</select>
+
+	<!-- 상품등록 팝업 -->
+	<select id="selectQcItemList" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+         SELECT  GOODS_CD,
+                 GOODS_NM,
+                 UNIT
+            FROM GD_MGT_GOODS_MAST
+ 			   ORDER BY GOODS_CD
+ 		]]>
+ 		<include refid="pagingFooter"/>
+    </select>
+
+    <!-- 품목팝업 조회건수 -->
+	<select id="selectQcSecItemTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(*) CNT FROM (
+              SELECT DISTINCT ITEM_SEC_NAME
+                FROM SC_ITEMIZE
+               WHERE 1=1) LAFJSUBQUERY
+		]]>
+	</select>
+
+    <!-- 품목팝업 조회 -->
+    <select id="selectQcSecItemList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		    SELECT DISTINCT ITEM_SEC_NAME
+              FROM SC_ITEMIZE
+             WHERE 1=1
+             ORDER BY  ITEM_SEC_NAME
+    	]]>
+    	<include refid="pagingFooter"/>
+    </select>
+
+	<!-- 신규등록시 최종등록한 검사idx 조회 -->
+	<select id="selectCfqcSurveyMaxIdx" resultClass="String">
+		 SELECT SC_QC_SURVEY_SEQ.NEXTVAL AS MAX_IDX FROM dual
+	</select>
+
+	<!-- 갱신을위한 삭제 -->
+	<delete id="deleteQcTarget" parameterClass="java.util.HashMap">
+		DELETE FROM SC_QC_SURVEYTARGET WHERE QC_CODE = #idx#
+	</delete>
+
+	<!-- 품목 ITEM 조회 -->
+	<select id="selectQcItemCodes" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT DISTINCT #idx# QC_CODE, A.GOODS_CD
+		  FROM SC_ITEMIZE A, GD_MGT_GOODS_MAST B
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND A.ITEM_SEC_NAME = #goodsSecNm#
+	</select>
+
+	<!-- 상품 및 품목 등록 -->
+	<insert id="insertQcTarget" parameterClass="java.util.HashMap">
+		INSERT INTO SC_QC_SURVEYTARGET (IDX, QC_CODE, GOODS_CD)
+               VALUES(NVL((select max(idx)+1 from SC_QC_SURVEYTARGET), 1), NVL(#QC_CODE#,#idx#), NVL(#GOODS_CD#,#goodsCd#))
+	</insert>
+
+	<!-- 품질검사기획 삭제 -->
+	<update id="deleteQcPln" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE SC_QC_SURVEY
+			   SET DEL_FLAG = 'Y'
+			 WHERE IDX = #idx#
+		]]>
+	</update>
+
+
+<!--***********************************************************************************
+       성분검사 등록/조회
+    ***********************************************************************************-->
+
+	<!-- 상품성분검사 목록 건수 -->
+	<select id="selectQcTstTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+	      SELECT COUNT(*) AS CNT
+            FROM SC_QC_SURVEY T1, SC_QC_ITEM T2, GD_MGT_GOODS_MAST T3, CO_SUPP_COMP_MAST T4
+           WHERE T1.IDX = T2.QC_CODE
+             AND T3.SUPP_COMP_ID = T4.SUPP_COMP_ID(+)
+             AND T2.GOODS_CD = T3.GOODS_CD
+             AND T1.KINDS = #kinds#
+             AND T2.INSPECT_DATE BETWEEN NVL(#calSurveyFrReqdate#, SYSDATE) AND NVL(#calSurveyToReqdate#, SYSDATE )
+             ]]>
+             <isNotEmpty property="pavlnDivCd">
+             	AND T1.TYPE = #pavlnDivCd#
+             </isNotEmpty>
+	         <isNotEmpty property="schQcName">
+	         	AND T1.NAME like '%' || #schQcName# ||'%'
+	         </isNotEmpty>
+	         <isNotEmpty property="schIdx">
+	         	AND T1.IDX = #schIdx#
+	         </isNotEmpty>
+	         <isNotEmpty property="schKinds">
+	         	AND T1.KINDS = #schKinds#
+	         </isNotEmpty>
+	         <isNotEmpty property="schQtJudgment">
+	         	AND T2.QT_JUDGMENT = #schQtJudgment#
+	         </isNotEmpty>
+	         <isNotEmpty property="schResult">
+	         	AND T2.RESULT = #schResult#
+	         </isNotEmpty>
+	         AND T1.DEL_FLAG = 'N'
+	         AND T2.DEL_FLAG = 'N'
+           ORDER BY T2.INSPECT_DATE  DESC
+	</select>
+
+	<!-- 상품성분검사 목록 조회 -->
+	<select id="selectQcTstList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+	      SELECT T2.QC_CODE
+               , T2.GOODS_CD
+               , T1.NAME QCNAME
+               , T3.GOODS_NM
+               , T2.INSPECT_DATE
+               , T4.SUPP_COMP_ID
+               , T4.BCNC_NM
+               , T2.RESULT
+               , T2.QT_JUDGMENT
+               , F_GET_COMN_CD_NM( 'PAVLN_DIV_CD', T1.TYPE )           AS PAVLN_DIV_NM
+               , F_GET_COMN_CD_NM( 'QT_JUDGMENT_CD', T2.QT_JUDGMENT )   AS QT_JUDGMENT_NM
+               , F_GET_COMN_CD_NM( 'QUALITY_RESULT_CD', T2.RESULT  )    AS RESULT_NM
+            FROM SC_QC_SURVEY T1, SC_QC_ITEM T2, GD_MGT_GOODS_MAST T3, CO_SUPP_COMP_MAST T4
+           WHERE T1.IDX = T2.QC_CODE
+              AND T3.SUPP_COMP_ID = T4.SUPP_COMP_ID(+)
+             AND T2.GOODS_CD = T3.GOODS_CD
+             AND T1.KINDS = #kinds#
+             AND T2.INSPECT_DATE BETWEEN NVL(#calSurveyFrReqdate#, SYSDATE) AND NVL(#calSurveyToReqdate#, SYSDATE )
+             ]]>
+             <isNotEmpty property="pavlnDivCd">
+             	AND T1.TYPE = #pavlnDivCd#
+             </isNotEmpty>
+             <isEmpty property="schIdx">
+		         <isNotEmpty property="schQcName">
+		         	AND T1.NAME like '%' || #schQcName# ||'%'
+		         </isNotEmpty>
+	         </isEmpty>
+	         <isNotEmpty property="schIdx">
+	         	AND T1.IDX = #schIdx#
+	         </isNotEmpty>
+	         <isNotEmpty property="schKinds">
+	         	AND T1.KINDS = #schKinds#
+	         </isNotEmpty>
+	         <isNotEmpty property="schQtJudgment">
+	         	AND T2.QT_JUDGMENT = #schQtJudgment#
+	         </isNotEmpty>
+	         <isNotEmpty property="schResult">
+	         	AND T2.RESULT = #schResult#
+	         </isNotEmpty>
+	         <isNotEmpty property="schSupplyer">
+		         <isEqual property="schSupplyer" compareValue="1">
+		         	AND T4.BCNC_NM like '%' || #schSuppInfo# || '%'
+		         </isEqual>
+		         <isEqual property="schSupplyer" compareValue="2">
+		         	AND T4.SUPP_COMP_ID = #schSuppInfo#
+		         </isEqual>
+		         <isEqual property="schSupplyer" compareValue="3">
+		         	AND T4.COMPREG_NO = #schSuppInfo#
+		         </isEqual>
+	         </isNotEmpty>
+	         <isNotEmpty property="schItemCond">
+		         <isEqual property="schItemCond" compareValue="GOODS_CD">
+		         	AND T2.GOODS_CD = #schGoodsTxt#
+		         </isEqual>
+		         <isEqual property="schItemCond" compareValue="GOODS_NM">
+		         	AND T3.GOODS_NM like '%' || #schGoodsTxt# || '%'
+		         </isEqual>
+	         </isNotEmpty>
+	         AND T1.DEL_FLAG = 'N'
+	         AND T2.DEL_FLAG = 'N'
+           ORDER BY T2.INSPECT_DATE  DESC
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 품질검사팝업 조회 -->
+	<select id="selectScQcSurveyTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+            SELECT COUNT(IDX) AS CNT
+              FROM SC_QC_SURVEY
+             WHERE DEL_FLAG='N'
+               AND KINDS   = #schKinds#
+             ORDER BY SURVEY_REQDATE DESC
+		]]>
+	</select>
+
+	<!-- 품질검사팝업 조회 -->
+	<select id="selectScQcSurveyList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+            SELECT IDX
+                 , NAME
+                 , TO_CHAR(SURVEY_REQDATE, 'YYYY-MM-DD') SURVEY_REQDATE
+              FROM SC_QC_SURVEY
+             WHERE DEL_FLAG ='N'
+               AND KINDS    = #schKinds#
+             ORDER BY SURVEY_REQDATE DESC
+		]]>
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 성분검사 상세조회 -->
+	<select id="selectTstDetail" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT  T2.NAME AS QC_NAME
+			       , T1.QC_CODE AS IDX
+                   , T3.GOODS_NM
+                   , T3.GOODS_CD
+                   , TO_CHAR(INSPECT_DATE,'yyyy-mm-dd') AS INSPECT_DATE
+                   , RESULT
+                   , NVL(SUCCESS_COUNT,0) A2
+                   , NVL(FAILURE_COUNT,0) A3
+                   , IMAGE
+                   , ORDER_ITM_ID AS TXORDER_ID
+                   , ORDER_ID AS PURCHASEID
+                   , ORDER_FEE
+                   , INSPECT_FEE
+                   , NOTE
+                   , NVL2(STOP_SDATE, TO_CHAR(STOP_SDATE,'yyyy-mm-dd'), '') AS SUPP_DSCNTC_STRT_YMD
+                   , NVL2(STOP_SDATE, TO_CHAR(STOP_EDATE,'yyyy-mm-dd'), '') AS SUPP_DSCNTC_END_YMD
+                   , CREATOR
+                   , T4.BCNC_NM
+                   , SALE_LIMIT A6
+                   , QT_JUDGMENT
+                   , T4.SUPP_COMP_ID
+                   , F_GET_COMN_CD_NM('PAVLN_DIV_CD', T2.TYPE) AS PAVLN_DIV_CD
+                   , T1.BIZ_TYPE AS BIZ_TYPE2
+                   , T1.DOCS
+               FROM SC_QC_ITEM T1 , SC_QC_SURVEY T2 , GD_MGT_GOODS_MAST T3 ,CO_SUPP_COMP_MAST T4
+              WHERE T1.QC_CODE       = #idx#
+                AND T1.GOODS_CD      = #goodsCd#
+                AND T2.IDX           = T1.QC_CODE
+                AND T1.DEL_FLAG      ='N'
+                AND T2.DEL_FLAG      ='N'
+                AND T1.GOODS_CD      = T3.GOODS_CD
+                AND T3.SUPP_COMP_ID = T4.SUPP_COMP_ID(+)
+		]]>
+	</select>
+	<!-- 검사항목 조회 -->
+	<select id="selectItemElements" parameterClass="java.util.HashMap"  resultClass="commMap">
+	   <![CDATA[
+	   	SELECT ROWNUM AS RNUM
+	   	      ,T1.* FROM (
+			SELECT QC_CODE
+	             , GOODS_CD
+	             , CHECK_SEQ
+	             , ELE1
+	             , ELE2
+	             , ELE3
+	             , ELE4
+	             /*, GETCODENM('QT_RESULT'  ,ELE2) AS ELE2_NM */
+	             /*, GETCODENM('QT_JUDGMENT',ELE4) AS ELE4_NM */
+	         FROM SC_QC_ITEMELEMENT_NEW
+	        WHERE QC_CODE   = #idx#
+	          AND GOODS_CD = #goodsCd#
+	        ORDER BY CHECK_SEQ ) T1
+        ]]>
+	</select>
+
+	<!-- 성분검사 상품검사정보 저장 -->
+	<insert id="insertQcGoods" parameterClass="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO SC_QC_ITEM T1
+		         USING (
+		           SELECT #idx#                      AS QC_CODE                            /*품질검사코드*/
+                        , #goodsCd#                  AS GOODS_CD                           /*상품 코드*/
+                        , #inspectDate#              AS INSPECT_DATE                       /*검사일자*/
+                        , #result#                   AS RESULT                             /*검사결과*/
+                        , #resultImage#              AS IMAGE                              /*검사사진*/
+                        , #inspectFee#               AS INSPECT_FEE                        /*검사수수료*/
+                        , #orderFee#                 AS ORDER_FEE                          /*암행구매비*/
+                        , #txorderId#                AS TXORDER_ID                         /*주문번호1*/
+                        , #purchaseid#               AS PURCHASEID                         /*주문번호2*/
+                        , #note#                     AS NOTE                               /*비고*/
+                        , #successCount#             AS SUCCESS_COUNT                      /*합격건수*/
+                        , #failureCount#             AS FAILURE_COUNT                      /*불합격건수*/
+                        , #creator#                  AS CREATOR                            /*조사아이디*/
+                        , #suppDscntcStrtYmd#        AS STOP_SDATE                         /*중지시작기간*/
+                        , #suppDscntcEndYmd#         AS STOP_EDATE                         /*중지완료기간*/
+                        , #saleLimit#                AS SALE_LIMIT                         /*판매제한*/
+                        , #qtJudgment#               AS QT_JUDGMENT                        /*최종검사판정*/
+                        , #bizType#                  AS BIZ_TYPE                           /*공급업체분류*/
+                        , #bizCode#                  AS BIZ_CODE                           /*공급업체코드*/
+                        , #bizname#                  AS BIZNAME                            /*업체명*/
+                        , #resultDocs#               AS DOCS                               /*DOCS*/
+		             FROM DUAL
+		          ) T2
+		         ON ( T1.QC_CODE  = T2.QC_CODE
+		          AND T1.GOODS_CD = T2.GOODS_CD )
+		         WHEN MATCHED THEN
+		         UPDATE
+		            SET T1.INSPECT_DATE                  = T2.INSPECT_DATE
+		              , T1.RESULT                        = T2.RESULT
+		              , T1.IMAGE                         = T2.IMAGE
+		              , T1.INSPECT_FEE                   = T2.INSPECT_FEE
+		              , T1.ORDER_FEE                     = T2.ORDER_FEE
+		              , T1.ORDER_ITM_ID                  = T2.TXORDER_ID
+		              , T1.ORDER_ID                      = T2.PURCHASEID
+		              , T1.NOTE                          = T2.NOTE
+		              , T1.SUCCESS_COUNT                 = T2.SUCCESS_COUNT
+		              , T1.FAILURE_COUNT                 = T2.FAILURE_COUNT
+		              , T1.CREATOR                       = T2.CREATOR
+		              , T1.STOP_SDATE                    = T2.STOP_SDATE
+		              , T1.STOP_EDATE                    = T2.STOP_EDATE
+		              , T1.SALE_LIMIT                    = T2.SALE_LIMIT
+		              , T1.QT_JUDGMENT                   = T2.QT_JUDGMENT
+		              , T1.BIZ_TYPE                      = T2.BIZ_TYPE
+		              , T1.SUPP_COMP_ID                  = T2.BIZ_CODE
+		              , T1.BIZNAME                       = T2.BIZNAME
+		              , T1.DOCS                          = T2.DOCS
+		          WHEN NOT MATCHED THEN
+					       INSERT(
+					               T1.QC_CODE
+					             , T1.GOODS_CD
+					             , T1.INSPECT_DATE
+						         , T1.RESULT
+						         , T1.IMAGE
+						         , T1.INSPECT_FEE
+						         , T1.ORDER_FEE
+						         , T1.ORDER_ITM_ID
+						         , T1.ORDER_ID
+						         , T1.NOTE
+						         , T1.SUCCESS_COUNT
+						         , T1.FAILURE_COUNT
+						         , T1.CREATE_DATE
+						         , T1.DEL_FLAG
+						         , T1.CREATOR
+						         , T1.STOP_SDATE
+						         , T1.STOP_EDATE
+						         , T1.SALE_LIMIT
+						         , T1.QT_JUDGMENT
+						         , T1.BIZ_TYPE
+						         , T1.SUPP_COMP_ID
+						         , T1.BIZNAME
+						         , T1.DOCS
+					       )VALUES(
+					       		   T2.QC_CODE
+                                 , T2.GOODS_CD
+                                 , T2.INSPECT_DATE
+                                 , T2.RESULT
+                                 , NVL(T2.IMAGE, #resultImage# )
+                                 , T2.INSPECT_FEE
+                                 , T2.ORDER_FEE
+                                 , T2.TXORDER_ID
+                                 , T2.PURCHASEID
+                                 , T2.NOTE
+                                 , T2.SUCCESS_COUNT
+                                 , T2.FAILURE_COUNT
+                                 , SYSDATE
+                                 , 'N'
+                                 , T2.CREATOR
+                                 , T2.STOP_SDATE
+                                 , T2.STOP_EDATE
+                                 , T2.SALE_LIMIT
+                                 , T2.QT_JUDGMENT
+                                 , T2.BIZ_TYPE
+                                 , T2.BIZ_CODE
+                                 , T2.BIZNAME
+                                 , NVL( T2.DOCS, #resultDocs# )
+					       )
+		]]>
+	</insert>
+
+	<!-- 검사항목 삭제 -->
+	<delete id="deleteScQcItemElement" parameterClass="java.util.HashMap">
+		DELETE
+		  FROM SC_QC_ITEMELEMENT_NEW
+         WHERE QC_CODE = #idx#
+           AND GOODS_CD = #goodsCd#
+	</delete>
+
+	<!-- 검사항목 저장 -->
+	<insert id="insertQcItemEelement" parameterClass="java.util.HashMap">
+		<![CDATA[
+           INSERT INTO SC_QC_ITEMELEMENT_NEW
+            (   QC_CODE
+              , GOODS_CD
+              , CHECK_SEQ
+              , ELE1  /*검사항목*/
+              , ELE2  /*규격기준*/
+              , ELE3  /*검사결과*/
+              , ELE4  /*항목별판정*/
+             )VALUES (
+               #idx#
+             , #goodsCd#
+             , (SELECT NVL(MAX(CHECK_SEQ), #seq# )+1 FROM SC_QC_ITEMELEMENT_NEW WHERE QC_CODE = #idx# AND GOODS_CD = #goodsCd#)
+             , #ele1#
+             , #ele2#
+             , #ele3#
+             , #ele4# )
+		]]>
+	</insert>
+
+	<!-- 검사상품 삭제 -->
+	<delete id="deleteScQcItem" parameterClass="java.util.HashMap">
+		UPDATE SC_QC_ITEM
+           SET DEL_FLAG = 'Y'
+         WHERE QC_CODE = #idx#
+           AND GOODS_CD = #goodsCd#
+	</delete>
+
+	<!-- 일괄업로드시 품질검사 유효 확인 -->
+	<select id="checkExistQc" parameterClass="java.util.Map" resultClass="int">
+		SELECT COUNT(IDX) AS CNT
+		  FROM SC_QC_SURVEY
+		 WHERE IDX = #qcCode#
+		   AND DEL_FLAG = 'N'
+	</select>
+
+	<!-- 일괄업로드시 상품 유효 확인 -->
+	<select id="checkExistGoodsCd" parameterClass="java.util.Map" resultClass="int">
+		SELECT COUNT(GOODS_CD) AS CNT
+		  FROM GD_MGT_GOODS_MAST
+		 WHERE GOODS_CD = #goodsCd#
+	</select>
+
+	<!-- 일괄업로드시 공통코드 유효코드 확인 -->
+	<select id="checkExistCd" parameterClass="java.util.Map" resultClass="commMap">
+		SELECT COMN_CD_ID
+		  FROM CM_COMN_CD
+		 WHERE CD_GRP_ID = #grpId#
+		   AND USE_YN = 'Y'
+	</select>
+
+	<!-- 검사상품업로드 샘플 -->
+	<select id="selectGoodsListForSample" resultClass="commMap">
+		<![CDATA[
+			SELECT T1.BCNC_NM             /* 업체명   */
+                 , T2.GOODS_NM            /* 상품명   */
+                 , T2.GOODS_CD            /* 상품코드 */
+                 , F_GET_COMN_CD_NM( 'GOODS_STUS_CD', T2.GOODS_STUS_CD ) AS GOODS_STUS_NM  /* 상품상태 */
+             FROM  CO_SUPP_COMP_MAST T1
+                 , GD_MGT_GOODS_MAST T2
+            WHERE T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+		]]>
+	</select>
+
+	<!-- 성분,관능검사상품업로드 샘플 -->
+	<select id="createQcGoodsSampleFile" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			  SELECT T1.IDX        AS QC_CODE
+			       , T2.GOODS_CD
+                   , T1.NAME       AS QC_NAME
+                   , T3.GOODS_NM
+               FROM  SC_QC_SURVEY T1
+                   , SC_QC_SURVEYTARGET T2
+                   , GD_MGT_GOODS_MAST T3
+             WHERE T1.IDX = T2.QC_CODE
+               AND T2.GOODS_CD = T3.GOODS_CD
+               AND SURVEY_E_DATE IS NULL
+               AND T1.DEL_FLAG = 'N'
+               AND T1.KINDS = #kinds#
+        ]]>
+        <isNotNull property="idx">
+	        <isNotEmpty property="idx">
+	               AND T1.IDX = #idx#
+	        </isNotEmpty>
+        </isNotNull>
+             ORDER BY T1.IDX, T2.GOODS_CD
+
+	</select>
+
+	<!-- 품질검사 유효성 확인 -->
+	<select id="checkAbleQcCode" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(IDX) AS CNT
+              FROM SC_QC_SURVEY
+             WHERE IDX = #qcCode#
+               AND KINDS = #kinds#
+		]]>
+	</select>
+</sqlMap>

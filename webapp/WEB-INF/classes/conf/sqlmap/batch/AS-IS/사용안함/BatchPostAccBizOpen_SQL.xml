@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchPostAccBizOpen">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectDayList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				TO_CHAR(SYSDATE, 'YYYYMMDD') AS TO_DATE 
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="selectPgTlgrOpenLogList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				NVL(SUM(DECODE(TRAN_SERVER_TP, 'INIT', 1, 0)), 0) AS INIT_CNT,
+			    NVL(SUM(DECODE(TRAN_SERVER_TP, 'SEND', 1, 0)), 0) AS SEND_CNT
+			FROM PG_TLGR_OPEN_LOG 
+			WHERE 1 = 1
+			AND OPEN_YMD = #toDate# 
+			AND OPEN_WORK_TP = 'OPEN' 
+		]]>	 
+	</select>
+	
+	<procedure id="callPgResetseq" parameterClass="java.util.HashMap">
+		<![CDATA[
+			{CALL PG_RESET_SEQ(#proceduerName#)}
+		]]>
+	</procedure>
+	
+	<update id="insertPgTlgrOpenLog1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO PG_TLGR_OPEN_LOG (
+											OPEN_YMD, 
+											OPEN_WORK_TP,
+											TRAN_SERVER_TP, 
+											REG_DATE, 
+											TLGR_NO
+										 ) 
+								  VALUES
+										 ( 
+										 	#toDate#, 
+										 	'OPEN', 
+										 	'INIT', 
+										 	TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 
+										 	#tlgrNo# 
+										 )
+		]]>
+	</update>	
+	 	
+	<update id="insertPgTlgrOpenLog2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO PG_TLGR_OPEN_LOG (
+											OPEN_YMD, 
+											OPEN_WORK_TP, 
+											TRAN_SERVER_TP, 
+											REG_DATE, 
+											TLGR_NO
+										 ) 
+								  VALUES 
+										 ( 
+										 	#toDate#, 
+										 	'OPEN', 
+										 	'SEND', 
+										 	TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 
+										 	#tlgrMgntNo# 
+										  )
+		]]>
+	</update>	
+	 	
+</sqlMap>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatONOFF152k01">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="select_RetrieveGoodsPrcStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+            SELECT
+                PRICE_GBN,
+                SUM(DECODE(SEX,'1',BUYER_CNT,0)) SUMBYM,
+                SUM(DECODE(SEX,'2',BUYER_CNT,0)) SUMBYF,
+                SUM(DECODE(SEX,'3',BUYER_CNT,0)) SUMBY,
+                SUM(DECODE(SEX,'4',BUYER_CNT,0)) SUMCBY,
+                SUM(DECODE(SEX,'1',ORDER_CNT,0)) SUMORM,
+                SUM(DECODE(SEX,'2',ORDER_CNT,0)) SUMORF,
+                SUM(DECODE(SEX,'3',ORDER_CNT,0)) SUMOR,
+                SUM(DECODE(SEX,'4',ORDER_CNT,0)) SUMCOR,
+                SUM(DECODE(SEX,'1',SUM_AMOUNT,0)) SUMAMTM,
+                SUM(DECODE(SEX,'2',SUM_AMOUNT,0)) SUMAMTF,
+                SUM(DECODE(SEX,'3',SUM_AMOUNT,0)) SUMAM,
+                SUM(DECODE(SEX,'4',SUM_AMOUNT,0)) SUMCAM,
+                SUM(BUYER_CNT) TOT_BUYCNT,
+                SUM(ORDER_CNT) TOT_ORDERCNT,
+                SUM(SUM_AMOUNT) TOT_AMOUNT
+            FROM(
+                        SELECT
+					            CASE 
+					            ]]>
+								<isEqual property="j" compareValue="0">
+									<![CDATA[WHEN SUM_AMOUNT >=10000 AND SUM_AMOUNT < #sGoodsPrc# THEN (TO_NUMBER(#pGoodsPrc#)*(TO_NUMBER(#j#)+1))]]>
+								</isEqual>
+								<isNotEqual property="j" compareValue="0">
+									<![CDATA[WHEN SUM_AMOUNT >=(TO_NUMBER(#sGoodsPrc#)*(TO_NUMBER(#j#))) 
+											  AND SUM_AMOUNT < (TO_NUMBER(#sGoodsPrc#)*(TO_NUMBER(#j#)+1)) THEN (TO_NUMBER(#pGoodsPrc#)*(TO_NUMBER(#j#)+1))]]>
+								</isNotEqual>
+								<![CDATA[
+								END PRICE_GBN,
+                        SUM_AMOUNT,SEX,BUYER_CNT ,ORDER_CNT FROM (
+                        SELECT
+						    SUM(A.TOT_CNSMR_PRC) SUM_AMOUNT,A.ORDER_ID,
+						    DECODE(A.RECEVPO_RGISTPOCD ,'85414' ,'4',NVL(SEX,3)) SEX,
+						    COUNT(DISTINCT A.ORDER_ID) BUYER_CNT,
+						    COUNT(*) ORDER_CNT
+						FROM OD_ORDER_MAST A, MEM_EXTRA C, OD_ORDER_ITM B 
+						WHERE A.ACCESS_NAME = C.ACCESS_NAME
+						AND A.ORDER_ID = B.ORDER_ID(+)
+			]]>
+			<isNotEqual property="oRecevDivCd" compareValue="0" prepend="AND">
+				<![CDATA[B.PAVLN_DIV_CD = #oRecevDivCd#]]>
+			</isNotEqual>
+			<isNotEmpty property="hFromDate" prepend="AND">
+				<![CDATA[	A.APPR_DATE >= TO_DATE(#hFromDate#, 'YYYYMMDDHH24MI')]]>
+			</isNotEmpty>
+			<isNotEmpty property="hToDate" prepend="AND">
+				<![CDATA[	A.APPR_DATE <= TO_DATE(#hToDate#||'1259','YYYYMMDDHH24MI')]]>
+			</isNotEmpty>
+			<![CDATA[
+						GROUP BY DECODE(A.RECEVPO_RGISTPOCD ,'85414' ,'4',NVL(SEX,3)),A.ORDER_ID
+						 )
+                        WHERE 1 = 1
+                        ]]>
+                        <isNotEmpty property="iAmount" prepend="AND">
+							<![CDATA[SUM_AMOUNT < TO_NUMBER(#iAmount#)]]>
+						</isNotEmpty>
+						<![CDATA[
+                 )
+            GROUP BY PRICE_GBN
+            ORDER BY PRICE_GBN
+		]]>
+  </select>
+  
+  
+  <select id="select_RetrieveMaxAmount" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+	        SELECT NVL(RPAD(RPAD(MAX(AMOUNT),1)+1,LENGTH(MAX(AMOUNT)),'0'),10000) MAXAMOUNT
+            FROM (
+                SELECT ORDER_ID , SUM(TOT_CNSMR_PRC) AMOUNT
+                FROM OD_ORDER_MAST
+                WHERE 1 = 1
+        ]]>
+        <isNotEmpty property="hFromDate" prepend="AND">
+			<![CDATA[	APPR_DATE >= TO_DATE(#hFromDate#, 'YYYYMMDDHH24MI')]]>
+		</isNotEmpty>
+		<isNotEmpty property="hToDate" prepend="AND">
+			<![CDATA[	APPR_DATE <= TO_DATE(#hToDate#||'1259','YYYYMMDDHH24MI')]]>
+		</isNotEmpty>
+		<![CDATA[
+                AND ACCESS_NAME IS NOT NULL
+                AND ACCESS_NAME <> ' '
+                GROUP BY ORDER_ID
+                ORDER BY ORDER_ID
+	        )
+        ]]>
+  </select>
+	
+</sqlMap>

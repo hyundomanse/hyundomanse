@@ -1,0 +1,852 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.PavlnTermStat">
+
+	<select id="selectPavlnTermGoodsTypeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+      SELECT GOODS.GOODS_CD
+      	   , GOODS.GOODS_NM
+      	   , TO_CHAR(A.CNT,'FM999,999,999,999') AS TOTAL_CNT1
+      	   , TO_CHAR(A.SETL_APPR_AMT,'FM999,999,999,999') AS TOTAL_SETL_APPR_AMT1
+      	   , TO_CHAR(A.PRCLTAXIN,'FM999,999,999,999') AS TOTAL_PRCLTAXIN1
+      	   , TO_CHAR(B.CNT,'FM999,999,999,999') AS WEB_CNT1
+      	   , TO_CHAR(B.SETL_APPR_AMT,'FM999,999,999,999') AS WEB_SETL_APPR_AMT1
+      	   , TO_CHAR(B.PRCLTAXIN,'FM999,999,999,999') AS WEB_PRCLTAXIN1
+      	   , TO_CHAR(C.CNT,'FM999,999,999,999') AS PO_CNT1
+      	   , TO_CHAR(C.SETL_APPR_AMT,'FM999,999,999,999') AS PO_SETL_APPR_AMT1
+      	   , TO_CHAR(C.PRCLTAXIN,'FM999,999,999,999') AS PO_PRCLTAXIN1
+      	   , TO_CHAR(D.CNT,'FM999,999,999,999') AS MO_CNT1
+      	   , TO_CHAR(D.SETL_APPR_AMT,'FM999,999,999,999') AS MO_SETL_APPR_AMT1
+      	   , TO_CHAR(D.PRCLTAXIN,'FM999,999,999,999') AS MO_PRCLTAXIN1
+      	   , TO_CHAR(E.CNT,'FM999,999,999,999') AS TOTAL_CNT2
+      	   , TO_CHAR(E.SETL_APPR_AMT,'FM999,999,999,999') AS TOTAL_SETL_APPR_AMT2
+      	   , TO_CHAR(E.PRCLTAXIN,'FM999,999,999,999') AS TOTAL_PRCLTAXIN2
+      	   , TO_CHAR(F.CNT,'FM999,999,999,999') AS WEB_CNT2
+      	   , TO_CHAR(F.SETL_APPR_AMT,'FM999,999,999,999') AS WEB_SETL_APPR_AMT2
+      	   , TO_CHAR(F.PRCLTAXIN,'FM999,999,999,999') AS WEB_PRCLTAXIN2
+      	   , TO_CHAR(G.CNT,'FM999,999,999,999') AS PO_CNT2
+      	   , TO_CHAR(G.SETL_APPR_AMT,'FM999,999,999,999') AS PO_SETL_APPR_AMT2
+      	   , TO_CHAR(G.PRCLTAXIN,'FM999,999,999,999') AS PO_PRCLTAXIN2
+      	   , TO_CHAR(H.CNT,'FM999,999,999,999') AS MO_CNT2
+      	   , TO_CHAR(H.SETL_APPR_AMT,'FM999,999,999,999') AS MO_SETL_APPR_AMT2
+      	   , TO_CHAR(H.PRCLTAXIN,'FM999,999,999,999') AS MO_PRCLTAXIN2
+        FROM  GD_GOODS_MAST GOODS
+        	, ( SELECT OOI.GOODS_CD
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD
+                 ORDER BY GOODS_CD) A
+         	 , (SELECT OOI.GOODS_CD
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                    AND OOM.ORDER_MDA_DIV_CD = '01'
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD
+                 ORDER BY GOODS_CD) B
+         	 , (SELECT OOI.GOODS_CD
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD
+                 ORDER BY GOODS_CD) C
+         	 , (SELECT OOI.GOODS_CD
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD
+                 ORDER BY GOODS_CD) D
+        	, ( SELECT OOI.GOODS_CD, OOI.GOODS_NM
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD, OOI.GOODS_NM
+                 ORDER BY GOODS_CD) E
+         	 , (SELECT OOI.GOODS_CD
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                    AND OOM.ORDER_MDA_DIV_CD = '02'
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD
+                 ORDER BY GOODS_CD) F
+         	 , (SELECT OOI.GOODS_CD
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD
+                 ORDER BY GOODS_CD) G
+         	 , (SELECT OOI.GOODS_CD
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.GOODS_CD
+                 ORDER BY GOODS_CD) H
+		WHERE GOODS.GOODS_CD = A.GOODS_CD(+)
+		  AND GOODS.GOODS_CD = B.GOODS_CD(+)
+		  AND GOODS.GOODS_CD = C.GOODS_CD(+)
+		  AND GOODS.GOODS_CD = D.GOODS_CD(+)
+		  AND GOODS.GOODS_CD = E.GOODS_CD(+)
+		  AND GOODS.GOODS_CD = F.GOODS_CD(+)
+		  AND GOODS.GOODS_CD = G.GOODS_CD(+)
+		  AND GOODS.GOODS_CD = H.GOODS_CD(+)
+	    <isNotEmpty property="goodsCdArr" prepend="AND">
+	    			GOODS.GOODS_CD IN
+			<iterate property="goodsCdArr" open="("  close=")" conjunction=",">
+				#goodsCdArr[]#
+			</iterate>
+	    </isNotEmpty>
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln01_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT BASE.CODE
+			 , '특산물' AS NAME
+			 , BASE.CODE_NAME
+			 , TO_CHAR(INFO.CNT,'FM999,999,999,999') AS CNT
+			 , TO_CHAR(INFO.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+			 , TO_CHAR(INFO.PRCLTAXIN,'FM999,999,999,999') AS PRCLTAXIN
+		  FROM (SELECT 'PO' AS CODE, '창구판매' AS CODE_NAME, 1 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'WEB' AS CODE, '온라인' AS CODE_NAME, 2 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'MO' AS CODE,'모바일' AS CODE_NAME, 3 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'CALL' AS CODE, '콜센터' AS CODE_NAME, 4 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'TOTAL' AS CODE, '소계' AS CODE_NAME, 5 AS SORT_ORDER FROM DUAL) BASE 
+			  ,(SELECT OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM  (SELECT ORDER_ID, DECODE(ORDER_MDA_DIV_CD, '01', 'WEB', '02', 'PO', '04', 'CALL', '05', 'PO',  '03', 'MO', '06', 'MO') AS ORDER_MDA_DIV_CD FROM OD_ORDER_MAST) OOM
+				     , OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOM.ORDER_ID
+				   AND OOS.ORDER_ID = OOI.ORDER_ID
+				   AND PAVLN_DIV_CD = '01'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+			  UNION
+			    SELECT OOI.PAVLN_DIV_CD
+			  		 , 'TOTAL' AS ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+				   AND OOI.PAVLN_DIV_CD = '01'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD) INFO
+		 WHERE BASE.CODE = INFO.ORDER_MDA_DIV_CD(+)
+		 ORDER BY BASE.SORT_ORDER
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln01_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT BASE.CODE
+			 , '특산물' AS NAME
+			 , BASE.CODE_NAME
+			 , TO_CHAR(INFO.CNT,'FM999,999,999,999') AS CNT
+			 , TO_CHAR(INFO.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+			 , TO_CHAR(INFO.PRCLTAXIN,'FM999,999,999,999') AS PRCLTAXIN
+		  FROM (SELECT 'PO' AS CODE, '창구판매' AS CODE_NAME, 1 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'WEB' AS CODE, '온라인' AS CODE_NAME, 2 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'MO' AS CODE,'모바일' AS CODE_NAME, 3 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'CALL' AS CODE, '콜센터' AS CODE_NAME, 4 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'TOTAL' AS CODE, '소계' AS CODE_NAME, 5 AS SORT_ORDER FROM DUAL) BASE 
+			  ,(SELECT OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM  (SELECT ORDER_ID, DECODE(ORDER_MDA_DIV_CD, '01', 'WEB', '02', 'PO', '04', 'CALL', '05', 'PO',  '03', 'MO', '06', 'MO') AS ORDER_MDA_DIV_CD FROM OD_ORDER_MAST) OOM
+				     , OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOM.ORDER_ID
+				   AND OOS.ORDER_ID = OOI.ORDER_ID
+				   AND PAVLN_DIV_CD = '01'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+			  UNION
+			    SELECT OOI.PAVLN_DIV_CD
+			  		 , 'TOTAL' AS ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+				   AND OOI.PAVLN_DIV_CD = '01'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD) INFO
+		 WHERE BASE.CODE = INFO.ORDER_MDA_DIV_CD(+)
+		 ORDER BY BASE.SORT_ORDER
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln02_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT BASE.CODE
+			 , '제철식품' AS NAME
+			 , BASE.CODE_NAME
+			 , TO_CHAR(INFO.CNT,'FM999,999,999,999') AS CNT
+			 , TO_CHAR(INFO.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+			 , TO_CHAR(INFO.PRCLTAXIN,'FM999,999,999,999') AS PRCLTAXIN
+		  FROM (SELECT 'PO' AS CODE, '창구판매' AS CODE_NAME, 1 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'WEB' AS CODE, '온라인' AS CODE_NAME, 2 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'MO' AS CODE,'모바일' AS CODE_NAME, 3 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'CALL' AS CODE, '콜센터' AS CODE_NAME, 4 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'TOTAL' AS CODE, '소계' AS CODE_NAME, 5 AS SORT_ORDER FROM DUAL) BASE 
+			  ,(SELECT OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM  (SELECT ORDER_ID, DECODE(ORDER_MDA_DIV_CD, '01', 'WEB', '02', 'PO', '04', 'CALL', '05', 'PO',  '03', 'MO', '06', 'MO') AS ORDER_MDA_DIV_CD FROM OD_ORDER_MAST) OOM
+				     , OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOM.ORDER_ID
+				   AND OOS.ORDER_ID = OOI.ORDER_ID
+				   AND PAVLN_DIV_CD = '02'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+			  UNION
+			    SELECT OOI.PAVLN_DIV_CD
+			  		 , 'TOTAL' AS ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+				   AND OOI.PAVLN_DIV_CD = '02'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD) INFO
+		 WHERE BASE.CODE = INFO.ORDER_MDA_DIV_CD(+)
+		 ORDER BY BASE.SORT_ORDER
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln02_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT BASE.CODE
+			 , '제철식품' AS NAME
+			 , BASE.CODE_NAME
+			 , TO_CHAR(INFO.CNT,'FM999,999,999,999') AS CNT
+			 , TO_CHAR(INFO.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+			 , TO_CHAR(INFO.PRCLTAXIN,'FM999,999,999,999') AS PRCLTAXIN
+		  FROM (SELECT 'PO' AS CODE, '창구판매' AS CODE_NAME, 1 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'WEB' AS CODE, '온라인' AS CODE_NAME, 2 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'MO' AS CODE,'모바일' AS CODE_NAME, 3 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'CALL' AS CODE, '콜센터' AS CODE_NAME, 4 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'TOTAL' AS CODE, '소계' AS CODE_NAME, 5 AS SORT_ORDER FROM DUAL) BASE 
+			  ,(SELECT OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM  (SELECT ORDER_ID, DECODE(ORDER_MDA_DIV_CD, '01', 'WEB', '02', 'PO', '04', 'CALL', '05', 'PO',  '03', 'MO', '06', 'MO') AS ORDER_MDA_DIV_CD FROM OD_ORDER_MAST) OOM
+				     , OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOM.ORDER_ID
+				   AND OOS.ORDER_ID = OOI.ORDER_ID
+				   AND PAVLN_DIV_CD = '02'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+			  UNION
+			    SELECT OOI.PAVLN_DIV_CD
+			  		 , 'TOTAL' AS ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+				   AND OOI.PAVLN_DIV_CD = '02'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD) INFO
+		 WHERE BASE.CODE = INFO.ORDER_MDA_DIV_CD(+)
+		 ORDER BY BASE.SORT_ORDER
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln03_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+			 , '생활마트' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '03'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln03_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+			 , '생활마트' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '03'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln04_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT BASE.CODE
+			 , '꽃배달' AS NAME
+			 , BASE.CODE_NAME
+			 , TO_CHAR(INFO.CNT,'FM999,999,999,999') AS CNT
+			 , TO_CHAR(INFO.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+			 , TO_CHAR(INFO.PRCLTAXIN,'FM999,999,999,999') AS PRCLTAXIN
+		  FROM (SELECT 'PO' AS CODE, '창구판매' AS CODE_NAME, 1 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'WEB' AS CODE, '온라인' AS CODE_NAME, 2 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'MO' AS CODE,'모바일' AS CODE_NAME, 3 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'CALL' AS CODE, '콜센터' AS CODE_NAME, 4 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'TOTAL' AS CODE, '소계' AS CODE_NAME, 5 AS SORT_ORDER FROM DUAL) BASE 
+			  ,(SELECT OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM  (SELECT ORDER_ID, DECODE(ORDER_MDA_DIV_CD, '01', 'WEB', '02', 'PO', '04', 'CALL', '05', 'PO',  '04', 'MO', '06', 'MO') AS ORDER_MDA_DIV_CD FROM OD_ORDER_MAST) OOM
+				     , OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOM.ORDER_ID
+				   AND OOS.ORDER_ID = OOI.ORDER_ID
+				   AND PAVLN_DIV_CD = '04'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+			  UNION
+			    SELECT OOI.PAVLN_DIV_CD
+			  		 , 'TOTAL' AS ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+				   AND OOI.PAVLN_DIV_CD = '04'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD) INFO
+		 WHERE BASE.CODE = INFO.ORDER_MDA_DIV_CD(+)
+		 ORDER BY BASE.SORT_ORDER
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln04_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT BASE.CODE
+			 , '꽃배달' AS NAME
+			 , BASE.CODE_NAME
+			 , TO_CHAR(INFO.CNT,'FM999,999,999,999') AS CNT
+			 , TO_CHAR(INFO.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+			 , TO_CHAR(INFO.PRCLTAXIN,'FM999,999,999,999') AS PRCLTAXIN
+		  FROM (SELECT 'PO' AS CODE, '창구판매' AS CODE_NAME, 1 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'WEB' AS CODE, '온라인' AS CODE_NAME, 2 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'MO' AS CODE,'모바일' AS CODE_NAME, 3 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'CALL' AS CODE, '콜센터' AS CODE_NAME, 4 AS SORT_ORDER FROM DUAL UNION
+				SELECT 'TOTAL' AS CODE, '소계' AS CODE_NAME, 5 AS SORT_ORDER FROM DUAL) BASE
+			  ,(SELECT OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM  (SELECT ORDER_ID, DECODE(ORDER_MDA_DIV_CD, '01', 'WEB', '02', 'PO', '04', 'CALL', '05', 'PO',  '04', 'MO', '06', 'MO') AS ORDER_MDA_DIV_CD FROM OD_ORDER_MAST) OOM
+				     , OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOM.ORDER_ID
+				   AND OOS.ORDER_ID = OOI.ORDER_ID
+				   AND PAVLN_DIV_CD = '04'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD, OOM.ORDER_MDA_DIV_CD
+			  UNION
+			    SELECT OOI.PAVLN_DIV_CD
+			  		 , 'TOTAL' AS ORDER_MDA_DIV_CD
+				     , COUNT(*) CNT
+				     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+				     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+				  FROM OD_ORDER_SETL OOS
+				     , OD_ORDER_ITM OOI
+				 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+				   AND OOI.PAVLN_DIV_CD = '04'
+		  		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+				   AND OOS.USE_YN='Y'
+				 GROUP BY OOI.PAVLN_DIV_CD) INFO
+		 WHERE BASE.CODE = INFO.ORDER_MDA_DIV_CD(+)
+		 ORDER BY BASE.SORT_ORDER
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln05_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+			 , '전통시장' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '05'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln05_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+		     , '전통시장' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '05'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln07_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+		     , '해외배송' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '07'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln07_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+		     , '해외배송' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '07'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln08_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+		     , 'B2B' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '08'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln08_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+		     , 'B2B' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD = '08'
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln99_1" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+		     , '기타매출' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD NOT IN ('01', '02', '03', '04', '05', '07', '08')
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermCtgryTypeList_pavln99_2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT OOI.PAVLN_DIV_CD AS CODE
+		     , '기타매출' AS NAME
+		     , TO_CHAR(COUNT(*),'FM999,999,999,999') CNT
+		     , TO_CHAR(SUM(OOS.SETL_APPR_AMT),'FM999,999,999,999') SETL_APPR_AMT
+		     , TO_CHAR(SUM(OOI.PRCLTAXIN),'FM999,999,999,999') PRCLTAXIN
+		  FROM OD_ORDER_SETL OOS
+		     , OD_ORDER_ITM OOI
+		 WHERE OOS.ORDER_ID = OOI.ORDER_ID
+		   AND PAVLN_DIV_CD NOT IN ('01', '02', '03', '04', '05', '07', '08')
+	 		   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd2#, '-') AND REPLACE(#search_end_ymd2#, '-')
+		   AND OOS.USE_YN='Y'
+		 GROUP BY OOI.PAVLN_DIV_CD
+	</select>
+	
+	<select id="selectPavlnTermSuppTypeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+      SELECT SUPP.SUPP_COMP_ID
+             , SUPP.BCNC_NM
+             , TO_CHAR(A.CNT,'FM999,999,999,999') AS TOTAL_CNT1
+             , TO_CHAR(A.SETL_APPR_AMT,'FM999,999,999,999') AS TOTAL_SETL_APPR_AMT1
+             , TO_CHAR(A.PRCLTAXIN,'FM999,999,999,999') AS TOTAL_PRCLTAXIN1
+             , TO_CHAR(B.CNT,'FM999,999,999,999') AS WEB_CNT1
+             , TO_CHAR(B.SETL_APPR_AMT,'FM999,999,999,999') AS WEB_SETL_APPR_AMT1
+             , TO_CHAR(B.PRCLTAXIN,'FM999,999,999,999') AS WEB_PRCLTAXIN1
+             , TO_CHAR(C.CNT,'FM999,999,999,999') AS PO_CNT1
+             , TO_CHAR(C.SETL_APPR_AMT,'FM999,999,999,999') AS PO_SETL_APPR_AMT1
+             , TO_CHAR(C.PRCLTAXIN,'FM999,999,999,999') AS PO_PRCLTAXIN1
+             , TO_CHAR(D.CNT,'FM999,999,999,999') AS MO_CNT1
+             , TO_CHAR(D.SETL_APPR_AMT,'FM999,999,999,999') AS MO_SETL_APPR_AMT1
+             , TO_CHAR(D.PRCLTAXIN,'FM999,999,999,999') AS MO_PRCLTAXIN1
+             , TO_CHAR(E.CNT,'FM999,999,999,999') AS TOTAL_CNT2
+             , TO_CHAR(E.SETL_APPR_AMT,'FM999,999,999,999') AS TOTAL_SETL_APPR_AMT2
+             , TO_CHAR(E.PRCLTAXIN,'FM999,999,999,999') AS TOTAL_PRCLTAXIN2
+             , TO_CHAR(F.CNT,'FM999,999,999,999') AS WEB_CNT2
+             , TO_CHAR(F.SETL_APPR_AMT,'FM999,999,999,999') AS WEB_SETL_APPR_AMT2
+             , TO_CHAR(F.PRCLTAXIN,'FM999,999,999,999') AS WEB_PRCLTAXIN2
+             , TO_CHAR(G.CNT,'FM999,999,999,999') AS PO_CNT2
+             , TO_CHAR(G.SETL_APPR_AMT,'FM999,999,999,999') AS PO_SETL_APPR_AMT2
+             , TO_CHAR(G.PRCLTAXIN,'FM999,999,999,999') AS PO_PRCLTAXIN2
+             , TO_CHAR(H.CNT,'FM999,999,999,999') AS MO_CNT2
+             , TO_CHAR(H.SETL_APPR_AMT,'FM999,999,999,999') AS MO_SETL_APPR_AMT2
+             , TO_CHAR(H.PRCLTAXIN,'FM999,999,999,999') AS MO_PRCLTAXIN2
+        FROM  CO_SUPP_COMP_MAST SUPP
+            , ( SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) A
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD = '01'
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) B
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) C
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) D
+            , ( SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) E
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                    AND OOM.ORDER_MDA_DIV_CD = '02'
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) F
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) G
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) H
+        WHERE SUPP.SUPP_COMP_ID = A.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = C.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = D.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = E.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = F.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = G.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = H.SUPP_COMP_ID(+)
+	    <isNotEmpty property="suppArr" prepend="AND">
+	    			SUPP.SUPP_COMP_ID IN
+			<iterate property="suppArr" open="("  close=")" conjunction=",">
+				#suppArr[]#
+			</iterate>
+	    </isNotEmpty>
+	</select>
+	
+	<select id="selectPavlnTermSuppSumList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT TO_CHAR(SUM(A.CNT),'FM999,999,999,999') AS TOTAL_CNT1
+             , TO_CHAR(SUM(A.SETL_APPR_AMT),'FM999,999,999,999') AS TOTAL_SETL_APPR_AMT1
+             , TO_CHAR(SUM(A.PRCLTAXIN),'FM999,999,999,999') AS TOTAL_PRCLTAXIN1
+             , TO_CHAR(SUM(B.CNT),'FM999,999,999,999') AS WEB_CNT1
+             , TO_CHAR(SUM(B.SETL_APPR_AMT),'FM999,999,999,999') AS WEB_SETL_APPR_AMT1
+             , TO_CHAR(SUM(B.PRCLTAXIN),'FM999,999,999,999') AS WEB_PRCLTAXIN1
+             , TO_CHAR(SUM(C.CNT),'FM999,999,999,999') AS PO_CNT1
+             , TO_CHAR(SUM(C.SETL_APPR_AMT),'FM999,999,999,999') AS PO_SETL_APPR_AMT1
+             , TO_CHAR(SUM(C.PRCLTAXIN),'FM999,999,999,999') AS PO_PRCLTAXIN1
+             , TO_CHAR(SUM(D.CNT),'FM999,999,999,999') AS MO_CNT1
+             , TO_CHAR(SUM(D.SETL_APPR_AMT),'FM999,999,999,999') AS MO_SETL_APPR_AMT1
+             , TO_CHAR(SUM(D.PRCLTAXIN),'FM999,999,999,999') AS MO_PRCLTAXIN1
+             , TO_CHAR(SUM(E.CNT),'FM999,999,999,999') AS TOTAL_CNT2
+             , TO_CHAR(SUM(E.SETL_APPR_AMT),'FM999,999,999,999') AS TOTAL_SETL_APPR_AMT2
+             , TO_CHAR(SUM(E.PRCLTAXIN),'FM999,999,999,999') AS TOTAL_PRCLTAXIN2
+             , TO_CHAR(SUM(F.CNT),'FM999,999,999,999') AS WEB_CNT2
+             , TO_CHAR(SUM(F.SETL_APPR_AMT),'FM999,999,999,999') AS WEB_SETL_APPR_AMT2
+             , TO_CHAR(SUM(F.PRCLTAXIN),'FM999,999,999,999') AS WEB_PRCLTAXIN2
+             , TO_CHAR(SUM(G.CNT),'FM999,999,999,999') AS PO_CNT2
+             , TO_CHAR(SUM(G.SETL_APPR_AMT),'FM999,999,999,999') AS PO_SETL_APPR_AMT2
+             , TO_CHAR(SUM(G.PRCLTAXIN),'FM999,999,999,999') AS PO_PRCLTAXIN2
+             , TO_CHAR(SUM(H.CNT),'FM999,999,999,999') AS MO_CNT2
+             , TO_CHAR(SUM(H.SETL_APPR_AMT),'FM999,999,999,999') AS MO_SETL_APPR_AMT2
+             , TO_CHAR(SUM(H.PRCLTAXIN),'FM999,999,999,999') AS MO_PRCLTAXIN2
+        FROM  CO_SUPP_COMP_MAST SUPP
+            , ( SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) A
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD = '01'
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) B
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) C
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) D
+            , ( SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) E
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                    AND OOM.ORDER_MDA_DIV_CD = '02'
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) F
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('02', '04', '05')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) G
+              , (SELECT OOI.SUPP_COMP_ID
+                     , COUNT(*) CNT
+                     , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+                     , SUM(OOI.PRCLTAXIN) PRCLTAXIN
+                  FROM  OD_ORDER_MAST OOM
+                     , OD_ORDER_SETL OOS
+                     , OD_ORDER_ITM OOI
+                 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+                   AND OOM.ORDER_ID = OOI.ORDER_ID
+                   AND OOM.ORDER_MDA_DIV_CD IN ('03', '06')
+                   AND TO_CHAR(OOS.SETL_APPR_DATE,'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd1#, '-') AND REPLACE(#search_end_ymd1#, '-')
+                   AND OOS.USE_YN='Y'
+                 GROUP BY OOI.SUPP_COMP_ID) H
+        WHERE SUPP.SUPP_COMP_ID = A.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = C.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = D.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = E.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = F.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = G.SUPP_COMP_ID(+)
+          AND SUPP.SUPP_COMP_ID = H.SUPP_COMP_ID(+)
+	    <isNotEmpty property="suppArr" prepend="AND">
+   			SUPP.SUPP_COMP_ID IN
+			<iterate property="suppArr" open="("  close=")" conjunction=",">
+				#suppArr[]#
+			</iterate>
+	    </isNotEmpty>
+	</select>
+	
+</sqlMap>

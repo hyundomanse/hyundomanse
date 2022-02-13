@@ -1,0 +1,737 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.CommCode">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<typeAlias alias="commcodeTreeVo" type="com.devwork.common.CommCodeTreeVo"/>
+	<typeAlias alias="commcodeTreeParam" type="com.devwork.common.CommCodeTreeParam"/>
+
+	<resultMap class="CommCodeTreeVo" id="goodsListForBoResult">
+		<result property= "parent"   	column="parent"/>
+		<result property= "children" 	column="children"/>
+		<result property= "commcdid"	column="commcdid"/>
+		<result property= "commcdnm" 	column="commcdnm"/>
+		<result property= "useyn"    	column="useyn"/>
+		<result property= "regdate"  	column="regdate"/>
+		<result property= "chgdate"  	column="chgdate"/>
+		<result property= "regerid"  	column="regerid"/>
+		<result property= "chgerid"  	column="chgerid"/>
+		<result property= "sortorder"	column="sortorder"/>
+		<result property= "cdgrpid"		column="cdgrpid"/>
+		<result property= "cddesc"		column="cddesc"/>
+
+	</resultMap>
+
+	<!-- 공통코드그룹 리스트 (최상위) 검색 -->
+	<select id="selectCommCodeTreeRoot" parameterClass="java.util.HashMap" resultClass="commMap">
+   		<![CDATA[
+   		SELECT	'##'		AS parent
+				,'true'		AS children
+				,'0'		AS commlevel
+				,CD_GRP_ID	AS commcdid
+				,CD_GRP_NM	AS commcdnm
+	       	 	,CD_GRP_DESC AS cddesc
+				,USE_YN		AS useyn
+				,TO_CHAR(REG_DATE, 'YYYY.MM.DD HH24:MI')			AS regdate
+				,NVL(TO_CHAR(CHG_DATE, 'YYYY.MM.DD HH24:MI'),'')	AS chgdate
+				,REGER_ID	AS regerid
+				,CHGER_ID	AS chgerid
+				,'0'		AS sortorder
+		FROM 	CM_COMN_CD_GRP
+	   WHERE	1=1
+		]]>
+		<isNotNull property="commcdid">
+			<isNotEmpty property="commcdid" prepend="AND">
+					CD_GRP_ID = #commcdid#
+			</isNotEmpty>
+		</isNotNull>
+		<isNotNull property="cdGrpNm">
+			<isNotEmpty property="cdGrpNm" prepend="AND">
+					CD_GRP_NM like '%' || #cdGrpNm# || '%'
+			</isNotEmpty>
+		</isNotNull>
+   		ORDER BY CD_GRP_NM
+	</select>
+
+	<!-- 자식조회 -->
+	<select id="selectCommCodeTreeChild" parameterClass ="CommCodeTreeParam" resultClass="CommCodeTreeVo">
+	SELECT   CD_GRP_ID 	AS parent
+			,'false'	AS children
+			,'1'		AS commlevel
+	        ,CD_GRP_ID|| ':' ||COMN_CD_ID AS commcdid
+	        ,COMN_CD_NM AS commcdnm
+	        ,COMN_CD_DESC AS cddesc
+	        ,USE_YN		AS useyn
+	        ,REG_DATE 	AS regdate
+	        ,CHG_DATE 	AS chgdate
+	        ,REGER_ID 	AS regerid
+	        ,CHGER_ID 	AS chgerid
+	        ,SORT_ORDER AS sortorder
+	FROM    CM_COMN_CD
+	WHERE   1=1
+   <isNotNull property="cdgrpid">
+   	AND		CD_GRP_ID = #cdgrpid#
+   </isNotNull>
+   <isNotNull property="commcdid">
+   	AND		COMN_CD_ID = #commcdid#
+   </isNotNull>
+
+	ORDER BY SORT_ORDER ASC
+	</select>
+
+	<!-- 공통코드(ROOT)등록 -->
+	<insert id="registCommCodeRootList" parameterClass="java.util.HashMap">
+	INSERT INTO CM_COMN_CD_GRP
+		        (   CD_GRP_ID
+		            ,CD_GRP_NM
+		            ,CD_GRP_DESC
+		            ,USE_YN
+		            ,SUB_AREA
+		            ,REG_DATE
+		            ,CHG_DATE
+		            ,REGER_ID
+		            ,CHGER_ID
+		        )
+		        VALUES
+		        (   #commcdid#
+		            ,#commcdnm#
+		            ,#cddesc#
+		            ,#useYn#
+		            ,#subArea#
+		            ,SYSDATE
+		            ,SYSDATE
+		            ,'admin'
+		            ,'admin'
+
+		        )
+
+	</insert>
+	<!-- 공통코드(CHILD) 등록 -->
+	<insert id="registCommCodeChildList" parameterClass="java.util.HashMap">
+INSERT INTO CM_COMN_CD
+		        (   CD_GRP_ID
+		            ,COMN_CD_ID
+		            ,COMN_CD_NM
+		            ,COMN_CD_DESC
+		            ,SORT_ORDER
+		            ,USE_YN
+		            ,REG_DATE
+		            ,CHG_DATE
+		            ,REGER_ID
+		            ,CHGER_ID
+		        )
+		        VALUES
+		        (
+		            #parent#
+		            ,#commcdid# 				/**NVL(MAX(COMN_CD_ID),0)+1  지정추가가능**/
+		            ,#commcdnm#
+		            ,#cddesc#
+		            ,(
+		                SELECT NVL(MAX(SORT_ORDER),0)
+		                FROM    CM_COMN_CD
+		                WHERE CD_GRP_ID =#parent#
+		             )
+		            ,#useYn#
+		            ,SYSDATE
+		            ,SYSDATE
+		            ,'admin'
+		            ,'admin'
+		        )
+	</insert>
+	<!-- 공통코드 (ROOT)수정 -->
+	<update id="modifyCommCodeRootList" parameterClass="java.util.HashMap">
+	UPDATE CM_COMN_CD_GRP
+	 SET  	CD_GRP_ID    	= #commcdid#
+            ,CD_GRP_NM   	= #commcdnm#
+            ,CD_GRP_DESC 	= #cddesc#
+            ,USE_YN      	= #useYn#
+          /*,BIZ_DIV_CD 	= ##업무구분코드*/
+            ,CHG_DATE    	= SYSDATE
+            ,CHGER_ID    	='admin'               /* LOGIN 정보 받아오기*/
+    WHERE 	CD_GRP_ID  		= #tmpcommcdid#
+	</update>
+	<!-- 공통코드 (CHILD)수정 -->
+	<update id="modifyCommCodeChildList" parameterClass="java.util.HashMap">
+	UPDATE CM_COMN_CD SET
+            CD_GRP_ID       = #parent#
+            ,COMN_CD_ID     = #commcdid#
+            ,COMN_CD_NM     = #commcdnm#
+            ,COMN_CD_DESC    = #cddesc#
+            ,USE_YN         = #useYn#
+            ,CHG_DATE       = SYSDATE
+            ,CHGER_ID       = 'admin'               /* LOGIN 정보 받아오기 */
+	WHERE CD_GRP_ID  = #tmpparent#
+	  AND COMN_CD_ID = #tmpcommcdid#
+
+	</update>
+
+	<!-- 공통코드 조회 팝업 -->
+	<select id="selectcommcode" parameterClass="java.util.HashMap" resultClass="commMap">
+	SELECT *
+	FROM(
+			SELECT  ROW_NUMBER() OVER (ORDER BY CD_GRP_NM) ONUM
+					,CD_GRP_ID		as cdgrpid
+			        ,CD_GRP_NM		as cdgrnm
+			        ,USE_YN			as useyn
+			        ,CHG_DATE		as chgdate
+			        ,CHGER_ID		as chgerid
+			FROM    CM_COMN_CD_GRP
+			WHERE	1=1
+				<isNotNull property="searchWord">
+					<isEqual property="searchIndex" compareValue="00">
+						AND (CD_GRP_ID LIKE '%'|| #searchWord# ||'%' OR CD_GRP_NM LIKE '%'|| #searchWord# ||'%')
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="01">
+						AND CD_GRP_ID LIKE '%'|| #searchWord# ||'%'
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="02">
+						AND CD_GRP_NM LIKE '%'|| #searchWord# ||'%'
+					</isEqual>
+				</isNotNull>
+		)
+	WHERE 1=1
+	<isNotNull property="firstIndex">
+	<isNotNull property="lastIndex">
+	AND ONUM BETWEEN #firstIndex# AND #lastIndex#
+	</isNotNull>
+	</isNotNull>
+
+	</select>
+
+	<!-- 공통코드 조회 팝업 카운트 -->
+	<select id="selectcommcodeTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*)
+	FROM(
+		SELECT  CD_GRP_ID		as cdgrpid
+		        ,CD_GRP_NM		as cdgrnm
+		        ,USE_YN			as useyn
+		        ,CHG_DATE		as chgdate
+		        ,CHGER_ID		as chgerid
+		FROM    CM_COMN_CD_GRP
+		WHERE	1=1
+		<isNotNull property="searchWord">
+			<isEqual property="searchIndex" compareValue="00">
+				AND (CD_GRP_ID LIKE '%'|| #searchWord# ||'%' OR CD_GRP_NM LIKE '%'|| #searchWord# ||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="01">
+				AND CD_GRP_NM LIKE '%'|| #searchWord# ||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="02">
+				AND CD_GRP_ID LIKE '%'|| #searchWord# ||'%'
+			</isEqual>
+		</isNotNull>
+		)
+	</select>
+
+		<!-- 공통코드 조회 -->
+	<select id="selectCommCodeByGrpId" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT T2.CD_GRP_ID
+	     , T2.COMN_CD_ID AS value
+	     , T2.COMN_CD_NM AS name
+	FROM   CM_COMN_CD_GRP T1
+      	 , CM_COMN_CD T2
+	WHERE 1=1
+	AND    T1.CD_GRP_ID = T2.CD_GRP_ID
+	AND    T1.CD_GRP_ID = #inputCdGrpId#
+	AND    T2.USE_YN = 'Y'
+	ORDER BY T2.SORT_ORDER ASC
+	</select>
+
+
+	<!-- 공통코드 조회 카운트 -->
+	<select id="selectCommCodeByGrpIdCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*)
+	FROM   CM_COMN_CD_GRP T1
+      	 , CM_COMN_CD T2
+	WHERE 1=1
+	AND    T1.CD_GRP_ID = T2.CD_GRP_ID
+	AND    T1.CD_GRP_ID = #inputCdGrpId#
+   <isNotNull property="comnCdId">
+   	AND	   T2.COMN_CD_ID = #comnCdId#
+   </isNotNull>
+
+	</select>
+
+	<!-- 상위 메뉴코드조회   -->
+	<select id="selectMenuurlByMenuId" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	MM.MENU_ID
+				,MM.MENU_NM
+				,MM.MENU_URL
+		FROM	CM_ADMIN_MENU_MAST MM, CM_ADMIN_PERM AP, CM_ADMIN_PERM_GRP PG
+		WHERE	AP.MENU_ID = MM.MENU_ID
+		AND		PG.PERM_ID = AP.PERM_ID
+		AND 	MM.HRNK_MENU_ID = '1'
+		AND		PG.ADMIN_ID = #loginId#
+		AND 	MM.USE_YN='Y'
+		ORDER BY SORT_ORDER  ASC
+	</select>
+
+	<!-- 전체 자식 메뉴코드조회 -->
+	<select id="selectTotMenuurlByMenuId" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	MENU_ID
+			,MENU_NM
+			,MENU_URL
+			,HRNK_MENU_ID
+			,LEVEL MENU_LEVEL
+			,(DECODE((SELECT Max(MENU_ID) FROM  CM_ADMIN_MENU_MAST WHERE HRNK_MENU_ID =A.MENU_ID),'','N','Y')) AS SON_YN
+		FROM CM_ADMIN_MENU_MAST  A
+		WHERE USE_YN='Y' AND MENU_ID !='1'
+		 AND MENU_ID IN (	SELECT	AP.MENU_ID
+							FROM	CM_ADMIN_PERM AP,CM_ADMIN_MENU_MAST MM, CM_ADMIN_PERM_GRP PG
+							WHERE	AP.MENU_ID = MM.MENU_ID
+							AND		PG.PERM_ID = AP.PERM_ID
+							AND 	PG.ADMIN_ID = #loginId#)
+		START WITH A.MENU_ID = #hmenuId#
+		CONNECT BY PRIOR A.MENU_ID = A.HRNK_MENU_ID
+		ORDER SIBLINGS BY A.SORT_ORDER
+	</select>
+
+	<!-- 택배사코드 리스트 조회 -->
+	<select id="selectDelivCodeList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT A.*
+	FROM (
+				SELECT 	ROW_NUMBER() OVER(ORDER BY SORT_ORDER ASC,COMN_CD_ID ASC) AS RNUM
+						,COMN_CD_ID
+				        ,COMN_CD_NM
+				        ,CD_VAL1
+				        ,USE_YN
+				        ,DECODE(NVL(USE_YN,'N'),'N','사용안함','Y','사용')AS USE_YN_NM
+				        ,TO_CHAR(REG_DATE,'YYYY-MM-DD') AS REG_DATE
+				        ,TO_CHAR(CHG_DATE,'YYYY-MM-DD') AS CHG_DATE
+				        ,REGER_ID
+				        ,CHGER_ID
+				FROM CM_COMN_CD
+				WHERE CD_GRP_ID = 'HDRYCO_CD'
+				<isNotNull property="searchWord">
+					<isEqual property="searchIndex" compareValue="ALL">
+						AND (COMN_CD_ID LIKE '%'|| #searchWord# || '%' OR COMN_CD_NM LIKE '%'|| #searchWord# || '%')
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="01">
+						AND COMN_CD_ID LIKE  '%'|| #searchWord# || '%'
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="02">
+						AND COMN_CD_NM LIKE  '%'|| #searchWord# || '%'
+					</isEqual>
+				</isNotNull>
+				<isNotEmpty property="useYnSel">
+					<isNotEqual property="useYnSel" compareValue="ALL" prepend="AND">
+						USE_YN = #useYnSel#
+					</isNotEqual>
+				</isNotEmpty>
+				)A
+	<isNotNull property="firstIndex">
+		<isNotNull property="lastIndex">
+	WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotNull>
+	</isNotNull>
+</select>
+
+	<!-- 택배사코드 리스트 카운트 -->
+	<select id="selectDelivCodeListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM CM_COMN_CD
+		WHERE CD_GRP_ID = 'HDRYCO_CD'
+				<isNotNull property="searchWord">
+					<isEqual property="searchIndex" compareValue="ALL">
+						AND (COMN_CD_ID LIKE '%'|| #searchWord# || '%' OR COMN_CD_NM LIKE '%'|| #searchWord# || '%')
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="01">
+						AND COMN_CD_ID LIKE  '%'|| #searchWord# || '%'
+					</isEqual>
+					<isEqual property="searchIndex" compareValue="02">
+						AND COMN_CD_NM LIKE  '%'|| #searchWord# || '%'
+					</isEqual>
+				</isNotNull>
+				<isNotEmpty property="useYnSel">
+					<isNotEqual property="useYnSel" compareValue="ALL" prepend="AND">
+						USE_YN = #useYnSel#
+					</isNotEqual>
+				</isNotEmpty>
+	</select>
+	<!-- 택배사코드 상세정보 -->
+	<select id="selectdelivCodeInfo" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT   COMN_CD_ID
+				,COMN_CD_NM
+				,CD_VAL1
+				,USE_YN
+				,SORT_ORDER
+				,TO_CHAR(REG_DATE,'YYYY-MM-DD') AS REG_DATE
+				,TO_CHAR(CHG_DATE,'YYYY-MM-DD') AS CHG_DATE
+				,REGER_ID
+				,CHGER_ID
+		FROM CM_COMN_CD
+		WHERE CD_GRP_ID = 'HDRYCO_CD'
+		  AND COMN_CD_ID = #comnCdId#
+	</select>
+	<!-- 택배사코드 리스트 신규등록  -->
+	<insert id="insertDelivCodeMgrList" parameterClass ="java.util.HashMap">
+INSERT INTO CM_COMN_CD
+		(
+		        CD_GRP_ID
+		        ,COMN_CD_ID
+		        ,COMN_CD_NM
+		        ,COMN_CD_DESC
+		        ,CD_VAL1
+		        ,USE_YN
+		        ,SORT_ORDER
+		        ,SUB_AREA
+		        ,REG_DATE
+		        ,CHG_DATE
+		        ,REGER_ID
+		        ,CHGER_ID
+		)
+		VALUES
+		(
+		        'HDRYCO_CD'
+		        ,(SELECT MAX(NVL(COMN_CD_ID,0)+1) FROM CM_COMN_CD WHERE CD_GRP_ID = 'HDRYCO_CD') /* 공통코드ID 자동발번 */
+		        ,#comnCdNm#         /* 택배사명 */
+		        ,#comnCdNm#         /* 택배사명 */
+		        ,#cdVal1#			/* 택배사URL */
+
+		        <isNull property="rdoUseYn">
+		        ,'Y'				 /* USEYN */
+		        </isNull>
+		        <isNotNull property="rdoUseYn">
+		        ,#rdoUseYn#         /* USEYN */
+		        </isNotNull>
+		        ,#sortOrder#		/* SORT_ORDER */
+		        ,'CM'
+		        ,SYSDATE
+		        ,SYSDATE
+		        ,#loginId#         /* 등록자ID */
+		        ,#loginId#         /* 수정자 ID */
+		)
+</insert>
+
+	<!-- 택배사코드 리스트 수정  -->
+	<update id="updateDelivCodeMgrInfo" parameterClass ="java.util.HashMap">
+UPDATE CM_COMN_CD SET
+		CHG_DATE = SYSDATE
+		<isNotNull property="comnCdNm">
+		,COMN_CD_NM = #comnCdNm#
+		</isNotNull>
+		,USE_YN = #useYn#
+		<isNotNull property="cdVal1">
+		,CD_VAL1 = #cdVal1#
+		</isNotNull>
+		,CHGER_ID = #loginId#
+		WHERE CD_GRP_ID = 'HDRYCO_CD'
+		AND COMN_CD_ID = #comnCdId#
+</update>
+
+		<!-- 환율정보관리 상세 조회 -->
+	<select id="selectExchangeinfoMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			SELECT B.*
+			FROM(
+				SELECT ROW_NUMBER() OVER(ORDER BY A.APPLY_YMD DESC) RNUM
+						,A.EXRATE_CD
+						,EXRATE_CD_NM.COMN_CD_NM
+						,TO_CHAR(TO_DATE(A.APPLY_YMD),'YYYY-MM-DD') AS APPLY_YMD
+						,A.CURRENCY_RATE
+				FROM	CM_CURRENCY A
+					   ,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'EXRATE_CD' AND COMN_CD_ID=#exrateCd#) EXRATE_CD_NM
+				WHERE   A.EXRATE_CD = #exrateCd#
+				<isNotEmpty property="regFromDt">
+				<isNotEmpty property="regToDt">
+					AND APPLY_YMD BETWEEN replace(#regFromDt#,'-','') AND replace(#regToDt#,'-','')
+				</isNotEmpty>
+				</isNotEmpty>
+				)B
+			<isNotNull property="lastIndex">
+				<isNotNull property="firstIndex">
+			WHERE B.RNUM BETWEEN #firstIndex# AND #lastIndex#
+				</isNotNull>
+			</isNotNull>
+	</select>
+		<!-- 환율정보관리 리스트 카운트 -->
+	<select id="selectExchangeinfoMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT	COUNT(*)
+		FROM	CM_CURRENCY
+		WHERE EXRATE_CD = #exrateCd#
+		<isNotEmpty property="regFromDt">
+		<isNotEmpty property="regToDt">
+			AND APPLY_YMD BETWEEN replace(#regFromDt#,'-','') AND replace(#regToDt#,'-','')
+		</isNotEmpty>
+		</isNotEmpty>
+	</select>
+	<!-- 환율공통코드 리스트 조회 -->
+	<select id="selectExrateCdNmList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT	COMN_CD_ID
+			,COMN_CD_NM
+	FROM	CM_COMN_CD
+	WHERE	CD_GRP_ID = 'EXRATE_CD'
+	</select>
+
+	<!-- 환율정보 상세조회 -->
+	<select id="selectExchangeInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+SELECT	A.EXRATE_CD
+				,EXRATE_CD_NM.COMN_CD_NM
+				,TO_DATE(A.APPLY_YMD) AS APPLY_YMD
+				,TO_CHAR(A.CURRENCY_RATE,'FM99990.00') AS CURRENCY_RATE
+		FROM	CM_CURRENCY A
+				,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'EXRATE_CD' AND COMN_CD_ID=#exrateCd#) EXRATE_CD_NM
+		WHERE	A.EXRATE_CD = #exrateCdPop#
+		AND		A.APPLY_YMD = TO_DATE(#applyYmdPop#)
+</select>
+		<!-- 환율정보관리 리스트 신규등록  -->
+	<insert id="insertExchangeinfoMgrList" parameterClass ="java.util.HashMap">
+		INSERT INTO CM_CURRENCY	(EXRATE_CD
+								,APPLY_YMD
+								,CURRENCY_RATE)
+		VALUES (				#exrateCdReg#
+								,#toDayDate#
+								,#currencyRate# )
+	</insert>
+		<!-- 환율정보관리 리스트 수정  -->
+	<update id="updateExchangeinfoMgrList" parameterClass ="java.util.HashMap">
+		UPDATE	CM_CURRENCY
+		SET		CURRENCY_RATE  = #currencyRate#
+		WHERE	APPLY_YMD = TO_DATE(#applyYmd#)
+		AND		EXRATE_CD = #exrateCdUp#
+	</update>
+	<!-- 환율정보관리 리스트 삭제 -->
+	<delete id="deleteExchangeinfoMgrList" parameterClass ="java.util.HashMap">
+		DELETE FROM CM_CURRENCY
+		WHERE	APPLY_YMD = TO_DATE(#applyYmd#)
+		AND		EXRATE_CD = #exrateCd#
+	</delete>
+
+
+	<!-- 공급업체 대상 조회 팝업 -->
+	<select id="targetList" parameterClass ="java.util.HashMap" resultClass="commMap">
+				SELECT  ONUM
+						,TARGETIDX
+						,NAME
+						,CREATEDATE
+						,DEL_FLAG
+						,CREATOR
+						,TYPE
+						,OBJECT_TYPE
+						,SIL_GB
+				FROM
+						(SELECT
+								<isEmpty property="sidx">
+									ROW_NUMBER() OVER(ORDER BY SIL_GB DESC , TARGETIDX DESC) AS ONUM,
+								</isEmpty>
+									TARGETIDX
+									,NAME
+									,CREATEDATE
+									,DEL_FLAG
+									,CREATOR
+									,TYPE
+									,OBJECT_TYPE
+									,SIL_GB
+							FROM    SC_TARGET
+		                   WHERE    DEL_FLAG='N'
+		                   <isNotEmpty property="searchWord">
+						     AND    NAME LIKE  '%'|| #searchWord# ||'%'
+						   </isNotEmpty>
+						)T1
+				WHERE 1=1
+					<isNotNull property="firstIndex">
+						<isNotNull property="lastIndex">
+							AND T1.ONUM BETWEEN #firstIndex# AND #lastIndex#
+						</isNotNull>
+					</isNotNull>
+	</select>
+
+	<!-- 공급업체 대상 조회 검색 카운트 -->
+	<select id="targetListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+				SELECT COUNT(*)
+				FROM(SELECT
+							TARGETIDX
+							,NAME
+							,CREATEDATE
+							,DEL_FLAG
+							,CREATOR
+							,TYPE
+							,OBJECT_TYPE
+							,SIL_GB
+					 FROM    SC_TARGET
+	                 WHERE    DEL_FLAG='N'
+	                 <isNotEmpty property="searchWord">
+				     AND    NAME LIKE  '%'|| #searchWord# ||'%'
+				     </isNotEmpty>
+					)
+	</select>
+
+	<!-- 공급업체 대상 상세 조회 -->
+	<select id="selectTargetInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+	SELECT  TARGETIDX
+			,NAME
+			,CREATEDATE
+			,DEL_FLAG
+			,CREATOR
+			,TYPE
+			,OBJECT_TYPE
+			,SIL_GB
+	 FROM    SC_TARGET
+    WHERE   TARGETIDX = #targetIdx#
+	</select>
+
+	<!-- Email 템플릿 리스트 -->
+	<sql id="template_list">
+		SELECT ROW_NUMBER () OVER (ORDER BY TEMPL_MGT_NO DESC) RNUM
+			 , A.TEMPL_MGT_NO
+			 , A.TMPL_STUS_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='TMPL_STUS_CD' AND COMN_CD_ID=A.TMPL_STUS_CD) AS TMPL_STUS_CD_NM
+			 , A.TX_DIV_CD
+			 , A.TX_TYP_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='TX_TYP_CD' AND COMN_CD_ID=A.TX_TYP_CD) AS TX_TYP_CD_NM
+			 , A.TX_TRGT_TYP_CD
+			 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='TX_TRGT_TYP_CD' AND COMN_CD_ID=A.TX_TRGT_TYP_CD) AS TX_TRGT_TYP_CD_NM
+			 , A.MGT_NM
+			 , A.SEND_TTL
+			 , A.SEND_CONT
+			 , A.TX_EMAIL_ADDR
+			 , A.EMAIL_TEMPL_ID
+			 , A.EMAIL_TEMPL_PATH
+			 , A.TX_MOBILE_NO
+			 , A.USE_YN
+			 , DECODE(NVL(A.USE_YN,'N'),'N','사용안함','Y','사용') USE_YN_NM
+			 , A.DEL_YN
+			 , A.REG_DATE
+			 , A.REGER_ID
+			 , A.CHG_DATE
+			 , A.CHGER_ID
+		  FROM CM_SMS_EMAIL_TEMPL A
+		 WHERE 1=1
+		   AND A.DEL_YN = 'N'
+			<isNotEmpty property="search_tmpl_stus_cd" prepend="AND">
+				A.TMPL_STUS_CD = #search_tmpl_stus_cd#
+			</isNotEmpty>
+			<isNotEmpty property="search_tx_typ_cd" prepend="AND">
+				A.TX_TYP_CD = #search_tx_typ_cd#
+			</isNotEmpty>
+			<isNotEmpty property="search_tx_trgt_typ_cd" prepend="AND">
+				A.TX_TRGT_TYP_CD = #search_tx_trgt_typ_cd#
+			</isNotEmpty>
+			<isNotEmpty property="tx_div_cd" prepend="AND">
+				A.TX_DIV_CD = #tx_div_cd#
+			</isNotEmpty>
+			<isNotEmpty property="search_text">
+				<isNotEmpty property="search_type" prepend="AND">
+					<isEqual property="search_type" compareValue="00">
+						(TX_MOBILE_NO LIKE '%'||REPLACE(#search_text#,'-','')||'%' OR SEND_CONT LIKE '%'||#search_text#||'%')
+					</isEqual>
+					<isEqual property="search_type" compareValue="01">
+						TX_MOBILE_NO LIKE '%'||REPLACE(#search_text#,'-','')||'%'
+					</isEqual>
+					<isEqual property="search_type" compareValue="02">
+						SEND_CONT LIKE '%'||#search_text#||'%'
+					</isEqual>
+					<isEqual property="search_type" compareValue="10">
+						(SEND_TTL LIKE '%'||#search_text#||'%' OR SEND_CONT LIKE '%'||#search_text#||'%')
+					</isEqual>
+					<isEqual property="search_type" compareValue="11">
+						SEND_TTL LIKE '%'||#search_text#||'%'
+					</isEqual>
+					<isEqual property="search_type" compareValue="12">
+						SEND_CONT LIKE '%'||#search_text#||'%'
+					</isEqual>
+				</isNotEmpty>
+			</isNotEmpty>
+	</sql>
+	<!-- Email 템플릿 조회 -->
+	<select id="selectTemplateList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+
+				SELECT *
+				FROM (
+						<include refid="template_list" />
+					)
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<!-- Email 템플릿 카운트 -->
+	<select id="selectTemplateCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="template_list" />)
+	</select>
+	<!-- Email 템플릿 등록 -->
+	<insert id="insertTemplateInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CM_SMS_EMAIL_TEMPL
+				  ( TEMPL_MGT_NO
+				  , TMPL_STUS_CD
+				  , TX_DIV_CD
+				  , TX_TYP_CD
+				  , TX_TRGT_TYP_CD
+				  , SEND_TTL
+				  , SEND_CONT
+				  , TX_EMAIL_ADDR
+				  , EMAIL_TEMPL_ID
+				  , EMAIL_TEMPL_PATH
+				  , TX_MOBILE_NO
+				  , USE_YN
+				  , DEL_YN
+				  , REG_DATE
+				  , REGER_ID
+				  , CHG_DATE
+				  , CHGER_ID )
+			VALUES
+				 ( (SELECT TO_CHAR(TO_CHAR(SYSDATE,'YYMMDDHH24MI')||NVL(DECODE(MAX(SUBSTR(TEMPL_MGT_NO,11,4)),'9999', '1000',MAX(SUBSTR(TEMPL_MGT_NO,11,4))+1),'1000'))
+   					   FROM CM_SMS_EMAIL_TEMPL)
+				  , #tmpl_stus_cd#
+				  , #tx_div_cd#
+				  , #tx_typ_cd#
+				  , #tx_trgt_typ_cd#
+				  , #send_ttl#
+				  , #send_cont#
+				  , #tx_email_addr#
+				  , #email_templ_id#
+				  , #email_templ_path#
+				  , #tx_mobile_no#
+				  , #use_yn#
+				  , 'N'
+				  , SYSDATE
+				  , #reger_id#
+				  , SYSDATE
+				  , #chger_id# )
+	</insert>
+	<!-- Email 템플릿 수정 -->
+	<update id="updateTemplateInfo" parameterClass="java.util.HashMap">
+		UPDATE CM_SMS_EMAIL_TEMPL
+		   SET
+		   <isNotEmpty property="tx_div_cd">
+				TX_DIV_CD = #tx_div_cd#,
+		   </isNotEmpty>
+		   <isNotEmpty property="tmpl_stus_cd">
+				TMPL_STUS_CD = #tmpl_stus_cd#,
+		   </isNotEmpty>
+		   <isNotEmpty property="tx_typ_cd">
+		   		TX_TYP_CD = #tx_typ_cd#,
+		   </isNotEmpty>
+		   <isNotEmpty property="tx_trgt_typ_cd">
+		   		TX_TRGT_TYP_CD = #tx_trgt_typ_cd#,
+		   </isNotEmpty>
+		   <isNotEmpty property="send_ttl">
+				SEND_TTL = #send_ttl#,
+		   </isNotEmpty>
+		   <isNotEmpty property="send_cont">
+				SEND_CONT = #send_cont#,
+		   </isNotEmpty>
+		   <isNotEmpty property="tx_email_addr">
+				TX_EMAIL_ADDR = #tx_email_addr#,
+		   </isNotEmpty>
+		   <isNotEmpty property="email_templ_id">
+				EMAIL_TEMPL_ID = #email_templ_id#,
+		   </isNotEmpty>
+		   <isNotEmpty property="email_templ_path">
+				EMAIL_TEMPL_PATH = #email_templ_path#,
+		   </isNotEmpty>
+		   <isNotEmpty property="tx_tel_no">
+				TX_MOBILE_NO = #tx_mobile_no#,
+		   </isNotEmpty>
+		   <isNotEmpty property="use_yn">
+				USE_YN = #use_yn#,
+		   </isNotEmpty>
+		   <isNotEmpty property="del_yn">
+				DEL_YN = #del_yn#,
+		   </isNotEmpty>
+				CHG_DATE = SYSDATE,
+				CHGER_ID = #chger_id#
+		 WHERE TEMPL_MGT_NO = #templ_mgt_no#
+	</update>
+
+</sqlMap>

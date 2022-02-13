@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchAlcolBuyList">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 창구 주류구매통계 -->
+	<select id="selectOdOrderMastList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			  select DT,lpad(rownum,6,'0') SEQ,COMPLETE_DATE ,PEOPLE_SEED_NUM,REGISTER_NO ,gbn,BIRTHCERT,BILL_NAME, ADDR , GOODS_NAME,CNT,UNIT_COST  ,AMOUNT,FILLER 
+				 from ( 
+				SELECT 'DT' AS DT
+				     , (select replace(X.REGISTER_NO,'-','') from BIZ_MASTER X where X.BIZ_CODE = B.BIZ_CODE AND X.LANGUAGE = 'KO'AND X.BIZ_TYPE IN ('00','01','02')) AS REGISTER_NO
+				     , decode(nvl(C.member_type_cert,'3'),'1', 'NEW','OLD') gbn 
+				     , substr(C.IPIN_USERBIRTH_CERT,3) BIRTHCERT 
+				     , C.PEOPLE_SEED_NUM
+				     , rpad(replace(D.NAME,chr(09),''),30,' ') AS BILL_NAME
+				     , rpad((replace(D.ADDRESS_1,chr(09),'') || ' '        || replace(D.ADDRESS_2,chr(09),'')),120,' ')  AS ADDR
+				     , rpad((select X.GOODS_NAME from GOODS_MASTER X where X.GOODS_CODE = B.GOODS_CODE AND X.LANGUAGE = 'KO' AND X.SHOP_ID IN ('0','1','2') AND X.DISP_YN = 'Y'),30,' ') AS GOODS_NAME
+				     , lpad(COUNT(*),10,'0') AS CNT
+				     , lpad(round(SUM(B.AMOUNT) / COUNT(*)),10,'0') AS UNIT_COST
+				     , lpad(SUM(B.AMOUNT),10,'0') AS AMOUNT
+				     , SUBSTR(B.COMPLETE_DATE, 1, 8) AS COMPLETE_DATE
+				     , '                                                  ' as FILLER
+				       FROM PMT_INSTRUCTION A, TXORDER B, IF_ORDER_CERTINFO C, CONTACT D
+				WHERE A.PURCHASE_ID = B.PURCHASE_ID
+				AND   A.SEQ = B.OPTION_SEQ
+				AND   B.PURCHASE_ID = C.PURCHASE_ID
+				AND   B.BILL_TO_ID = D.CONTACT_ID
+				AND   A.USE_YN = 'Y'
+				AND   B.SHOP_ID = '1'
+				AND   B.COMPLETE_DATE BETWEEN ?||'000000' AND ?||'999999'
+				AND   B.GOODS_IDN IN 
+				      ( SELECT GOODS_IDN FROM GOODS_MASTER
+				        WHERE SHOP_ID = '1'
+				        AND   LANGUAGE = 'KO' and  CATEGORY_code like '16%'
+				       )
+				AND   B.STATUS IN ('4','5')
+				AND   A.RECEV_PO_REGIPOCD != '89903'
+				GROUP BY B.purchase_id, B.BIZ_CODE, decode(nvl(C.member_type_cert,'3'),'1', 'NEW','OLD'), substr(C.IPIN_USERBIRTH_CERT,3), C.PEOPLE_SEED_NUM, D.NAME, D.ADDRESS_1, D.ADDRESS_2, B.GOODS_CODE, SUBSTR(B.COMPLETE_DATE, 1, 8))
+                                                           
+		]]>	 
+	</select>
+	
+	<!-- 인터넷우체국 주류구매통계 -->
+	<select id="selectOdOrderMastList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 select DT,lpad(rownum,6,'0') SEQ,COMPLETE_DATE ,PEOPLE_SEED_NUM,REGISTER_NO ,gbn,BIRTHCERT,BILL_NAME, ADDR , GOODS_NAME,CNT,UNIT_COST  ,AMOUNT,FILLER 
+				 from ( 
+				SELECT 'DT' AS DT
+				     , (select replace(X.REGISTER_NO,'-','') from BIZ_MASTER X where X.BIZ_CODE = B.BIZ_CODE AND X.LANGUAGE = 'KO'AND X.BIZ_TYPE IN ('00','01','02')) AS REGISTER_NO
+				     , decode(nvl(C.member_type_cert,'3'),'1', 'NEW','OLD') gbn 
+				     , substr(C.IPIN_USERBIRTH_CERT,3) BIRTHCERT 
+				     , C.PEOPLE_SEED_NUM
+				     , rpad(replace(D.NAME,chr(09),''),30,' ') AS BILL_NAME
+				     , rpad((replace(D.ADDRESS_1,chr(09),'') || ' '        || replace(D.ADDRESS_2,chr(09),'')),120,' ')  AS ADDR
+				     , rpad((select X.GOODS_NAME from GOODS_MASTER X where X.GOODS_CODE = B.GOODS_CODE AND X.LANGUAGE = 'KO' AND X.SHOP_ID IN ('0','1','2') AND X.DISP_YN = 'Y'),30,' ') AS GOODS_NAME
+				     , lpad(COUNT(*),10,'0') AS CNT
+				     , lpad(round(SUM(B.AMOUNT) / COUNT(*)),10,'0') AS UNIT_COST
+				     , lpad(SUM(B.AMOUNT),10,'0') AS AMOUNT
+				     , SUBSTR(B.COMPLETE_DATE, 1, 8) AS COMPLETE_DATE
+				     , '                                                  ' as FILLER
+				FROM TXORDER B, IF_ORDER_CERTINFO C, CONTACT D ,
+				 (SELECT GOODS_IDN FROM GOODS_MASTER
+				        WHERE SHOP_ID = '1'
+				        AND   LANGUAGE = 'KO' and   substr(CATEGORY_code,1,2) = '16'
+				  ) E
+				WHERE B.PURCHASE_ID = C.PURCHASE_ID 
+				AND   B.BILL_TO_ID = D.CONTACT_ID
+				AND   B.SHOP_ID = '1'
+				AND   B.COMPLETE_DATE BETWEEN  ?||'000000' AND ?||'999999'
+				AND   B.GOODS_IDN = E.GOODS_IDN
+				AND   B.CANCEL_STATE = 'N'
+				AND   B.STATUS IN ('4','5')
+				AND   B.RECEV_PO_REGIPOCD = '89903'
+				GROUP BY B.purchase_id, B.BIZ_CODE, decode(nvl(C.member_type_cert,'3'),'1', 'NEW','OLD'), substr(C.IPIN_USERBIRTH_CERT,3), C.PEOPLE_SEED_NUM, D.NAME, D.ADDRESS_1, D.ADDRESS_2, B.GOODS_CODE, SUBSTR(B.COMPLETE_DATE, 1, 8))                                                                               
+		]]>	 
+	</select>
+		
+</sqlMap>

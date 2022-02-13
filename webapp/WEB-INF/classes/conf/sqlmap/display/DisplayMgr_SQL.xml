@@ -1,0 +1,834 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Display">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<typeAlias alias="categoryTreeVo" type="com.devwork.common.CategoryTreeVo"/>
+	<typeAlias alias="categoryTreeParam" type="com.devwork.common.CategoryTreeParam"/>
+	
+	
+	
+	<resultMap class="categoryTreeVo" id="goodsListForBoResult">
+		<result property="ctgrynm"				column="ctgrynm"/>
+		<result property="ctgrycd"				column="ctgrycd"/>
+		<result property="depth"				column="depth"/>
+		<result property="strdivcd"				column="strdivcd"/>
+		<result property="lclascd"				column="lclascd"/>
+		<result property="mclascd"				column="mclascd"/>
+		<result property="sclascd"				column="sclascd"/>
+		<result property="strdivnm"				column="strdivnm"/>
+		<result property="lclasnm"				column="lclasnm"/>
+		<result property="mclasnm"				column="mclasnm"/>
+		<result property="sclasnm"				column="sclasnm"/>
+		<result property="ctgrydesc"			column="ctgrydesc"/>
+		<result property="hrnkctgrycd"			column="hrnkctgrycd"/>
+		<result property="useyn"		        column="useyn"/>
+		<result property="noticsortorder"		column="noticsortorder"/>
+		<result property="ctgryimage"		    column="ctgryimage"/>
+		<result property="regdate"		        column="regdate"/>
+		<result property="chgdate"				column="chgdate"/>
+		<result property="regerid"				column="regerid"/>
+		<result property="chgerid"				column="chgerid"/>
+	</resultMap>
+	
+
+	<!-- 최상위 조회 --> 
+	
+	
+	<select id="selectCategoryTreeRootBo" parameterClass ="java.util.HashMap" resultClass="commMap">
+	  /** SQL_ID : selectCategoryTreeRoot**/
+		
+		
+		 SELECT CTGRY_CD
+		       ,CTGRY_NM
+		       ,HRNK_CTGRY_CD
+		       ,SORT_ORDER
+		       ,LEVEL             AS INT_LEVEL
+		       ,CONNECT_BY_ISLEAF AS LEAF
+		   FROM (SELECT *
+		           FROM GD_CTGRY_MAST
+		          WHERE CTGRY_CD IN (SELECT CTGRY_CD
+		                               FROM GD_CTGRY_PAVLN_MAPP
+		                              WHERE PAVLN_DIV_CD IN
+		                                    (SELECT T2.COMN_CD_ID
+		                                       FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+		                                      WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+		                                        AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+		                                        AND T2.COMN_CD_ID <![CDATA[<]]> '20'
+		                                     )
+		                              )
+		                 -- AND USE_YN = 'Y'
+		               
+		       ) A
+		        WHERE 1=1 
+		         <isNotEmpty property="ctgryCd">	
+		       		AND HRNK_CTGRY_CD = #ctgryCd#
+		         </isNotEmpty>
+		  START WITH HRNK_CTGRY_CD IS NULL
+		 CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD
+		  
+          <isNotEmpty property="levels">	
+		  	 AND LEVEL = 1
+		  </isNotEmpty>
+		  ORDER SIBLINGS BY SORT_ORDER
+		
+		
+		
+		
+	</select>
+	
+	
+	<select id="selectCategoryTreeRoot" parameterClass ="java.util.HashMap" resultClass="commMap">
+		
+		 SELECT CTGRY_CD
+        --, STR_DIV_CD
+        , CTGRY_NM
+        /*
+        , CTGRY_DESC
+        , CTGRY_LEVEL
+        , HRNK_CTGRY_CD
+        , SORT_ORDER
+        , USE_YN
+        */
+        , 'true' AS children
+        , '##' AS PARENT
+        ,LEVEL
+      FROM (SELECT CTGRY_CD
+            ,CTGRY_NM
+            ,HRNK_CTGRY_CD
+            ,SORT_ORDER 
+          FROM GD_CTGRY_MAST 
+           WHERE 1=1 
+            AND CTGRY_LEVEL = 0 
+            AND CTGRY_CD LIKE 'MALL%'
+           
+            AND PAVLN_DIV_CD = #pavlnDivCd#
+                
+        ) A   
+                
+        START WITH A.HRNK_CTGRY_CD is null
+        CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD
+        ORDER SIBLINGS BY A.SORT_ORDER  
+		
+		 
+	</select>
+	
+	
+	<!-- 자식조회   -->
+	<select id="selectCategoryTreeChild" parameterClass ="CategoryTreeParam" resultClass="categoryTreeVo">
+	SELECT     
+			A.CTGRY_NM AS ctgrynm
+			, A.CTGRY_LEVEL AS depth
+			, B.leaf AS leaf
+    		, A.CTGRY_CD as ctgrycd
+    		, A.PAVLN_DIV_CD as marketIndex
+    		, A.CTGRY_DESC as ctgrydesc
+    		, A.HRNK_CTGRY_CD as hrnkctgrycd
+    		, A.USE_YN as useyn
+    		, A.SORT_ORDER as noticsortorder
+    		, A.PN_CTGRY_CD as pnctgrycd
+    		, A.REG_DATE as regdate
+    		, A.CHG_DATE as chgdate
+    		, A.REGER_ID as regerid
+    		, A.CHGER_ID as chgerid
+		FROM GD_CTGRY_MAST A, 
+			(
+			SELECT CONNECT_BY_ISLEAF AS LEAF ,CTGRY_CD
+				FROM GD_CTGRY_MAST 
+			WHERE 1=1 
+				START WITH HRNK_CTGRY_CD = #ctgrycd#
+				CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD			
+			) B    
+	    WHERE A.CTGRY_CD = B.CTGRY_CD 
+	    AND  A.HRNK_CTGRY_CD = #ctgrycd#
+			<isNotEmpty property="marketIndex">	
+			AND STR_DIV_CD = #marketIndex#
+			</isNotEmpty>	
+		ORDER BY SORT_ORDER 
+	</select>	 	
+	
+	
+	<!-- 카테고리 상세정보 -->
+	<select id="selectCategoryDtl" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+		/** SQL_ID : selectCategoryDtl**/
+				
+		SELECT A.CTGRY_CD
+		      ,'매장구분' AS STRDIVNM
+		      ,A.CTGRY_NM
+		      ,A.CTGRY_DESC
+		      ,A.CTGRY_LEVEL
+		      ,A.HRNK_CTGRY_CD
+		      ,DECODE(A.USE_YN, NULL, 'N', A.USE_YN) USE_YN
+		      ,A.SORT_ORDER
+		      ,A.PN_CTGRY_CD
+		      ,TO_CHAR(A.REG_DATE, 'YYYY.MM.DD HH24:MI') AS REGDATE
+		      ,NVL(TO_CHAR(A.CHG_DATE, 'YYYY.MM.DD HH24:MI'), ' ') AS CHGDATE
+		      ,A.REGER_ID
+		      ,A.CHGER_ID
+		      ,A.MO_CTGRY_NM
+		      ,A.US_CTGRY_NM
+		      ,A.JP_CTGRY_NM
+		      ,A.CN_CTGRY_NM
+		      ,B.IMAGE_ATTCHFILE_ID
+		      ,B.IMAGE_URL
+		      ,B.USE_YN AS RECOM_USE_YN
+              ,IMAGE.FILE_STRE_PATH AS IMAGE_PATH
+              ,IMAGE.STRE_FILE_NM AS IMAGE_NM
+              ,IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+		  FROM GD_CTGRY_MAST A, GD_CTGRY_RECOM B, CM_FILE_MGT IMAGE
+		 WHERE A.CTGRY_CD = B.CTGRY_CD(+)
+		   AND B.IMAGE_ATTCHFILE_ID = IMAGE.ATTCHFILE_ID(+)
+		   AND A.CTGRY_CD = #ctgryCd#
+	 ]]>  
+	</select>
+	
+	
+	<!-- 카테고리 매핑 전시관 -->
+	<select id="selectCategoryMap" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectCategoryMap **/
+			SELECT PAVLN_DIV_CD		/**전시관분류코드**/
+				   ,CTGRY_CD		/**카테고리코드**/
+			  FROM GD_CTGRY_PAVLN_MAPP
+			 WHERE CTGRY_CD = #ctgryCd#
+	</select>
+	
+	<!-- 카테고리 하위코드 불러오기 2 자리 숫자 아니면 문자형 그대로 리턴 -->
+	<select id="selectCategoryMakeChild_back" parameterClass="java.util.HashMap" resultClass="commMap">
+	SELECT
+            NVL(
+                    CASE 
+                        WHEN REGEXP_INSTR(CC, '<![CDATA[[^0-9]]]>') = 0
+                            THEN TRIM(TO_CHAR(CC+1, '09'))
+                        ELSE CHR(ASCII(SUBSTR(CC, 0, 1))+1) || SUBSTR(CC, 2, 1)
+                    END
+                    , '01'
+                )
+             AS CTGRY_CD_NEXT
+             , CTGRY_LEVEL_NEXT
+             , SORT_ORDER_NEXT        
+             --, LANG_CD   	
+	    FROM
+	    (        
+	        SELECT 
+                    SUBSTR( MAX(CTGRY_CD), LENGTH(#ctgryCd#)+1, 2 ) AS CC
+					,NVL( MAX(CTGRY_LEVEL),LENGTH(#ctgryCd#) / 2 - 2) CTGRY_LEVEL_NEXT
+					, NVL(MAX(SORT_ORDER)+1, 1) AS SORT_ORDER_NEXT
+				FROM GD_CTGRY_MAST A 
+	         WHERE 1=1
+	         	AND HRNK_CTGRY_CD = #ctgryCd#
+	         	<isEqual property="levelGbn" compareValue="current">
+	         	AND CTGRY_CD = #ctgryCd#
+	         	</isEqual>     	
+	    )         
+	</select>	
+	
+	
+	<!-- 카테고리 하위코드 불러오기 -->
+	<select id="selectCategoryMakeChild" parameterClass="java.util.HashMap" resultClass="commMap">
+		/**SQL_ID : selectCategoryMakeChild **/
+			SELECT CASE
+			         WHEN CC = 0 THEN
+			          CASE
+			            WHEN CTGRY_LEVEL_NEXT = 2 THEN
+			             TO_NUMBER(#ctgryCd#) + 201000
+			            WHEN CTGRY_LEVEL_NEXT = 3 THEN
+			             TO_NUMBER(#ctgryCd#) + 301
+			          
+			          END
+			         ELSE
+			          CASE
+			            WHEN CTGRY_LEVEL_NEXT = 2 THEN
+			             CC + 1000
+			            WHEN CTGRY_LEVEL_NEXT = 3 THEN
+			             CC + 1
+			          
+			          END
+			       
+			       END AS CTGRY_CD_NEXT
+			      ,CTGRY_LEVEL_NEXT
+			      ,SORT_ORDER_NEXT
+			
+			  FROM (SELECT NVL(MAX(CTGRY_CD), 0) AS CC
+			              ,NVL(MAX(CTGRY_LEVEL)
+			                  ,LENGTH(RTRIM(#ctgryCd#, '0')) / 3 + 1) CTGRY_LEVEL_NEXT
+			              ,NVL(MAX(SORT_ORDER) + 1, 1) AS SORT_ORDER_NEXT
+			          FROM GD_CTGRY_MAST A
+			         WHERE 1 = 1
+			           AND HRNK_CTGRY_CD = #ctgryCd#)
+	
+	
+	
+	</select>	
+	
+	<!-- 카테고리 동일레벨 max 가져오기  -->
+	<select id="selectCategoryMakeCurrent_Back" parameterClass="java.util.HashMap" resultClass="commMap">
+	SELECT
+            NVL(
+                    CASE 
+                        WHEN REGEXP_INSTR(CC, '<![CDATA[[^0-9]]]>') = 0
+                            THEN TRIM(TO_CHAR(CC+1, '09'))
+                        ELSE CHR(ASCII(SUBSTR(CC, 0, 1))+1) || SUBSTR(CC, 2, 1)
+                    END
+                    , '01'
+                )
+             AS CTGRY_CD_NEXT
+             , CTGRY_LEVEL_NEXT
+             , SORT_ORDER_NEXT        
+             --, LANG_CD   	
+	    FROM
+	    (        
+	        SELECT 
+                    SUBSTR( MAX(CTGRY_CD), -2 ) AS CC
+					,NVL( MAX(CTGRY_LEVEL),LENGTH(#ctgryCd#) / 2 - 2) CTGRY_LEVEL_NEXT
+					, NVL(MAX(DECODE(PAVLN_DIV_CD, #ctgryCd#, SORT_ORDER, 0)) + 1, 1) AS SORT_ORDER_NEXT
+				FROM GD_CTGRY_MAST A 
+	         WHERE 1=1
+	         	<isEqual property="isRootCategory" compareValue="false">
+	         	AND HRNK_CTGRY_CD = SUBSTR(#ctgryCd#, 0, LENGTH(#ctgryCd#)-2)
+				</isEqual>	   
+	         	<isEqual property="isRootCategory" compareValue="true">
+				AND CTGRY_LEVEL = 0 
+				AND CTGRY_CD LIKE 'MALL%'
+				</isEqual>					      	
+	    )         
+	</select>	
+	
+	
+	<!-- 카테고리 동일레벨 max 가져오기  -->
+	<select id="selectCategoryMakeCurrent" parameterClass="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectCategoryMakeCurrent **/
+		SELECT CTGRY_CD_NEXT, SORT_ORDER_NEXT
+		  FROM (SELECT CTGRY_CD + 1000000 AS CTGRY_CD_NEXT
+                     , NVL(SORT_ORDER, 0) + 1 AS SORT_ORDER_NEXT
+                  FROM GD_CTGRY_MAST A
+                 WHERE HRNK_CTGRY_CD IS NULL
+                 ORDER BY CTGRY_CD_NEXT DESC )
+         WHERE ROWNUM = 1
+	</select>			
+	
+	<!-- 카테고리관리 카테고리 수정 -->
+	<update id="modifyCategory" parameterClass="java.util.HashMap">
+	
+		UPDATE GD_CTGRY_MAST SET
+			  CTGRY_NM = #ctgryNm#
+			, CTGRY_DESC = #ctgryDesc#
+			, CTGRY_LEVEL = #ctgryLevel#
+			, HRNK_CTGRY_CD = #hrnkCtgryCd#
+			, USE_YN = #useYn#
+			, SORT_ORDER = #sortOrder#
+			, PN_CTGRY_CD = #pnCtgryCd#
+			, CHG_DATE = SYSDATE
+			, CHGER_ID = #reger_id#
+			<isNotNull property="moctgrynm" prepend=",">
+			 	MO_CTGRY_NM = #moctgrynm#
+			</isNotNull>
+			<isNotNull property="usctgrynm" prepend=",">
+				 US_CTGRY_NM = #usctgrynm#
+			</isNotNull>
+			<isNotNull property="jpctgrynm" prepend=",">
+			 	JP_CTGRY_NM = #jpctgrynm#
+			</isNotNull>
+			<isNotNull property="cnctgrynm" prepend=",">
+			 	CN_CTGRY_NM = #cnctgrynm#
+			</isNotNull>
+    		WHERE CTGRY_CD = #ctgryCd#		
+            
+	</update>		
+	
+	<!-- 카테고리관리 카테고리 추가 -->
+	<insert id="insertCategory" parameterClass="java.util.HashMap">
+		<![CDATA[   
+		INSERT INTO GD_CTGRY_MAST
+			(
+			CTGRY_CD
+			, CTGRY_NM
+			, CTGRY_DESC
+			, CTGRY_LEVEL
+			, HRNK_CTGRY_CD
+			, USE_YN
+			, SORT_ORDER
+			, PN_CTGRY_CD
+			, REG_DATE 
+			, CHG_DATE
+			, REGER_ID
+			, CHGER_ID
+			, MO_CTGRY_NM
+		    , US_CTGRY_NM
+		    , JP_CTGRY_NM
+		    , CN_CTGRY_NM
+		    , CMS_ID
+		    , POSTNET_CTGRY_YN
+			)
+		VALUES
+			(
+			#ctgryCd#
+			, #ctgryNm#
+			, #ctgryDesc#
+			, #ctgryLevel#
+			, #hrnkCtgryCd#
+			, #useYn#
+			, #sortOrder#
+			, #pnCtgryCd#
+			, SYSDATE
+			, SYSDATE
+			, #reger_id#
+			, #reger_id#
+			, #moctgrynm#
+			, #usctgrynm#
+			, #jpctgrynm#
+			, #cnctgrynm#
+			, #cmsid#
+			, 'N'
+			)			    			
+            ]]>
+        
+	</insert>	
+	
+	
+	<!-- 카테고리 할인 추가 -->
+	<insert id="insertCategoryDc" 	parameterClass="java.util.HashMap">
+		/** SQL_ID : insertCategoryDc **/
+		
+		INSERT INTO GD_CTGRY_DC
+		    (
+		    CTGRY_CD
+		    ,DC_SEQ
+		    ,CTGRY_BASIC_DCRATE
+		    ,DCRATE_APPLY_STRT_DATE
+		    ,DCRATE_APPLY_END_DATE
+		    ,USE_YN
+		    ,REG_DATE
+		    ,CHG_DATE
+		    ,REGER_ID
+		    ,CHGER_ID)
+		  VALUES
+		    (#ctgryCd#
+		    ,SEQ_CTGRY_DC_SEQ.NEXTVAL
+		    ,#ctgryBasicDcrate#
+		   <isNotNull property="dcrateApplyStrtDate" prepend=",">
+		    TO_DATE(#dcrateApplyStrtDate#,'YYYY-MM-DD HH24MISS')
+		   </isNotNull>
+		   <isNotNull property="dcrateApplyEndDate" prepend=",">
+		    TO_DATE(#dcrateApplyEndDate#,'YYYY-MM-DD HH24MISS')
+		   </isNotNull>
+		    ,'Y'
+		    ,SYSDATE
+		    ,SYSDATE
+		    ,#reger_id#
+		    ,#reger_id#
+		    )
+	</insert>
+	
+	
+	<!-- 형욱대리 이전작업. 카테고리 검색창 -->
+	<select id="selectCategoryNameSearch" parameterClass="java.util.HashMap" resultClass="commMap">
+	 <![CDATA[
+	  SELECT     
+            ( CASE WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NULL AND MCLAS_CD IS NULL AND SCLAS_CD IS NULL  THEN  A.STR_DIV_NM
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NULL AND SCLAS_CD IS NULL  THEN  A.LCLAS_NM
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NOT NULL AND SCLAS_CD IS NULL  THEN  A.MCLAS_NM
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NOT NULL  AND SCLAS_CD IS NOT NULL THEN  A.SCLAS_NM
+                  END)  AS ctgrynm, 
+            ( CASE WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NULL AND MCLAS_CD IS NULL AND SCLAS_CD IS NULL  THEN  1
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NULL AND SCLAS_CD IS NULL  THEN  2
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NOT NULL AND SCLAS_CD IS NULL  THEN  3
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NOT NULL  AND SCLAS_CD IS NOT NULL THEN  4
+                      END)  AS depth,
+             A.CTGRY_CD as ctgrycd,
+           STR_DIV_CD as marketIndex,
+           LCLAS_CD as lclascd,
+           MCLAS_CD as mclascd,
+           SCLAS_CD as sclascd,
+           STR_DIV_NM as strdivnm,
+           LCLAS_NM as lclasnm,
+           MCLAS_NM as mclasnm,
+           SCLAS_NM as sclasnm,
+           CTGRY_DESC as ctgrydesc,
+           LANG_CD as langcd,
+           HRNK_CTGRY_CD as hrnkctgrycd,
+           USE_YN as useyn,
+           SORT_ORDER as noticsortorder,
+           CTGRY_IMAGE as ctgryimage,
+           PN_CTGRY_CD as pnctgrycd,
+           REG_DATE as regdate,
+           CHG_DATE as chgdate,
+           REGER_ID as regerid,
+           CHGER_ID as chgerid,
+           (select
+              ( CASE WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NULL AND MCLAS_CD IS NULL AND SCLAS_CD IS NULL  THEN  A.STR_DIV_NM
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NULL AND SCLAS_CD IS NULL  THEN  A.LCLAS_NM
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NOT NULL AND SCLAS_CD IS NULL  THEN  A.MCLAS_NM
+                   WHEN   STR_DIV_CD  IS NOT NULL AND LCLAS_CD IS NOT NULL AND MCLAS_CD IS NOT NULL  AND SCLAS_CD IS NOT NULL THEN  A.SCLAS_NM
+                  END) 
+                  from GD_CTGRY_MAST
+                  where CTGRY_CD = ( select distinct(HRNK_CTGRY_CD) from GD_CTGRY_MAST ) 
+           
+            ) as upperctgrynm
+            FROM GD_CTGRY_MAST A
+            WHERE 1=1 
+             
+             
+	 ]]>  
+	</select>
+	
+	<!-- 카테고리 검색용 검색어 입력시 트리 아래위로 검색해야함 -->
+	<select id="selectCategorySearch" parameterClass="java.util.HashMap" resultClass="commMap">
+	 /** SQL_ID : selectCategorySearch**/
+		
+			SELECT CTGRY_CD
+			        ,CTGRY_NM
+			        ,HRNK_CTGRY_CD
+			        ,SORT_ORDER
+			        ,LEVEL             AS INT_LEVEL
+			        ,CONNECT_BY_ISLEAF AS LEAF
+			    FROM (SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD, SORT_ORDER
+			            FROM (SELECT *
+			                    FROM GD_CTGRY_MAST
+			                   WHERE CTGRY_CD IN
+			                         (SELECT CTGRY_CD
+			                            FROM GD_CTGRY_PAVLN_MAPP
+			                           WHERE PAVLN_DIV_CD IN
+			                                 (SELECT T2.COMN_CD_ID
+			                                    FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			                                   WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			                                     AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			                                     AND T2.COMN_CD_ID <![CDATA[<]]> '20'
+			                                  )
+			                          )
+			                     -- AND USE_YN = 'Y'
+			                   ) A
+			           START WITH CTGRY_NM LIKE '%'||#searchword#||'%'
+			          CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD
+			          
+			          UNION
+			          
+			          SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD, SORT_ORDER
+			            FROM (SELECT *
+			                    FROM GD_CTGRY_MAST
+			                   WHERE CTGRY_CD IN
+			                         (SELECT CTGRY_CD
+			                            FROM GD_CTGRY_PAVLN_MAPP
+			                           WHERE PAVLN_DIV_CD IN
+			                                 (SELECT T2.COMN_CD_ID
+			                                    FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			                                   WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			                                     AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			                                     AND T2.COMN_CD_ID <![CDATA[<]]> '20'
+			                                 )
+			                           )
+			                     -- AND USE_YN = 'Y'
+			                  ) A
+			           START WITH CTGRY_NM LIKE '%'||#searchword#||'%'
+			          CONNECT BY CTGRY_CD = PRIOR HRNK_CTGRY_CD
+			    )
+			   WHERE 1 = 1
+			  	<isNotEmpty property="ctgryCd">	
+		          AND HRNK_CTGRY_CD = #ctgryCd#
+		        </isNotEmpty>
+			  
+			   START WITH HRNK_CTGRY_CD IS NULL
+			  CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD
+			        <isNotEmpty property="levels">	
+				   		AND LEVEL = 1
+				  	</isNotEmpty>
+			   ORDER SIBLINGS BY SORT_ORDER
+		
+		
+	</select>
+	
+	<!-- 카테고리 할인율 수정 -->
+	<update id="updateCategoryDc" parameterClass="java.util.HashMap">
+		/** SQL_ID : updateCategoryDc**/
+	
+		UPDATE GD_CTGRY_DC
+		   SET CTGRY_BASIC_DCRATE     = #ctgryBasicDcrate#
+		     <isNotNull property="dcrateApplyStrtDate" prepend=",">
+		      DCRATE_APPLY_STRT_DATE = TO_DATE(#dcrateApplyStrtDate#,'YYYY-MM-DD HH24MISS')
+		      </isNotNull>
+		      <isNotNull property="dcrateApplyEndDate" prepend=",">
+		      DCRATE_APPLY_END_DATE = TO_DATE(#dcrateApplyEndDate#,'YYYY-MM-DD HH24MISS')
+		      </isNotNull>
+		      ,CHG_DATE               = SYSDATE
+		      ,CHGER_ID               = #reger_id#
+		 WHERE CTGRY_CD = #ctgryCd#
+		  
+	</update>
+	
+	<!-- 전시관,카테고리 매핑트리 -->
+	<select id="selectCategoryTreeRootDisplay" parameterClass ="java.util.HashMap" resultClass="commMap">
+	  /** SQL_ID : selectCategoryTreeRootDisplay**/
+		
+		
+			SELECT 
+			      CTGRY_CD
+			      ,CTGRY_NM
+			      ,HRNK_CTGRY_CD
+			      ,LEVEL AS int_LEVEL
+			      ,CONNECT_BY_ISLEAF AS LEAF
+			      ,PAVLN_DIV_CD
+			  FROM (SELECT T2.COMN_CD_ID CTGRY_CD
+			              ,T2.COMN_CD_NM CTGRY_NM
+			              ,NULL          HRNK_CTGRY_CD
+			              ,T2.SORT_ORDER
+			              ,COMN_CD_ID    PAVLN_DIV_CD
+			          FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			         WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			           AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			           AND T2.COMN_CD_ID <![CDATA[<]]> '20'
+			        
+			        UNION ALL
+			        
+			        SELECT B.CTGRY_CD
+			              ,B.CTGRY_NM
+			              ,NVL(B.HRNK_CTGRY_CD, PAVLN_DIV_CD) HRNK_CTGRY_CD
+			              ,B.SORT_ORDER
+			              ,A.PAVLN_DIV_CD
+			          FROM (SELECT PAVLN_DIV_CD, CTGRY_CD
+			                  FROM GD_CTGRY_PAVLN_MAPP
+			                 WHERE PAVLN_DIV_CD IN
+			                       (SELECT T2.COMN_CD_ID
+			                          FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			                         WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			                           AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			                           AND T2.COMN_CD_ID <![CDATA[<]]> '20'
+			                       )
+			                ) A
+			         INNER JOIN GD_CTGRY_MAST B
+			            ON A.CTGRY_CD = B.CTGRY_CD
+			           AND B.USE_YN = 'Y'
+			      ) A WHERE 1=1
+			       <isNotEmpty property="ctgryCd">	
+			       		AND HRNK_CTGRY_CD = #ctgryCd#
+			         </isNotEmpty>
+			          <isNotEmpty property="groupid">	
+			       		AND PAVLN_DIV_CD = #groupid#
+			         </isNotEmpty>
+			 START WITH HRNK_CTGRY_CD IS NULL
+			CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD
+			       AND PRIOR PAVLN_DIV_CD = PAVLN_DIV_CD
+			       <isNotEmpty property="levels">	
+				  	 AND LEVEL = 1
+				  </isNotEmpty>
+			 ORDER SIBLINGS BY SORT_ORDER
+		
+		
+	</select>
+	
+	<!-- 전시관별 카테고리 검색 -->
+	<select id="selectCategoryTreeRootDisplaySearch" parameterClass ="java.util.HashMap" resultClass="commMap">
+	  /** SQL_ID : selectCategoryTreeRootDisplaySearch**/
+		
+		
+			SELECT CTGRY_CD
+			      ,CTGRY_NM
+			      ,HRNK_CTGRY_CD
+			      ,LEVEL             AS INT_LEVEL
+			      ,CONNECT_BY_ISLEAF AS LEAF
+			      ,PAVLN_DIV_CD
+			  FROM (
+			        
+			        SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD, PAVLN_DIV_CD, SORT_ORDER
+			          FROM (SELECT T2.COMN_CD_ID CTGRY_CD
+			                       ,T2.COMN_CD_NM CTGRY_NM
+			                       ,NULL          HRNK_CTGRY_CD
+			                       ,T2.SORT_ORDER
+			                       ,COMN_CD_ID    PAVLN_DIV_CD
+			                   FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			                  WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			                    AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			                    AND T2.COMN_CD_ID <![CDATA[<]]> '20'
+			                 
+			                 UNION ALL
+			                 
+			                 SELECT B.CTGRY_CD
+			                       ,B.CTGRY_NM
+			                       ,NVL(B.HRNK_CTGRY_CD, PAVLN_DIV_CD) HRNK_CTGRY_CD
+			                       ,B.SORT_ORDER
+			                       ,A.PAVLN_DIV_CD
+			                   FROM (SELECT PAVLN_DIV_CD, CTGRY_CD
+			                           FROM GD_CTGRY_PAVLN_MAPP
+			                          WHERE PAVLN_DIV_CD IN
+			                                (SELECT T2.COMN_CD_ID
+			                                   FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			                                  WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			                                    AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			                                    AND T2.COMN_CD_ID <![CDATA[<]]> '20')) A
+			                  INNER JOIN GD_CTGRY_MAST B
+			                     ON A.CTGRY_CD = B.CTGRY_CD
+			                    --AND B.USE_YN = 'Y'
+			                    ) A
+			         START WITH CTGRY_NM LIKE '%'||#searchword#||'%'
+			        CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD
+			               AND PRIOR PAVLN_DIV_CD = PAVLN_DIV_CD
+			        UNION
+			        
+			        SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD, PAVLN_DIV_CD, SORT_ORDER
+			          FROM (SELECT T2.COMN_CD_ID CTGRY_CD
+			                       ,T2.COMN_CD_NM CTGRY_NM
+			                       ,NULL          HRNK_CTGRY_CD
+			                       ,T2.SORT_ORDER
+			                       ,COMN_CD_ID    PAVLN_DIV_CD
+			                   FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			                  WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			                    AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			                    AND T2.COMN_CD_ID <![CDATA[<]]> '20'
+			                 
+			                 UNION ALL
+			                 
+			                 SELECT B.CTGRY_CD
+			                       ,B.CTGRY_NM
+			                       ,NVL(B.HRNK_CTGRY_CD, PAVLN_DIV_CD) HRNK_CTGRY_CD
+			                       ,B.SORT_ORDER
+			                       ,A.PAVLN_DIV_CD
+			                   FROM (SELECT PAVLN_DIV_CD, CTGRY_CD
+			                           FROM GD_CTGRY_PAVLN_MAPP
+			                          WHERE PAVLN_DIV_CD IN
+			                                (SELECT T2.COMN_CD_ID
+			                                   FROM CM_COMN_CD_GRP T1, CM_COMN_CD T2
+			                                  WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+			                                    AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+			                                    AND T2.COMN_CD_ID <![CDATA[<]]> '20')) A
+			                  INNER JOIN GD_CTGRY_MAST B
+			                     ON A.CTGRY_CD = B.CTGRY_CD
+			                    --AND B.USE_YN = 'Y'
+			                    ) A
+			         START WITH CTGRY_NM LIKE '%'||#searchword#||'%'
+			        CONNECT BY CTGRY_CD = PRIOR HRNK_CTGRY_CD
+			               AND PAVLN_DIV_CD = PRIOR PAVLN_DIV_CD) A
+			 WHERE 1 = 1
+			 	 <isNotEmpty property="ctgryCd">	
+		       		AND HRNK_CTGRY_CD = #ctgryCd#
+		         </isNotEmpty>
+		          <isNotEmpty property="groupid">	
+		       		AND PAVLN_DIV_CD = #groupid#
+		         </isNotEmpty>
+			 START WITH HRNK_CTGRY_CD IS NULL
+			CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD
+			       AND PRIOR PAVLN_DIV_CD = PAVLN_DIV_CD
+			        <isNotEmpty property="levels">	
+				  	 AND LEVEL = 1
+				    </isNotEmpty>
+			 ORDER SIBLINGS BY SORT_ORDER
+		
+		
+	</select>
+	
+	<!-- 신규로 등록된 카테고리를 시작으로 역으로 최상위 카테고리까지 조회 -->
+	<select id="selectCategoryBackTracking" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/**SQL_ID : selectCategoryBackTracking **/
+		SELECT *
+		  FROM (SELECT CTGRY_CD
+		        
+		          FROM GD_CTGRY_MAST A
+		         START WITH CTGRY_CD = #ctgryCd#
+		        CONNECT BY CTGRY_CD = PRIOR HRNK_CTGRY_CD
+		         ORDER SIBLINGS BY SORT_ORDER)
+		 ORDER BY CTGRY_CD
+	</select>
+	
+	<!-- 전시관/카테고리 매핑등록 -->
+	<insert id="insertCategoryMapp" parameterClass="java.util.HashMap">
+		/**SQL_ID : insertCategoryMapp **/
+		MERGE INTO GD_CTGRY_PAVLN_MAPP A
+        USING DUAL
+        ON (A.PAVLN_DIV_CD = #pavlnDivCd# AND A.CTGRY_CD = #ctgry_cd#)
+      
+        WHEN NOT MATCHED THEN
+          INSERT
+            (PAVLN_DIV_CD, CTGRY_CD, REG_DATE, CHG_DATE, REGER_ID, CHGER_ID)
+          VALUES
+            (#pavlnDivCd#, #ctgry_cd#, SYSDATE, SYSDATE, #reger_id#, #reger_id#)
+	</insert>
+	
+	
+	<!-- 상품카테고리 확인 -->
+	<select id="selectGoodsCategory" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/**SQL_ID : selectGoodsCategory **/
+		
+			SELECT *
+			  FROM GD_GOODS_CTGRY A
+			 WHERE A.PAVLN_DIV_CD = #pavln_div_cd#
+			   AND EXISTS
+						 (SELECT 1
+						          FROM (SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD, SORT_ORDER
+						                  FROM GD_CTGRY_MAST
+						                 START WITH CTGRY_CD = #ctgry_cd#
+						                CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD
+						                       AND USE_YN = 'Y'
+						                UNION
+						                SELECT CTGRY_CD, CTGRY_NM, HRNK_CTGRY_CD, SORT_ORDER
+						                  FROM GD_CTGRY_MAST
+						                 START WITH CTGRY_CD = #ctgry_cd#
+						                CONNECT BY CTGRY_CD = PRIOR HRNK_CTGRY_CD
+						                       AND USE_YN = 'Y'
+						                ) B
+						         WHERE A.CTGRY_CD = B.CTGRY_CD
+						   )
+			   AND ROWNUM = 1
+		
+
+	</select>
+	
+	
+	<!-- 카테고리 매핑삭제 -->
+	<delete id="deleteCategoryMap" parameterClass ="java.util.HashMap">
+		/**SQL_ID : selectGoodsCategory **/
+		DELETE FROM GD_CTGRY_PAVLN_MAPP
+		 WHERE PAVLN_DIV_CD = #pavln_div_cd#
+		   AND CTGRY_CD = #ctgry_cd#
+
+	</delete>
+	
+	<update id="updateCtgryRecom" parameterClass="java.util.HashMap">
+		MERGE INTO GD_CTGRY_RECOM
+		 USING DUAL
+			ON ( CTGRY_CD = #ctgryCd# AND SEQ = 0 )
+			WHEN MATCHED THEN
+			UPDATE SET
+				   USE_YN = #recomUseYn#
+			     , IMAGE_URL = #imageUrl#
+			<isNotEmpty property="imageFile" prepend=",">
+				IMAGE_ATTCHFILE_ID	= #imageFile#
+			</isNotEmpty>
+			<isEmpty property="imageFile">
+				<isEqual property="imageDelYn" compareValue="Y" prepend=",">
+					IMAGE_ATTCHFILE_ID = NULL
+				</isEqual>
+			</isEmpty>
+			   	 , CHGER_ID = NVL(#reger_id#, 'ADMIN')
+			   	 , CHG_DATE = SYSDATE
+			WHEN NOT MATCHED THEN
+			INSERT
+				 ( CTGRY_CD
+				 , SEQ
+				 , IMAGE_ATTCHFILE_ID
+				 , IMAGE_URL
+				 , USE_YN
+				 , REG_DATE
+				 , CHG_DATE
+				 , REGER_ID
+				 , CHGER_ID )
+			VALUES
+				 ( #ctgryCd#
+				 , 0
+				 , #imageFile#
+				 , #imageUrl#
+				 , #recomUseYn#
+				 , SYSDATE
+				 , SYSDATE
+				 , NVL(#reger_id#, 'ADMIN')
+				 , NVL(#reger_id#, 'ADMIN') )
+	</update>
+
+	<update id="updateCtgryStat" parameterClass="java.util.HashMap">
+		UPDATE CM_COMN_CD
+		   SET COMN_CD_NM = 'Y'
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = NVL(#reger_id#, 'ADMIN')
+		 WHERE CD_GRP_ID = 'MENU_RELOAD_STUS'
+		   AND COMN_CD_ID = 'CTGRY_YN'
+	</update>
+			
+</sqlMap>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.File">
+	<typeAlias  alias="commonMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+		
+	<insert id="insertFile" parameterClass="java.util.HashMap">
+		INSERT INTO TB_FILE_M ( 
+	  		  FILE_ID
+		  	, FILE_SORT
+			, FILE_TYPE
+			, FILE_SRC
+			, FILE_NAME
+			, FILE_EXT
+			, FILE_SIZE
+			, ORG_FILE_NAME
+			, USE_YN
+			, REG_ID
+			, REG_DT
+		)VALUES( 
+			  #fileId#
+			, #fileSort#
+			, #fileType#
+			, #fileSrc#
+			, #fileName#
+			, #fileExt#
+			, #fileSize#
+			, #orgFileName#
+			, 'Y'
+			, #sessionId#
+			, sysdate
+		)
+	</insert>	
+	
+</sqlMap>

@@ -1,0 +1,872 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatSum1010Q">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+    <sql id="conditionGetSummary" >
+    			<isNotEmpty property="CFromDate">
+					<![CDATA[	AND	   DAY >= #CFromDate#]]>
+				</isNotEmpty>
+				 <isNotEmpty property="CToDate">
+					<![CDATA[	AND    DAY <= #CToDate#]]>
+				</isNotEmpty>
+				<isNotEmpty property="nPaymethod">	
+					AND    PAYMETHOD = #nPaymethod#
+				</isNotEmpty>
+				<isNotEmpty property="nPosts">
+				<![CDATA[
+				AND   SUBSTR( ECODE, 1, 1 )  >= DECODE (  #nPosts#, '0', SUBSTR( ECODE, 1, 1 )
+				                                                          , '1', '0'
+				                                                          , '8', '5',  #nPosts# )
+				AND   SUBSTR( ECODE, 1, 1 )  <= DECODE (  #nPosts#, '0', SUBSTR( ECODE, 1, 1 )
+				                                                          , '1', '1'
+				                                                          , '8', '5',  #nPosts# )
+				AND   SUBSTR( ECODE, 1, 2 )  =  DECODE (  #nPosts#, '8', '51', '5', '50',  SUBSTR( ECODE, 1, 2 ) )
+				]]>
+				</isNotEmpty>
+				<isNotEmpty property="nGroup">
+						AND   SHOPID =#nGroup#
+				</isNotEmpty>
+				<isNotEmpty property="SerGbn">
+						AND   MOBILE_GBN =#SerGbn#
+				</isNotEmpty>
+    </sql>
+
+	<select id="select_GETSUMMARY_LIST_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT DAY
+			      ,STEXT
+			      ,ACCOUNT
+			      ,SUM(ORDER_SUM) AS NORDER_SUM
+			      ,SUM(DESIRED_QUANTITY) AS NDESIRED_QUANTITY
+			      ,SUM(SALES_AMOUNT) AS NSALES_AMOUNT
+			      ,SUM(MEMO_PRICE) AS NMEMO_PRICE
+			      ,SUM(CARD_AMOUNT) AS NCARD_AMOUNT
+			      ,SUM(CARD_FEE) AS NCARD_FEE
+			      ,SUM(CARD_ACCEPT) AS NCARD_ACCEPT
+			      ,SUM(CARD_REALAMOUNT) AS NCARD_REALAMOUNT
+			      ,SUM(OVERSEACARD_AMOUNT) AS NOVERSEACARD_AMOUNT
+			      ,SUM(OVERSEACARD_FEE) AS NOVERSEACARD_FEE
+			      ,SUM(OVERSEACARD_ACCEPT) AS NOVERSEACARD_ACCEPT
+			      ,SUM(OVERSEACARD_REALAMOUNT) AS NOVERSEACARD_REALAMOUNT
+			      ,SUM(ONLINE_AMOUNT) AS NONLINE_AMOUNT
+			      ,SUM(ONLINE_REALAMOUNT) AS NONLINE_REALAMOUNT
+			      ,SUM(SMALL_AMOUNT) AS NSMALL_AMOUNT
+			      ,SUM(SMALL_REALAMOUNT) AS NSMALL_REALAMOUNT
+			      ,SUM(BANKTOWN_AMOUNT) AS NBANKTOWN_AMOUNT
+			      ,SUM(BANKTOWN_FEE) AS NBANKTOWN_FEE
+			      ,SUM(BANKTOWN_ACCEPT) AS NBANKTOWN_ACCEPT
+			      ,SUM(BANKTOWN_REALAMOUNT) AS NBANKTOWN_REALAMOUNT
+			      ,SUM(REALAMOUNT) AS NREALAMOUNT
+			      ,SUM(SUPPLYAMOUNT) AS NSUPPLYAMOUNT
+			      ,SUM(TAX) AS NTAX
+			      ,SUM(MINUS_TOTAL) AS NMINUS_TOTAL
+			      ,SUM(SYSTEM_AMOUNT_Y) AS NSYSTEM_AMOUNT_Y
+			      ,SUM(SYSTEM_AMOUNT_N) AS NSYSTEM_AMOUNT_N
+			      ,SUM(MULTIGIFT_AMOUNT) AS NMULTIGIFT_AMOUNT
+			      ,SUM(MULTIGIFT_FEE) AS NMULTIGIFT_FEE
+			      ,SUM(MULTIGIFT_ACCEPT) AS NMULTIGIFT_ACCEPT
+			      ,SUM(MULTIGIFT_REALAMOUNT) AS NMULTIGIFT_REALAMOUNT
+			      ,SUM(EPOST_FEE) AS NEPOST_FEE
+			      ,SUM(RM_AMOUNT) AS NRM_AMOUNT
+			      ,SUM(RM_PEF_AMOUNT) AS NRM_PEF_AMOUNT
+			      ,SUM(COUPON_AMOUNT) AS NCP_AMOUNT
+			      ,SUM(CP_AMT2) AS NCP_BIZ_AMOUNT
+			      ,SUM(SP_AMOUNT) AS NSP_AMOUNT
+			      ,SUM(SP_PEF_AMOUNT) AS NSP_PEF_AMOUNT
+			      ,SUM(OPTION_AMT) AS NOPTION_AMT
+			      ,SUM(INVOICE_AMT) AS NINVOICE_AMT
+			      ,SUM(POST_AMOUNT) AS NPOST_AMOUNT
+			      ,SUM(CP_THANK_AMT) AS NCP_THANK_AMT
+			      ,SUM(AMOUNT_OKCASH) AS NAMOUNT_OKCASH
+			      ,SUM(KAKAO_REALAMOUNT) AS NKAKAO_REALAMOUNT
+			      ,SUM(KAKAO_FEE) AS NKAKAO_FEE
+			      ,SUM(KAKAO_AMOUNT) AS NKAKAO_AMOUNT
+			      ,SUM(KAKAO_ACCEPT) AS NKAKAO_ACCEPT
+			      ,SUM(COMBO_REALAMOUNT) AS NCOMBO_REALAMOUNT
+			      ,SUM(COMBO_FEE) AS NCOMBO_FEE
+			      ,SUM(COMBO_AMOUNT) AS NCOMBO_AMOUNT
+			      ,SUM(COMBO_ACCEPT) AS NCOMBO_ACCEPT
+			      ,SUM(MOBILE_REALAMOUNT) AS NMOBILE_REALAMOUNT
+			      ,SUM(MOBILE_ACCEPT) AS NMOBILE_ACCEPT
+			      ,SUM(MOBILE_FEE) AS NMOBILE_FEE
+			      ,SUM(MOBILE_AMOUNT) AS NMOBILE_AMOUNT
+			  FROM (SELECT SUBSTR( DAY, 1, #NENDDAY#) AS DAY
+			              ,DECODE(
+			                   #NSELECTCASE#
+			                  ,1, '.'
+			                  ,2, POSTOFFICE
+			                  ,3, STORECODE || '|^' || STORENAME
+			                  ,4, SHOPID
+			                  ,5, NVL(GOODS_CODE, '.') || '|^' || GOODSNAME
+			                  ,6, PAYNAME
+			                  ,7, DECODE(SUBSTR( ECODE, 1, 2), '51', '8', DECODE(SUBSTR( ECODE, 1, 1), '0', '1', SUBSTR( ECODE, 1, 1)))
+			                  ,8,    '('
+			                      || DECODE(SUBSTR( ECODE, 1, 2), '51', '8', DECODE(SUBSTR( ECODE, 1, 1), '0', '1', SUBSTR( ECODE, 1, 1)))
+			                      || '_'
+			                      || ECODE
+			                      || ')'
+			                      || POSTOFFICE
+			               )
+			                   AS STEXT
+			              ,DECODE(#NSELECTCASE#, 2, DECODE(ACCOUNT, NULL, '', TRIM(ACCOUNT)), '.') AS ACCOUNT
+			              ,ORDER_SUM
+			              ,DESIRED_QUANTITY
+			              ,SALES_AMOUNT
+			              ,MEMO_PRICE
+			              ,CARD_AMOUNT
+			              ,CARD_FEE
+			              ,CARD_ACCEPT
+			              ,CARD_REALAMOUNT
+			              ,OVERSEACARD_AMOUNT
+			              ,OVERSEACARD_FEE
+			              ,OVERSEACARD_ACCEPT
+			              ,OVERSEACARD_REALAMOUNT
+			              ,ONLINE_AMOUNT
+			              ,ONLINE_REALAMOUNT
+			              ,SMALL_AMOUNT
+			              ,SMALL_REALAMOUNT
+			              ,BANKTOWN_AMOUNT
+			              ,BANKTOWN_FEE
+			              ,BANKTOWN_ACCEPT
+			              ,BANKTOWN_REALAMOUNT
+			              ,REALAMOUNT
+			              ,SUPPLYAMOUNT
+			              ,TAX
+			              ,MINUS_TOTAL
+			              ,SYSTEM_AMOUNT_Y
+			              ,SYSTEM_AMOUNT_N
+			              ,MULTIGIFT_AMOUNT
+			              ,MULTIGIFT_FEE
+			              ,MULTIGIFT_ACCEPT
+			              ,MULTIGIFT_REALAMOUNT
+			              ,EPOST_FEE
+			              ,RM_AMOUNT
+			              ,RM_PEF_AMOUNT
+			              ,COUPON_AMOUNT
+			              ,CP_AMT2
+			              ,SP_AMOUNT
+			              ,SP_PEF_AMOUNT
+			              ,OPTION_AMT
+			              ,INVOICE_AMT
+			              ,POST_AMOUNT
+			              ,CP_THANK_AMT
+			              ,AMOUNT_OKCASH
+			              ,KAKAO_REALAMOUNT
+			              ,KAKAO_FEE
+			              ,KAKAO_AMOUNT
+			              ,KAKAO_ACCEPT
+			              ,'0' AS COMBO_REALAMOUNT
+			              ,'0' AS COMBO_FEE
+			              ,'0' AS COMBO_AMOUNT
+			              ,'0' AS COMBO_ACCEPT
+			              ,MOBILE_REALAMOUNT
+			              ,MOBILE_ACCEPT
+			              ,MOBILE_FEE
+			              ,MOBILE_AMOUNT
+			          FROM MP_HISTORY_STAT
+			         WHERE 1 = 1
+				]]>
+				<include refid="conditionGetSummary"/>
+			) A
+			WHERE 1 = 1
+			GROUP BY DAY, STEXT, ACCOUNT
+
+	</select>
+
+	<select id="select_GETSUMMARY_LIST_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+                    Day                         ,
+                    sText                       ,
+                    Account                     ,
+                    SUM( ORDER_SUM )                                                                                                       as nOrder_Sum                  ,
+                    SUM( DESIRED_QUANTITY )                                                                                                as nDesired_Quantity           ,
+                    SUM( SALES_AMOUNT )                                                                                                    as nSales_Amount               ,
+                    SUM( MEMO_PRICE )                                                                                                      as nMemo_Price                 ,
+                    SUM( CARD_AMOUNT )                                                                                                     as nCard_Amount                ,
+                    SUM( CARD_FEE )                                                                                                        as nCard_Fee                   ,
+                    SUM( CARD_ACCEPT )                                                                                                     as nCard_Accept                ,
+                    SUM( CARD_REALAMOUNT )                                                                                                 as nCard_Realamount            ,
+                    SUM( OVERSEACARD_AMOUNT )                                                                                              as nOverseaCard_Amount         ,
+                    SUM( OVERSEACARD_FEE )                                                                                                 as nOverseaCard_Fee            ,
+                    SUM( OVERSEACARD_ACCEPT )                                                                                              as nOverseaCard_Accept         ,
+                    SUM( OVERSEACARD_REALAMOUNT )                                                                                          as nOverseaCard_Realamount     ,
+                    SUM( ONLINE_AMOUNT )                                                                                                   as nOnline_Amount              ,
+                    SUM( ONLINE_REALAMOUNT )                                                                                               as nOnline_Realamount          ,
+                    SUM( SMALL_AMOUNT )                                                                                                    as nSmall_Amount               ,
+                    SUM( SMALL_REALAMOUNT )                                                                                                as nSmall_Realamount           ,
+                    SUM( BANKTOWN_AMOUNT )                                                                                                 as nBanktown_Amount            ,
+                    SUM( BANKTOWN_FEE )                                                                                                    as nBanktown_Fee               ,
+                    SUM( BANKTOWN_ACCEPT )                                                                                                 as nBanktown_Accept            ,
+                    SUM( BANKTOWN_REALAMOUNT )                                                                                             as nBanktown_Realamount        ,
+                    SUM( REALAMOUNT )                                                                                                      as nRealamount                 ,
+                    SUM( SUPPLYAMOUNT )                                                                                                    as nSupplyamount               ,
+                    SUM( TAX )                                                                                                             as nTax                        ,
+                    SUM( MINUS_TOTAL )                                                                                                     as nMinus_Total                ,
+                    SUM( SYSTEM_AMOUNT_Y )                                                                                                 as nSystem_amount_y            ,
+                    SUM( SYSTEM_AMOUNT_N )                                                                                                 as nSystem_amount_n            ,
+                    SUM( MULTIGIFT_AMOUNT )                                                                                                as nMultiGift_Amount           ,
+                    SUM( MULTIGIFT_FEE )                                                                                                   as nMultiGift_Fee              ,
+                    SUM( MULTIGIFT_ACCEPT )                                                                                                as nMultiGift_Accept           ,
+                    SUM( MULTIGIFT_REALAMOUNT )                                                                                            as nMultiGift_Realamount       ,
+                    SUM( EPOST_FEE )                                                                                                       as nEpost_Fee                  ,
+                    SUM( RM_AMOUNT )                                                                                                       as nRm_Amount                  ,
+                    SUM( RM_PEF_AMOUNT )                                                                                                   as nRm_Pef_Amount              ,
+                    SUM( COUPON_AMOUNT )                                                                                                   as nCp_Amount                  ,
+                    SUM( CP_AMT2 )                                                                                                         as nCp_Biz_Amount              ,
+                    SUM( SP_AMOUNT )                                                                                                       as nSp_Amount                  ,
+                    SUM( SP_PEF_AMOUNT )                                                                                                   as nSp_Pef_Amount,
+                    SUM( OPTION_AMT ) as nOPTION_AMT,
+				    SUM( INVOICE_AMT ) as nINVOICE_AMT,
+				    SUM( POST_AMOUNT ) as nPOST_AMOUNT,
+				    SUM( CP_THANK_AMT ) as nCP_THANK_AMT,
+				    SUM( AMOUNT_OKCASH ) as nAMOUNT_OKCASH,
+				    SUM( KAKAO_REALAMOUNT ) as nKAKAO_REALAMOUNT,
+					SUM( KAKAO_FEE ) as nKAKAO_FEE,
+					SUM( KAKAO_AMOUNT ) as nKAKAO_AMOUNT,
+					SUM( KAKAO_ACCEPT ) as nKAKAO_ACCEPT,
+					SUM( COMBO_REALAMOUNT ) as nCOMBO_REALAMOUNT,
+					SUM( COMBO_FEE ) as nCOMBO_FEE,
+					SUM( COMBO_AMOUNT ) as nCOMBO_AMOUNT,
+					SUM( COMBO_ACCEPT ) as nCOMBO_ACCEPT,
+					SUM( MOBILE_REALAMOUNT ) as nMOBILE_REALAMOUNT,
+					SUM( MOBILE_ACCEPT ) as nMOBILE_ACCEPT,
+					SUM( MOBILE_FEE ) as nMOBILE_FEE,
+					SUM( MOBILE_AMOUNT ) as nMOBILE_AMOUNT
+			FROM (
+			SELECT SUBSTR( DAY, 1, #nEndday# ) as Day,
+                         DECODE( #nSelectCase# , 1, '.',
+                                                2, POSTOFFICE,
+                                                3, storecode ||'|^'|| STORENAME,
+                                                4, SHOPID,
+                                                5, NVL(Goods_Code,'.') ||'|^'|| GOODSNAME,
+                                                6, PAYNAME,
+                                                7, decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ),
+                                                8, '('|| decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ) ||'_'|| ecode||')'||POSTOFFICE) as sText,
+                         DECODE( #nSelectCase# , 2, decode(ACCOUNT,null,'',trim(ACCOUNT)), '.') as Account,
+                         ORDER_SUM,
+						DESIRED_QUANTITY,
+						SALES_AMOUNT,
+						MEMO_PRICE,
+						CARD_AMOUNT,
+						CARD_FEE,
+						CARD_ACCEPT,
+						CARD_REALAMOUNT,
+						OVERSEACARD_AMOUNT,
+						OVERSEACARD_FEE,
+						OVERSEACARD_ACCEPT,
+						OVERSEACARD_REALAMOUNT,
+						ONLINE_AMOUNT,
+						ONLINE_REALAMOUNT,
+						SMALL_AMOUNT,
+						SMALL_REALAMOUNT,
+						BANKTOWN_AMOUNT,
+						BANKTOWN_FEE,
+						BANKTOWN_ACCEPT,
+						BANKTOWN_REALAMOUNT,
+						REALAMOUNT,
+						SUPPLYAMOUNT,
+						TAX,
+						MINUS_TOTAL,
+						SYSTEM_AMOUNT_Y,
+						SYSTEM_AMOUNT_N,
+						MULTIGIFT_AMOUNT,
+						MULTIGIFT_FEE,
+						MULTIGIFT_ACCEPT,
+						MULTIGIFT_REALAMOUNT,
+						EPOST_FEE,
+						RM_AMOUNT,
+						RM_PEF_AMOUNT,
+						COUPON_AMOUNT,
+						CP_AMT2,
+						SP_AMOUNT,
+						SP_PEF_AMOUNT,
+						OPTION_AMT,
+						INVOICE_AMT,
+						POST_AMOUNT,
+						CP_THANK_AMT,
+						AMOUNT_OKCASH,
+						KAKAO_REALAMOUNT,
+						KAKAO_FEE,
+						KAKAO_AMOUNT,
+						KAKAO_ACCEPT,
+						'0' as COMBO_REALAMOUNT,
+						'0' as COMBO_FEE,
+						'0' as COMBO_AMOUNT,
+						'0' as COMBO_ACCEPT,
+						MOBILE_REALAMOUNT,
+						MOBILE_ACCEPT,
+						MOBILE_FEE,
+						MOBILE_AMOUNT
+                  FROM   MP_HISTORY_STAT
+                  WHERE  1 = 1
+				]]>
+				<include refid="conditionGetSummary"/>
+				<![CDATA[
+                  AND    SHOPID IN ( '1', '2', '4' )
+                ) A
+				WHERE 1 = 1
+				GROUP BY Day, sText, Account
+		]]>
+	</select>
+
+	<select id="select_GETSUMMARY_LIST_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+                    Day                         ,
+                    sText                       ,
+                    Account                     ,
+                    SUM( ORDER_SUM )                                                                                                       as nOrder_Sum                  ,
+                    SUM( DESIRED_QUANTITY )                                                                                                as nDesired_Quantity           ,
+                    SUM( SALES_AMOUNT )                                                                                                    as nSales_Amount               ,
+                    SUM( MEMO_PRICE )                                                                                                      as nMemo_Price                 ,
+                    SUM( CARD_AMOUNT )                                                                                                     as nCard_Amount                ,
+                    SUM( CARD_FEE )                                                                                                        as nCard_Fee                   ,
+                    SUM( CARD_ACCEPT )                                                                                                     as nCard_Accept                ,
+                    SUM( CARD_REALAMOUNT )                                                                                                 as nCard_Realamount            ,
+                    SUM( OVERSEACARD_AMOUNT )                                                                                              as nOverseaCard_Amount         ,
+                    SUM( OVERSEACARD_FEE )                                                                                                 as nOverseaCard_Fee            ,
+                    SUM( OVERSEACARD_ACCEPT )                                                                                              as nOverseaCard_Accept         ,
+                    SUM( OVERSEACARD_REALAMOUNT )                                                                                          as nOverseaCard_Realamount     ,
+                    SUM( ONLINE_AMOUNT )                                                                                                   as nOnline_Amount              ,
+                    SUM( ONLINE_REALAMOUNT )                                                                                               as nOnline_Realamount          ,
+                    SUM( SMALL_AMOUNT )                                                                                                    as nSmall_Amount               ,
+                    SUM( SMALL_REALAMOUNT )                                                                                                as nSmall_Realamount           ,
+                    SUM( BANKTOWN_AMOUNT )                                                                                                 as nBanktown_Amount            ,
+                    SUM( BANKTOWN_FEE )                                                                                                    as nBanktown_Fee               ,
+                    SUM( BANKTOWN_ACCEPT )                                                                                                 as nBanktown_Accept            ,
+                    SUM( BANKTOWN_REALAMOUNT )                                                                                             as nBanktown_Realamount        ,
+                    SUM( REALAMOUNT )                                                                                                      as nRealamount                 ,
+                    SUM( SUPPLYAMOUNT )                                                                                                    as nSupplyamount               ,
+                    SUM( TAX )                                                                                                             as nTax                        ,
+                    SUM( MINUS_TOTAL )                                                                                                     as nMinus_Total                ,
+                    SUM( SYSTEM_AMOUNT_Y )                                                                                                 as nSystem_amount_y            ,
+                    SUM( SYSTEM_AMOUNT_N )                                                                                                 as nSystem_amount_n            ,
+                    SUM( MULTIGIFT_AMOUNT )                                                                                                as nMultiGift_Amount           ,
+                    SUM( MULTIGIFT_FEE )                                                                                                   as nMultiGift_Fee              ,
+                    SUM( MULTIGIFT_ACCEPT )                                                                                                as nMultiGift_Accept           ,
+                    SUM( MULTIGIFT_REALAMOUNT )                                                                                            as nMultiGift_Realamount       ,
+                    SUM( EPOST_FEE )                                                                                                       as nEpost_Fee                  ,
+                    SUM( RM_AMOUNT )                                                                                                       as nRm_Amount                  ,
+                    SUM( RM_PEF_AMOUNT )                                                                                                   as nRm_Pef_Amount              ,
+                    SUM( COUPON_AMOUNT )                                                                                                   as nCp_Amount                  ,
+                    SUM( CP_AMT2 )                                                                                                         as nCp_Biz_Amount              ,
+                    SUM( SP_AMOUNT )                                                                                                       as nSp_Amount                  ,
+                    SUM( SP_PEF_AMOUNT )                                                                                                   as nSp_Pef_Amount,
+                    SUM( OPTION_AMT ) as nOPTION_AMT,
+				    SUM( INVOICE_AMT ) as nINVOICE_AMT,
+				    SUM( POST_AMOUNT ) as nPOST_AMOUNT,
+				    SUM( CP_THANK_AMT ) as nCP_THANK_AMT,
+				    SUM( AMOUNT_OKCASH ) as nAMOUNT_OKCASH,
+				    SUM( KAKAO_REALAMOUNT ) as nKAKAO_REALAMOUNT,
+					SUM( KAKAO_FEE ) as nKAKAO_FEE,
+					SUM( KAKAO_AMOUNT ) as nKAKAO_AMOUNT,
+					SUM( KAKAO_ACCEPT ) as nKAKAO_ACCEPT,
+					SUM( COMBO_REALAMOUNT ) as nCOMBO_REALAMOUNT,
+					SUM( COMBO_FEE ) as nCOMBO_FEE,
+					SUM( COMBO_AMOUNT ) as nCOMBO_AMOUNT,
+					SUM( COMBO_ACCEPT ) as nCOMBO_ACCEPT,
+					SUM( MOBILE_REALAMOUNT ) as nMOBILE_REALAMOUNT,
+					SUM( MOBILE_ACCEPT ) as nMOBILE_ACCEPT,
+					SUM( MOBILE_FEE ) as nMOBILE_FEE,
+					SUM( MOBILE_AMOUNT ) as nMOBILE_AMOUNT
+			FROM (
+			SELECT SUBSTR( DAY, 1, #nEndday# ) as Day,
+                         DECODE( #nSelectCase# , 1, '.',
+                                                2, POSTOFFICE,
+                                                3, storecode ||'|^'||STORENAME,
+                                                4, SHOPID,
+                                                5, NVL(Goods_Code,'.') ||'|^'|| GOODSNAME,
+                                                6, PAYNAME,
+                                                7, decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ),
+                                                8, '('|| decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ) ||'_'|| ecode||')'||POSTOFFICE) as sText,
+                         DECODE( #nSelectCase# , 2, decode(ACCOUNT,null,'',trim(ACCOUNT)), '.') as Account,
+                         ORDER_SUM,
+						DESIRED_QUANTITY,
+						SALES_AMOUNT,
+						MEMO_PRICE,
+						CARD_AMOUNT,
+						CARD_FEE,
+						CARD_ACCEPT,
+						CARD_REALAMOUNT,
+						OVERSEACARD_AMOUNT,
+						OVERSEACARD_FEE,
+						OVERSEACARD_ACCEPT,
+						OVERSEACARD_REALAMOUNT,
+						ONLINE_AMOUNT,
+						ONLINE_REALAMOUNT,
+						SMALL_AMOUNT,
+						SMALL_REALAMOUNT,
+						BANKTOWN_AMOUNT,
+						BANKTOWN_FEE,
+						BANKTOWN_ACCEPT,
+						BANKTOWN_REALAMOUNT,
+						REALAMOUNT,
+						SUPPLYAMOUNT,
+						TAX,
+						MINUS_TOTAL,
+						SYSTEM_AMOUNT_Y,
+						SYSTEM_AMOUNT_N,
+						MULTIGIFT_AMOUNT,
+						MULTIGIFT_FEE,
+						MULTIGIFT_ACCEPT,
+						MULTIGIFT_REALAMOUNT,
+						EPOST_FEE,
+						RM_AMOUNT,
+						RM_PEF_AMOUNT,
+						COUPON_AMOUNT,
+						CP_AMT2,
+						SP_AMOUNT,
+						SP_PEF_AMOUNT,
+						OPTION_AMT,
+						INVOICE_AMT,
+						POST_AMOUNT,
+						CP_THANK_AMT,
+						AMOUNT_OKCASH,
+						KAKAO_REALAMOUNT,
+						KAKAO_FEE,
+						KAKAO_AMOUNT,
+						KAKAO_ACCEPT,
+						'0' as COMBO_REALAMOUNT,
+						'0' as COMBO_FEE,
+						'0' as COMBO_AMOUNT,
+						'0' as COMBO_ACCEPT,
+						MOBILE_REALAMOUNT,
+						MOBILE_ACCEPT,
+						MOBILE_FEE,
+						MOBILE_AMOUNT
+                  FROM   MP_HISTORY_STAT
+                  WHERE  1 = 1
+				]]>
+				<include refid="conditionGetSummary"/>
+				<![CDATA[
+                  AND    SHOPID = '3'
+                ) A
+				WHERE 1 = 1
+				GROUP BY Day, sText, Account
+		]]>
+	</select>
+
+	<select id="select_GETSUMMARY_LIST_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+                    Day                         ,
+                    sText                       ,
+                    Account                     ,
+                    SUM( ORDER_SUM )                                                                                                       as nOrder_Sum                  ,
+                    SUM( DESIRED_QUANTITY )                                                                                                as nDesired_Quantity           ,
+                    SUM( SALES_AMOUNT )                                                                                                    as nSales_Amount               ,
+                    SUM( MEMO_PRICE )                                                                                                      as nMemo_Price                 ,
+                    SUM( CARD_AMOUNT )                                                                                                     as nCard_Amount                ,
+                    SUM( CARD_FEE )                                                                                                        as nCard_Fee                   ,
+                    SUM( CARD_ACCEPT )                                                                                                     as nCard_Accept                ,
+                    SUM( CARD_REALAMOUNT )                                                                                                 as nCard_Realamount            ,
+                    SUM( OVERSEACARD_AMOUNT )                                                                                              as nOverseaCard_Amount         ,
+                    SUM( OVERSEACARD_FEE )                                                                                                 as nOverseaCard_Fee            ,
+                    SUM( OVERSEACARD_ACCEPT )                                                                                              as nOverseaCard_Accept         ,
+                    SUM( OVERSEACARD_REALAMOUNT )                                                                                          as nOverseaCard_Realamount     ,
+                    SUM( ONLINE_AMOUNT )                                                                                                   as nOnline_Amount              ,
+                    SUM( ONLINE_REALAMOUNT )                                                                                               as nOnline_Realamount          ,
+                    SUM( SMALL_AMOUNT )                                                                                                    as nSmall_Amount               ,
+                    SUM( SMALL_REALAMOUNT )                                                                                                as nSmall_Realamount           ,
+                    SUM( BANKTOWN_AMOUNT )                                                                                                 as nBanktown_Amount            ,
+                    SUM( BANKTOWN_FEE )                                                                                                    as nBanktown_Fee               ,
+                    SUM( BANKTOWN_ACCEPT )                                                                                                 as nBanktown_Accept            ,
+                    SUM( BANKTOWN_REALAMOUNT )                                                                                             as nBanktown_Realamount        ,
+                    SUM( REALAMOUNT )                                                                                                      as nRealamount                 ,
+                    SUM( SUPPLYAMOUNT )                                                                                                    as nSupplyamount               ,
+                    SUM( TAX )                                                                                                             as nTax                        ,
+                    SUM( MINUS_TOTAL )                                                                                                     as nMinus_Total                ,
+                    SUM( SYSTEM_AMOUNT_Y )                                                                                                 as nSystem_amount_y            ,
+                    SUM( SYSTEM_AMOUNT_N )                                                                                                 as nSystem_amount_n            ,
+                    SUM( MULTIGIFT_AMOUNT )                                                                                                as nMultiGift_Amount           ,
+                    SUM( MULTIGIFT_FEE )                                                                                                   as nMultiGift_Fee              ,
+                    SUM( MULTIGIFT_ACCEPT )                                                                                                as nMultiGift_Accept           ,
+                    SUM( MULTIGIFT_REALAMOUNT )                                                                                            as nMultiGift_Realamount       ,
+                    SUM( EPOST_FEE )                                                                                                       as nEpost_Fee                  ,
+                    SUM( RM_AMOUNT )                                                                                                       as nRm_Amount                  ,
+                    SUM( RM_PEF_AMOUNT )                                                                                                   as nRm_Pef_Amount              ,
+                    SUM( COUPON_AMOUNT )                                                                                                   as nCp_Amount                  ,
+                    SUM( CP_AMT2 )                                                                                                         as nCp_Biz_Amount              ,
+                    SUM( SP_AMOUNT )                                                                                                       as nSp_Amount                  ,
+                    SUM( SP_PEF_AMOUNT )                                                                                                   as nSp_Pef_Amount,
+                    SUM( OPTION_AMT ) as nOPTION_AMT,
+				    SUM( INVOICE_AMT ) as nINVOICE_AMT,
+				    SUM( POST_AMOUNT ) as nPOST_AMOUNT,
+				    SUM( CP_THANK_AMT ) as nCP_THANK_AMT,
+				    SUM( AMOUNT_OKCASH ) as nAMOUNT_OKCASH,
+				    SUM( KAKAO_REALAMOUNT ) as nKAKAO_REALAMOUNT,
+					SUM( KAKAO_FEE ) as nKAKAO_FEE,
+					SUM( KAKAO_AMOUNT ) as nKAKAO_AMOUNT,
+					SUM( KAKAO_ACCEPT ) as nKAKAO_ACCEPT,
+					SUM( COMBO_REALAMOUNT ) as nCOMBO_REALAMOUNT,
+					SUM( COMBO_FEE ) as nCOMBO_FEE,
+					SUM( COMBO_AMOUNT ) as nCOMBO_AMOUNT,
+					SUM( COMBO_ACCEPT ) as nCOMBO_ACCEPT,
+					SUM( MOBILE_REALAMOUNT ) as nMOBILE_REALAMOUNT,
+					SUM( MOBILE_ACCEPT ) as nMOBILE_ACCEPT,
+					SUM( MOBILE_FEE ) as nMOBILE_FEE,
+					SUM( MOBILE_AMOUNT ) as nMOBILE_AMOUNT
+			FROM (
+			SELECT SUBSTR( DAY, 1, #nEndday# ) as Day,
+                         DECODE( #nSelectCase# , 1, '.',
+                                                2, POSTOFFICE,
+                                                3, storecode ||'|^'||STORENAME,
+                                                4, SHOPID,
+                                                5, NVL(Goods_Code,'.') ||'|^'|| GOODSNAME,
+                                                6, PAYNAME,
+                                                7, decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ),
+                                                8, '('|| decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ) ||'_'|| ecode||')'||POSTOFFICE) as sText,
+                         DECODE( #nSelectCase# , 2, decode(ACCOUNT,null,'',trim(ACCOUNT)), '.') as Account,
+                         ORDER_SUM,
+						DESIRED_QUANTITY,
+						SALES_AMOUNT,
+						MEMO_PRICE,
+						CARD_AMOUNT,
+						CARD_FEE,
+						CARD_ACCEPT,
+						CARD_REALAMOUNT,
+						OVERSEACARD_AMOUNT,
+						OVERSEACARD_FEE,
+						OVERSEACARD_ACCEPT,
+						OVERSEACARD_REALAMOUNT,
+						ONLINE_AMOUNT,
+						ONLINE_REALAMOUNT,
+						SMALL_AMOUNT,
+						SMALL_REALAMOUNT,
+						BANKTOWN_AMOUNT,
+						BANKTOWN_FEE,
+						BANKTOWN_ACCEPT,
+						BANKTOWN_REALAMOUNT,
+						REALAMOUNT,
+						SUPPLYAMOUNT,
+						TAX,
+						MINUS_TOTAL,
+						SYSTEM_AMOUNT_Y,
+						SYSTEM_AMOUNT_N,
+						MULTIGIFT_AMOUNT,
+						MULTIGIFT_FEE,
+						MULTIGIFT_ACCEPT,
+						MULTIGIFT_REALAMOUNT,
+						EPOST_FEE,
+						RM_AMOUNT,
+						RM_PEF_AMOUNT,
+						COUPON_AMOUNT,
+						CP_AMT2,
+						SP_AMOUNT,
+						SP_PEF_AMOUNT,
+						OPTION_AMT,
+						INVOICE_AMT,
+						POST_AMOUNT,
+						CP_THANK_AMT,
+						AMOUNT_OKCASH,
+						KAKAO_REALAMOUNT,
+						KAKAO_FEE,
+						KAKAO_AMOUNT,
+						KAKAO_ACCEPT,
+						'0' as COMBO_REALAMOUNT,
+						'0' as COMBO_FEE,
+						'0' as COMBO_AMOUNT,
+						'0' as COMBO_ACCEPT,
+						MOBILE_REALAMOUNT,
+						MOBILE_ACCEPT,
+						MOBILE_FEE,
+						MOBILE_AMOUNT
+                  FROM   MP_HISTORY_STAT
+                  WHERE  1 = 1
+				]]>
+				<include refid="conditionGetSummary"/>
+				<![CDATA[
+                  AND    SHOPID IN ( '5', '6', '7' ,'10')
+                ) A
+				WHERE 1 = 1
+				GROUP BY Day, sText, Account
+		]]>
+	</select>
+
+	<select id="select_GETSUMMARY_LIST_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+                    Day                         ,
+                    sText                       ,
+                    Account                     ,
+                    SUM( ORDER_SUM )                                                                                                       as nOrder_Sum                  ,
+                    SUM( DESIRED_QUANTITY )                                                                                                as nDesired_Quantity           ,
+                    SUM( SALES_AMOUNT )                                                                                                    as nSales_Amount               ,
+                    SUM( MEMO_PRICE )                                                                                                      as nMemo_Price                 ,
+                    SUM( CARD_AMOUNT )                                                                                                     as nCard_Amount                ,
+                    SUM( CARD_FEE )                                                                                                        as nCard_Fee                   ,
+                    SUM( CARD_ACCEPT )                                                                                                     as nCard_Accept                ,
+                    SUM( CARD_REALAMOUNT )                                                                                                 as nCard_Realamount            ,
+                    SUM( OVERSEACARD_AMOUNT )                                                                                              as nOverseaCard_Amount         ,
+                    SUM( OVERSEACARD_FEE )                                                                                                 as nOverseaCard_Fee            ,
+                    SUM( OVERSEACARD_ACCEPT )                                                                                              as nOverseaCard_Accept         ,
+                    SUM( OVERSEACARD_REALAMOUNT )                                                                                          as nOverseaCard_Realamount     ,
+                    SUM( ONLINE_AMOUNT )                                                                                                   as nOnline_Amount              ,
+                    SUM( ONLINE_REALAMOUNT )                                                                                               as nOnline_Realamount          ,
+                    SUM( SMALL_AMOUNT )                                                                                                    as nSmall_Amount               ,
+                    SUM( SMALL_REALAMOUNT )                                                                                                as nSmall_Realamount           ,
+                    SUM( BANKTOWN_AMOUNT )                                                                                                 as nBanktown_Amount            ,
+                    SUM( BANKTOWN_FEE )                                                                                                    as nBanktown_Fee               ,
+                    SUM( BANKTOWN_ACCEPT )                                                                                                 as nBanktown_Accept            ,
+                    SUM( BANKTOWN_REALAMOUNT )                                                                                             as nBanktown_Realamount        ,
+                    SUM( REALAMOUNT )                                                                                                      as nRealamount                 ,
+                    SUM( SUPPLYAMOUNT )                                                                                                    as nSupplyamount               ,
+                    SUM( TAX )                                                                                                             as nTax                        ,
+                    SUM( MINUS_TOTAL )                                                                                                     as nMinus_Total                ,
+                    SUM( SYSTEM_AMOUNT_Y )                                                                                                 as nSystem_amount_y            ,
+                    SUM( SYSTEM_AMOUNT_N )                                                                                                 as nSystem_amount_n            ,
+                    SUM( MULTIGIFT_AMOUNT )                                                                                                as nMultiGift_Amount           ,
+                    SUM( MULTIGIFT_FEE )                                                                                                   as nMultiGift_Fee              ,
+                    SUM( MULTIGIFT_ACCEPT )                                                                                                as nMultiGift_Accept           ,
+                    SUM( MULTIGIFT_REALAMOUNT )                                                                                            as nMultiGift_Realamount       ,
+                    SUM( EPOST_FEE )                                                                                                       as nEpost_Fee                  ,
+                    SUM( RM_AMOUNT )                                                                                                       as nRm_Amount                  ,
+                    SUM( RM_PEF_AMOUNT )                                                                                                   as nRm_Pef_Amount              ,
+                    SUM( COUPON_AMOUNT )                                                                                                   as nCp_Amount                  ,
+                    SUM( CP_AMT2 )                                                                                                         as nCp_Biz_Amount              ,
+                    SUM( SP_AMOUNT )                                                                                                       as nSp_Amount                  ,
+                    SUM( SP_PEF_AMOUNT )                                                                                                   as nSp_Pef_Amount,
+                    SUM( OPTION_AMT ) as nOPTION_AMT,
+				    SUM( INVOICE_AMT ) as nINVOICE_AMT,
+				    SUM( POST_AMOUNT ) as nPOST_AMOUNT,
+				    SUM( CP_THANK_AMT ) as nCP_THANK_AMT,
+				    SUM( AMOUNT_OKCASH ) as nAMOUNT_OKCASH,
+				    SUM( KAKAO_REALAMOUNT ) as nKAKAO_REALAMOUNT,
+					SUM( KAKAO_FEE ) as nKAKAO_FEE,
+					SUM( KAKAO_AMOUNT ) as nKAKAO_AMOUNT,
+					SUM( KAKAO_ACCEPT ) as nKAKAO_ACCEPT,
+					SUM( COMBO_REALAMOUNT ) as nCOMBO_REALAMOUNT,
+					SUM( COMBO_FEE ) as nCOMBO_FEE,
+					SUM( COMBO_AMOUNT ) as nCOMBO_AMOUNT,
+					SUM( COMBO_ACCEPT ) as nCOMBO_ACCEPT,
+					SUM( MOBILE_REALAMOUNT ) as nMOBILE_REALAMOUNT,
+					SUM( MOBILE_ACCEPT ) as nMOBILE_ACCEPT,
+					SUM( MOBILE_FEE ) as nMOBILE_FEE,
+					SUM( MOBILE_AMOUNT ) as nMOBILE_AMOUNT
+			FROM (
+			SELECT SUBSTR( DAY, 1, #nEndday# ) as Day,
+                         DECODE( #nSelectCase# , 1, '.',
+                                                2, POSTOFFICE,
+                                                3, storecode ||'|^'||STORENAME,
+                                                4, SHOPID,
+                                                5, NVL(Goods_Code,'.') ||'|^'|| GOODSNAME,
+                                                6, PAYNAME,
+                                                7, decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ),
+                                                8, '('|| decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ) ||'_'|| ecode||')'||POSTOFFICE) as sText,
+                         DECODE( #nSelectCase# , 2, decode(ACCOUNT,null,'',trim(ACCOUNT)), '.') as Account,
+                         ORDER_SUM,
+						DESIRED_QUANTITY,
+						SALES_AMOUNT,
+						MEMO_PRICE,
+						CARD_AMOUNT,
+						CARD_FEE,
+						CARD_ACCEPT,
+						CARD_REALAMOUNT,
+						OVERSEACARD_AMOUNT,
+						OVERSEACARD_FEE,
+						OVERSEACARD_ACCEPT,
+						OVERSEACARD_REALAMOUNT,
+						ONLINE_AMOUNT,
+						ONLINE_REALAMOUNT,
+						SMALL_AMOUNT,
+						SMALL_REALAMOUNT,
+						BANKTOWN_AMOUNT,
+						BANKTOWN_FEE,
+						BANKTOWN_ACCEPT,
+						BANKTOWN_REALAMOUNT,
+						REALAMOUNT,
+						SUPPLYAMOUNT,
+						TAX,
+						MINUS_TOTAL,
+						SYSTEM_AMOUNT_Y,
+						SYSTEM_AMOUNT_N,
+						MULTIGIFT_AMOUNT,
+						MULTIGIFT_FEE,
+						MULTIGIFT_ACCEPT,
+						MULTIGIFT_REALAMOUNT,
+						EPOST_FEE,
+						RM_AMOUNT,
+						RM_PEF_AMOUNT,
+						COUPON_AMOUNT,
+						CP_AMT2,
+						SP_AMOUNT,
+						SP_PEF_AMOUNT,
+						OPTION_AMT,
+						INVOICE_AMT,
+						POST_AMOUNT,
+						CP_THANK_AMT,
+						AMOUNT_OKCASH,
+						KAKAO_REALAMOUNT,
+						KAKAO_FEE,
+						KAKAO_AMOUNT,
+						KAKAO_ACCEPT,
+						'0' as COMBO_REALAMOUNT,
+						'0' as COMBO_FEE,
+						'0' as COMBO_AMOUNT,
+						'0' as COMBO_ACCEPT,
+						MOBILE_REALAMOUNT,
+						MOBILE_ACCEPT,
+						MOBILE_FEE,
+						MOBILE_AMOUNT
+                  FROM   MP_HISTORY_STAT
+                  WHERE  1 = 1
+				]]>
+				<include refid="conditionGetSummary"/>
+				<![CDATA[
+                  AND    SHOPID != '3'
+                ) A
+				WHERE 1 = 1
+				GROUP BY Day, sText, Account
+		]]>
+	</select>
+
+	<select id="select_GETSUMMARY_LIST_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+                    Day                         ,
+                    sText                       ,
+                    Account                     ,
+                    SUM( ORDER_SUM )                                                                                                       as nOrder_Sum                  ,
+                    SUM( DESIRED_QUANTITY )                                                                                                as nDesired_Quantity           ,
+                    SUM( SALES_AMOUNT )                                                                                                    as nSales_Amount               ,
+                    SUM( MEMO_PRICE )                                                                                                      as nMemo_Price                 ,
+                    SUM( CARD_AMOUNT )                                                                                                     as nCard_Amount                ,
+                    SUM( CARD_FEE )                                                                                                        as nCard_Fee                   ,
+                    SUM( CARD_ACCEPT )                                                                                                     as nCard_Accept                ,
+                    SUM( CARD_REALAMOUNT )                                                                                                 as nCard_Realamount            ,
+                    SUM( OVERSEACARD_AMOUNT )                                                                                              as nOverseaCard_Amount         ,
+                    SUM( OVERSEACARD_FEE )                                                                                                 as nOverseaCard_Fee            ,
+                    SUM( OVERSEACARD_ACCEPT )                                                                                              as nOverseaCard_Accept         ,
+                    SUM( OVERSEACARD_REALAMOUNT )                                                                                          as nOverseaCard_Realamount     ,
+                    SUM( ONLINE_AMOUNT )                                                                                                   as nOnline_Amount              ,
+                    SUM( ONLINE_REALAMOUNT )                                                                                               as nOnline_Realamount          ,
+                    SUM( SMALL_AMOUNT )                                                                                                    as nSmall_Amount               ,
+                    SUM( SMALL_REALAMOUNT )                                                                                                as nSmall_Realamount           ,
+                    SUM( BANKTOWN_AMOUNT )                                                                                                 as nBanktown_Amount            ,
+                    SUM( BANKTOWN_FEE )                                                                                                    as nBanktown_Fee               ,
+                    SUM( BANKTOWN_ACCEPT )                                                                                                 as nBanktown_Accept            ,
+                    SUM( BANKTOWN_REALAMOUNT )                                                                                             as nBanktown_Realamount        ,
+                    SUM( REALAMOUNT )                                                                                                      as nRealamount                 ,
+                    SUM( SUPPLYAMOUNT )                                                                                                    as nSupplyamount               ,
+                    SUM( TAX )                                                                                                             as nTax                        ,
+                    SUM( MINUS_TOTAL )                                                                                                     as nMinus_Total                ,
+                    SUM( SYSTEM_AMOUNT_Y )                                                                                                 as nSystem_amount_y            ,
+                    SUM( SYSTEM_AMOUNT_N )                                                                                                 as nSystem_amount_n            ,
+                    SUM( MULTIGIFT_AMOUNT )                                                                                                as nMultiGift_Amount           ,
+                    SUM( MULTIGIFT_FEE )                                                                                                   as nMultiGift_Fee              ,
+                    SUM( MULTIGIFT_ACCEPT )                                                                                                as nMultiGift_Accept           ,
+                    SUM( MULTIGIFT_REALAMOUNT )                                                                                            as nMultiGift_Realamount       ,
+                    SUM( EPOST_FEE )                                                                                                       as nEpost_Fee                  ,
+                    SUM( RM_AMOUNT )                                                                                                       as nRm_Amount                  ,
+                    SUM( RM_PEF_AMOUNT )                                                                                                   as nRm_Pef_Amount              ,
+                    SUM( COUPON_AMOUNT )                                                                                                   as nCp_Amount                  ,
+                    SUM( CP_AMT2 )                                                                                                         as nCp_Biz_Amount              ,
+                    SUM( SP_AMOUNT )                                                                                                       as nSp_Amount                  ,
+                    SUM( SP_PEF_AMOUNT )                                                                                                   as nSp_Pef_Amount,
+                    SUM( OPTION_AMT ) as nOPTION_AMT,
+				    SUM( INVOICE_AMT ) as nINVOICE_AMT,
+				    SUM( POST_AMOUNT ) as nPOST_AMOUNT,
+				    SUM( CP_THANK_AMT ) as nCP_THANK_AMT,
+				    SUM( AMOUNT_OKCASH ) as nAMOUNT_OKCASH,
+				    SUM( KAKAO_REALAMOUNT ) as nKAKAO_REALAMOUNT,
+					SUM( KAKAO_FEE ) as nKAKAO_FEE,
+					SUM( KAKAO_AMOUNT ) as nKAKAO_AMOUNT,
+					SUM( KAKAO_ACCEPT ) as nKAKAO_ACCEPT,
+					SUM( COMBO_REALAMOUNT ) as nCOMBO_REALAMOUNT,
+					SUM( COMBO_FEE ) as nCOMBO_FEE,
+					SUM( COMBO_AMOUNT ) as nCOMBO_AMOUNT,
+					SUM( COMBO_ACCEPT ) as nCOMBO_ACCEPT,
+					SUM( MOBILE_REALAMOUNT ) as nMOBILE_REALAMOUNT,
+					SUM( MOBILE_ACCEPT ) as nMOBILE_ACCEPT,
+					SUM( MOBILE_FEE ) as nMOBILE_FEE,
+					SUM( MOBILE_AMOUNT ) as nMOBILE_AMOUNT
+			FROM (
+			SELECT SUBSTR( DAY, 1, #nEndday# ) as Day,
+                         DECODE( #nSelectCase# , 1, '.',
+                                                2, POSTOFFICE,
+                                                3, storecode ||'|^'||STORENAME,
+                                                4, SHOPID,
+                                                5, NVL(Goods_Code,'.') ||'|^'|| GOODSNAME,
+                                                6, PAYNAME,
+                                                7, decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ),
+                                                8, '('|| decode( substr( ecode, 1, 2 ), '51', '8',
+												           decode(  substr( ecode, 1, 1 ), '0', '1', substr( ecode, 1, 1 ) ) ) ||'_'|| ecode||')'||POSTOFFICE) as sText,
+                         DECODE( #nSelectCase# , 2, decode(ACCOUNT,null,'',trim(ACCOUNT)), '.') as Account,
+                         ORDER_SUM,
+						DESIRED_QUANTITY,
+						SALES_AMOUNT,
+						MEMO_PRICE,
+						CARD_AMOUNT,
+						CARD_FEE,
+						CARD_ACCEPT,
+						CARD_REALAMOUNT,
+						OVERSEACARD_AMOUNT,
+						OVERSEACARD_FEE,
+						OVERSEACARD_ACCEPT,
+						OVERSEACARD_REALAMOUNT,
+						ONLINE_AMOUNT,
+						ONLINE_REALAMOUNT,
+						SMALL_AMOUNT,
+						SMALL_REALAMOUNT,
+						BANKTOWN_AMOUNT,
+						BANKTOWN_FEE,
+						BANKTOWN_ACCEPT,
+						BANKTOWN_REALAMOUNT,
+						REALAMOUNT,
+						SUPPLYAMOUNT,
+						TAX,
+						MINUS_TOTAL,
+						SYSTEM_AMOUNT_Y,
+						SYSTEM_AMOUNT_N,
+						MULTIGIFT_AMOUNT,
+						MULTIGIFT_FEE,
+						MULTIGIFT_ACCEPT,
+						MULTIGIFT_REALAMOUNT,
+						EPOST_FEE,
+						RM_AMOUNT,
+						RM_PEF_AMOUNT,
+						COUPON_AMOUNT,
+						CP_AMT2,
+						SP_AMOUNT,
+						SP_PEF_AMOUNT,
+						OPTION_AMT,
+						INVOICE_AMT,
+						POST_AMOUNT,
+						CP_THANK_AMT,
+						AMOUNT_OKCASH,
+						KAKAO_REALAMOUNT,
+						KAKAO_FEE,
+						KAKAO_AMOUNT,
+						KAKAO_ACCEPT,
+						'0' as COMBO_REALAMOUNT,
+						'0' as COMBO_FEE,
+						'0' as COMBO_AMOUNT,
+						'0' as COMBO_ACCEPT,
+						MOBILE_REALAMOUNT,
+						MOBILE_ACCEPT,
+						MOBILE_FEE,
+						MOBILE_AMOUNT
+                  FROM   MP_HISTORY_STAT
+                  WHERE  1 = 1
+				]]>
+				<include refid="conditionGetSummary"/>
+				<![CDATA[
+                ) A
+				WHERE 1 = 1
+				GROUP BY Day, sText, Account
+		]]>
+	</select>
+
+</sqlMap>

@@ -1,0 +1,678 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="MO.MainDisp">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 홈 메인배너 목록조회 -->
+	<select id="selectDispBannerList" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<include refid="pagingHeader"/>	
+		<![CDATA[
+			SELECT	ROWNUM
+		          , A.BANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.BANNER_NM
+		          , A.BANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		         , CASE WHEN TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD') = '9999-12-31' THEN '상시게시'
+                           ELSE TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') END                         AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                          ELSE A.REGER_ID END							                                   AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINBANNER_MGMT A, CM_FILE_MGT B
+			]]>
+			 WHERE	A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		       AND  A.DEL_YN = 'N'
+		  ORDER BY A.SORT_SEQ	
+		<include refid="pagingFooter"/>
+	</select>
+	
+	<!-- 메인배너 목록건수 -->
+	<select id="selectDispBannerTotalCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM MP_MOBILE_MAINBANNER_MGMT
+		 WHERE DEL_YN = 'N' 
+	</select>	
+	
+	<!-- 메인배너 목록조회(상세) --> 
+	<select id="selectDispBannerDtl" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<![CDATA[
+			SELECT	ROWNUM
+		          , A.BANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.BANNER_NM
+		          , A.BANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		          , TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                          ELSE A.REGER_ID END							                                   AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINBANNER_MGMT A, CM_FILE_MGT B
+			 WHERE	A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		       AND  A.DEL_YN = 'N'
+		       AND  A.BANNER_SEQ = #bannerSeq#
+		 	]]>
+	</select>
+	
+	<!-- 메인배너 저장, 신규저장-->
+	<insert id="insertDispBannerMgr" parameterClass="java.util.HashMap">
+		 INSERT INTO MP_MOBILE_MAINBANNER_MGMT
+		 (
+				       	  BANNER_SEQ
+				       	, ATTCHFILE_ID
+				       	, BANNER_NM
+				       	, BANNER_ALTTEXT
+				       	, SORT_SEQ
+	                    , BBC_YN
+	                    , REQST_URL
+	                    , DEL_YN
+	                    , DSPY_STRT_DATE
+	                    , DSPY_END_DATE
+	                    , REG_DATE
+	                    , REGER_ID
+			       )VALUES(
+			       		  (SELECT NVL(MAX(TO_NUMBER(BANNER_SEQ))+1, 1) FROM MP_MOBILE_MAINBANNER_MGMT)
+			       		, #attchfileId# 
+			       		, #bannerNm#                                                
+		       		    , #bannerAlttext#                                                  
+		       		    , #sortSeq#                                               
+		       		    , #bbcYn#                                                      
+		       		    , #reqstUrl#                                              
+		       		    , 'N'                                                                     		     	       		     
+		       		    , TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')	    
+		       		    , TO_DATE(REPLACE(#calToDate#,'-') || #txToTm# || #txToMn# || '00'  ,'YYYYMMDDHH24MISS')     		                           
+		       		    , SYSDATE                                   					            
+		       		    , 'admin'                                               
+			       ) 
+	</insert>
+	
+	<update id="updateBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_MAINBANNER_MGMT
+		   SET BANNER_NM		 = #bannerNm#
+			 , BANNER_ALTTEXT	= #bannerAlttext#
+			 , SORT_SEQ = #sortSeq#
+		<isNotEmpty property="attchfileId" prepend=",">
+			   ATTCHFILE_ID	= #attchfileId#
+		</isNotEmpty>
+			 , BBC_YN			 = #bbcYn#
+			 , REQST_URL			 = #reqstUrl#
+			 , DSPY_STRT_DATE    = TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')
+		     , DSPY_END_DATE     = TO_DATE(REPLACE(#calToDate#,'-')  || #txToTm# || #txToMn# || '59' ,'YYYYMMDDHH24MISS')
+			 , CHGER_ID		 = 'tester'
+			 , CHG_DATE	    = SYSDATE
+		 WHERE BANNER_SEQ   = #bannerSeq#
+	</update>
+	
+	<!-- 메인배너 일괄저장-->
+	<update id="updateDispAllBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINBANNER_MGMT
+		SET   SORT_SEQ = #sortSeq#
+	          , BBC_YN = #bbcYn#
+	          , CHG_DATE = SYSDATE
+			  , CHGER_ID = #chgerId#
+		WHERE	BANNER_SEQ = #bannerSeq#
+	</update>
+	
+	<!-- 메인배너 삭제-->
+	<update id="updateDispBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINBANNER_MGMT
+		SET		
+		<isNotEmpty property="delYn">
+			    DEL_YN = #delYn#
+		</isNotEmpty> 
+		WHERE	BANNER_SEQ = #bannerSeq#
+	</update>
+
+	<!-- 메인이벤트 목록조회 -->
+	<select id="selectDispEventBannerList" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<include refid="pagingHeader"/>	
+		<![CDATA[
+			SELECT	ROWNUM
+		          , A.EVENTBANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.EVENTBANNER_NM
+		          , A.EVENTBANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN
+		          , A.BBC_POS
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		          , CASE WHEN TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD') = '9999-12-31' THEN '상시게시'
+                             ELSE TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') END                         AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                            ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                                                          AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                            ELSE A.REGER_ID END							                                                                                             AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINEVENTBANNER_MGMT A, CM_FILE_MGT B
+			]]>
+			 WHERE	 A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		         AND A.DEL_YN = 'N'
+		         AND A.BBC_POS = '01' /*홈이벤트배너전시위치코드*/
+		  ORDER BY A.SORT_SEQ	
+		<include refid="pagingFooter"/>			
+	</select>
+	
+	<!-- 메인이벤트 목록건수 -->
+	<select id="selectDispEventBannerTotalCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM MP_MOBILE_MAINEVENTBANNER_MGMT
+		 WHERE DEL_YN = 'N' 
+		     AND BBC_POS = '01' /*홈이벤트배너전시위치코드*/ 
+	</select>	
+	
+	
+	<!-- 메인이벤트 목록조회(상세) --> 
+	<select id="selectDispEventBannerDtl" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<![CDATA[
+			SELECT	
+			       ROWNUM
+		          , A.EVENTBANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.EVENTBANNER_NM
+		          , A.EVENTBANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN	
+		          , A.BBC_POS        
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		          , TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                          ELSE A.REGER_ID END							                                   AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINEVENTBANNER_MGMT A, CM_FILE_MGT B
+			 WHERE	A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		        AND  A.DEL_YN = 'N'
+		        AND  A.BBC_POS = '01' /*홈이벤트배너전시위치코드*/ 
+		        AND  A.EVENTBANNER_SEQ = #eventbannerSeq#
+		 	]]>
+	</select>
+	
+	<!-- 메인이벤트배너 저장, 신규저장-->
+	<insert id="insertDispEventBannerMgr" parameterClass="java.util.HashMap">
+		 INSERT INTO MP_MOBILE_MAINEVENTBANNER_MGMT
+		 (
+				       	  EVENTBANNER_SEQ
+				       	, ATTCHFILE_ID
+				       	, EVENTBANNER_NM
+				       	, EVENTBANNER_ALTTEXT
+				       	, SORT_SEQ
+	                    , BBC_YN
+	                    , REQST_URL
+	                    , DEL_YN
+	                    , DSPY_STRT_DATE
+	                    , DSPY_END_DATE
+	                    , REG_DATE
+	                    , REGER_ID
+	                    , BBC_POS
+			       )VALUES(
+			       		  (SELECT NVL(MAX(TO_NUMBER(EVENTBANNER_SEQ))+1, 1) FROM MP_MOBILE_MAINEVENTBANNER_MGMT)
+			       		, #attchfileId# 
+			       		, #eventbannerNm#                                                
+		       		    , #eventbannerAlttext#                                                  
+		       		    , #sortSeq#                                               
+		       		    , #bbcYn#                                                      
+		       		    , #reqstUrl#                                              
+		       		    , 'N'                                                                     		     	       		     
+		       		    , TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')	    
+		       		    , TO_DATE(REPLACE(#calToDate#,'-') || #txToTm# || #txToMn# || '00'  ,'YYYYMMDDHH24MISS')     		                           
+		       		    , SYSDATE                                   					            
+		       		    , 'admin'  
+		       		    , '01' /*홈이벤트배너전시위치코드*/                                             
+			       ) 
+	</insert>
+	
+	<update id="updateEventBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_MAINEVENTBANNER_MGMT
+		   SET EVENTBANNER_NM		 = #eventbannerNm#
+			 , EVENTBANNER_ALTTEXT	= #eventbannerAlttext#
+			 , SORT_SEQ = #sortSeq#
+		<isNotEmpty property="attchfileId" prepend=",">
+			   ATTCHFILE_ID	= #attchfileId#
+		</isNotEmpty>
+			 , BBC_YN			 = #bbcYn#
+			 , REQST_URL			 = #reqstUrl#
+			 , DSPY_STRT_DATE    = TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')
+		     , DSPY_END_DATE     = TO_DATE(REPLACE(#calToDate#,'-')  || #txToTm# || #txToMn# || '59' ,'YYYYMMDDHH24MISS')
+			 , CHGER_ID		 = 'tester'
+			 , CHG_DATE	    = SYSDATE
+		 WHERE EVENTBANNER_SEQ   = #eventbannerSeq#
+		     AND BBC_POS = '01' /*홈이벤트배너전시위치코드*/
+	</update>
+	
+	<!-- 메인이벤트 일괄저장-->
+	<update id="updateDispAllEventBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINEVENTBANNER_MGMT
+		SET	SORT_SEQ = #sortSeq#
+	          , BBC_YN = #bbcYn#
+	          , CHG_DATE = SYSDATE
+			  , CHGER_ID = #chgerId#
+		WHERE 	EVENTBANNER_SEQ = #eventbannerSeq#
+		    AND BBC_POS = '01' /*홈이벤트배너전시위치코드*/
+	</update>
+	
+	<!--메인이벤트배너 삭제-->
+	<update id="updateDispEventBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINEVENTBANNER_MGMT
+		SET		
+		<isNotEmpty property="delYn">
+			    DEL_YN = #delYn#
+		</isNotEmpty> 
+		WHERE	EVENTBANNER_SEQ = #eventbannerSeq#
+		    AND BBC_POS = '01' /*홈이벤트배너전시위치코드*/
+	</update>
+	
+	<!-- 상품상세이벤트배너 목록조회 -->
+	<select id="selectDispGoodsBannerList" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<include refid="pagingHeader"/>	
+		<![CDATA[
+			SELECT	
+					ROWNUM
+		          , A.EVENTBANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.EVENTBANNER_NM
+		          , A.EVENTBANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN
+		          , A.BBC_POS	          
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		          , CASE WHEN TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD') = '9999-12-31' THEN '상시게시'
+                             ELSE TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') END                         AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                          ELSE A.REGER_ID END							                                   AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINEVENTBANNER_MGMT A, CM_FILE_MGT B
+			]]>
+			 WHERE	A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		         AND A.DEL_YN = 'N'
+		         AND A.BBC_POS = '02' /*상품상세홍보배너전시위치코드*/ 
+		  ORDER BY A.SORT_SEQ
+		<include refid="pagingFooter"/>
+	</select>
+	
+	<!-- 상품상세이벤트배너 목록건수 -->
+	<select id="selectDispGoodsBannerTotalCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM MP_MOBILE_MAINEVENTBANNER_MGMT
+		 WHERE DEL_YN = 'N' 
+		     AND BBC_POS = '02' /*상품상세홍보배너전시위치코드*/ 
+	</select>	
+	
+	
+	<!-- 상품상세이벤트배너 목록조회(상세) --> 
+	<select id="selectDispGoodsBannerDtl" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<![CDATA[
+			SELECT	
+			       ROWNUM
+		          , A.EVENTBANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.EVENTBANNER_NM
+		          , A.EVENTBANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN	    
+		          , A.BBC_POS    
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		          , TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                          ELSE A.REGER_ID END							                                   AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINEVENTBANNER_MGMT A, CM_FILE_MGT B
+			 WHERE	A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		        AND  A.DEL_YN = 'N'
+		        AND  A.BBC_POS = '02' /*상품상세홍보배너전시위치코드*/ 
+		        AND  A.EVENTBANNER_SEQ = #eventbannerSeq#
+		 	]]>
+	</select>
+	
+	<!-- 상품상세이벤트배너 저장,업데이트 AND 신규저장-->
+	<insert id="insertDispGoodsBannerMgr" parameterClass="java.util.HashMap">
+		 INSERT INTO MP_MOBILE_MAINEVENTBANNER_MGMT
+		 (
+				       	  EVENTBANNER_SEQ
+				       	, ATTCHFILE_ID
+				       	, EVENTBANNER_NM
+				       	, EVENTBANNER_ALTTEXT
+				       	, SORT_SEQ
+	                    , BBC_YN
+	                    , REQST_URL
+	                    , DEL_YN
+	                    , DSPY_STRT_DATE
+	                    , DSPY_END_DATE
+	                    , REG_DATE
+	                    , REGER_ID
+	                    , BBC_POS
+			       )VALUES(
+			       		  (SELECT NVL(MAX(TO_NUMBER(EVENTBANNER_SEQ))+1, 1) FROM MP_MOBILE_MAINEVENTBANNER_MGMT)
+			       		, #attchfileId# 
+			       		, #eventbannerNm#                                                
+		       		    , #eventbannerAlttext#                                                  
+		       		    , #sortSeq#                                               
+		       		    , #bbcYn#                                                      
+		       		    , #reqstUrl#                                              
+		       		    , 'N'                                                                     		     	       		     
+		       		    , TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')	    
+		       		    , TO_DATE(REPLACE(#calToDate#,'-') || #txToTm# || #txToMn# || '00'  ,'YYYYMMDDHH24MISS')     		                           
+		       		    , SYSDATE                                   					            
+		       		    , 'admin'  
+		       		    , '02' /*상품상세홍보배너전시위치코드*/                                             
+			       ) 
+	</insert>
+	
+	<update id="updateGoodsBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_MAINEVENTBANNER_MGMT
+		   SET EVENTBANNER_NM		 = #eventbannerNm#
+			 , EVENTBANNER_ALTTEXT	= #eventbannerAlttext#
+			 , SORT_SEQ = #sortSeq#
+		<isNotEmpty property="attchfileId" prepend=",">
+			   ATTCHFILE_ID	= #attchfileId#
+		</isNotEmpty>
+			 , BBC_YN			 = #bbcYn#
+			 , REQST_URL			 = #reqstUrl#
+			 , DSPY_STRT_DATE    = TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')
+		     , DSPY_END_DATE     = TO_DATE(REPLACE(#calToDate#,'-')  || #txToTm# || #txToMn# || '59' ,'YYYYMMDDHH24MISS')
+			 , CHGER_ID		 = 'tester'
+			 , CHG_DATE	    = SYSDATE
+		 WHERE EVENTBANNER_SEQ   = #eventbannerSeq#
+		     AND BBC_POS = '02' /*상품상세홍보배너전시위치코드*/
+	</update>
+	
+	<!-- 상품상세이벤트배너 일괄저장-->
+	<update id="updateDispAllGoodsBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINEVENTBANNER_MGMT
+		SET	SORT_SEQ = #sortSeq#
+	          , BBC_YN = #bbcYn#
+	          , CHG_DATE = SYSDATE
+			  , CHGER_ID = #chgerId#
+		WHERE 	EVENTBANNER_SEQ = #eventbannerSeq#
+		    AND BBC_POS = '02' /*상품상세홍보배너전시위치코드*/
+	</update>
+	
+	<!--상품상세이벤트배너배너 삭제-->
+	<update id="updateDispGoodsBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINEVENTBANNER_MGMT
+		SET		
+		<isNotEmpty property="delYn">
+			    DEL_YN = #delYn#
+		</isNotEmpty> 
+		WHERE	EVENTBANNER_SEQ = #eventbannerSeq#
+		    AND BBC_POS = '02' /*상품상세홍보배너전시위치코드*/
+	</update>
+	
+	<!-- 서브메인이벤트 목록조회 -->
+	<select id="selectDispSubMainBannerList" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<include refid="pagingHeader"/>	
+		<![CDATA[
+			SELECT	ROWNUM
+		          , A.EVENTBANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.EVENTBANNER_NM
+		          , A.EVENTBANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN
+		          , A.BBC_POS
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		          , CASE WHEN TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD') = '9999-12-31' THEN '상시게시'
+                             ELSE TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') END                         AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                            ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                                                          AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                            ELSE A.REGER_ID END							                                                                                             AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINEVENTBANNER_MGMT A, CM_FILE_MGT B
+			]]>
+			 WHERE	 A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		         AND A.DEL_YN = 'N'
+		         AND A.BBC_POS NOT IN('01','02') /*홈배너이벤트,상품상세홍보제외*/
+		  ORDER BY A.SORT_SEQ	
+		<include refid="pagingFooter"/>			
+	</select>
+	
+	<!-- 서브메인이벤트 목록건수 -->
+	<select id="selectDispSubMainBannerTotalCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM MP_MOBILE_MAINEVENTBANNER_MGMT
+		 WHERE DEL_YN = 'N' 
+		     AND BBC_POS NOT IN('01','02') /*홈배너이벤트,상품상세홍보제외*/
+	</select>	
+	
+	
+	<!-- 서브메인이벤트 목록조회(상세) --> 
+	<select id="selectDispSubMainBannerDtl" parameterClass="java.util.HashMap" resultClass="commMap">	
+		<![CDATA[
+			SELECT	
+			       ROWNUM
+		          , A.EVENTBANNER_SEQ 
+		          , A.ATTCHFILE_ID
+		          , A.EVENTBANNER_NM
+		          , A.EVENTBANNER_ALTTEXT
+		          , A.SORT_SEQ
+		          , A.REQST_URL
+		          , A.BBC_YN	
+		          , A.BBC_POS        
+		          , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		          , TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_END_DATE
+		          , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+                  , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+                  , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+                  , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+                  , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+                  , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		          , A.DEL_YN
+		          , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+                  , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                          ELSE A.REGER_ID END							                                   AS lastId
+		          , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			      , B.STRE_FILE_NM AS IMAGE_NM
+			      , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			      , B.FILE_EXTNER AS IMAGE_EXTNER 
+			      , B.FILE_SIZE AS IMAGE_SIZE
+		      FROM	MP_MOBILE_MAINEVENTBANNER_MGMT A, CM_FILE_MGT B
+			 WHERE	A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		        AND  A.DEL_YN = 'N'
+		        AND  A.BBC_POS NOT IN('01','02') /*홈배너이벤트,상품상세홍보제외*/
+		        AND  A.EVENTBANNER_SEQ = #eventbannerSeq#
+		 	]]>
+	</select>
+	
+	<!-- 서브메인배너 저장, 신규저장-->
+	<insert id="insertDispSubMainBannerMgr" parameterClass="java.util.HashMap">
+		 INSERT INTO MP_MOBILE_MAINEVENTBANNER_MGMT
+		 (
+				       	  EVENTBANNER_SEQ
+				       	, ATTCHFILE_ID
+				       	, EVENTBANNER_NM
+				       	, EVENTBANNER_ALTTEXT
+				       	, SORT_SEQ
+	                    , BBC_YN
+	                    , REQST_URL
+	                    , DEL_YN
+	                    , DSPY_STRT_DATE
+	                    , DSPY_END_DATE
+	                    , REG_DATE
+	                    , REGER_ID
+	                    , BBC_POS
+			       )VALUES(
+			       		  (SELECT NVL(MAX(TO_NUMBER(EVENTBANNER_SEQ))+1, 1) FROM MP_MOBILE_MAINEVENTBANNER_MGMT)
+			       		, #attchfileId# 
+			       		, #eventbannerNm#                                                
+		       		    , #eventbannerAlttext#                                                  
+		       		    , #sortSeq#                                               
+		       		    , #bbcYn#                                                      
+		       		    , #reqstUrl#                                              
+		       		    , 'N'                                                                     		     	       		     
+		       		    , TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')	    
+		       		    , TO_DATE(REPLACE(#calToDate#,'-') || #txToTm# || #txToMn# || '00'  ,'YYYYMMDDHH24MISS')     		                           
+		       		    , SYSDATE                                   					            
+		       		    , 'admin'  
+		       		    , #bbcPos#                                            
+			       ) 
+	</insert>
+	
+	<update id="updateSubMainBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_MAINEVENTBANNER_MGMT
+		   SET EVENTBANNER_NM		 = #eventbannerNm#
+			 , EVENTBANNER_ALTTEXT	= #eventbannerAlttext#
+			 , SORT_SEQ = #sortSeq#
+		<isNotEmpty property="attchfileId" prepend=",">
+			   ATTCHFILE_ID	= #attchfileId#
+		</isNotEmpty>
+			 , BBC_YN			 = #bbcYn#
+			 , BBC_POS             = #bbcPos#
+			 , REQST_URL			 = #reqstUrl#
+			 , DSPY_STRT_DATE    = TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')
+		     , DSPY_END_DATE     = TO_DATE(REPLACE(#calToDate#,'-')  || #txToTm# || #txToMn# || '59' ,'YYYYMMDDHH24MISS')
+			 , CHGER_ID		 = 'tester'
+			 , CHG_DATE	    = SYSDATE
+		 WHERE EVENTBANNER_SEQ   = #eventbannerSeq#
+	</update>
+	
+	<!-- 서브메인이벤트 일괄저장-->
+	<update id="updateDispAllSubMainBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINEVENTBANNER_MGMT
+		SET	SORT_SEQ = #sortSeq#
+	          , BBC_YN = #bbcYn#
+	          , CHG_DATE = SYSDATE
+			  , CHGER_ID = #chgerId#
+		WHERE 	EVENTBANNER_SEQ = #eventbannerSeq#
+	</update>
+	
+	<!-- 서브메인이벤트배너 삭제-->
+	<update id="updateDispSubMainBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_MAINEVENTBANNER_MGMT
+		SET		
+		<isNotEmpty property="delYn">
+			    DEL_YN = #delYn#
+		</isNotEmpty> 
+		WHERE	EVENTBANNER_SEQ = #eventbannerSeq#
+	</update>
+	
+	<!-- 배너전시 위치목록조회 -->
+	<select id="selectDispBannerAreaList" parameterClass="java.util.HashMap" resultClass="commMap">	
+		SELECT T2.CD_GRP_ID 
+			     , T2.COMN_CD_ID AS VALUE 
+			     , T2.COMN_CD_NM AS NAME
+			FROM CM_COMN_CD_GRP T1, 
+				 CM_COMN_CD T2 
+			WHERE T1.CD_GRP_ID = T2.CD_GRP_ID 
+			  AND T1.CD_GRP_ID = 'MOBILE_BANNER_DSPY_AREA_CD' 
+			  AND T2.USE_YN = 'Y' 
+			  AND T2.COMN_CD_ID NOT IN('01','02') /*홈배너이벤트,상품상세홍보제외*/
+			ORDER BY T2.SORT_ORDER ASC 	
+	</select>
+	
+</sqlMap>

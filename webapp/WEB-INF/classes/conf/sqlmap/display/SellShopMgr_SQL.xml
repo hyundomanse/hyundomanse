@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SellShop">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	<!-- stus 0 승인요청 1 대기중 2 승인 9 승인불가 -->
+	<select id="selectSellShopTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+	<![CDATA[
+		SELECT COUNT(*) AS CNT
+    		  FROM (
+
+				SELECT 	CASE WHEN B.STUS = '0' THEN '승인요청'
+						 WHEN B.STUS = '1' THEN '대기중'
+						 WHEN B.STUS = '2' THEN '승인'
+					END AS STUS_NM,B.SUPP_COMP_ID,
+					A.BCNC_NM,A.PRSDT_NM,A.TELNO,B.REG_DATE,B.CHG_DATE,B.APPR_YMD,
+					CASE WHEN B.REG_DATE = B.CHG_DATE THEN '등록'
+						 WHEN B.REG_DATE <> B.CHG_DATE THEN '수정'
+					END AS CHG_NM
+			FROM	CO_SUPP_COMP_MAST A, CO_SUPP_COMP_DTAIL_INFO B
+			WHERE	1=1
+			AND		A.SUPP_COMP_ID = B.SUPP_COMP_ID
+	]]>
+			<isEqual property="searchDate" compareValue="1">
+	    	AND    to_char(B.REG_DATE,'YYYYMMDD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+	    	</isEqual>
+	    	<isEqual property="searchDate" compareValue="2">
+	    	AND    to_char(B.CHG_DATE,'YYYYMMDD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+	    	</isEqual>
+	    	<isEqual property="searchDate" compareValue="3">
+	    	AND    to_char(B.APPR_YMD,'YYYYMMDD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+	    	</isEqual>
+	    	<isEqual property="searchType" compareValue="1">
+	    	AND    B.REG_DATE = B.CHG_DATE
+	    	</isEqual>
+	    	<isEqual property="searchType" compareValue="2">
+	    	<![CDATA[
+	    	AND    B.REG_DATE <> B.CHG_DATE
+	    	]]>
+	    	</isEqual>
+	    	<isEqual property="searchShop" compareValue="1">
+	    	AND    A.PARTNR_ID IS NULL
+	    	</isEqual>
+	    	<isEqual property="searchShop" compareValue="2">
+	    	AND     A.PARTNR_ID IS NOT NULL
+	    	</isEqual>
+
+			<isNotEmpty property="searchStatus">
+	    	AND    B.STUS = #searchStatus#
+	    	</isNotEmpty>
+	    	)
+	</select>
+
+	<select id="selectSellShopList" parameterClass="java.util.HashMap" resultClass="commMap">
+	<include refid="pagingHeader"/>
+	<![CDATA[
+		SELECT 	ROWNUM AS CNUM,
+				CASE WHEN B.STUS = '0' THEN '승인요청'
+					 WHEN B.STUS = '1' THEN '대기중'
+					 WHEN B.STUS = '2' THEN '승인'
+					 WHEN B.STUS = '9' THEN '승인불가'
+				END AS STUS_NM,B.SUPP_COMP_ID,
+				A.BCNC_NM,A.PRSDT_NM,A.TELNO,B.REG_DATE,B.CHG_DATE,B.APPR_YMD,
+				CASE WHEN B.REG_DATE = B.CHG_DATE THEN '등록'
+					 WHEN B.REG_DATE <> B.CHG_DATE THEN '수정'
+				END AS CHG_NM
+		FROM	CO_SUPP_COMP_MAST A, CO_SUPP_COMP_DTAIL_INFO B
+		WHERE	1=1
+		AND		A.SUPP_COMP_ID = B.SUPP_COMP_ID
+	]]>
+		<isEqual property="searchDate" compareValue="1">
+    	AND    to_char(B.REG_DATE,'YYYYMMDD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+    	</isEqual>
+    	<isEqual property="searchDate" compareValue="2">
+    	AND    to_char(B.CHG_DATE,'YYYYMMDD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+    	</isEqual>
+    	<isEqual property="searchDate" compareValue="3">
+    	AND    to_char(B.APPR_YMD,'YYYYMMDD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+    	</isEqual>
+    	<isEqual property="searchType" compareValue="1">
+    	AND    B.REG_DATE = B.CHG_DATE
+    	</isEqual>
+    	<isEqual property="searchType" compareValue="2">
+    	<![CDATA[
+    	AND    B.REG_DATE <> B.CHG_DATE
+    	]]>
+    	</isEqual>
+    	<isEqual property="searchShop" compareValue="1">
+    	AND    A.PARTNR_ID IS NULL
+    	</isEqual>
+    	<isEqual property="searchShop" compareValue="2">
+    	AND     A.PARTNR_ID IS NOT NULL
+    	</isEqual>
+    	<!-- stus 0 승인요청 1 대기중 2 승인 9 승인불가 -->
+		<isNotEmpty property="searchStatus">
+    	AND    B.STUS = #searchStatus#
+    	</isNotEmpty>
+    	<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 판매자샵 승인상태 변경 -->
+	<update id="updateStatus" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE 	CO_SUPP_COMP_DTAIL_INFO SET
+		   		STUS		= #stus#,
+		   		CM			= #cm#,
+		   		CHGER_ID	= #chgerId#,
+		   		APPR_YMD	= to_char(sysdate,'YYYYMMDD'),
+		   		CHG_DATE	= sysdate
+		 WHERE SUPP_COMP_ID = #suppCompId#
+    ]]>
+	</update>
+
+	<!-- 등록된 판매샵 정보 -->
+	<select id="selectCoSuppCompDtailInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	A.BCNC_LOGO_IMAGE_FILE_ID,
+				A.BCNC_ADD_IMAGE1_FILE_ID,
+				A.SUPP_COMP_DESC,
+				nvl(A.STUS,'') as STUS,
+				A.APPR_YMD,
+				A.CHG_DATE,
+				A.CM,
+				B.ORIG_FILE_NM AS LOGO_FILE_ORG_NM,
+				B.FILE_STRE_PATH AS LOGO_FILE_PATH,
+				B.STRE_FILE_NM AS LOG_FILE_STR_NM,
+                C.ORIG_FILE_NM AS ADD1_FILE_ORG_NM,
+                C.FILE_STRE_PATH AS ADD1_FILE_PATH,
+                C.STRE_FILE_NM AS ADD1_FILE_STR_NM
+		FROM 	CO_SUPP_COMP_DTAIL_INFO A,CM_FILE_MGT B,CM_FILE_MGT C
+		WHERE   A.SUPP_COMP_ID =  #suppCompId#
+		AND		A.BCNC_LOGO_IMAGE_FILE_ID  = B.ATTCHFILE_ID(+)
+		AND		A.BCNC_ADD_IMAGE1_FILE_ID  = C.ATTCHFILE_ID(+)
+	</select>
+
+	<!-- 판매자샵 정보 업데이트 -->
+	<update id="updateSellShop" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE 	CO_SUPP_COMP_DTAIL_INFO SET
+		   		BCNC_LOGO_IMAGE_FILE_ID = #bcncLogoImageFileId#,
+		   		BCNC_ADD_IMAGE1_FILE_ID = #bcncAddImage1FileId#,
+		   		SUPP_COMP_DESC    		= #suppCompDesc#,
+		   		BANNER_LINK_URL    		= #bannerLinkUrl#,
+		   		STUS					= 0,
+		   		CHG_DATE				= sysdate
+		 WHERE SUPP_COMP_ID 		= #suppCompId#
+    ]]>
+	</update>
+
+	<!-- 상품 삭제 -->
+	<delete id="deleteSellShopImage" parameterClass ="String">
+		DELETE FROM CM_FILE_MGT WHERE ATTCHFILE_ID =  #VALUE#
+	</delete>
+
+</sqlMap>

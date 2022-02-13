@@ -1,0 +1,1126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.CouponMgr">
+	<typeAlias alias="commMap" type="com.devwork.common.map.CommonMap"/>
+    <typeAlias alias="egovMap" type="egovframework.rte.psl.dataaccess.util.EgovMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+    <!-- 할인쿠폰 목록 조회 -->
+    <select id="selectCouponList" parameterClass="java.util.HashMap" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : CouponMgr_SQL.xml[할인쿠폰 목록 조회] SQL ID : selectCouponList */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY T1.REG_DATE DESC) RNUM
+                      , T1.CPN_MAST_NO || '' AS CPN_MAST_NO
+                      , T1.TITLE
+                      , T1.BIZ_CP_STATUS
+                      , (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'BIZ_CP_STATUS' AND X.COMN_CD_ID = T1.BIZ_CP_STATUS) AS BIZ_CP_STATUS_STR
+                      , T1.CP_CMP_CD
+                      , (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CP_CMP_CD' AND X.COMN_CD_ID = T1.CP_CMP_CD) AS CP_CMP_CD_STR
+                      , T1.CP_TYPE_CD
+                      , (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CP_TYP_CD' AND X.COMN_CD_ID = T1.CP_TYPE_CD) AS CP_TYPE_CD_STR
+                      , T1.DC_DIV_CD
+                      , (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'DC_DIV_CD' AND X.COMN_CD_ID = T1.DC_DIV_CD) AS DC_DIV_CD_STR
+                      , T1.CPN_USE_MDA_CD
+                      , (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CPN_USE_MDA_CD' AND X.COMN_CD_ID = T1.CPN_USE_MDA_CD) AS CPN_USE_MDA_CD_STR
+                      , T1.OVSEA_EXCLU_CPN_CD
+                      , (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'OVSEA_EXCLU_CPN_CD' AND X.COMN_CD_ID = T1.OVSEA_EXCLU_CPN_CD) AS OVSEA_EXCLU_CPN_CD_STR
+                      , CASE WHEN T1.DC_DIV_CD IN ('1','01') THEN T1.AMOUNT||'원'
+                             ELSE T1.RATE_TYPE||'%'
+                        END AS DC_DIV_VALUE_STR
+                      , T1.CPN_ISSUE_METH_CD
+                      , (SELECT COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CPN_ISSUE_METH_CD' AND X.COMN_CD_ID = T1.CPN_ISSUE_METH_CD) AS CPN_ISSUE_METH_CD_STR
+                      , T1.CPN_GOODS_APPN_CD
+                      , CASE WHEN T1.CPN_GOODS_APPN_CD != 'A'
+                             THEN (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CPN_GOODS_APPN_CD' AND X.COMN_CD_ID = T1.CPN_GOODS_APPN_CD)
+                                  || '('
+                                  || (SELECT COUNT(*) FROM EV_CPN_GOODS_INFO X WHERE X.CPN_MAST_NO = T1.CPN_MAST_NO)
+                                  || ')'
+                             ELSE (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CPN_GOODS_APPN_CD' AND X.COMN_CD_ID = T1.CPN_GOODS_APPN_CD)
+                        END AS CPN_GOODS_APPN_CD_STR
+                      , CASE WHEN T1.DUP_APPLY_YN = 'Y' THEN '가능' ELSE '불가능' END AS DUP_APPLY_YN_STR
+                      , T1.LIMIT_CHK
+                      , T1.LIMIT_AMT
+                      , T1.MAX_USE_AMT
+                      , T1.QTY
+                      , CASE WHEN T1.DAY_CHK = 'Y' THEN '발급후 ' || T1.USE_DAY||' 일'
+                             ELSE SUBSTR(T1.USE_FROM,1,4)||'-'||SUBSTR(T1.USE_FROM,5,2)||'-'||SUBSTR(T1.USE_FROM,7,2) || ' ~ ' || SUBSTR(T1.USE_TO,1,4)||'-'||SUBSTR(T1.USE_TO,5,2)||'-'||SUBSTR(T1.USE_TO,7,2)
+                        END AS USE_INFO_STR
+                      , CASE WHEN T1.COMPNO_ISSUE_YN = 'Y' THEN '가능' ELSE '불가능' END AS COMPNO_ISSUE_YN_STR
+                      , T1.ISSUE_CNT
+                      , SUBSTR(T1.CPN_DNLOAD_STRT_YMD,1,4)||'-'||SUBSTR(T1.CPN_DNLOAD_STRT_YMD,5,2)||'-'||SUBSTR(T1.CPN_DNLOAD_STRT_YMD,7,2) || ' ~ ' || SUBSTR(T1.CPN_DNLOAD_END_YMD,1,4)||'-'||SUBSTR(T1.CPN_DNLOAD_END_YMD,5,2)||'-'||SUBSTR(T1.CPN_DNLOAD_END_YMD,7,2) AS DNLOAD_INFO_STR
+                      , T1.SUPP_COMP_ID
+                      , (SELECT X.BCNC_NM FROM CO_SUPP_COMP_MAST X WHERE X.SUPP_COMP_ID = T1.SUPP_COMP_ID ) AS SUPP_COMP_ID_STR
+                      , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+                      , T1.BIZ_CP_APPLY
+                      , T1.STOP_DATE
+                   FROM EV_CPN_MAST T1
+                  WHERE 1=1
+        <isNotEqual property="title" compareValue="">
+                    AND TITLE LIKE '%' || #title# || '%'
+        </isNotEqual>
+        <isNotEqual property="cpnMastNo" compareValue="">
+                    AND CPN_MAST_NO LIKE '%' || #cpnMastNo# || '%'
+        </isNotEqual>
+        <isNotEqual property="cpCmpCd" compareValue="">
+                    AND CP_CMP_CD = #cpCmpCd#
+        </isNotEqual>
+        <isNotEqual property="cpTypeCd" compareValue="">
+                    AND CP_TYPE_CD = #cpTypeCd#
+        </isNotEqual>
+        <isNotEqual property="bizCpStatus" compareValue="">
+                    AND BIZ_CP_STATUS = #bizCpStatus#
+        </isNotEqual>
+        <isNotEqual property="cpnGoodsAppnCd" compareValue="">
+                    AND CPN_GOODS_APPN_CD = #cpnGoodsAppnCd#
+        </isNotEqual>
+        <isNotEqual property="cpnUseMdaCd" compareValue="">
+                    AND CPN_USE_MDA_CD = #cpnUseMdaCd#
+        </isNotEqual>
+        <isEqual property="searchDateType" compareValue="regDate">
+                    AND TO_CHAR(REG_DATE,'YYYYMMDD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+        </isEqual>
+        <isEqual property="searchDateType" compareValue="bizCpApply">
+                    AND BIZ_CP_APPLY BETWEEN #searchStrtYmd# AND #searchEndYmd#
+        </isEqual>
+        <isEqual property="searchDateType" compareValue="usePeriod">
+                    AND ( USE_FROM BETWEEN #searchStrtYmd# AND #searchEndYmd# OR USE_TO BETWEEN #searchStrtYmd# AND #searchEndYmd# )
+        </isEqual>
+        <isEqual property="searchDateType" compareValue="cpnDnloadPeriod">
+                    AND ( CPN_DNLOAD_STRT_YMD BETWEEN #searchStrtYmd# AND #searchEndYmd# OR CPN_DNLOAD_END_YMD BETWEEN #searchStrtYmd# AND #searchEndYmd# )
+        </isEqual>
+        <isEqual property="searchDateType" compareValue="cpnValidDate">
+			AND T1.DAY_CHK = 'Y'
+			AND T1.USE_DAY <![CDATA[ <= ]]> #searchValidDay#
+        </isEqual>
+                  ORDER BY RNUM ASC
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+    </select>
+
+    <!-- 쿠폰 상세 -->
+    <select id="selectCouponDetailView" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+			SELECT	CPN_MAST_NO
+					,PIN_TYP_CD
+					,TITLE
+					,CP_CMP_CD
+					,CP_TYPE_CD AS CP_TYP_CD
+					,MEM_GBN_DIV_CD
+					,DC_DIV_CD
+					,AMOUNT
+					,RATE_TYPE
+					,CPN_ISSUE_METH_CD
+					,CPN_APPLY_CNT_CD
+					,QTY
+					,LIMIT_CHK
+					,LIMIT_AMT
+					,USE_SEQ_APPN_CD
+					,SALE_CHK
+					,FEE_CHK
+					,FEE
+					,RGR_CHK
+					,CPN_GOODS_APPN_CD
+					,DAY_CHK
+					,USE_DAY
+					,SUBSTR(USE_FROM,1,4)||'-'||SUBSTR(USE_FROM,5,2)||'-'||SUBSTR(USE_FROM,7,2) AS USE_FROM
+					,SUBSTR(USE_FROM,9,2) AS USE_FROM_TM
+					,SUBSTR(USE_FROM,11,2) AS USE_FROM_MN
+					,SUBSTR(USE_TO,1,4)||'-'||SUBSTR(USE_TO,5,2)||'-'||SUBSTR(USE_TO,7,2) AS USE_TO
+					,SUBSTR(USE_TO,9,2) AS USE_TO_TM
+					,SUBSTR(USE_TO,11,2) AS USE_TO_MN
+					,APPLY_DATE
+					,SUPP_COMP_ID
+					,(SELECT B.BCNC_NM FROM CO_SUPP_COMP_MAST B WHERE A.SUPP_COMP_ID = SUPP_COMP_ID) BCNC_NM
+					,STOP_DATE
+					,REG_ID
+					,PARTNER_ID
+					,(SELECT NAME FROM PT_PARTNER WHERE PARTNR_ID = A.PARTNER_ID) PARTNER_NM
+					,BIZ_CP_STATUS
+					,BIZ_CP_APPLY
+					,BIZ_CP_REG_ID
+					,BIZ_CP_PRE_APPLY
+					,OVSEA_EXCLU_CPN_CD
+					,OVER_EMS_YN
+					,ORG_YN
+					,CARD_GBN
+					,CPN_USE_MDA_CD
+					,SUBSTR(CPN_DNLOAD_STRT_YMD,1,4)||'-'||SUBSTR(CPN_DNLOAD_STRT_YMD,5,2)||'-'||SUBSTR(CPN_DNLOAD_STRT_YMD,7,2) AS CPN_DNLOAD_STRT_YMD
+					,SUBSTR(CPN_DNLOAD_STRT_YMD,9,2) AS CPN_DNLOAD_STRT_TM
+					,SUBSTR(CPN_DNLOAD_STRT_YMD,11,2) AS CPN_DNLOAD_STRT_MN
+					,SUBSTR(CPN_DNLOAD_END_YMD,1,4)||'-'||SUBSTR(CPN_DNLOAD_END_YMD,5,2)||'-'||SUBSTR(CPN_DNLOAD_END_YMD,7,2) AS CPN_DNLOAD_END_YMD
+					,SUBSTR(CPN_DNLOAD_END_YMD,9,2) AS CPN_DNLOAD_END_TM
+					,SUBSTR(CPN_DNLOAD_END_YMD,11,2) AS CPN_DNLOAD_END_MN
+					,REG_DATE
+					,CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+					,DUP_APPLY_YN
+					,COMPNO_ISSUE_YN
+					,COMPNO_MAX_ISSUE_CNT
+					,ISSUE_CNT
+					,ISSUE_AREA
+					,COUPON_MAIL_SND_YN
+					,MAX_USE_AMT
+					,UNLIMIT_USE
+					,SHPBOX_DIV_CD
+					,PLNBEF_ID
+					,(SELECT PLNBEF_NM FROM EV_PLNBEF_MAST WHERE PLNBEF_ID = A.PLNBEF_ID) PLNBEF_NM
+			FROM	EV_CPN_MAST A
+			WHERE	CPN_MAST_NO = #cpnMastNo#
+    	]]>
+    </select>
+	<select id="selectCouponDetailPopupView" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	T1.CPN_MAST_NO || '' AS CPN_MAST_NO
+				, T1.TITLE
+				, T1.BIZ_CP_STATUS
+				, F_GET_COMN_CD_NM('BIZ_CP_STATUS',T1.BIZ_CP_STATUS) BIZ_CP_STATUS_STR
+				, T1.CP_CMP_CD
+				, F_GET_COMN_CD_NM('CP_CMP_CD',T1.CP_CMP_CD) CP_CMP_CD_STR
+				, T1.CP_TYPE_CD
+				, F_GET_COMN_CD_NM('CP_TYP_CD',T1.CP_TYPE_CD) CP_TYPE_CD_STR
+				, T1.DC_DIV_CD
+				, F_GET_COMN_CD_NM('DC_DIV_CD',T1.DC_DIV_CD) DC_DIV_CD_STR
+				, T1.CPN_USE_MDA_CD
+				, F_GET_COMN_CD_NM('CPN_USE_MDA_CD',T1.CPN_USE_MDA_CD) CPN_USE_MDA_CD_STR
+				, CASE WHEN T1.DC_DIV_CD IN ('1','01') THEN T1.AMOUNT||'원'
+					ELSE T1.RATE_TYPE||'%'
+					END AS DC_DIV_VALUE_STR
+				, T1.CPN_ISSUE_METH_CD
+				, F_GET_COMN_CD_NM('CPN_ISSUE_METH_CD',T1.CPN_ISSUE_METH_CD) CPN_ISSUE_METH_CD_STR
+				, T1.CPN_GOODS_APPN_CD
+				, CASE WHEN T1.CPN_GOODS_APPN_CD != 'A'
+					THEN (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CPN_GOODS_APPN_CD' AND X.COMN_CD_ID = T1.CPN_GOODS_APPN_CD)
+						|| '('
+						|| (SELECT COUNT(*) FROM EV_CPN_GOODS_INFO X WHERE X.CPN_MAST_NO = T1.CPN_MAST_NO)
+						|| ')'
+					ELSE (SELECT X.COMN_CD_NM FROM CM_COMN_CD X WHERE CD_GRP_ID = 'CPN_GOODS_APPN_CD' AND X.COMN_CD_ID = T1.CPN_GOODS_APPN_CD)
+					END AS CPN_GOODS_APPN_CD_STR
+				, CASE WHEN T1.DUP_APPLY_YN = 'Y' THEN '가능' ELSE '불가능' END AS DUP_APPLY_YN_STR
+				, T1.LIMIT_CHK
+				, T1.LIMIT_AMT
+				, T1.MAX_USE_AMT
+				, T1.QTY
+				, CASE WHEN T1.DAY_CHK = 'Y' THEN '발급후 ' || T1.USE_DAY||' 일'
+					ELSE SUBSTR(T1.USE_FROM,1,4)||'-'||SUBSTR(T1.USE_FROM,5,2)||'-'||SUBSTR(T1.USE_FROM,7,2) || ' ~ ' || SUBSTR(T1.USE_TO,1,4)||'-'||SUBSTR(T1.USE_TO,5,2)||'-'||SUBSTR(T1.USE_TO,7,2)
+					END AS USE_INFO_STR
+				, CASE WHEN T1.COMPNO_ISSUE_YN = 'Y' THEN '가능' ELSE '불가능' END AS COMPNO_ISSUE_YN_STR
+				, T1.COMPNO_ISSUE_YN
+				, T1.ISSUE_CNT
+				, SUBSTR(T1.CPN_DNLOAD_STRT_YMD,1,4)||'-'||SUBSTR(T1.CPN_DNLOAD_STRT_YMD,5,2)||'-'||SUBSTR(T1.CPN_DNLOAD_STRT_YMD,7,2) || ' ~ ' || SUBSTR(T1.CPN_DNLOAD_END_YMD,1,4)||'-'||SUBSTR(T1.CPN_DNLOAD_END_YMD,5,2)||'-'||SUBSTR(T1.CPN_DNLOAD_END_YMD,7,2) AS DNLOAD_INFO_STR
+				, T1.SUPP_COMP_ID
+				, (SELECT X.BCNC_NM FROM CO_SUPP_COMP_MAST X WHERE X.SUPP_COMP_ID = T1.SUPP_COMP_ID ) AS SUPP_COMP_ID_STR
+				, TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+				, T1.BIZ_CP_APPLY
+				, T1.STOP_DATE
+				, T1.PARTNER_ID
+				, (SELECT NAME FROM PT_PARTNER WHERE PARTNR_ID = T1.PARTNER_ID) AS PARTNR_ID_STR
+				, T1.PIN_TYP_CD
+				, NVL(F_GET_COMN_CD_NM( 'PIN_TYP_CD',T1.PIN_TYP_CD),'PIN 사용안함') AS PIN_TYP_CD_STR
+				, T1.COMPNO_MAX_ISSUE_CNT
+				, T1.UNLIMIT_USE
+				, DECODE(NVL(UNLIMIT_USE,'N'),'N','제한','Y','무제한') AS UNLIMIT_USE_STR
+				, T1.MEM_GBN_DIV_CD
+				, F_GET_COMN_CD_NM( 'MEM_GBN_DIV_CD',T1.MEM_GBN_DIV_CD) AS MEM_GBN_DIV_CD_STR
+				, T1.SHPBOX_DIV_CD
+				,  F_GET_COMN_CD_NM( 'SHPBOX_DIV_CD',T1.SHPBOX_DIV_CD) AS SHPBOX_DIV_CD_STR
+				, T1.PLNBEF_ID
+				,(SELECT PLNBEF_NM FROM EV_PLNBEF_MAST WHERE PLNBEF_ID = T1.PLNBEF_ID) PLNBEF_NM
+				,  F_GET_COMN_CD_NM( 'CPN_APPLY_CNT_CD',T1.CPN_APPLY_CNT_CD) AS CPN_APPLY_CNT_CD_STR
+				, CPN_APPLY_CNT_CD
+				, FEE_CHK
+				, DECODE(NVL(FEE_CHK,'N'),'N','마진율 지정안함','Y','마진율 지정') FEE_CHK_STR
+				, FEE
+				, LIMIT_CHK
+				, DECODE(T1.LIMIT_CHK,'N','최소구매 금액 설정안함','Y','최소구매 금액 설정') LIMIT_CHK_STR
+				, T1.DUP_APPLY_YN
+				, DECODE(NVL(T1.DUP_APPLY_YN,'Y'),'Y','모든상품에 허용','N','할인 상품제외') DUP_APPLY_YN_STR
+				, T1.CARD_GBN
+				, DECODE(NVL(T1.CARD_GBN,'00'),'00','없음','01','우체국 행복한 체크카드') CARD_GBN_STR
+				, T1.OVSEA_EXCLU_CPN_CD
+				, F_GET_COMN_CD_NM('OVSEA_EXCLU_CPN_CD',NVL(T1.OVSEA_EXCLU_CPN_CD,'A')) OVSEA_EXCLU_CPN_CD_STR
+				, T1.RATE_TYPE
+				, DECODE(NVL(T1.OVER_EMS_YN,'N'),'N','할인안함','Y','할인') OVER_EMS_YN_STR
+				, T1.AMOUNT
+		FROM	EV_CPN_MAST T1
+		WHERE	T1.CPN_MAST_NO = #cpnMastNo#
+	</select>
+
+	<!-- 쿠폰 승인상태 변경 -->
+	<update id="updateBizCpStatusApprove" parameterClass="java.util.HashMap">
+		UPDATE	EV_CPN_MAST /* 파일명[파일설명] : CouponMgr_SQL.xml[쿠폰 승인상태 변경] SQL ID : updateBizCpStatusApprove */
+		SET 	BIZ_CP_STATUS = '04' /*승인*/
+				, BIZ_CP_APPLY = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+				, BIZ_CP_REG_ID = #login_usr_id#
+				, APPLY_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+				, STOP_DATE = ''
+				, CHG_DATE = SYSDATE
+				, CHGER_ID = #login_usr_id#
+		WHERE CPN_MAST_NO = #cpnMastNo#
+	</update>
+
+    <!-- 쿠폰 발급 중지 업데이트 -->
+	<update id="updateBizCpStatusStop" parameterClass="java.util.HashMap">
+		UPDATE	EV_CPN_MAST /* 파일명[파일설명] : CouponMgr_SQL.xml[쿠폰 발급 중지 업데이트] SQL ID : updateBizCpStatusStop */
+		SET 	BIZ_CP_STATUS = '05' /*발급중지*/
+				, STOP_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+				, CHG_DATE = SYSDATE
+				, CHGER_ID = #login_usr_id#
+		WHERE CPN_MAST_NO = #cpnMastNo#
+  	</update>
+
+	<!-- 쿠폰 삭제 1 -->
+	<delete id="deleteCpnMast1" parameterClass="java.util.HashMap">
+		DELETE FROM EV_CPN_MAST
+		WHERE CPN_MAST_NO = #cpnMastNo#
+	</delete>
+	<!-- 쿠폰 삭제 2 -->
+	<delete id="deleteCpnMast2" parameterClass="java.util.HashMap">
+		DELETE FROM EV_CPN_USER_ISSUE_INFO
+		WHERE CPN_MAST_NO = #cpnMastNo# AND USE_DATE IS NULL
+	</delete>
+	<!-- 쿠폰 삭제 3 -->
+	<delete id="deleteCpnMast3" parameterClass="java.util.HashMap">
+		DELETE FROM EV_CPN_ISSUE_PIN_MGT
+		WHERE CPN_MAST_NO = #cpnMastNo#
+	</delete>
+	<!-- 쿠폰 삭제 4 -->
+	<delete id="deleteCpnMast4" parameterClass="java.util.HashMap">
+		DELETE FROM EV_CPN_GOODS_INFO
+		WHERE CPN_MAST_NO = #cpnMastNo#
+	</delete>
+
+  	<!-- 쿠폰 발급 대상 회원조회count -->
+    <select id="selectMemberListCount" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(1)
+		FROM(
+			SELECT  /*+ use_concat leading(M) use_nl(M G) */
+					M.ACCESS_NAME
+					,M.NAME
+					,M.CREATE_DATE
+					,G.MEM_GRADE
+					,F_GET_COMN_CD_NM('MEM_GRADE_CD',G.MEM_GRADE) AS GRADE_NM
+					,G.ORDER_CNT
+					FROM	MEMINFO M
+							,(	SELECT	MEM_GRADE
+										,ORDER_CNT
+										,ACCESS_NAME
+								FROM	MB_MEM_GRADE
+								WHERE	MEM_GRADE_APPLY_YMD = TO_CHAR(SYSDATE,'YYYYMM')) G
+					WHERE M.ACCESS_NAME = G.ACCESS_NAME(+)
+			<isEqual property="searchType" compareValue="0">
+			AND		(M.NAME LIKE #searchKey#||'%' OR M.ACCESS_NAME LIKE #searchKey#||'%')
+			</isEqual>
+    		<isEqual property="searchType" compareValue="1">
+    		AND		M.NAME LIKE #searchKey#||'%'
+    		</isEqual>
+    		<isEqual property="searchType" compareValue="2">
+    		AND		M.ACCESS_NAME LIKE #searchKey#||'%'
+    		</isEqual>
+    		<isNotEmpty property="searchGrade">
+    		AND		G.MEM_GRADE = #searchGrade#
+    		</isNotEmpty>
+    		<isNotEmpty property="searchStrtYmd">
+    		<![CDATA[
+    		AND		M.CREATE_DATE >= #searchStrtYmd#
+    		AND		M.CREATE_DATE <= #searchEndYmd#
+    		]]>
+    		</isNotEmpty>
+			)
+    </select>
+
+  	<!-- 쿠폰 발급 대상 회원조회 -->
+    <select id="selectMemberList" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<include refid="pagingHeader"/>
+    	SELECT *
+		FROM(
+			SELECT  /*+ use_concat leading(M) use_nl(M G) */
+					M.ACCESS_NAME
+					,M.NAME
+					,M.CREATE_DATE
+					,G.MEM_GRADE
+					,F_GET_COMN_CD_NM('MEM_GRADE_CD',G.MEM_GRADE) AS GRADE_NM
+					,G.ORDER_CNT
+					FROM	MEMINFO M
+							,(	SELECT	MEM_GRADE
+										,ORDER_CNT
+										,ACCESS_NAME
+								FROM	MB_MEM_GRADE
+								WHERE	MEM_GRADE_APPLY_YMD = TO_CHAR(SYSDATE,'YYYYMM')) G
+					WHERE M.ACCESS_NAME = G.ACCESS_NAME(+)
+			<isEqual property="searchType" compareValue="0">
+			AND		(M.NAME LIKE #searchKey#||'%' OR M.ACCESS_NAME LIKE #searchKey#||'%')
+			</isEqual>
+    		<isEqual property="searchType" compareValue="1">
+    		AND		M.NAME LIKE #searchKey#||'%'
+    		</isEqual>
+    		<isEqual property="searchType" compareValue="2">
+    		AND		M.ACCESS_NAME LIKE #searchKey#||'%'
+    		</isEqual>
+    		<isNotEmpty property="searchGrade">
+    		AND		G.MEM_GRADE = #searchGrade#
+    		</isNotEmpty>
+    		<isNotEmpty property="searchStrtYmd">
+    		<![CDATA[
+    		AND		M.CREATE_DATE >= #searchStrtYmd#
+    		AND		M.CREATE_DATE <= #searchEndYmd#
+    		]]>
+    		</isNotEmpty>
+    		)
+		<include refid="pagingFooter"/>
+    </select>
+
+    <!-- 쿠폰 발급 회원리스트 -->
+    <select id="selectCouponMemberList" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+    		SELECT	ROWNUM  AS RNUM,A.ACCESS_NAME,A.REG_DATE,B.NAME
+    		FROM	EV_CPN_USER_ISSUE_INFO A, MEMINFO B
+    		WHERE	A.CPN_MAST_NO = #cpnMastNo#
+    		AND		A.ACCESS_NAME = B.ACCESS_NAME
+    	]]>
+    </select>
+
+    <!-- 쿠폰 카테고리로 상품 가져오기 전시관-->
+    <select id="selectPavlnGoods" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+	   		SELECT 	GOODS_CD
+  			FROM 	GD_MGT_GOODS_CTGRY A,
+	       	(    	SELECT 	B.CTGRY_CD
+	              	FROM 	GD_CTGRY_MAST B
+	            	WHERE 	1=1
+	            	AND 	USE_YN = 'Y'
+	            	AND 	PAVLN_DIV_CD = #pavlnDivCd#
+	        		START WITH B.CTGRY_LEVEL = '1'
+	        		CONNECT BY PRIOR B.CTGRY_CD = B.HRNK_CTGRY_CD
+	          		GROUP BY b.CTGRY_CD) B
+ 			WHERE 	A.CTGRY_CD = B.CTGRY_CD
+    	]]>
+    </select>
+    <!-- 쿠폰 카테고리로 상품 가져오기 카테고리-->
+    <select id="selectCateGoods" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+	   		SELECT 	GOODS_CD
+			FROM 	GD_MGT_GOODS_CTGRY A,
+			(    	SELECT	CTGRY_CD
+			        FROM 	GD_CTGRY_MAST
+			        START WITH CTGRY_CD = #ctgryCd#
+			        CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD) B
+			 WHERE A.CTGRY_CD = b.CTGRY_CD
+    	]]>
+    </select>
+    <!-- 쿠폰 상품 카테고리 정보 가져오기-->
+    <select id="selectGoodsCate" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+	   		SELECT 	DISTINCT(CTGRY_CD),PAVLN_DIV_CD
+  			FROM 	EV_CPN_GOODS_INFO A
+ 			WHERE 	A.CPN_MAST_NO = #cpnMastNo#
+    	]]>
+    </select>
+    <!-- 쿠폰 상품으로 카테고리 가져오기(카테고리용)-->
+    <select id="selectGoodsCateInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+	   		SELECT 	DISTINCT(CTGRY_NM) AS CTGRY_NM,A.CTGRY_CD,A.PAVLN_DIV_CD, B.CTGRY_LEVEL
+  			FROM 	EV_CPN_GOODS_INFO A,
+	       	(    	SELECT 	B.CTGRY_CD
+	       					,MAX (SUBSTR (SYS_CONNECT_BY_PATH (b.CTGRY_NM, '>>'), 3)) AS CTGRY_NM
+	       					,MAX(CTGRY_LEVEL) CTGRY_LEVEL
+	              	FROM 	GD_CTGRY_MAST B
+	            	WHERE 	1=1
+	            	AND 	USE_YN = 'Y'
+	        		START WITH B.CTGRY_LEVEL = '1'
+	        		CONNECT BY PRIOR B.CTGRY_CD = B.HRNK_CTGRY_CD
+	          		GROUP BY b.CTGRY_CD) B
+ 			WHERE 	A.CTGRY_CD = B.CTGRY_CD
+ 			AND		A.CPN_MAST_NO = #cpnMastNo#
+    	]]>
+    </select>
+    <!-- 쿠폰 상품으로 카테고리 가져오기(전시관용) #삭제예정-->
+    <select id="selectGoodsPavlnInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+    		SELECT 	DISTINCT(B.CTGRY_NM),A.CTGRY_CD,A.PAVLN_DIV_CD
+            FROM 	EV_CPN_GOODS_INFO A, GD_CTGRY_MAST B, GD_CTGRY_PAVLN_MAPP C
+           	WHERE 	1=1
+           	AND 	B.CTGRY_CD = C.CTGRY_CD
+           	AND 	B.USE_YN = 'Y'
+    		AND		B.CTGRY_LEVEL = '1'
+    		AND		A.CPN_MAST_NO = #cpnMastNo#
+    		AND 	C.PAVLN_DIV_CD = #pavlnDivCd#
+    	]]>
+    </select>
+    <!-- 쿠폰 연동할 이벤트 리스트 #삭제예정#-->
+    <select id="selectEventList" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+    		SELECT	ROWNUM  AS RNUM,A.EVENT_ID,A.EVENT_NM,DECODE(B.DSPY_STUS_CD,'10','진행대기','20','진행중','30','일시중지') AS DSPY_STUS_NM,A.EVENT_STRT_DATE,A.EVENT_END_DATE
+    		FROM	EV_EVENT_MAST A, DP_DSPY_MAST B
+    		WHERE	A.DSPY_SEQ = B.DSPY_SEQ
+    		AND		A.BEFCITY_YN = 'Y'
+    		AND 	B.USE_YN = 'Y'
+    		AND		B.DSPY_STUS_CD <> '40'
+    		AND		sysdate BETWEEN A.EVENT_STRT_DATE AND A.EVENT_END_DATE
+    	]]>
+    </select>
+    <!-- 쿠폰 종류 LIST -->
+	<select id="selectCpTypCdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/*CouponMgr_SQL.xml selectCpTypeCdList (발행처에 따른 쿠폰 종류 LIST)*/
+		SELECT	COMN_CD_ID AS VALUE
+				,COMN_CD_NM AS NAME
+				,ROW_NUMBER() OVER (ORDER BY SORT_ORDER ASC) AS RNUM
+		FROM	CM_COMN_CD
+		WHERE	CD_GRP_ID LIKE 'CP_TYP_CD'
+		AND 	USE_YN = 'Y'
+		<isEqual property="cpCmpCd" compareValue="1">
+		AND 	COMN_CD_ID IN ('A','B','C','D','E')
+		</isEqual>
+		<isEqual property="cpCmpCd" compareValue="2">
+		AND 	COMN_CD_ID IN ('A','F','G')
+		</isEqual>
+		<isEqual property="cpCmpCd" compareValue="3">
+		AND 	COMN_CD_ID IN ('A')
+		</isEqual>
+		ORDER BY SORT_ORDER ASC
+	</select>
+	<!-- 발행방법 LIST -->
+	<select id="selectCpnIssueMethCdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/*CouponMgr_SQL.xml selectCpnIssueMethCdList (발행처에 따른 발행방법 LIST)*/
+		SELECT	COMN_CD_ID AS VALUE
+				,COMN_CD_NM AS NAME
+				,ROW_NUMBER() OVER (ORDER BY SORT_ORDER ASC) AS RNUM
+		FROM	CM_COMN_CD
+		WHERE	CD_GRP_ID = 'CPN_ISSUE_METH_CD'
+		AND 	USE_YN = 'Y'
+		<isEqual property="cpTypCd" compareValue="A">
+			<isNotEqual property="cpCmpCd" compareValue="3">
+			AND 	COMN_CD_ID IN ('A','B','C')
+			</isNotEqual>
+			<isEqual property="cpCmpCd" compareValue="3">
+			AND 	COMN_CD_ID IN ('B')
+			</isEqual>
+		</isEqual>
+		<isEqual property="cpTypCd" compareValue="B">
+			AND 	COMN_CD_ID IN ('B')
+		</isEqual>
+		<isEqual property="cpTypCd" compareValue="C">
+			AND 	COMN_CD_ID IN ('B')
+		</isEqual>
+		<isEqual property="cpTypCd" compareValue="D">
+			AND 	COMN_CD_ID IN ('B')
+		</isEqual>
+		<isEqual property="cpTypCd" compareValue="E">
+			AND 	COMN_CD_ID IN ('B')
+		</isEqual>
+		<isEqual property="cpTypCd" compareValue="G">
+			AND 	COMN_CD_ID IN ('B')
+		</isEqual>
+		<isEqual property="cpTypCd" compareValue="F">
+			AND 	COMN_CD_ID IN ('A','C')
+		</isEqual>
+		ORDER BY SORT_ORDER ASC
+	</select>
+	<!-- 발행방법에 따른 발행범위 LIST -->
+	<select id="selectCpnGoodsAppnCdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/*CouponMgr_SQL.xml selectCpnGoodsAppnCdList (발행방법에 따른 발행범위 LIST)*/
+		SELECT	COMN_CD_ID AS VALUE
+				,COMN_CD_NM AS NAME
+				,ROW_NUMBER() OVER (ORDER BY SORT_ORDER ASC) AS RNUM
+		FROM	CM_COMN_CD
+		WHERE	CD_GRP_ID = 'CPN_GOODS_APPN_CD'
+		AND 	USE_YN = 'Y'
+		<isEqual property="cpCmpCd" compareValue="1">
+			<isEqual property="cpnIssueMethCd" compareValue="B">
+				AND 	COMN_CD_ID IN ('A','G')
+			</isEqual>
+			<isNotEqual property="cpnIssueMethCd" compareValue="B">
+				<isEqual property="cpTypCd" compareValue="A">
+					<isEqual property="plnbefIdChk" compareValue="Y">
+					AND 	COMN_CD_ID IN ('G')
+					</isEqual>
+					<isEqual property="plnbefIdChk" compareValue="N">
+						<isEqual property="memGbnDivCd" compareValue="1">
+							AND 	COMN_CD_ID IN ('G')
+						</isEqual>
+						<isNotEqual property="memGbnDivCd" compareValue="1">
+							AND 	COMN_CD_ID IN ('A','G')
+						</isNotEqual>
+					</isEqual>
+				</isEqual>
+				<isNotEqual property="cpTypCd" compareValue="A">
+					AND 	COMN_CD_ID IN ('G')
+				</isNotEqual>
+			</isNotEqual>
+		</isEqual>
+		<isNotEqual property="cpCmpCd" compareValue="1">
+			AND 	COMN_CD_ID IN ('G')
+		</isNotEqual>
+		ORDER BY SORT_ORDER ASC
+	</select>
+
+
+	<!-- 장바구니 쿠폰유형 LIST -->
+	<select id="selectShpBoxDivCdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		/*CouponMgr_SQL.xml selectShpBoxDivCdList (장바구니 쿠폰유형 LIST)*/
+		SELECT	COMN_CD_ID AS VALUE
+				,COMN_CD_NM AS NAME
+				,ROW_NUMBER() OVER (ORDER BY SORT_ORDER ASC) AS RNUM
+		FROM CM_COMN_CD
+		WHERE CD_GRP_ID LIKE 'SHPBOX_DIV_CD'
+		AND 	COMN_CD_ID IN ('1', '2', '3','4')
+		AND 	USE_YN = 'Y'
+		ORDER BY SORT_ORDER ASC
+	</select>
+    <!-- 쿠폰 시퀀스 -->
+	<select id="selectCouponGoodsSeq" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT SEQ_EV_CPN_MAST.nextval FROM DUAL
+	</select>
+	<!-- 쿠폰 ISSUE_NO 발번 -->
+	<select id="selectCpnIssueNo" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT #cpTypCd# || #cpnIssueMethCd# ||TO_CHAR(SYSDATE, 'YYMMDDHH24MI') || LPAD(SEQ_CP_USERINFO.NEXTVAL, 8, 0) FROM DUAL
+	</select>
+    <!-- 쿠폰 등록 -->
+	<insert id="insertCoupon" parameterClass ="java.util.HashMap">
+		INSERT INTO EV_CPN_MAST (
+					CPN_MAST_NO
+					<isEqual property="cpnIssueMethCd" compareValue="B">
+					,PIN_TYP_CD
+					</isEqual>
+					,TITLE
+					,CP_CMP_CD
+					,CP_TYPE_CD
+					,MEM_GBN_DIV_CD
+					,DC_DIV_CD
+					,AMOUNT
+					,RATE_TYPE
+					,CPN_ISSUE_METH_CD
+					,CPN_APPLY_CNT_CD
+					,QTY
+					,LIMIT_CHK
+					,LIMIT_AMT
+					,USE_SEQ_APPN_CD
+					,SALE_CHK
+					,FEE_CHK
+					,FEE
+					,RGR_CHK
+					,CPN_GOODS_APPN_CD
+					,DAY_CHK
+					,USE_DAY
+					<isEqual property="dayChk" compareValue="N">
+					,USE_FROM
+					,USE_TO
+					</isEqual>
+					,APPLY_DATE
+					<isEqual property="cpCmpCd" compareValue="2">
+					,SUPP_COMP_ID
+					</isEqual>
+					,STOP_DATE
+					,REG_ID
+					,PARTNER_ID
+					,BIZ_CP_STATUS
+					,BIZ_CP_APPLY
+					,BIZ_CP_REG_ID
+					,BIZ_CP_PRE_APPLY
+					,OVSEA_EXCLU_CPN_CD
+					,OVER_EMS_YN
+					,ORG_YN
+					,CARD_GBN
+					,CPN_USE_MDA_CD
+					<isNotEmpty property="cpnDnloadStrtYmd">
+					,CPN_DNLOAD_STRT_YMD
+					</isNotEmpty>
+					<isNotEmpty property="cpnDnloadEndYmd">
+					,CPN_DNLOAD_END_YMD
+					</isNotEmpty>
+					,REG_DATE
+					,CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+					,DUP_APPLY_YN
+					,COMPNO_ISSUE_YN
+					,COMPNO_MAX_ISSUE_CNT
+					,ISSUE_CNT
+					,ISSUE_AREA
+					,COUPON_MAIL_SND_YN
+					,MAX_USE_AMT
+					,UNLIMIT_USE
+					<isEqual property="cpCmpCd" compareValue="1">
+						<isEqual property="cpnGoodsAppnCd" compareValue="A">
+					,SHPBOX_DIV_CD
+						</isEqual>
+					</isEqual>
+					<isEqual property="cpCmpCd" compareValue="1">
+						<isEqual property="cpTypCd" compareValue="A">
+					,PLNBEF_ID
+						</isEqual>
+					</isEqual>
+					<isEqual property="cpCmpCd" compareValue="3">
+					,PLNBEF_ID
+					</isEqual>
+		) VALUES (
+					#cpnMastNo#
+					<isEqual property="cpnIssueMethCd" compareValue="B">
+						<isEqual property="pinTypCd" compareValue="03">
+						,'02'
+						</isEqual>
+						<isNotEqual property="pinTypCd" compareValue="03">
+						,#pinTypCd#
+						</isNotEqual>
+					</isEqual>
+					,#title#
+					,#cpCmpCd#
+					,#cpTypCd#
+					<isEqual property="memGbnDivCd" compareValue="5">
+					,'2'
+					</isEqual>
+					<isNotEqual property="memGbnDivCd" compareValue="5">
+					,#memGbnDivCd#
+					</isNotEqual>
+					,#dcDivCd#
+					,NVL(#amount#, 0)
+					,NVL(#rateType#, 0)
+					,#cpnIssueMethCd#
+					,#cpnApplyCntCd#
+					,NVL(#qty#, 1)
+					,#limitChk#
+					,#limitAmt#
+					,NVL(#useSeqAppnSeq#,'1')
+					,NVL(#saleChk#,'N')
+					,#feeChk#
+					,NVL(#fee#, 0)
+					,NVL(#rgrChk#,'N')
+					<isEqual property="cpnGoodsAppnCd" compareValue="G2">
+					,'G'
+					</isEqual>
+					<isNotEqual property="cpnGoodsAppnCd" compareValue="G2">
+					,#cpnGoodsAppnCd#
+					</isNotEqual>
+					,#dayChk#
+					,NVL(#useDay#, 0)
+					<isEqual property="dayChk" compareValue="N">
+					,REPLACE(#useFrom#,'-','')||'000000'
+					,REPLACE(#useTo#,'-','')||'235959'
+					</isEqual>
+					,#applyDate#
+					<isEqual property="cpCmpCd" compareValue="2">
+					,#suppCompId#
+					</isEqual>
+					,''
+					,#loginId#
+					,#partnerId#
+					,'01' /* 등록 */
+					,''
+					,''
+					,''
+					,NVL(#ovseaExcluCpnCd#,'F')
+					,NVL(#overEmsYn#,'N')
+					,NVL(#orgYn#,'N')
+					,NVL(#cardGbn#,'00')
+					,#cpnUseMdaCd#
+					<isNotEmpty property="cpnDnloadStrtYmd">
+					,REPLACE(#cpnDnloadStrtYmd#,'-','')||#cpnDnloadStrtTm#||'0000'
+					</isNotEmpty>
+					<isNotEmpty property="cpnDnloadEndYmd">
+					,REPLACE(#cpnDnloadEndYmd#,'-','')||#cpnDnloadEndTm#||'5959'
+					</isNotEmpty>
+					,SYSDATE
+					,SYSDATE
+					,NVL(#loginId#, 'ADMIN')
+					,NVL(#loginId#, 'ADMIN')
+					,NVL(#dupApplyYn#, 'N')
+					,NVL(#compnoIssueYn#, 'N')
+					,NVL(#compnoMaxIssueCnt#, 0)
+					,NVL(#issueCnt#, 0)
+					,#issueArea#
+					,#couponMailSndYn#
+					,NVL(#maxUseAmt#,0)
+					,NVL(#unlimitUse#,'N')
+					<isEqual property="cpCmpCd" compareValue="1">
+						<isEqual property="cpnGoodsAppnCd" compareValue="A">
+					,#shpboxDivCd#
+						</isEqual>
+					</isEqual>
+					<isEqual property="cpCmpCd" compareValue="1">
+						<isEqual property="cpTypCd" compareValue="A">
+					,#plnbefId#
+						</isEqual>
+					</isEqual>
+					<isEqual property="cpCmpCd" compareValue="3">
+					,#plnbefId#
+					</isEqual>
+			)
+	</insert>
+	<!-- 쿠폰 지정 상품 등록 -->
+	<insert id="insertGoods" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO EV_CPN_GOODS_INFO A
+			USING DUAL
+			ON (A.CPN_MAST_NO = #cpnMastNo# AND A.GOODS_CD = #goodsCd#)
+			WHEN MATCHED THEN
+				UPDATE SET
+					CHG_DATE = to_char(sysdate,'YYYYMMDD')
+					,CHGER_ID = #loginId#
+			WHEN NOT MATCHED THEN
+				INSERT
+				(	CPN_MAST_NO
+					,GOODS_CD
+					,REGER_ID
+					,CHGER_ID
+					,REG_DATE
+					,CHG_DATE
+					,CTGRY_CD
+					,PAVLN_DIV_CD
+				)
+				VALUES
+				(
+					#cpnMastNo#,
+					#goodsCd#,
+					#loginId#,
+					#loginId#,
+					to_char(sysdate,'YYYYMMDD'),
+					to_char(sysdate,'YYYYMMDD'),
+					#ctgryCd#,
+					#pavlnDivCd#
+				)
+		]]>
+	</insert>
+
+	<!-- 쿠폰 지정 PIN 등록 -->
+	<insert id="insertPin" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO EV_CPN_ISSUE_PIN_MGT A
+	        USING DUAL
+	        ON (A.CPN_MAST_NO = #cpnMastNo# AND A.PIN_ISSUE_NO = #pinIssueNo#)
+	        WHEN MATCHED THEN
+	            UPDATE SET
+	                CHG_DATE = to_char(sysdate,'YYYYMMDD')
+	                ,CHGER_ID = #loginId#
+	        WHEN NOT MATCHED THEN
+	           INSERT
+	            (    CPN_MAST_NO
+	                ,PIN_SEQ
+	                ,PIN_ISSUE_NO
+	                ,REGER_ID
+	                ,CHGER_ID
+	                ,REG_DATE
+	                ,CHG_DATE
+	            )
+	            VALUES (
+	                #cpnMastNo#,
+	                NVL((SELECT NVL(MAX(PIN_SEQ),0)+1 FROM EV_CPN_ISSUE_PIN_MGT WHERE CPN_MAST_NO = #cpnMastNo#),'1'),
+	                #pinIssueNo#,
+	                #loginId#,
+	                #loginId#,
+	                to_char(sysdate,'YYYYMMDD'),
+	                to_char(sysdate,'YYYYMMDD')
+	            )
+		]]>
+	</insert>
+	<!-- 쿠폰 지정 고객 등록 -->
+	<insert id="insertMembers" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO EV_CPN_USER_ISSUE_INFO A
+	        USING DUAL
+	        ON (A.CPN_MAST_NO = #cpnMastNo# AND A.ACCESS_NAME = #accessName#)
+	        WHEN MATCHED THEN
+	            UPDATE SET
+	                CHG_DATE = to_char(sysdate,'YYYYMMDD')
+	                ,CHGER_ID = #loginId#
+	        WHEN NOT MATCHED THEN
+	           INSERT
+	               (
+	                ACCESS_NAME
+	                ,CPN_MAST_NO
+	                ,PIN_ISSUE_NO
+	                ,REG_DATE
+	                ,CHG_DATE
+	                ,REGER_ID
+	                ,CHGER_ID
+	                ,CPN_SEQ
+	                )
+	            VALUES
+                   (
+	                #accessName#,
+	                #cpnMastNo#,
+	                #pinIssueNo#,
+	                sysdate,
+	                sysdate,
+	                #loginId#,
+	                #loginId#,
+	                1
+	               )
+		]]>
+	</insert>
+
+
+	<!-- 쿠폰 지정 상품목록 조회 -->
+	<select id="selectCouponGoods" parameterClass="java.util.HashMap" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : CouponMgr_SQL.xml[쿠폰 지정 상품목록 조회] SQL ID : selectCouponGoods */
+               TM.*
+          FROM ( SELECT /*+ LEADING(T1) INDEX(T1 EV_CPN_GOODS_INFO_PK) */
+          				COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY T1.GOODS_CD) RNUM
+                      , T1.CPN_MAST_NO
+                      , T2.GOODS_CD
+                      , T2.GOODS_NM
+                      , T2.STOCK_VOLM
+                      , T2.STD_SELL_PRC
+                      , T3.GOODS_SUPP_YN
+                      , CASE WHEN T3.GOODS_SUPP_YN = 'Y' THEN '공급중'
+                             ELSE '공급중지'
+                        END AS GOODS_SUPP_YN_STR
+                   FROM EV_CPN_GOODS_INFO T1
+                      , GD_GOODS_MAST T2
+                      , GD_GOODS_SM T3
+                  WHERE T1.GOODS_CD = T2.GOODS_CD
+                    AND T2.GOODS_CD = T3.GOODS_CD(+)
+                    AND T1.CPN_MAST_NO = #cpnMastNo#
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+	</select>
+
+    <!-- 쿠폰 발급 이력 조회  -->
+    <select id="selectCouponIssued" parameterClass="java.util.HashMap" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : CouponMgr_SQL.xml[쿠폰 발급 이력 조회] SQL ID : selectCouponIssued */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY T2.ACCESS_NAME) RNUM
+                      , T2.CPN_MAST_NO
+                      , T2.ACCESS_NAME
+                      , (SELECT X.NM FROM MB_PO_RLNM_MEM_INFO X WHERE X.ACCESS_NAME = T2.ACCESS_NAME ) AS NM
+                      , TO_CHAR(T2.DNLOAD_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DNLOAD_DATE
+                      , TO_CHAR(T2.USE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS USE_DATE
+                   FROM EV_CPN_MAST T1
+                      , EV_CPN_USER_ISSUE_INFO T2
+                  WHERE T1.CPN_MAST_NO = T2.CPN_MAST_NO
+                    AND T1.CPN_MAST_NO = #cpnMastNo#
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+    </select>
+
+	<!-- 쿠폰 업데이트 -->
+	<update id="updateCoupon" parameterClass="java.util.HashMap">
+			UPDATE	EV_CPN_MAST
+			SET
+					TITLE				=	#title#
+					<isEqual property="cpnIssueMethCd" compareValue="B">
+					,PIN_TYP_CD			=	<isEqual property="pinTypCd" compareValue="03">'02'</isEqual><isNotEqual property="pinTypCd" compareValue="03">#pinTypCd#</isNotEqual>
+					</isEqual>
+					,CP_CMP_CD			=	#cpCmpCd#
+					,CP_TYPE_CD			=	#cpTypCd#
+					,MEM_GBN_DIV_CD		=	<isEqual property="memGbnDivCd" compareValue="5">'2'</isEqual><isNotEqual property="memGbnDivCd" compareValue="5">#memGbnDivCd#</isNotEqual>
+					,DC_DIV_CD			=	#dcDivCd#
+					,AMOUNT				=	NVL(#amount#, 0)
+					,RATE_TYPE			=	NVL(#rateType#, 0)
+					,CPN_ISSUE_METH_CD	=	#cpnIssueMethCd#
+					,CPN_APPLY_CNT_CD	=	#cpnApplyCntCd#
+					,QTY				=	NVL(#qty#, 1)
+					,LIMIT_CHK			=	#limitChk#
+					,LIMIT_AMT			=	#limitAmt#
+					,USE_SEQ_APPN_CD	=	#useSeqAppnCd#
+					,SALE_CHK			=	NVL(#saleChk#,'N')
+					,FEE_CHK			=	#feeChk#
+					,FEE				=	NVL(#fee#, 0)
+					,RGR_CHK			=	NVL(#rgrChk#,'N')
+					,CPN_GOODS_APPN_CD	=	<isEqual property="cpnGoodsAppnCd" compareValue="G2">'G'</isEqual><isNotEqual property="cpnGoodsAppnCd" compareValue="G2">#cpnGoodsAppnCd#</isNotEqual>
+					,DAY_CHK			=	#dayChk#
+					<isEqual property="dayChk" compareValue="N">
+					,USE_DAY			=	0
+					,USE_FROM			=	REPLACE(#useFrom#,'-','')||'000000'
+					,USE_TO				=	REPLACE(#useTo#,'-','')||'235959'
+					</isEqual>
+					<isEqual property="dayChk" compareValue="Y">
+					,USE_DAY			=	NVL(#useDay#, 0)
+					,USE_FROM			=	NULL
+					,USE_TO				=	NULL
+					</isEqual>
+					,APPLY_DATE			=	#applyDate#
+					,SUPP_COMP_ID		=	#suppCompId#
+					,STOP_DATE			=	''
+					,REG_ID				=	#loginId#
+					,PARTNER_ID			=	#partnerId#
+					,BIZ_CP_STATUS		=	'01' /* 등록 */
+					,BIZ_CP_APPLY		=	''
+					,BIZ_CP_REG_ID		=	''
+					,BIZ_CP_PRE_APPLY	=	''
+					,OVSEA_EXCLU_CPN_CD	=	NVL(#ovseaExcluCpnCd#,'F')
+					,OVER_EMS_YN		=	NVL(#overEmsYn#,'N')
+					,ORG_YN				=	NVL(#orgYn#,'N')
+					,CARD_GBN			=	NVL(#cardGbn#,'00')
+					,CPN_USE_MDA_CD		=	#cpnUseMdaCd#
+					<isNotEmpty property="cpnDnloadStrtYmd">
+					,CPN_DNLOAD_STRT_YMD=	REPLACE(#cpnDnloadStrtYmd#,'-','')||#cpnDnloadStrtTm#||'0000'
+					</isNotEmpty>
+					<isNotEmpty property="cpnDnloadEndYmd">
+					,CPN_DNLOAD_END_YMD	=	REPLACE(#cpnDnloadEndYmd#,'-','')||#cpnDnloadEndTm#||'5959'
+					</isNotEmpty>
+					,CHG_DATE			=	SYSDATE
+					,CHGER_ID			=	NVL(#loginId#, 'ADMIN')
+					,DUP_APPLY_YN		=	NVL(#dupApplyYn#, 'N')
+					,COMPNO_ISSUE_YN	=	NVL(#compnoIssueYn#, 'N')
+					,COMPNO_MAX_ISSUE_CNT=	NVL(#compnoMaxIssueCnt#, 0)
+					,ISSUE_CNT			=	NVL(#issueCnt#, 0)
+					,ISSUE_AREA			=	#issueArea#
+					,COUPON_MAIL_SND_YN	=	#couponMailSndYn#
+					,MAX_USE_AMT		=	NVL(#maxUseAmt#,0)
+					,UNLIMIT_USE		=	NVL(#unlimitUse#,'N')
+					<isEqual property="cpCmpCd" compareValue="1">
+						<isEqual property="cpnGoodsAppnCd" compareValue="A">
+					,SHPBOX_DIV_CD		=	#shpboxDivCd#
+						</isEqual>
+					</isEqual>
+					<isEqual property="cpCmpCd" compareValue="1">
+						<isEqual property="cpTypCd" compareValue="A">
+					,PLNBEF_ID			=	#plnbefId#
+						</isEqual>
+					</isEqual>
+					<isEqual property="cpCmpCd" compareValue="3">
+					,PLNBEF_ID			=	#plnbefId#
+					</isEqual>
+			WHERE 	CPN_MAST_NO = #cpnMastNo#
+	</update>
+
+	<!-- 쿠폰 상품삭제 -->
+	<delete id="deleteGoods" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM EV_CPN_GOODS_INFO WHERE CPN_MAST_NO = #cpnMastNo#
+	    ]]>
+	</delete>
+
+	<!-- 쿠폰 회원 삭제 -->
+	<delete id="deleteMembers" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM EV_CPN_USER_ISSUE_INFO WHERE CPN_MAST_NO = #cpnMastNo# AND USE_DATE IS NULL
+	    ]]>
+	</delete>
+	<!-- 쿠폰 핀번호삭제 -->
+	<delete id="deletePinCodes" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM EV_CPN_ISSUE_PIN_MGT WHERE CPN_MAST_NO = #cpnMastNo#
+	    ]]>
+	</delete>
+	<!-- 해당 쿠폰의 PIN NUMBER 목록 조회-->
+	<select id="selectPinNoList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	PIN_ISSUE_NO
+		FROM	EV_CPN_ISSUE_PIN_MGT
+		WHERE	CPN_MAST_NO = #cpnMastNo#
+		AND 	PIN_USE_YN = 'Y'
+		GROUP BY PIN_ISSUE_NO
+		ORDER BY PIN_ISSUE_NO
+	</select>
+	<!-- 해당 쿠폰의 PIN NUMBER 1개(고정핀) 조회-->
+	<select id="selectPinNoInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	PIN_ISSUE_NO
+		FROM	EV_CPN_ISSUE_PIN_MGT
+		WHERE	CPN_MAST_NO = #cpnMastNo#
+		AND 	PIN_USE_YN = 'Y'
+		AND 	ROWNUM = 1
+		GROUP BY PIN_ISSUE_NO
+		ORDER BY PIN_ISSUE_NO
+	</select>
+
+	<!-- PARTNER 목록 조회-->
+	<select id="selectPartnerList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			SELECT	DECODE(PARTNER_TYPE,'01','편의점','0',''
+										,'02','지방자치단체'
+										,'03','수익배분'
+										,'04','가격비교'
+										,'05','포털'
+										,'06','쇼핑몰'
+										,'07','배너제휴사'
+										,'08','외부업체발행'
+										,'09','RIS'
+										,'10','해외구매대행사'
+										,'11','B2B'
+										,'12','지역브랜드관'
+										,'13','기프티콘'
+										,'14','OK캐쉬백(적립)' )PARTNER_TYPE_NM
+					,PARTNR_ID
+					,NAME
+			FROM PT_PARTNER
+			WHERE DELETE_DATE IS NULL
+			<isNotEmpty property="partnerType" prepend="AND">
+				PARTNER_TYPE = #partnerType#
+			</isNotEmpty>
+			<isNotEmpty property="searchWord" prepend="AND">
+				<isEqual property="searchType" compareValue="">
+					( PARTNR_ID LIKE '%'||#searchWord#||'%' OR NAME LIKE '%'||#searchWord#||'%' )
+				</isEqual>
+				<isEqual property="searchType" compareValue="partnerId">
+					PARTNR_ID LIKE '%'||#searchWord#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="partnerNm">
+					NAME LIKE '%'||#searchWord#||'%'
+				</isEqual>
+			</isNotEmpty>
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- PARTNER 목록 COUNT -->
+	<select id="selectPartnerListCount" parameterClass="java.util.HashMap" resultClass="int">
+			SELECT COUNT(*)
+			FROM PT_PARTNER
+			WHERE DELETE_DATE IS NULL
+			<isNotEmpty property="partnerType" prepend="AND">
+				PARTNER_TYPE = #partnerType#
+			</isNotEmpty>
+			<isNotEmpty property="searchWord" prepend="AND">
+				<isEqual property="searchType" compareValue="">
+					( PARTNR_ID LIKE '%'||#searchWord#||'%' OR NAME LIKE '%'||#searchWord#||'%' )
+				</isEqual>
+				<isEqual property="searchType" compareValue="partnerId">
+					PARTNR_ID LIKE '%'||#searchWord#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="partnerNm">
+					NAME LIKE '%'||#searchWord#||'%'
+				</isEqual>
+			</isNotEmpty>
+	</select>
+	<!-- PINNUMBER 중복체크 COUNT -->
+	<select id="selectCouponMastNoCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM	EV_CPN_ISSUE_PIN_MGT
+		WHERE	PIN_ISSUE_NO = #pinNum#
+		<isNotEmpty property="cpnMastNo" prepend="AND">
+			CPN_MAST_NO = #cpnMastNo#
+		</isNotEmpty>
+	</select>
+
+	<!-- PIN 일련번호 리스트 조회-->
+	<select id="selectEvCpnIssuePinMgtList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT /* 파일명[파일설명] : CouponMgr_SQL.xml[PIN 일련번호 리스트 조회] SQL ID : selectEvCpnIssuePinMgtList */
+				TM.*
+		FROM ( SELECT	COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+						, ROW_NUMBER() OVER(ORDER BY A.PIN_ISSUE_NO) RNUM
+						,A.PIN_SEQ
+						,A.PIN_ISSUE_NO
+						,B.ACCESS_NAME
+						,TO_CHAR(B.USE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS USE_DATE
+						,TO_CHAR(B.DNLOAD_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DNLOAD_DATE
+				FROM	EV_CPN_ISSUE_PIN_MGT A
+						, EV_CPN_USER_ISSUE_INFO B
+				WHERE	A.CPN_MAST_NO =  #cpnMastNo#
+				AND 	A.CPN_MAST_NO = B.CPN_MAST_NO(+)
+				AND 	A.PIN_ISSUE_NO = B.PIN_ISSUE_NO(+)
+				ORDER BY A.PIN_ISSUE_NO ASC
+			) TM
+		<isNotEmpty property="firstIndex">
+		WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+		</isNotEmpty>
+	</select>
+</sqlMap>

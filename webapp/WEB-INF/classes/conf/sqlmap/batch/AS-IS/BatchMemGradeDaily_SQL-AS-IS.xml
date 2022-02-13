@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchMemGradeDaily">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_CreateMemberGrade_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(add_months(sysdate,-4), 'yyyymm') || '16000000' as start_03dt, 
+			       TO_CHAR(add_months(sysdate,-7), 'yyyymm') || '16000000' as start_06dt,  
+			       TO_CHAR(add_months(sysdate,-10), 'yyyymm') || '16000000' as start_09dt,
+			       to_char(add_months(sysdate,-2), 'yyyymm')  || '16000000' as start_dt,
+			       to_char(add_months(sysdate,-1),'yyyymm') || '15999999'  as end_dt
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_CreateMemberGrade_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select 
+				'F' as sGbn, 
+				a.access_name as sAccess_Name,
+				count(distinct purchase_id) as i_order_cnt,
+				sum(a.amount) as i_order_amount
+			from txorder a, meminfo b
+			where a.access_name = b.access_name
+			  and a.complete_date >= #start03dt# 
+			  and a.complete_date <= #enddt#  
+			  and a.cancel_state = 'N'
+			  and b.member_type in ('1', '3')
+			  and b.status = '1'
+			group by a.access_name
+			union all
+			select 'G', a.access_name,count(distinct purchase_id),sum(a.amount) amt
+			from txorder a, meminfo b
+			where a.access_name = b.access_name
+			  and a.complete_date >= #start06dt# 
+			  and a.complete_date <= #enddt# 
+			  and a.cancel_state = 'N'
+			  and b.member_type in ('1', '3')
+			  and b.status = '1'
+			group by a.access_name
+			having sum(a.amount) >= 600000 and count(distinct purchase_id) >=6 and sum(a.amount) < 2000000
+			union all
+			select 'P', a.access_name,count(distinct purchase_id),sum(a.amount) amt 
+			from txorder a, meminfo b
+			where a.access_name = b.access_name
+			  and a.complete_date >= #start09dt# 
+			  and a.complete_date <= #enddt#  
+			  and a.cancel_state = 'N'
+			  and b.member_type in ('1', '3')
+			  and b.status = '1'
+			group by a.access_name
+			having sum(a.amount) >= 2000000
+		]]>	 
+	</select>
+	
+	<select id="select_CreateMemberGrade_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select 
+				'TOP' as sGbn,
+				a.access_name as sAccess_Name,
+				count(distinct purchase_id) as i_order_cnt,
+				sum(a.amount) as i_order_amount 
+			from txorder a, meminfo b
+			where a.access_name = b.access_name
+			  and a.complete_date >= #start06dt# 
+			  and a.complete_date <= #enddt#  
+			  and a.cancel_state = 'N'
+			  and b.member_type = '2'
+			  and b.status = '1'
+			  and a.access_name = 'parksh0504'
+			group by a.access_name
+			having sum(a.amount) >= 2000000
+		]]>	 
+	</select>
+	
+	<select id="select_CreateMemberGrade_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT ACCESS_NAME as sAccess_Name,
+			       GRADE as i_Grade,
+			 	   ORDER_CNT as i_order_cnt,
+				   ORDER_AMOUNT as i_order_amount,
+				   STAT_STRT_DATE as sStat_Start_Date,
+				   STAT_END_DATE as sStat_End_Date,
+				   APPLY_END_DATE as sApply_End_Date,
+				   USE_YN as sUse_yn,
+				   to_number(to_char(sysdate,'yyyymm')) - to_number(substr(APPLY_end_date,1,6)) as i_Apply_term
+			FROM MEM_GRADE
+			where APPLY_DATE  like to_char(add_months(sysdate,-1) ,'yyyymm') || '%'
+		]]>	 
+	</select>
+	
+	<select id="select_CreateMemberGrade_07" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as i_cnt
+			 FROM MEM_GRADE
+			 where ACCESS_NAME = #sAccessName#
+			   and APPLY_DATE like to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</select>
+	
+	<insert id="insert_MEM_GRADE_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MEM_GRADE (
+									ACCESS_NAME,
+									APPLY_DATE,
+									GRADE,
+									ORDER_CNT,
+									ORDER_AMOUNT,
+									STAT_STRT_DATE,
+									STAT_END_DATE,
+									APPLY_END_DATE,
+									USE_YN							 
+								 )
+								 SELECT #sAccessName#,
+									to_char(sysdate,'yyyymm'),
+									#iGrade#,
+									#iordercnt#,
+									#iorderamount#,
+									#sStatStartDate#,
+									#sStatEndDate#,
+									#sApplyEndDate#,
+									#sUseyn#
+								 FROM 	dual
+		]]>	 
+	</insert>
+	
+	<insert id="insert_MEM_GRADE_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MEM_GRADE (
+										ACCESS_NAME,
+										APPLY_DATE,
+										GRADE,
+										ORDER_CNT,
+										ORDER_AMOUNT,
+										STAT_STRT_DATE,
+										STAT_END_DATE,
+										APPLY_END_DATE,
+										USE_YN							 
+									 )
+									 SELECT #sAccessName#,
+										to_char(sysdate,'yyyymm'),
+										'0',
+										'0',
+										'0',
+										#sStatStartDate#,
+										#sStatEndDate#,
+										to_char(sysdate,'yyyymm'),
+										#sUseyn#
+									 FROM 	dual
+		]]>	 
+	</insert>
+	
+	<update id="update_MEM_GRADE_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE MEM_GRADE set APPLY_DATE = to_char(sysdate,'yyyymm'), GRADE = #iGrade#,
+				ORDER_CNT = #iordercnt#, ORDER_AMOUNT = #iorderamount#, STAT_STRT_DATE = #sStatStartDate#,
+				STAT_END_DATE = #sStatEndDate#, APPLY_END_DATE = #sApplyEndDate#
+				where ACCESS_NAME = #sAccessName# and APPLY_DATE like  to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</update>
+	
+	<update id="update_MEM_GRADE_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE MEM_GRADE set APPLY_DATE = to_char(sysdate,'yyyymm'), GRADE = #iGrade#,
+				ORDER_CNT = #iordercnt#, ORDER_AMOUNT = #iorderamount#, STAT_STRT_DATE = #sStatStartDate#,
+				STAT_END_DATE = #sStatEndDate#, APPLY_END_DATE = #sApplyEndDate#
+				where ACCESS_NAME = #sAccessName# and APPLY_DATE like  to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</update>
+	
+	<select id="select_CreateMemberGrade_08" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as i_cnt, max(Grade) as i_PreGrade 
+			 FROM MEM_GRADE
+			 where ACCESS_NAME = #sAccessName#
+			   and APPLY_DATE like to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</select>
+	
+	<update id="update_MEM_GRADE_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE MEM_GRADE set APPLY_DATE = to_char(sysdate,'yyyymm'), GRADE = #iGrade#,
+					ORDER_CNT = #iordercnt#, ORDER_AMOUNT = #iorderamount#, STAT_STRT_DATE = #sStatStartDate#,
+					STAT_END_DATE = #enddt#, APPLY_END_DATE = to_char(add_months(sysdate,#iaddmonth#),'yyyymm')
+				where ACCESS_NAME = #sAccessName# and APPLY_DATE like  to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</update>
+	
+	<delete id="delete_MEM_GRADE_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM MEM_GRADE
+			 where ACCESS_NAME = #sAccessName#
+			   and APPLY_DATE like  to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</delete>
+	
+	<insert id="insert_MEM_GRADE_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MEM_GRADE (
+									ACCESS_NAME,
+									APPLY_DATE,
+									GRADE,
+									ORDER_CNT,
+									ORDER_AMOUNT,
+									STAT_STRT_DATE,
+									STAT_END_DATE,
+									APPLY_END_DATE,
+									USE_YN							 
+								 )
+								 SELECT #sAccessName#,
+									to_char(sysdate,'yyyymm'),
+									#iGrade#,
+									#iordercnt#,
+									#iorderamount#,
+									#sStatStartDate#,
+									#enddt#,
+									to_char(add_months(sysdate,#iaddmonth#),'yyyymm'),
+									'Y'
+								 FROM 	dual
+		]]>	 
+	</insert>
+	
+	<select id="select_CreateMemberGrade_09" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as i_cnt, max(Grade) as i_PreGrade
+			 FROM MEM_GRADE
+			 where ACCESS_NAME = #sAccessName#
+			   and APPLY_DATE like to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</select>
+	
+	<delete id="delete_MEM_GRADE_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM MEM_GRADE
+			 where ACCESS_NAME = #sAccessName#
+			   and APPLY_DATE like to_char(sysdate,'yyyymm') || '%'
+		]]>	 
+	</delete>
+	
+	<insert id="insert_MEM_GRADE_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MEM_GRADE (
+									ACCESS_NAME,
+									APPLY_DATE,
+									GRADE,
+									ORDER_CNT,
+									ORDER_AMOUNT,
+									STAT_STRT_DATE,
+									STAT_END_DATE,
+									APPLY_END_DATE,
+									USE_YN							 
+								 )
+								 SELECT #sAccessName#,
+									to_char(sysdate,'yyyymm'),
+									#iGrade#,
+									#iordercnt#,
+									#iorderamount#,
+									#start06dt#,
+									#enddt#,
+									to_char(add_months(sysdate,#iaddmonth#),'yyyymm'),
+									'Y'
+								 FROM 	dual
+		]]>	 
+	</insert>
+	
+	<insert id="insert_MEM_GRADE_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MEM_GRADE (
+										ACCESS_NAME,
+										APPLY_DATE,
+										GRADE,
+										ORDER_CNT,
+										ORDER_AMOUNT,
+										STAT_STRT_DATE,
+										STAT_END_DATE,
+										APPLY_END_DATE,
+										USE_YN							 
+								)
+			          			select access_name ,
+   										to_char(add_months(sysdate,-1),'yyyymm'),
+   										'0',
+   										0,
+   										0,
+   										TO_CHAR(add_months(sysdate,-2), 'yyyymm') || '16000000',
+   										to_char(add_months(sysdate,-1),'yyyymm')  || '15999999',
+   										to_char(add_months(sysdate,-1),'yyyymm'),
+   										'Y'
+								 from  (
+			      										SELECT access_name 
+			                           FROM MEM_GRADE
+			                           WHERE apply_date = to_char(sysdate,'yyyymm')		
+			                               and grade != '0' 							 
+			                           MINUS 
+			                           SELECT access_name 
+			                           FROM MEM_GRADE
+			                           WHERE apply_date = to_char(add_months(sysdate,-1),'yyyymm')	
+			        		   )
+		]]>	 
+	</insert>
+		
+</sqlMap>

@@ -1,0 +1,908 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchOrderEc">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt, TO_CHAR(sysdate, 'YYMMDD') as todate 
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="SELECT_CURSOR_OPEN" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  replace(PURCHASE_ID,'-','') as PURCHASEID, SEQ_NO, ACCESS_NAME, BIZ_CODE, BIZ_NAME,
+		            ECODE, POSTOFFICE, SHIPTO_NAT, BILLTO_NAT, BILLTO_NAME,
+		            BILLTO_ADDR1, BILLTO_ADDR2, BILLTO_ADDR_TYPE, BILLTO_ZIPCODE, BILLTO_TELNO,
+		            BILLTO_EMAIL, BILLTO_MOBILE, SHIPTO_NAME, SHIPTO_ADDR1,
+		            SHIPTO_ADDR2, SHIPTO_ADDR_TYPE, SHIPTO_ZIPCODE, SHIPTO_TELNO, SHIPTO_MOBILE,
+		            GOODS_CODE, GOODS_IDN, GOODS_NAME, PRICE, US_PRICE, QUANTITY,
+		            SHOP_ID, MESSAGE_STATUS, MESSAGE_CODE, WISH_DATE,  replace(replace(MESSAGE, chr(13), ' '), chr(10), ' ') as MESSAGE,
+		            PAYMETHOD, PAYNAME, PAYRESULT, BANKNAME, BANKCODE, ORDER_DATE, IPADDR, M_PCODE, M_ID, SMS_YN, OPTION_DESC,
+		            RM_POINT, RM_STATE, RM_PAY_AMT, CP_AMT, SP_STATE, SP_AMOUNT ,
+		            RECOMMENDID,RECOMMENDINFO, FLWCODE,REQUEST_ID,GIFT_GOODS_YN,ORG_AMOUNT , MOBILE_GBN,
+		            CONGMSG,CONGMSG_FTYPE,CONGMSG_FSTYLE, NVL(GIFTICON_YN,'N') as GIFTICON_YN, NVL(MOBILE_WEB_GBN,'N') as MOBILE_WEB_GBN, 
+		            nvl(AMOUNT_OKCASH,0) as AMOUNT_OKCASH,
+		            NVL(EXT_BIZ_ORDER_YN,'N') as EXT_BIZ_ORDER_YN,EXT_BIZ_CODE,EXT_BIZ_ORD_NO,EXT_BIZ_ORD_SEQ,EXT_MALL_CODE,
+		            DECODE(PRICE,0,0,NVL(invoice_amt,0)) as invoice_amt,invoice_gbn ,
+		            NVL(option_code,0) as option_code , DECODE(SHOP_ID,'8',NVL(option_seq,0),1) as option_seq , NVL(option_amt,0) as option_amt
+		      FROM  BTORDER 
+		     WHERE  PURCHASE_ID like '1%'
+		       AND  NVL(USE_YN,'Y') = 'Y'
+		  ORDER BY  PURCHASE_ID, SHIPTO_NAME, SHIPTO_ADDR1, SHIPTO_ADDR2,
+		            BIZ_CODE, SEQ_NO, GOODS_IDN, PRICE*-1
+		]]>	 
+	</select>
+	
+	<select id="fGetFund1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(SUM(AMOUNT * QTY), 0) as nCpAmtSum
+            FROM CP_PAYMENT
+            WHERE PURCHASE_ID = #purchaseid#
+		]]>	 
+	</select>
+	
+	<select id="fGetFund2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  SUM(AMOUNT) as gTotFundPrice
+            FROM    RM_PAYMENT
+            WHERE   PURCHASE_ID = #purchaseid#
+		]]>	 
+	</select>
+	
+	<select id="fGetFund3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT    SUM(AMOUNT) as gTotFundSPrice
+            FROM    SP_PAYMENT
+            WHERE    PURCHASE_ID = #purchaseid#
+		]]>	 
+	</select>
+	
+	<select id="fGetFund4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(sum(post_use_point),0)  as gTotPostAmt
+            FROM RM_HISTORY
+            WHERE PURCHASE_ID =  #purchaseid#
+		      AND RM_TYPE = 'U'
+		]]>	 
+	</select>
+	
+	<select id="fGetFund5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(sum(amount),0)  as gTotOkCashPrice
+            FROM OKCASH_PAYMENT
+            WHERE PURCHASE_ID =  #purchaseid#
+		]]>	 
+	</select>
+	
+	<select id="fGetFund6" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT    SUM((PRICE + NVL(OPTION_AMT,0)) * QUANTITY) + SUM(NVL(invoice_amt,0)) as gTotPrice
+		    FROM    BTORDER
+		    WHERE    PURCHASE_ID = #purchaseid#
+		      and goods_idn > 0
+		]]>	 
+	</select>
+	
+	<select id="fGetFund7" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT    SUM(QUANTITY) as gTotPostQty
+		    FROM    BTORDER
+		    WHERE    PURCHASE_ID = #purchaseid#
+		    AND  PRICE > 0
+		]]>	 
+	</select>
+	
+	<select id="fGetFund8" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		    SELECT MAX(DECODE(A.PAYMETHOD, 'C',ROUND(C.RATE00,3),
+		                                   'D',ROUND(C.RATE01,3),
+		                                   'B',ROUND(C.RATE00,3),
+		                                   'A',C.RATE00,
+		                                   'I',C.RATE00,0)) as gPayRate
+            FROM BTORDER A, KICC_CREDIT B, CREDIT_RATE C
+            WHERE A.PURCHASE_ID = B.PURCHASE_ID(+)
+              AND A.PURCHASE_ID = #purchaseid#
+              AND decode(B.TERMINAL_ID,'1528646','2','1528793','3','1')    = C.GBN
+              AND decode(A.PAYMETHOD,'C',B.acquire_code,'D',B.acquire_code,'B','B00','A','A00','I','I00','M00')   = C.acquire_code
+              AND SUBSTR(A.ORDER_DATE,1,8) >=  C.START_DATE
+              AND SUBSTR(A.ORDER_DATE,1,8) <=  C.END_DATE
+            GROUP BY A.PURCHASE_ID
+		]]>	 
+	</select>
+	
+	<select id="fGetFund9" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		  SELECT  count(*) as iPostCnt
+             FROM BANKTOWN
+           WHERE PURCHASE_ID =  #purchaseid#
+              and POST_GBN = 'P'
+		]]>	 
+	</select>
+	 
+	<select id="insertTxOrder1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT REPLACE(#purchaseid#,'-','')||LPAD(SHOPUSR.SEQ_TXORDER.nextval,6,0) as txorder_id
+	     	FROM DUAL
+		]]>	 
+	</select>
+	<select id="insertTxOrder2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*)  as iOrderReserveCnt 
+               FROM ORDER_RESERVE
+               WHERE purchase_id =  #purchaseid#
+		]]>	 
+	</select>
+	<select id="insertTxOrder3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as i_invoice_cnt
+            FROM TXORDER A , CONTACT B
+            where A.SHIP_TO_ID   = b.CONTACT_ID  
+              AND A.PURCHASE_ID  = #purchaseid#
+              AND A.BIZ_CODE     = #bizcode#
+              AND B.POSTAL_CODE  = #shiptozipcode#
+              AND A.WISH_DATE    = #wishdate#
+              AND NVL(A.INVOICE_AMT,0) > 0
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+	            SELECT nvl(GOODS_FEE,0) as dGoods_fee,
+	                   NVL(SYSTEM_FLAG,'Y') as system_flag
+                FROM GOODS_MASTER
+                where GOODS_CODE = #goodscode#
+                       AND GOODS_IDN  = #goodsidn#
+                  and SHOP_ID = '8'
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder401" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+	            SELECT count(*) as i_dtv_cnt
+				FROM ONLINE_PAYMENT
+				where purchase_id = #purchaseid#
+				  and ITPOSTNAME is not null
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder8" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select supp_po_regipocd as suppPoRegiPoCd
+            from biz_master
+            where biz_code = #bizcode#
+              and language = 'KO'
+              and rownum < 2
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder9" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT     nvl(RECOMMRCODE,'99999') as m_regipocd 
+	        FROM MEMINFO
+	        where ACCESS_NAME = #accessname#
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder10" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as i_txorder_item_cnt
+                from TXORDER_ITEM
+                where  TXORDER_ID = #txorderid#
+                  and  GOODS_IDN = 0
+		]]>	 
+	</select>
+	
+	<insert id="insertTxOrderExec1" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO TXORDER_ITEM
+	            (TXORDER_ID, TXORDER_ITEM_ID, GOODS_CODE, GOODS_IDN, QUANTITY, PRICE, GOODS_NAME, MSG_CODE, MSG,
+	             ITEM_PRICE, GOODS_FEE, GOODS_PRICE, OPTION_DESC, ONOFF_FLAG, GOODS_TYPE, FLWCODE,SYSTEM_FLAG)
+            VALUES
+            (#txorderid#, LPAD(#txorderitemid#,4,0), #goodscode#, #goodsidn#, #quantity#,
+             decode(#goodsidn#,0,0,#price#  + #optionamt# + #iinvoiceamt1#),
+             #goodsname#, #msgcode#, #msg#,
+             decode(#goodsidn#,0,0,#itemprice#  + #optionamt# + #iinvoiceamt1#), #dGoodsfee#,
+             decode(#goodsidn#,0,0,#itemprice#  + #optionamt# + #iinvoiceamt1#),
+             #optiondesc#, #onoffflag#, #goodstype#, #msgtype#, #systemflag#)
+		]]>	 
+	</insert>
+	
+	<insert id="insertTxOrderExec1ToOD_ORDER_ITM" parameterClass="java.util.HashMap">	
+		<![CDATA[
+		
+		]]>	 
+	</insert>
+	
+	<select id="insertTxOrder11" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT MAX(SUPP_PO_REGIPOCD) as flw_regiPoCd
+              FROM BIZ_MASTER
+             WHERE BIZ_CODE = #bizcode#
+               AND LANGUAGE = 'KO'
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder12" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT COUNT(*) as delivery_area_cnt
+              FROM FLW_GOODS_BIZINFO
+             WHERE GOODS_CODE = #goodscode#
+	           AND USE_YN = 'Y'
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder13" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT BIZ_CODE, BIZ_NAME
+             FROM BIZ_MASTER
+            WHERE SUPP_PO_REGIPOCD = #flwregiPoCd#
+              AND LANGUAGE = 'KO'
+              AND CONT_STATUS = '01'
+              AND BIZ_TYPE = '02'
+              AND (STOP_START_DATE > TO_CHAR(SYSDATE, 'YYYYMMDD') OR STOP_END_DATE < TO_CHAR(SYSDATE, 'YYYYMMDD'))
+		]]>	 
+	</select>
+
+	<select id="insertTxOrder15" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT MIN(BIZ_CODE) as flw_Biz_Code
+              FROM BIZ_MASTER
+             WHERE BIZ_TYPE = '02'
+               AND CONT_STATUS = '01'
+               AND SUPP_PO_REGIPOCD =  #flwregiPoCd#
+               AND LANGUAGE = 'KO'
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder17" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT C.BIZ_CODE as biz_code, C.BIZ_NAME as biz_name
+             FROM TXORDER_ITEM A, GOODS_MASTER B, BIZ_MASTER C
+            WHERE A.TXORDER_ID=#txorderid#
+              AND A.GOODS_CODE = B.GOODS_CODE
+              AND B.LANGUAGE = 'KO'
+              AND B.SUPPLIER_CODE = C.BIZ_CODE
+              AND C.LANGUAGE = 'KO'
+              AND B.DELETE_DATE > TO_CHAR(SYSDATE, 'YYYYMMDD')
+              AND C.CONT_STATUS = '01'
+		]]>	 
+	</select>
+		
+	<select id="insertTxOrder19" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')||LPAD(SHOPUSR.CONTACT_SEQ.nextval, 6, 0) as billto_id
+          FROM DUAL
+		]]>	 
+	</select>
+	
+	<insert id="insertTxOrderExec2" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO CONTACT
+	            (CONTACT_ID, NAME, ADDRESS_1, ADDRESS_2, ADDR_TYPE, POSTAL_CODE, TELEPHONE, EMAIL, MOBILE, COUNTRY,CREATE_DATE,
+	             TELEPHONE_1,TELEPHONE_2,TELEPHONE_3,
+	             MOBILE_1,MOBILE_2,MOBILE_3,
+	             ACCESS_NAME,
+	             USE_CD,
+	             LAST_USE_DATE,
+	             DELETE_DATE,
+	             USE_REGIPOCD)
+	        VALUES
+	            (#billtoid#, #billtoname#, NVL(#billtoaddr1#,' '), #billtoaddr2#, #billtoaddrtype#, NVL(#billtozipcode#,' '),
+	             NVL(#billtotelno#, ' '), NVL(#billtoemail#, ' '), NVL(#billtomobile#, ' '),
+	             'KR', TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI'),
+	             NVL(SUBSTRB(SUBSTR(#billtotelno#,1,INSTR(#billtotelno#,'-')-1),1,4),' '),
+	             NVL(SUBSTRB(SUBSTR(SUBSTR(#billtotelno#,INSTR(#billtotelno#,'-')+1),1,INSTR(SUBSTR(#billtotelno#,INSTR(#billtotelno#,'-')+1),'-')-1),1,4),' ') ,
+				 NVL(SUBSTRB(SUBSTR(SUBSTR(#billtotelno#,INSTR(#billtotelno#,'-')+1),INSTR(SUBSTR(#billtotelno#,INSTR(#billtotelno#,'-')+1),'-')+1),1,4),' '),
+				 NVL(SUBSTRB(SUBSTR(#billtomobile#,1,INSTR(#billtomobile#,'-')-1),1,4),' '),
+				 NVL(SUBSTRB(SUBSTR(SUBSTR(#billtomobile#,INSTR(#billtomobile#,'-')+1),1,INSTR(SUBSTR(#billtomobile#,INSTR(#billtomobile#,'-')+1),'-')-1),1,4),' '),
+				 NVL(SUBSTRB(SUBSTR(SUBSTR(#billtomobile#,INSTR(#billtomobile#,'-')+1),INSTR(SUBSTR(#billtomobile#,INSTR(#billtomobile#,'-')+1),'-')+1),1,4),' '),
+				 nvl(#accessname#, ' '),
+	             null,
+	             null,
+	             null,
+	             null
+	             )
+		]]>	 
+	</insert>
+	
+	<insert id="insertTxOrderExec201" parameterClass="java.util.HashMap">	
+		<![CDATA[
+
+		]]>	 
+	</insert>
+		
+		
+	<select id="insertTxOrder20" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT MAX(CONTACT_ID) as shipto_id
+			FROM CONTACT
+			WHERE NAME = #shiptoname#
+			AND ADDRESS_1 = NVL(#shiptoaddr1#,' ')
+			AND ADDRESS_2 = NVL(#shiptoaddr2#,' ')
+			AND NVL(ADDR_TYPE,' ') = NVL(#shiptoaddrtype#,' ')
+			AND POSTAL_CODE = NVL(#shiptozipcode#,' ')
+			AND TELEPHONE = NVL(#shiptotelno#, ' ')
+			AND MOBILE = NVL(#shiptomobile#, ' ') || '**'
+			AND substr(contact_id,1,8) >= to_char(sysdate -1 ,'yyyymmdd') 
+			GROUP BY NAME, ADDRESS_1, ADDRESS_2, ADDR_TYPE, POSTAL_CODE, TELEPHONE, MOBILE
+		]]>	 
+	</select>
+
+	<select id="insertTxOrder22" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')||LPAD(SHOPUSR.CONTACT_SEQ.nextval, 6, 0) as shipto_id
+          FROM DUAL
+		]]>	 
+	</select>
+		
+	<select id="insertTxOrder23" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT CM.CP_CMP as cCpCmp , CM.TYPE as cCpType
+	      FROM CP_MASTER CM, CP_USERINFO CU, CP_PAYMENT CP
+	     WHERE CM.CP_EVENT_ID = CU.CP_EVENT_ID
+	       AND CU.CP_NO = CP.CP_NO
+	       AND CP.PURCHASE_ID = #purchaseid#
+	       AND CP.GOODS_IDN = #goodsidn#
+	       AND CU.ACCESS_NAME = #accessname#
+		]]>	 
+	</select>
+	
+	 <select id="insertTxOrder27" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as i_callcenter_cnt
+            from callcenter_order
+            where purchase_id = #purchaseid#
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder28" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT max(substr(access_name,1,13))  as sCallCenter_Id
+            from callcenter_order
+            where purchase_id = #purchaseid#
+		]]>	 
+	</select>
+	<select id="insertTxOrder29" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  flwcode as flwcode, msg_code as message_code,msg as message
+			FROM TXORDER_ITEM
+			where txorder_id = #txorderid#
+			and  goods_idn = 0
+	
+		]]>	 
+	</select>
+	<select id="insertTxOrder30" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT  NVL(POST_GBN,'')  as sPostGbn
+             FROM BANKTOWN
+             where purchase_id =  #purchaseid#
+		]]>	 
+	</select>
+	
+	<insert id="insertTxOrderExec3" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO TXORDER
+		        (TXORDER_ID, PURCHASE_ID, ACCESS_NAME, BILL_TO_ID, SHIP_TO_ID,
+		         COMPLETE_DATE, ORDER_DATE, AMOUNT, WISH_DATE,
+		         STATUS, STATUS_DETAIL, CANCEL_STATE, SHOP_ID, ECODE,
+		         POSTOFFICE_NAME, BIZ_CODE, BIZ_NAME, PAYMETHOD, LAST_DATE,
+		         M_PCODE, M_ID, SMS_YN, RM_POINT, RM_STATE, RM_AMOUNT,FEE_RATE,FEE_AMOUNT,
+		         CP_CMP, COUPON_AMOUNT, SP_STATE, SP_AMOUNT, ORDER_GUBUN, GOODS_GUBUN,
+		         RECOMMENDID,RECOMMENDINFO,REQUEST_ID,
+		            EPOST_MILE_ID,
+		            GOODS_CODE,
+		            GOODS_IDN,
+		            CSF_FEE,
+		            FLWR_DELIV_FEE,
+		            GOODS_WGHT,
+		            GOODS_VOLM,
+		            DOM_EXPYN,
+		            KINDDIVCD,
+		            THISDDDELIVYN,
+		            STDDIVCD,
+		            CNTER_NO,
+		            RECEV_PO_REGIPOCD,
+		            FRN_MAIL_DIV_CD,
+		            TAX_YN,
+		            TAX_AMT,
+		            SUPP_PO_REGIPOCD,
+		            REQ_TO_ID,
+		            DELIV_CERT_FEE,
+		            CONG_CARD_FEE,
+		            CARD_TAX_AMT,
+		            CASH_TAX_AMT,
+		            CASH_BILL_YN,
+		            CASH_BILL_AMT,
+		            STRT_REG_PRSN_ID,
+		            LAST_CHG_PRSN_ID,
+		            M_REGIPOCD,
+		            GOODS_NAME,
+		            FLWCODE,
+		            MSG_CODE,
+		            MSG,
+		            JUNG_DATE,
+		            CANCEL_REQ_YMD,
+		            CANCEL_REQ_CONT,
+		            CANCEL_REASN_CONT,
+		            SUPP_PO_COMMENT,
+		            CANCEL_REQ_REGIPOCD,
+		            DELIV_CERT_YN,
+		            CONG_CARD_YN,
+		            CDADDR_KINDCD,
+		            GOODS_DIVNO,
+		            SND_DTTM,
+		            SUPP_NOTIC_DD_PER_SEQ,
+		            REGINO_CREATE_DIV_CD,
+		            PRCL_PRC,
+		            IMMEDIATE_PRCL_PRC,
+		            LATER_PRCL_PRC,
+		            DELIV_DONE_YN,
+		            DELAY_REASN_CONT,
+		            DELAY_REASN_CD,
+		            REQ_IMAGINE_TEL_NO,
+		            REC_IMAGINE_TEL_NO,
+		            RET_YN,
+		            REFUND_CARD_SETL_FEE,
+		            DEFICIT_YN,
+		            DEFICIT_CARD_SETL_FEE,
+		            GIFT_GOODS_YN,
+		            ORG_AMOUNT,
+		            MOBILE_GBN,
+		            CP_TYPE,
+		            POST_GBN,
+		            POST_AMOUNT,
+		            CONGMSG,CONGMSG_FTYPE,CONGMSG_FSTYLE,
+		            GIFTICON_YN,
+		            MOBILE_WEB_GBN,
+		            AMOUNT_OKCASH,
+		            EXT_BIZ_ORDER_YN,
+		            EXT_BIZ_CODE,
+		            EXT_BIZ_ORD_NO,
+		            EXT_BIZ_ORD_SEQ,
+		            EXT_MALL_CODE, 
+		            EXT_MALL_FEE,
+		            invoice_amt,
+		            invoice_gbn,
+		            option_code,
+		            option_seq,
+		            option_amt
+		    )
+		    VALUES
+		        (#txorderid#, #purchaseid#,
+		         nvl(#accessname#, ' '), #billtoid#, #shiptoid#,
+		         DECODE(#paymethod#, 'O', '', #orderdate#),
+		         #orderdate#, #txprice# + #optionamt# + #iinvoiceamt1#, #wishdate#,
+		         #payresult#, '00', 'N', #shopid#, #ecode#,
+		         #postoffice#, nvl(#bizcodeone#, #bizcode#), nvl(#biznameone#, #bizname#),
+		         #paymethod#, TOCHAR(sysdate, 'yyyymmddhh24miss'), #mpcode#, #mid#, #smsyn#,
+		         decode(trim(#accessname#), null, 0, nvl((CEIL(#rmpoint# * (( #gTotPrice# - #rmpayamt# * 10 - #nCpAmtSum# - #sppayamt# * 1 - #okcashpayamt#) / #gTotPrice#))), 0)    ),
+		         #rmstate#,#dFundPrice#,#gPayRate#,#dPayRatePrice#, #cCpCmp#, #cpamt#, #spstate#,
+		         #dFundSPrice#, decode(#nGoodsIdn#, -999, null, #nGoodsIdn#), #cGoodsGubun#,
+		         #recommendid#,#recommendinfo#,#requestId#,
+		            ' ',
+		         #goodscode#,
+		         #goodsidn#,
+		         #lCsfFee#,
+		            FLOOR(FLOOR(#txprice# * DECODE(#goodstype#,'2',6,'4',6, 0)/100)/10)*10,
+		            #unitwgt#,
+		            #unitvol#,
+		            #expressflag#,
+		            #jonggbn#,
+		            #thisdddelivyn#,
+		            #stddivcd#,
+		            '000',
+		            #recevporegipocd#,
+		            #frnMailDivCd#,
+		            #taxgbn#,
+		            #taxAmt#,
+		            #suppPoRegiPoCd#,
+		            #billtoid#,
+		            0,
+		            0,
+		            NVL(FLOOR(DECODE(#paymethod#, 'O', 0, DECODE(NVL(#taxgbn#,'N'),'N',0,#txprice# - (#dFundPrice# + #dFundSPrice# + #cpamt# + #dOkCashPrice#))) /11),0),
+		            NVL(FLOOR(DECODE(#paymethod#, 'O', DECODE(NVL(#taxgbn#,'N'),'N',0,#txprice# - (#dFundPrice# + #dFundSPrice# + #cpamt# + #dOkCashPrice#),0)) /11),0),
+		            DECODE(#paymethod#, 'O', 'Y', 'B','Y','N'),
+		            NVL(DECODE(#paymethod#, 'O', #txprice# - (#dFundPrice# + #dFundSPrice# + #cpamt# + #dOkCashPrice# ), 0),0)+
+		            NVL(DECODE(#paymethod#, 'B', #txprice# - (#dFundPrice# + #dFundSPrice# + #cpamt# + #dOkCashPrice# ), 0),0),
+		            #sCallCenterId#,
+		            #sCallCenterId#,
+		            #mregipocd#,
+		            #goodsname#,
+		            #flwcode#,
+		            #messagecode#,
+		            #message#,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            decode(#shopid#,'2','002','001'),
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            null,
+		            'N',
+		            0,
+		            'N',
+		            0,
+		            #giftgoodsyn#,
+					#orgamount#,
+					#mobilegbn#,
+					#cCpType#,
+					#sPostGbn#,
+					#dPostAmount# * 10,
+					#congmsg#,
+					#congmsgftype#,
+					#congmsgfstyle#,
+					#gifticonyn#,
+					#mobilewebgbn#,
+					#dOkCashPrice#,
+					#extbizorderyn#,
+					#extbizcode#,
+					#extbizordno#,
+					#extbizordseq#,
+					#extmallcode#,
+					#lExternalBizFee#,
+					#iinvoiceamt1#,#invoicegbn#,
+					#optioncode#,#optionseq#,#optionamt#
+		         )
+		]]>	 
+	</insert>	
+ 
+	<select id="insertTxOrder33" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 as seq FROM RM_HISTORY WHERE ACCESS_NAME = nvl(#accessname#, ' ')
+		]]>	 
+	</select>
+	
+	<select id="insertTxOrder34" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT CUR_POINT as cpoint FROM RM_MASTER WHERE ACCESS_NAME = nvl(#accessname#, ' ')
+		]]>	 
+	</select>
+	
+	<insert id="insertTxOrderExec4" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO RM_MASTER(ACCESS_NAME, CUR_POINT, TOT_ACCU_POINT, TOT_USE_POINT, LASTCHANGE) VALUES(nvl(#accessname#, ' '), 0, 0, 0, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'))
+		]]>	 
+	</insert>	
+	
+	<insert id="insertTxOrderExec5" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO RM_HISTORY (ACCESS_NAME, SEQ, RM_TYPE, PURCHASE_ID, TXORDER_ID, PRE_ACCU_POINT, ACCU_POINT, CUR_POINT,
+                    CASE_CONT, STATUS, TYPE_CD, REG_DATE, CREATE_DATE)
+            VALUES(nvl(#accessname#, ' '), #seq#, 'A', #purchaseid#, #txorderid#, 
+            nvl((CEIL(#rmpoint# * (( #gTotPrice# - #rmpayamt# * 10 - #nCpAmtSum# - #sppayamt# * 1 - #okcashpayamt# * 1 ) / #gTotPrice#))), 0), 
+            0, nvl(#cpoint#, 0), '상품주문', '0', 'A1', TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') )
+		]]>	 
+	</insert>
+	
+	<select id="insert_pmt_instruction1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT goods_code,count(goods_code)
+		    from txorder_item
+		    where txorder_id  like #purchaseid# || '%'
+		      and goods_idn > 0
+		    group by goods_code
+		]]>	 
+	</select>
+	
+	<select id="insert_pmt_instruction2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT distinct cp_no 
+            FROM cp_payment
+            WHERE purchase_id = #purchaseid#
+		]]>	 
+	</select>
+	 
+	<update id="updateTxOrder" parameterClass="java.util.HashMap">
+		<![CDATA[
+			 UPDATE TXORDER
+             SET RM_AMOUNT       = RM_AMOUNT       + ( #gTotFundPrice#    - #gSumFundPrice# ) ,
+                 FEE_AMOUNT      = FEE_AMOUNT      + ( #gTotPayRatePrice# - #gSumPayRatePrice# ),
+                 SP_AMOUNT       = SP_AMOUNT       + ( #gTotFundSPrice#   - #gSumFundSPrice# ),
+                 POST_AMOUNT     = POST_AMOUNT     + ( #gTotPostAmt#      - #gSumPostAmt# ) * 10 ,
+                 AMOUNT_OKCASH   = AMOUNT_OKCASH   + ( #gTotOkCashPrice#  - #gSumOkCashPrice# )
+             where purchase_id = #purchaseid#
+               and txorder_id = ( select max(txorder_id)
+                                 From txorder
+                                 where purchase_id = #purchaseid#
+                                 and   nvl(gift_goods_yn, 'N') = 'N')
+		]]>
+	</update>	
+	
+	<insert id="insertPmtInstructionExec1" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO PMT_INSTRUCTION
+	        (PURCHASE_ID, BILL_TO_ID, AMOUNT,
+	         STATE, REFUND_AMOUNT, PMT_DATE, PAY_NAME, PAY_METHOD,IP_ADDR,
+	         SEQ,USE_YN,
+	         GOODS_AMOUNT,
+	         FEE_AMOUNT,
+	         AMOUNT_CASH,
+	         AMOUNT_CARD,
+	         AMOUNT_BANKTOWN,
+	         AMOUNT_CARD_EPOST,
+	         AMOUNT_CARD_OVERSEA,
+	         AMOUNT_ACCOUNT,
+	         AMOUNT_SP,
+	         AMOUNT_RM,
+	         AMOUNT_COUPON,
+	         AMOUNT_MULTIGIFT,
+	         AMOUNT_CYBERPASS,
+	         CANCEL_YN,
+	         CLOSE_RECEV_YN,
+	         TOT_DELIV_CERT_FEE,
+	         TOT_CONG_CARD_FEE,
+	         TOT_TAX_AMT,
+	         TOT_CARD_TAX_AMT,
+	         TOT_CASH_TAX_AMT,
+	         TOT_CASH_BILL_AMT,
+	         JUNG_DATE,
+	         JUNG_YN,
+	         JUNG_COMPLETE_DATE,
+	         RCPT_CLOSE_YMD,
+	         SALES_CLOSE_YMD,
+	         CUST_NO,
+	         STRT_REG_PRSN_ID,
+	         LAST_CHG_PRSN_ID,
+	         LAST_DATE,
+	         RECEV_PO_REGIPOCD,
+	         CNTER_NO,
+	         AMOUNT_OKCASH
+	        )
+	        SELECT    #purchaseid#,
+	            MAX(A.BILL_TO_ID),
+	            NVL(SUM( A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) )),0),
+	                DECODE(#payresult#, 2, '2100', '2101'),
+	                0, MAX(A.ORDER_DATE), MAX(B.CARD_ISSUER), #paymethod#, #ipaddr#,
+	                1,'Y',
+	              NVL(SUM(A.AMOUNT),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'O', 0, NVL(A.FEE_AMOUNT,0))),0),
+	              0,
+	              0,
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'B', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'C', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'D', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'O', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(nvl(A.SP_AMOUNT,0)+ nvl(A.SP_PEF_AMOUNT,0)),0),
+	              NVL(SUM(nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0)),0),
+	              NVL(SUM(nvl(A.COUPON_AMOUNT,0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'G', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'S', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0)), 0)),0),
+	                'N',
+	                'N',
+	                0,
+	                0,
+	              NVL(SUM(A.CARD_TAX_AMT) + SUM(A.CASH_TAX_AMT) ,0) ,
+	              NVL(SUM(A.CARD_TAX_AMT),0) ,
+	              NVL(SUM(A.CASH_TAX_AMT),0) ,
+	              NVL(SUM(A.CASH_BILL_AMT),0) ,
+	                MAX(SUBSTR(A.ORDER_DATE,1,8)),
+	                'N',
+	                null,
+	                null,
+	                null,
+	                null,
+	                'epost',
+	                'epost',
+	                TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+	                MAX(A.recev_po_regipocd),
+	                '000',
+	                NVL(SUM(nvl(A.AMOUNT_OKCASH,0)),0)
+	          FROM    TXORDER A, KICC_CREDIT B , GOODS_MASTER C
+	         WHERE    A.PURCHASE_ID = #purchaseid#
+	           AND    A.PURCHASE_ID = B.PURCHASE_ID(+)
+	           AND  A.GOODS_IDN   = C.GOODS_IDN(+)
+	         GROUP BY A.PURCHASE_ID
+		]]>	 
+	</insert>
+	 
+	<insert id="insertPmtInstructionExec2" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO PMT_INSTRUCTION
+	        (PURCHASE_ID, BILL_TO_ID, AMOUNT, STATE, REFUND_AMOUNT, PMT_DATE, PAY_NAME, PAY_METHOD, IP_ADDR,
+	         SEQ,USE_YN,
+	         GOODS_AMOUNT,
+	            FEE_AMOUNT,
+	            AMOUNT_CASH,
+	            AMOUNT_CARD,
+	            AMOUNT_BANKTOWN,
+	            AMOUNT_CARD_EPOST,
+	            AMOUNT_CARD_OVERSEA,
+	            AMOUNT_ACCOUNT,
+	            AMOUNT_SP,
+	            AMOUNT_RM,
+	            AMOUNT_COUPON,
+	            AMOUNT_MULTIGIFT,
+	            AMOUNT_CYBERPASS,
+	            CANCEL_YN,
+	            CLOSE_RECEV_YN,
+	          TOT_DELIV_CERT_FEE,
+	          TOT_CONG_CARD_FEE,
+	            TOT_TAX_AMT,
+	            TOT_CARD_TAX_AMT,
+	            TOT_CASH_TAX_AMT,
+	            TOT_CASH_BILL_AMT,
+	            JUNG_DATE,
+	            JUNG_YN,
+	            JUNG_COMPLETE_DATE,
+	            RCPT_CLOSE_YMD,
+	            SALES_CLOSE_YMD,
+	            CUST_NO,
+	            STRT_REG_PRSN_ID,
+	            LAST_CHG_PRSN_ID,
+	            LAST_DATE,
+	            RECEV_PO_REGIPOCD,
+	            CNTER_NO,
+	            EXT_BIZ_ORDER_YN,
+	            EXT_BIZ_CODE,
+	            EXT_BIZ_ORD_NO,
+	            EXT_BIZ_ORD_SEQ,
+	            EXT_MALL_CODE,
+	            AMOUNT_OKCASH,
+	            AMOUNT_KAKAO,
+	            AMOUNT_MOBILE
+	         )
+	        SELECT    #purchaseid#, MAX(A.BILL_TO_ID),
+	            NVL(SUM( A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0))),0),
+	            DECODE(#payresult#, 1, '2030', 2, '2100', '2010'),
+	                0,MAX(DECODE(A.PAYMETHOD, 'O', '',A.ORDER_DATE)),
+	                DECODE(#paymethod#,'S','소액결제','B','즉시이체','O',#bankname#, 'R', '포인트','P','우수고객포인트','K', 'OK캐쉬백','A',#bankname#,'I', '핸드폰','G','외부'), #paymethod#, #ipaddr#,
+	                1,'Y',
+	              NVL(SUM(A.AMOUNT),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'O', 0, NVL(A.FEE_AMOUNT,0))),0),
+	              0,
+	              0,
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'B', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'C', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'D', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'O', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(nvl(A.SP_AMOUNT,0)+ nvl(A.SP_PEF_AMOUNT,0)),0),
+	              NVL(SUM(nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0)),0),
+	              NVL(SUM(nvl(A.COUPON_AMOUNT,0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'G', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'S', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	                'N',
+	                'N',
+	                0,
+	                0,
+	              NVL(SUM(A.CARD_TAX_AMT) + SUM(A.CASH_TAX_AMT) ,0) ,
+	              NVL(SUM(A.CARD_TAX_AMT),0) ,
+	              NVL(SUM(A.CASH_TAX_AMT),0) ,
+	              NVL(SUM(A.CASH_BILL_AMT),0) ,
+	                MAX(SUBSTR(A.ORDER_DATE,1,8)),
+	                'N',
+	                null,
+	                null,
+	                null,
+	                null,
+	                'epost',
+	                'epost',
+	                TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+	                MAX(A.recev_po_regipocd),
+	                '000',
+	              MAX(A.EXT_BIZ_ORDER_YN),
+	              MAX(A.EXT_BIZ_CODE),
+	              MAX(A.EXT_BIZ_ORD_NO),
+	              MAX(A.EXT_BIZ_ORD_SEQ),
+	              MAX(A.EXT_MALL_CODE),
+	                 NVL(SUM(nvl(A.AMOUNT_OKCASH,0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'A', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0),
+	              NVL(SUM(DECODE(A.PAYMETHOD, 'I', A.AMOUNT - (nvl(A.RM_AMOUNT,0)+ nvl(A.RM_PEF_AMOUNT,0) + NVL(A.SP_AMOUNT,0)+ NVL(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ), 0)),0)
+	          FROM    TXORDER A
+	         WHERE    A.PURCHASE_ID = #purchaseid#
+		]]>	 
+	</insert>
+	
+	<insert id="insertPmtInstructionExec3" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO ORDER_REQ_INFO (PURCHASE_ID, ORDER_DATE, NAME)
+            SELECT PURCHASE_ID, MAX(SUBSTR(ORDER_DATE,1,8)), #billtoname#
+              FROM TXORDER
+             WHERE PURCHASE_ID = #purchaseid#
+             GROUP BY PURCHASE_ID 
+		]]>	 
+	</insert>
+
+	<select id="insert_pmt_instruction4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT COUNT(*) as cnt
+              FROM PMT_INSTRUCTION
+             WHERE PURCHASE_ID = #purchaseid#
+		]]>	 
+	</select>	
+	
+	<delete id="deleteBtOrder" parameterClass="java.util.HashMap">
+		<![CDATA[
+		delete BTORDER WHERE PURCHASE_ID = #purchaseid#
+		]]>
+	</delete>
+	
+	<select id="insert_pmt_instruction9" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  count(*) as iCmpMemberCnt 
+	        FROM MEMINFO
+	        WHERE ACCESS_NAME = #accessname# 
+	          AND MEMBER_TYPE = '2'
+		]]>	 
+	</select>
+	
+	<select id="insert_pmt_instruction10" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as iRgrCnt
+            FROM RGR_MEMINFO      
+            WHERE ACCESS_NAME =  #accessname#
+		]]>	 
+	</select>
+	
+	<select id="insert_pmt_instruction11" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as iRgrCnt   
+            FROM MEM_GRADE 
+            WHERE ACCESS_NAME = #accessname#
+              AND APPLY_DATE = TO_CHAR(SYSDATE, 'YYYYMM')
+              AND GRADE in ('2','3','4','5')
+		]]>	 
+	</select>
+	
+	<delete id="deleteRgrOrder" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE FROM  RGR_ORDER
+        WHERE PURCHASE_ID = #purchaseid#
+		]]>
+	</delete>
+	
+	<insert id="insertPmtInstructionExec6" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO  RGR_ORDER ( PURCHASE_ID,GOODS_IDN,GOODS_PRICE,ORDER_DATE)
+	         SELECT #purchaseid#, GOODS_IDN , GOODS_PRICE ,to_char(sysdate,'yyyymmddhh24miss') 
+	           FROM (  
+	                 SELECT A.GOODS_IDN
+                           ,MIN(A.AMOUNT - (nvl(A.INVOICE_AMT,0) + nvl(A.OPTION_AMT,0))) PRICE 
+                           ,NVL(MIN(B.SALE_PRICE),0) SALE_PRICE 
+                           ,NVL(MIN(C.PRICE_SALE),0)  GOODS_PRICE
+                      FROM TXORDER A , RGR_GOODS B , GOODS_MASTER C
+                     WHERE A.PURCHASE_ID = #purchaseid#
+                       AND A.GOODS_IDN = B.GOODS_IDN
+                       AND A.GOODS_IDN = C.GOODS_IDN
+                       AND A.GOODS_IDN  > 0
+                       AND A.AMOUNT  > 0
+                     GROUP BY A.GOODS_IDN
+	               )
+	           WHERE  PRICE = SALE_PRICE
+		]]>	 
+	</insert>
+	
+	<insert id="insertPmtInstructionExec7" parameterClass="java.util.HashMap">	
+		<![CDATA[
+			INSERT INTO CP_USERINFO (ACCESS_NAME,CP_EVENT_ID,CP_NO,IP_ADDR,CREATE_DATE,USE_FROM,USE_TO)
+                select a.ACCESS_NAME,a.CP_EVENT_ID,substr(a.CP_NO,1,2) || TO_CHAR(SYSDATE, 'YYMMDDHH24MI') || LPAD( SHOPUSR.CP_USERINFO_SEQ.NEXTVAL, 8, 0) ,a.IP_ADDR,TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),a.USE_FROM,a.USE_TO
+                from cp_userinfo a, cp_master b
+                where a.cp_event_id = b.cp_event_id 
+                and a.access_name =  #accessname#
+                and a.cp_no = #sCpNo#
+                and substr(a.use_date,1,8) = to_char(sysdate,'yyyymmdd') 
+                and b.apply_type = 'B' 
+                AND b.cnt_chk = 2 
+                AND b.stop_date is null
+		]]>	 
+	</insert>
+				
+ 	
+</sqlMap>

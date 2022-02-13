@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostOpratnStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 년도(조회조건) -->
+	<select id="selectUseYearList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				SUBSTR(USE_DATE,1,4) USE_YEAR 
+			FROM CM_USE_DATE
+			GROUP BY SUBSTR(USE_DATE,1,4)
+			ORDER BY SUBSTR(USE_DATE,1,4)
+		]]>	 
+	</select>	
+	
+	<!-- 회원가입건수 -->
+	<select id="selectMemberRegCntList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+				SUBSTR(B.USE_DATE,5,2) || '.' || SUBSTR(B.USE_DATE,7,2) USE_DATE,
+				NVL(A.REG_CNT, 0) REG_CNT
+			FROM (
+					SELECT 
+					    SUBSTR(CREATE_DATE, 1, 8) REG_DATE,
+					    COUNT(*) REG_CNT
+					FROM MEMINFO
+                    WHERE 1 = 1
+                    AND CREATE_DATE BETWEEN #searchYear# ||#searchMonth# ||'0100' AND #searchYear# || #searchMonth# || '3199'
+                    GROUP BY SUBSTR(CREATE_DATE, 1, 8)
+				 ) A, CM_USE_DATE B
+			WHERE 1 = 1
+			AND A.REG_DATE(+) = B.USE_DATE
+			AND B.USE_DATE BETWEEN #searchYear# ||#searchMonth# ||'01' AND #searchYear# || #searchMonth# || '31'
+			ORDER BY B.USE_DATE
+		]]>	 
+	</select>	
+	
+	<!-- 주문톧계-실주문수/주문건수/주문수량(개) -->
+	<select id="selectRealOrderCntList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  
+				SUBSTR(B.USE_DATE,5,2) || '.' || SUBSTR(B.USE_DATE,7,2) AS ORDER_DATE,
+				NVL(SUM(A.ORDER_SUM), 0) AS ORDER_COUNT,
+				NVL(SUM(A.ORDER_SUM), 0) AS ITEM_COUNT,
+				NVL(SUM(A.DESIRED_QUANTITY), 0) AS QUANTITY,
+				NVL(SUM(A.RM_QTY), 0) AS RM_COUNT,
+				NVL(SUM(A.CP_QTY), 0) AS CP_COUNT,
+				NVL(SUM(A.SP_QTY), 0) AS SP_COUNT
+			FROM MP_HISTORY_STAT A, CM_USE_DATE B
+			WHERE 1 = 1
+			AND DAY(+) = SUBSTR(B.USE_DATE,1,4) || '/' || SUBSTR(B.USE_DATE,5,2) || '/' || SUBSTR(B.USE_DATE,7,2)
+			]]>
+            <isNotEmpty property="searchOrderMdaDivCd">
+				<![CDATA[
+					AND A.ORDER_MDA_DIV_CD(+) = #searchOrderMdaDivCd#
+				]]>		
+			</isNotEmpty>
+			<![CDATA[
+			AND B.USE_DATE BETWEEN #searchYear# ||#searchMonth# ||'01' AND #searchYear# || #searchMonth# || '31'
+			GROUP BY B.USE_DATE
+			ORDER BY B.USE_DATE
+		]]>	 
+	</select>	
+	
+	<!-- 주문톧계-신용카드 -->
+	<select id="selectCardOrderCntList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  
+				SUBSTR(B.USE_DATE,5,2) || '.' || SUBSTR(B.USE_DATE,7,2) AS ORDER_DATE,
+				NVL(A.ORDER_COUNT, 0) AS ORDER_COUNT,
+				NVL(A.RM_COUNT, 0)    AS RM_COUNT,
+				NVL(A.CP_COUNT, 0)    AS CP_COUNT,
+				NVL(A.SP_COUNT, 0)    AS SP_COUNT
+			FROM (
+					SELECT  
+						REPLACE(DAY, '/', '')  DAY,
+						SUM(NVL(ORDER_SUM, 0)) AS ORDER_COUNT,
+						NVL(SUM(RM_QTY), 0) AS RM_COUNT,
+						NVL(SUM(CP_QTY), 0) AS CP_COUNT,
+						NVL(SUM(SP_QTY), 0) AS SP_COUNT
+					FROM MP_HISTORY_STAT
+					WHERE 1 = 1
+					AND PAYMETHOD IN ('02', '04')
+					AND DAY BETWEEN #searchYear# || '/' || #searchMonth# ||'/01' AND #searchYear# || '/' || #searchMonth# ||'/31'
+					]]>
+		            <isNotEmpty property="searchOrderMdaDivCd">
+						<![CDATA[
+							AND ORDER_MDA_DIV_CD(+) = #searchOrderMdaDivCd#
+						]]>		
+					</isNotEmpty>
+					<![CDATA[
+					GROUP BY DAY) A, CM_USE_DATE B
+			WHERE 1 = 1
+			AND A.DAY(+) = B.USE_DATE
+			AND B.USE_DATE BETWEEN #searchYear# ||#searchMonth# ||'01' AND #searchYear# || #searchMonth# || '31'
+			ORDER BY B.USE_DATE
+		]]>	 
+	</select>	
+	
+	<!-- 주문톧계-가상계좌송금/가상계좌주문/소액결제/즉시이체/마일리지/우수고객포인트/간편결제/복합결제/온누리상품권 -->
+	<select id="selectEctOrderCntList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+				ORDER_DATE,
+				SUM(NVL(ONLN_ORDER_COUNT, 0))           ONLN_ORDER_COUNT,
+				SUM(NVL(ONLN_RM_COUNT, 0))              ONLN_RM_COUNT,
+				SUM(NVL(ONLN_CP_COUNT, 0))              ONLN_CP_COUNT,
+				SUM(NVL(ONLN_SP_COUNT, 0))              ONLN_SP_COUNT,
+				SUM(NVL(CYBER_PASS_ORDER_COUNT, 0))     CYBER_PASS_ORDER_COUNT,
+				SUM(NVL(CYBER_PASS_RM_COUNT, 0))        CYBER_PASS_RM_COUNT,
+				SUM(NVL(CYBER_PASS_CP_COUNT, 0))        CYBER_PASS_CP_COUNT,
+				SUM(NVL(CYBER_PASS_SP_COUNT, 0))        CYBER_PASS_SP_COUNT,
+				SUM(NVL(BANK_TOWN_ORDER_COUNT, 0))      BANK_TOWN_ORDER_COUNT,
+				SUM(NVL(BANK_TOWN_RM_COUNT, 0))         BANK_TOWN_RM_COUNT,
+				SUM(NVL(BANK_TOWN_CP_COUNT, 0))         BANK_TOWN_CP_COUNT,
+				SUM(NVL(BANK_TOWN_SP_COUNT, 0))         BANK_TOWN_SP_COUNT,
+				SUM(NVL(MILEAGE_ORDER_COUNT, 0))        MILEAGE_ORDER_COUNT,
+				SUM(NVL(MILEAGE_RM_COUNT, 0))           MILEAGE_RM_COUNT,
+				SUM(NVL(MILEAGE_CP_COUNT, 0))           MILEAGE_CP_COUNT,
+				SUM(NVL(MILEAGE_SP_COUNT, 0))           MILEAGE_SP_COUNT,
+				SUM(NVL(PREMI_POINT_ORDER_COUNT, 0))    PREMI_POINT_ORDER_COUNT,
+				SUM(NVL(PREMI_POINT_RM_COUNT, 0))       PREMI_POINT_RM_COUNT,
+				SUM(NVL(PREMI_POINT_CP_COUNT, 0))       PREMI_POINT_CP_COUNT,
+				SUM(NVL(PREMI_POINT_SP_COUNT, 0))       PREMI_POINT_SP_COUNT,
+				SUM(NVL(EASY_ORDER_COUNT, 0))           EASY_ORDER_COUNT,
+				SUM(NVL(EASY_RM_COUNT, 0))              EASY_RM_COUNT,
+				SUM(NVL(EASY_CP_COUNT, 0))              EASY_CP_COUNT,
+				SUM(NVL(EASY_SP_COUNT, 0))              EASY_SP_COUNT,
+				SUM(NVL(COMPLEX_ORDER_COUNT, 0))        COMPLEX_ORDER_COUNT,
+				SUM(NVL(COMPLEX_RM_COUNT, 0))           COMPLEX_RM_COUNT,
+				SUM(NVL(COMPLEX_CP_COUNT, 0))           COMPLEX_CP_COUNT,
+				SUM(NVL(COMPLEX_SP_COUNT, 0))           COMPLEX_SP_COUNT,
+				SUM(NVL(ONNURI_ORDER_COUNT, 0))         ONNURI_ORDER_COUNT,
+				SUM(NVL(ONNURI_RM_COUNT, 0))            ONNURI_RM_COUNT,
+				SUM(NVL(ONNURI_CP_COUNT, 0))            ONNURI_CP_COUNT,
+				SUM(NVL(ONNURI_SP_COUNT, 0))			ONNURI_SP_COUNT
+			FROM
+			(
+				SELECT
+					ORDER_DATE,
+					CASE WHEN PAYMETHOD IN ('01')
+						 THEN ORDER_COUNT
+					END  ONLN_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('01')
+						 THEN RM_COUNT
+					END  ONLN_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('01')
+						 THEN CP_COUNT
+					END  ONLN_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('01')
+						 THEN SP_COUNT
+					END  ONLN_SP_COUNT,
+					
+					CASE WHEN PAYMETHOD IN ('12')
+						 THEN ORDER_COUNT
+					END  CYBER_PASS_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('12')
+						 THEN RM_COUNT
+					END  CYBER_PASS_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('12')
+						 THEN CP_COUNT
+					END  CYBER_PASS_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('12')
+						 THEN SP_COUNT
+					END  CYBER_PASS_SP_COUNT,
+					
+					CASE WHEN PAYMETHOD IN ('06')
+						 THEN ORDER_COUNT
+					END  BANK_TOWN_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('06')
+						 THEN RM_COUNT
+					END  BANK_TOWN_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('06')
+						 THEN CP_COUNT
+					END  BANK_TOWN_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('06')
+						 THEN SP_COUNT
+					END  BANK_TOWN_SP_COUNT,
+					
+					CASE WHEN PAYMETHOD IN ('14')
+						 THEN ORDER_COUNT
+					END  MILEAGE_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('14')
+						 THEN RM_COUNT
+					END  MILEAGE_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('14')
+						 THEN CP_COUNT
+					END  MILEAGE_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('14')
+						 THEN SP_COUNT
+					END  MILEAGE_SP_COUNT,
+					
+					CASE WHEN PAYMETHOD IN ('09')
+						 THEN ORDER_COUNT
+					END  PREMI_POINT_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('09')
+						 THEN RM_COUNT
+					END  PREMI_POINT_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('09')
+						 THEN CP_COUNT
+					END  PREMI_POINT_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('09')
+						 THEN SP_COUNT
+					END  PREMI_POINT_SP_COUNT,
+					
+					CASE WHEN PAYMETHOD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 THEN ORDER_COUNT
+					END  EASY_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 THEN RM_COUNT
+					END  EASY_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 THEN CP_COUNT
+					END  EASY_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('07', '20', '21', '22', '23', '24', '25', '26', '27')
+						 THEN SP_COUNT
+					END  EASY_SP_COUNT,
+					
+					CASE WHEN PAYMETHOD IN ('16')
+						 THEN ORDER_COUNT
+					END  COMPLEX_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('16')
+						 THEN RM_COUNT
+					END  COMPLEX_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('16')
+						 THEN CP_COUNT
+					END  COMPLEX_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('16')
+						 THEN SP_COUNT
+					END  COMPLEX_SP_COUNT,
+					
+					CASE WHEN PAYMETHOD IN ('08')
+						 THEN ORDER_COUNT
+					END  ONNURI_ORDER_COUNT,
+					CASE WHEN PAYMETHOD IN ('08')
+						 THEN RM_COUNT
+					END  ONNURI_RM_COUNT,
+					CASE WHEN PAYMETHOD IN ('08')
+						 THEN CP_COUNT
+					END  ONNURI_CP_COUNT,
+					CASE WHEN PAYMETHOD IN ('08')
+						 THEN SP_COUNT
+					END  ONNURI_SP_COUNT
+				FROM
+				(
+					SELECT  
+						SUBSTR(B.USE_DATE,5,2) || '.' || SUBSTR(B.USE_DATE,7,2) AS ORDER_DATE,
+						NVL(SUM(A.ORDER_SUM), 0) AS ORDER_COUNT,
+						NVL(SUM(A.RM_QTY), 0) AS RM_COUNT,
+						NVL(SUM(A.CP_QTY), 0) AS CP_COUNT,
+						NVL(SUM(A.SP_QTY), 0) AS SP_COUNT,
+						A.PAYMETHOD
+					FROM MP_HISTORY_STAT A, CM_USE_DATE B
+					WHERE 1 = 1
+					AND A.DAY(+) = SUBSTR(B.USE_DATE,1,4) || '/' || SUBSTR(B.USE_DATE,5,2) || '/' || SUBSTR(B.USE_DATE,7,2)
+					]]>
+		            <isNotEmpty property="searchOrderMdaDivCd">
+						<![CDATA[
+							AND A.ORDER_MDA_DIV_CD(+) = #searchOrderMdaDivCd#
+						]]>		
+					</isNotEmpty>
+					<![CDATA[
+					AND B.USE_DATE BETWEEN #searchYear# ||#searchMonth# ||'01' AND #searchYear# || #searchMonth# || '31'
+					GROUP BY B.USE_DATE, A.PAYMETHOD
+				)
+			)
+			GROUP BY ORDER_DATE
+			ORDER BY ORDER_DATE
+		]]>	 
+	</select>	
+	
+	<!-- 상품매출액-실매출액 -->
+	<select id="selectGoodsRealSellAmtList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  
+				SUBSTR(B.USE_DATE,5,2) || '.' || SUBSTR(B.USE_DATE,7,2) AS ORDER_DATE,
+				NVL(SUM(A.SALES_AMOUNT),0) AS AMOUNT,
+				NVL(SUM(A.DESIRED_QUANTITY) ,0) AS COUNT
+			FROM MP_HISTORY_STAT A, CM_USE_DATE B
+			WHERE 1 = 1
+			AND A.DAY(+) = SUBSTR(B.USE_DATE,1,4) || '/' || SUBSTR(B.USE_DATE,5,2) || '/' || SUBSTR(B.USE_DATE,7,2)
+			]]>
+            <isNotEmpty property="searchOrderMdaDivCd">
+				<![CDATA[
+					AND A.ORDER_MDA_DIV_CD(+) = #searchOrderMdaDivCd#
+				]]>		
+			</isNotEmpty>
+			<![CDATA[
+			AND B.USE_DATE BETWEEN #searchYear# ||#searchMonth# ||'01' AND #searchYear# || #searchMonth# || '31'
+			GROUP BY B.USE_DATE
+			ORDER BY B.USE_DATE
+		]]>	 
+	</select>	
+	
+	<!-- 상품매출액-매출액 -->
+	<select id="selectGoodsSellAmtList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT
+			    ORDER_DATE,
+			    SUM(NVL(SPECIAL_AMOUNT, 0)) SPECIAL_AMOUNT,
+			    SUM(NVL(SPECIAL_COUNT, 0)) SPECIAL_COUNT,
+			    SUM(NVL(FLOWER_AMOUNT, 0)) FLOWER_AMOUNT,
+			    SUM(NVL(FLOWER_COUNT, 0)) FLOWER_COUNT,
+			    SUM(NVL(POSTMART_AMOUNT, 0)) POSTMART_AMOUNT,
+			    SUM(NVL(POSTMART_COUNT, 0)) POSTMART_COUNT,
+			    SUM(NVL(OVERSEA_AMOUNT, 0)) OVERSEA_AMOUNT,
+			    SUM(NVL(OVERSEA_COUNT, 0)) OVERSEA_COUNT,
+			    SUM(NVL(TRADITION_AMOUNT, 0)) TRADITION_AMOUNT,
+			    SUM(NVL(TRADITION_COUNT, 0)) TRADITION_COUNT,
+			    SUM(NVL(FASHIONB2B_AMOUNT, 0)) FASHIONB2B_AMOUNT,
+			    SUM(NVL(FASHIONB2B_COUNT, 0)) FASHIONB2B_COUNT
+			FROM
+			(SELECT  
+			 	SUBSTR(B.USE_DATE,5,2) || '.' || SUBSTR(B.USE_DATE,7,2) AS ORDER_DATE,
+				CASE WHEN SHOPID = '01'
+			         THEN NVL(A.AMOUNT, 0)
+			    END SPECIAL_AMOUNT,
+			    CASE WHEN SHOPID = '01'
+			         THEN NVL(A.COUNT, 0)
+			    END SPECIAL_COUNT,
+				CASE WHEN SHOPID = '04'
+			         THEN NVL(A.AMOUNT, 0)
+			    END FLOWER_AMOUNT,
+			    CASE WHEN SHOPID = '04'
+			         THEN NVL(A.COUNT, 0)
+			    END FLOWER_COUNT,
+			    CASE WHEN SHOPID IN ('92', '02')
+			         THEN NVL(A.AMOUNT, 0)
+			    END POSTMART_AMOUNT,
+			    CASE WHEN SHOPID IN ('92', '02')
+			         THEN NVL(A.COUNT, 0)
+			    END POSTMART_COUNT,
+			    CASE WHEN SHOPID IN ('07')
+			         THEN NVL(A.AMOUNT, 0)
+			    END OVERSEA_AMOUNT,
+			    CASE WHEN SHOPID IN ('07')
+			         THEN NVL(A.COUNT, 0)
+			    END OVERSEA_COUNT,
+			    CASE WHEN SHOPID IN ('05')
+			         THEN NVL(A.AMOUNT, 0)
+			    END TRADITION_AMOUNT,
+			    CASE WHEN SHOPID IN ('05')
+			         THEN NVL(A.COUNT, 0)
+			    END TRADITION_COUNT,
+			    CASE WHEN SHOPID IN ('08')
+			         THEN NVL(A.AMOUNT, 0)
+			    END FASHIONB2B_AMOUNT,
+			    CASE WHEN SHOPID IN ('08')
+			         THEN NVL(A.COUNT, 0)
+			    END FASHIONB2B_COUNT
+			FROM (
+			        SELECT  
+			            DAY,
+			            SUM(NVL(SALES_AMOUNT, 0)) AS AMOUNT,
+			            SUM(NVL(DESIRED_QUANTITY, 0)) AS COUNT,
+			            SHOPID
+			        FROM MP_HISTORY_STAT
+			        WHERE 1 = 1 
+			        AND DAY BETWEEN #searchYear# || '/' || #searchMonth# ||'/01' AND #searchYear#  || '/' || #searchMonth# || '/31'
+			        ]]>
+		            <isNotEmpty property="searchOrderMdaDivCd">
+						<![CDATA[
+							AND ORDER_MDA_DIV_CD(+) = #searchOrderMdaDivCd#
+						]]>		
+					</isNotEmpty>
+					<![CDATA[
+			        GROUP BY DAY, SHOPID
+			    ) A, CM_USE_DATE B
+			WHERE 1 = 1
+			AND A.DAY(+) = SUBSTR(B.USE_DATE,1,4) || '/' || SUBSTR(B.USE_DATE,5,2) || '/' || SUBSTR(B.USE_DATE,7,2)
+			AND B.USE_DATE BETWEEN #searchYear# ||#searchMonth# ||'01' AND #searchYear# || #searchMonth# || '31'
+			)
+			GROUP BY ORDER_DATE
+			ORDER BY ORDER_DATE
+		]]>	 
+	</select>	
+	
+</sqlMap>

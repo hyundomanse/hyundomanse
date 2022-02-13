@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Oversea">
+
+	<sql id="nation_list">
+		SELECT A.NATION_CD
+			 , A.NATION_NM_KO
+			 , A.NATION_NM_US
+			 , A.AREA_DIV
+			 , A.EMS_AREA
+			 , A.SP_AREA
+			 , A.SPCL_AREA_YN
+			 , A.USE_YN
+			 , DECODE(A.USE_YN, 'Y', '사용', '중지') AS USE_YN_NM
+			 , TO_DATE(CHG_DATE, 'YYYY-MM-DD') AS CHG_DATE
+			 , CHGER_ID
+			 , A.NATION_CD    AS VALUE
+			 , A.NATION_NM_KO AS NAME
+		  FROM CM_OVSEA_SEND_NATION_CD A
+		<dynamic prepend="WHERE">
+			<isNotEmpty property="search_text">
+				<isNotEmpty property="search_type" prepend="AND">
+					<isEqual property="search_type" compareValue="nation_cd">
+						A.NATION_CD = #search_text#
+					</isEqual>
+					<isEqual property="search_type" compareValue="nation_nm_ko">
+						A.NATION_NM_KO LIKE '%'||#search_text#||'%'
+					</isEqual>
+				</isNotEmpty>
+				<isEmpty property="search_type" prepend="AND">
+					(A.NATION_CD LIKE '%'||#search_text#||'%' OR A.NATION_NM_KO LIKE '%'||#search_text#||'%')
+				</isEmpty>
+		   </isNotEmpty>
+		</dynamic>
+	</sql>
+
+	<select id="selectOverseaNationList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY NATION_NM_KO) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="nation_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectOverseaNationCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="nation_list" />)
+	</select>
+
+	<update id="updateNationStatus" parameterClass="java.util.HashMap">
+		UPDATE CM_OVSEA_SEND_NATION_CD
+		   SET USE_YN = #use_yn#
+		     , CHGER_ID = #login_usr_id#
+		     , CHG_DATE = SYSDATE
+		 WHERE NATION_CD = #nation_cd#
+	</update>
+
+	<update id="updateMgtGoodsSendNation" parameterClass="java.util.HashMap">
+		UPDATE GD_MGT_GOODS_SEND_NATION
+		   SET USE_YN = #use_yn#
+		     , CHGER_ID = #login_usr_id#
+		     , CHG_DATE = SYSDATE
+		 WHERE NATION_CD = #nation_cd#
+		<isNotEmpty property="goods_cd" prepend="AND">
+			GOODS_CD = #goods_cd#
+		</isNotEmpty>
+	</update>
+
+	<update id="updateGoodsSendNation" parameterClass="java.util.HashMap">
+		UPDATE GD_GOODS_SEND_NATION
+		   SET USE_YN = #use_yn#
+		     , CHGER_ID = #login_usr_id#
+		     , CHG_DATE = SYSDATE
+		 WHERE NATION_CD = #nation_cd#
+		<isNotEmpty property="goods_cd" prepend="AND">
+			GOODS_CD = #goods_cd#
+		</isNotEmpty>
+	</update>
+
+	<update id="updateGoodsSendNationInfo" parameterClass="java.util.HashMap">
+		MERGE INTO GD_GOODS_SEND_NATION
+			 USING DUAL
+				ON (GOODS_CD = #goods_cd# AND NATION_CD = #nation_cd#)
+		WHEN MATCHED THEN
+			UPDATE SET
+		           CHG_DATE	= SYSDATE
+            <isNotEmpty property="ems_send_amt">
+				 , EMS_SEND_AMT	= #ems_send_amt#
+		    </isNotEmpty>
+            <isNotEmpty property="prcl_send_amt">
+				 , PRCL_SEND_AMT = #prcl_send_amt#
+		    </isNotEmpty>
+            <isNotEmpty property="use_yn">
+				 , USE_YN = #use_yn#
+		    </isNotEmpty>
+			<isNotEmpty property="login_use_id">
+		         , CHGER_ID	= #login_use_id#
+			</isNotEmpty>
+		WHEN NOT MATCHED THEN
+			INSERT
+		         ( GOODS_CD
+		         , NATION_CD
+		         , EMS_SEND_AMT
+		         , PRCL_SEND_AMT
+		         , USE_YN
+		         , SORT_ORDER
+		         , REG_DATE
+		         , CHG_DATE
+			<isNotEmpty property="login_use_id">
+		         , REGER_ID
+		         , CHGER_ID
+            </isNotEmpty>
+		         )
+		  VALUES
+		  		 ( #goods_cd#
+		         , #nation_cd#
+		         , NVL(#ems_send_amt#, 0)
+		         , NVL(#prcl_send_amt#, 0)
+                 , #use_yn#
+                 , (SELECT MAX(SORT_ORDER)+1 FROM GD_GOODS_SEND_NATION WHERE GOODS_CD = #goods_cd#)
+                 , SYSDATE
+                 , SYSDATE
+			<isNotEmpty property="login_use_id">
+                 , #login_use_id#
+                 , #login_use_id#
+            </isNotEmpty>
+                  )
+	</update>
+
+	<update id="updateMgtGoodsSendNationInfo" parameterClass="java.util.HashMap">
+		MERGE INTO GD_MGT_GOODS_SEND_NATION
+			 USING DUAL
+				ON (GOODS_CD = #goods_cd# AND NATION_CD = #nation_cd#)
+		WHEN MATCHED THEN
+			UPDATE SET
+		           CHG_DATE	= SYSDATE
+            <isNotEmpty property="ems_send_amt">
+				 , EMS_SEND_AMT	= #ems_send_amt#
+		    </isNotEmpty>
+            <isNotEmpty property="prcl_send_amt">
+				 , PRCL_SEND_AMT = #prcl_send_amt#
+		    </isNotEmpty>
+            <isNotEmpty property="use_yn">
+				 , USE_YN = #use_yn#
+		    </isNotEmpty>
+			<isNotEmpty property="login_use_id">
+		         , CHGER_ID	= #login_use_id#
+			</isNotEmpty>
+		WHEN NOT MATCHED THEN
+			INSERT
+		         ( GOODS_CD
+		         , NATION_CD
+		         , EMS_SEND_AMT
+		         , PRCL_SEND_AMT
+		         , USE_YN
+		         , SORT_ORDER
+		         , REG_DATE
+		         , CHG_DATE
+			<isNotEmpty property="login_use_id">
+		         , REGER_ID
+		         , CHGER_ID
+            </isNotEmpty>
+		         )
+		  VALUES
+		  		 ( #goods_cd#
+		         , #nation_cd#
+		         , NVL(#ems_send_amt#, 0)
+		         , NVL(#prcl_send_amt#, 0)
+                 , #use_yn#
+                 , (SELECT MAX(SORT_ORDER)+1 FROM GD_GOODS_SEND_NATION WHERE GOODS_CD = #goods_cd#)
+                 , SYSDATE
+                 , SYSDATE
+			<isNotEmpty property="login_use_id">
+                 , #login_use_id#
+                 , #login_use_id#
+            </isNotEmpty>
+                  )
+	</update>
+
+	<sql id="goodsSend_list">
+		SELECT A.GOODS_CD
+			 , B.GOODS_NM
+			 , A.NATION_CD
+			 , C.NATION_NM_KO
+			 , A.SORT_ORDER
+			 , A.USE_YN
+			 , DECODE(A.USE_YN, 'Y', '사용', '중지') AS USE_YN_NM
+			 , A.EMS_SEND_AMT
+			 , A.PRCL_SEND_AMT
+			 , A.CHGER_ID
+			 , TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI') AS CHG_DATE
+		  FROM GD_GOODS_SEND_NATION A, GD_GOODS_MAST B, CM_OVSEA_SEND_NATION_CD C
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND A.NATION_CD = C.NATION_CD
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="goods_cd">
+					B.GOODS_CD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					B.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(B.GOODS_CD LIKE '%'||#search_text#||'%' OR B.GOODS_NM LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_use_yn" prepend="AND">
+			A.USE_YN = #search_use_yn#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectGoodsSendStopList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY GOODS_CD, SORT_ORDER DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="goodsSend_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectGoodsSendStopCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="goodsSend_list" />)
+	</select>
+
+	<sql id="sendFeeUpload_list">
+		SELECT A.EMS_ID
+			 , A.TITLE
+			 , A.START_DATE
+			 , A.DEL_DATE
+			 , TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI') AS REG_DATE
+			 , A.REGER_ID
+		  FROM GD_MGT_OVERSEA_EMS_MASTER A
+		<dynamic prepend="WHERE">
+			<isNotEmpty property="title" prepend="AND">
+				A.TITLE LIKE '%'||#title#||'%'
+			</isNotEmpty>
+			<isNotEmpty property="ems_id" prepend="AND">
+				A.EMS_ID = #ems_id#
+			</isNotEmpty>
+		</dynamic>
+	</sql>
+
+	<select id="selectGoodsSendFeeUploadList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY EMS_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="sendFeeUpload_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectGoodsSendFeeUploadCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="sendFeeUpload_list" />)
+	</select>
+
+	<sql id="sendFeeUploadDtail_list">
+		SELECT A.EMS_ID
+			 , A.GOODS_CD
+			 , A.NATION_CD
+			 , A.EMS_SEND_AMT
+			 , A.PRCL_SEND_AMT
+			 , C.EMS_SEND_AMT AS NOW_EMS_SEND_AMT
+			 , C.PRCL_SEND_AMT AS NOW_PRCL_SEND_AMT
+			 , B.GOODS_NM
+			 , GOODS_US.GOODS_NM AS GOODS_NM_US
+			 , GOODS_JP.GOODS_NM AS GOODS_NM_JP
+			 , GOODS_CN.GOODS_NM AS GOODS_NM_CN
+			 , TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI') AS REG_DATE
+			 , A.REGER_ID
+		  FROM GD_MGT_OVERSEA_EMS_GOODS A, GD_GOODS_MAST B, GD_GOODS_SEND_NATION C
+		  	 , (SELECT GOODS_CD, GOODS_NM FROM GD_GOODS_MLANG_SPRT WHERE LANG_CD = 'US') GOODS_US
+		  	 , (SELECT GOODS_CD, GOODS_NM FROM GD_GOODS_MLANG_SPRT WHERE LANG_CD = 'JP') GOODS_JP
+		  	 , (SELECT GOODS_CD, GOODS_NM FROM GD_GOODS_MLANG_SPRT WHERE LANG_CD = 'CN') GOODS_CN
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND A.GOODS_CD = C.GOODS_CD(+)
+		   AND A.NATION_CD = C.NATION_CD(+)
+		   AND A.GOODS_CD = GOODS_US.GOODS_CD(+)
+		   AND A.GOODS_CD = GOODS_JP.GOODS_CD(+)
+		   AND A.GOODS_CD = GOODS_CN.GOODS_CD(+)
+		<isNotEmpty property="ems_id" prepend="AND">
+			A.EMS_ID = #ems_id#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectGoodsSendFeeUploadDtailList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY GOODS_CD, NATION_CD DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="sendFeeUploadDtail_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectGoodsSendFeeUploadDtailCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="sendFeeUploadDtail_list" />)
+	</select>
+
+	<select id="selectGoodsSendFeeEmsId" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT NVL(MAX(EMS_ID),0)+1 FROM GD_MGT_OVERSEA_EMS_MASTER
+	</select>
+
+	<insert id="insertGoodsSendFeeMastInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_MGT_OVERSEA_EMS_MASTER
+		     ( EMS_ID
+		     , TITLE
+		     , START_DATE
+		     , DEL_DATE
+		     , REG_DATE
+		     , CHG_DATE
+	     <isNotEmpty property="login_usr_id">
+		     , REGER_ID
+		     , CHGER_ID
+	     </isNotEmpty>
+		     )
+		VALUES
+		     ( #ems_id#
+		     , #title#
+		     , NULL
+		     , NULL
+		     , SYSDATE
+		     , SYSDATE
+	     <isNotEmpty property="login_usr_id">
+		     , #login_usr_id#
+		     , #login_usr_id#
+	     </isNotEmpty>
+		     )
+	</insert>
+
+	<insert id="insertGoodsSendFeeDtailInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_MGT_OVERSEA_EMS_GOODS
+		     ( EMS_ID
+		     , GOODS_CD
+		     , NATION_CD
+		     , EMS_SEND_AMT
+		     , PRCL_SEND_AMT
+		     , REG_DATE
+		     , CHG_DATE
+	     <isNotEmpty property="login_usr_id">
+		     , REGER_ID
+		     , CHGER_ID
+	     </isNotEmpty>
+		     )
+		VALUES
+		     ( #ems_id#
+		     , #goods_cd#
+		     , #nation_cd#
+		     , NVL(#ems_send_amt#, 0)
+		     , NVL(#prcl_send_amt#, 0)
+		     , SYSDATE
+		     , SYSDATE
+	     <isNotEmpty property="login_usr_id">
+		     , #login_usr_id#
+		     , #login_usr_id#
+	     </isNotEmpty>
+		     )
+	</insert>
+
+	<update id="updateGoodsSendNationFeeReflect" parameterClass="java.util.HashMap">
+		UPDATE GD_GOODS_SEND_NATION A
+		   SET EMS_SEND_AMT = (SELECT B.EMS_SEND_AMT
+		   						 FROM GD_MGT_OVERSEA_EMS_GOODS B
+		   						WHERE B.EMS_ID = #ems_id#
+		   						  AND B.GOODS_CD = A.GOODS_CD
+		   						  AND B.NATION_CD = A.NATION_CD)
+			 , PRCL_SEND_AMT = (SELECT B.PRCL_SEND_AMT
+			 					  FROM GD_MGT_OVERSEA_EMS_GOODS B
+			 					 WHERE B.EMS_ID = #ems_id#
+			 					   AND B.GOODS_CD = A.GOODS_CD
+			 					   AND B.NATION_CD = A.NATION_CD)
+			<isNotEmpty property="login_usr_id">
+			  , CHGER_ID = #login_usr_id#
+			</isNotEmpty>
+			  , CHG_DATE = SYSDATE
+		 WHERE A.GOODS_CD IN (SELECT B.GOODS_CD FROM GD_MGT_OVERSEA_EMS_GOODS B WHERE B.EMS_ID = #ems_id#)
+	</update>
+
+	<update id="updateGoodsSendInfoChg" parameterClass="java.util.HashMap">
+		UPDATE GD_GOODS_SEND A
+		   SET EMS_YN = DECODE((SELECT NVL(SUM(B.EMS_SEND_AMT), 0)
+		   						 FROM GD_GOODS_SEND_NATION B
+		   						WHERE B.GOODS_CD = A.GOODS_CD
+		   						  AND B.USE_YN = 'Y'), 0, 'N', 'Y')
+			 , SMALL_PACKET_YN = DECODE((SELECT NVL(SUM(B.PRCL_SEND_AMT), 0)
+			 					  FROM GD_GOODS_SEND_NATION B
+			 					 WHERE B.GOODS_CD = A.GOODS_CD
+			 					   AND B.USE_YN = 'Y'
+			 					   AND NVL(B.EMS_SEND_AMT, 0) > 0), 0, 'N', 'Y')
+			<isNotEmpty property="login_usr_id">
+			  , CHGER_ID = #login_usr_id#
+			</isNotEmpty>
+			  , CHG_DATE = SYSDATE
+		 WHERE A.GOODS_CD IN (SELECT B.GOODS_CD FROM GD_MGT_OVERSEA_EMS_GOODS B WHERE B.EMS_ID = #ems_id#)
+	</update>
+
+	<update id="updateGoodsMgtSendInfoChg" parameterClass="java.util.HashMap">
+		UPDATE GD_MGT_GOODS_SEND A
+		   SET EMS_YN = DECODE((SELECT NVL(SUM(B.EMS_SEND_AMT), 0)
+		   						 FROM GD_GOODS_SEND_NATION B
+		   						WHERE B.GOODS_CD = A.GOODS_CD
+		   						  AND B.USE_YN = 'Y'), 0, 'N', 'Y')
+			 , SMALL_PACKET_YN = DECODE((SELECT NVL(SUM(B.PRCL_SEND_AMT), 0)
+			 					  FROM GD_GOODS_SEND_NATION B
+			 					 WHERE B.GOODS_CD = A.GOODS_CD
+			 					   AND B.USE_YN = 'Y'
+			 					   AND NVL(B.EMS_SEND_AMT, 0) > 0), 0, 'N', 'Y')
+			<isNotEmpty property="login_usr_id">
+			  , CHGER_ID = #login_usr_id#
+			</isNotEmpty>
+			  , CHG_DATE = SYSDATE
+		 WHERE A.GOODS_CD IN (SELECT B.GOODS_CD FROM GD_MGT_OVERSEA_EMS_GOODS B WHERE B.EMS_ID = #ems_id#)
+	</update>
+
+	<update id="updateGoodsSendFeeReflect" parameterClass="java.util.HashMap">
+		UPDATE GD_MGT_OVERSEA_EMS_MASTER
+		   SET START_DATE = TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = #login_usr_id#
+		 WHERE EMS_ID   = #ems_id#
+	</update>
+
+	<update id="updateGoodsSendFeeDel" parameterClass="java.util.HashMap">
+		UPDATE GD_MGT_OVERSEA_EMS_MASTER
+		   SET DEL_DATE = TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = #login_usr_id#
+		 WHERE EMS_ID   = #ems_id#
+	</update>
+
+	<sql id="overseaCorp_list">
+		SELECT A.SEQ
+			 , A.SUPP_COMP_ID
+			 , B.BCNC_NM
+			 , A.LANGUAGE
+			 , C.COMN_CD_NM AS LANGUAGE_NM
+			 , CASE
+					WHEN A.LANGUAGE = 'US' THEN B.BCNC_NM_US
+					WHEN A.LANGUAGE = 'CN' THEN B.BCNC_NM_CN
+					WHEN A.LANGUAGE = 'JP' THEN B.BCNC_NM_JP
+					ELSE ''
+			  END OLD_BIZ_NAME
+			 , A.BIZ_NAME
+			 , CASE
+					WHEN A.LANGUAGE = 'US' THEN B.PRSDT_NM_US
+					WHEN A.LANGUAGE = 'CN' THEN B.PRSDT_NM_CN
+					WHEN A.LANGUAGE = 'JP' THEN B.PRSDT_NM_JP
+					ELSE ''
+			  END OLD_BOSS_NAME
+			 , A.BOSS_NAME
+			 , A.STATUS
+		  FROM CO_OVERSEA_BIZ_MASTER_FILE A
+		  	 , CO_SUPP_COMP_MAST B
+		  	 , CM_COMN_CD C
+		 WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		   AND C.CD_GRP_ID = 'LANG_CD'
+		   AND A.LANGUAGE = C.COMN_CD_ID
+		   AND A.LANGUAGE IN ('US', 'JP', 'CN')
+	</sql>
+
+	<select id="selectOverseaCorpUploadList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY SEQ DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="overseaCorp_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectOverseaCorpUploadCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="overseaCorp_list" />)
+	</select>
+
+	<update id="updateOverseaCorpToSuppCompMast" parameterClass="java.util.HashMap">
+		UPDATE CO_SUPP_COMP_MAST A
+		<isEqual property="language" compareValue="US" prepend="SET">
+			A.BCNC_NM_US = (SELECT BIZ_NAME FROM CO_OVERSEA_BIZ_MASTER_FILE WHERE SEQ = #seq# AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			, A.PRSDT_NM_US = (SELECT BOSS_NAME FROM CO_OVERSEA_BIZ_MASTER_FILE WHERE SEQ = #seq# AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+		</isEqual>
+		<isEqual property="language" compareValue="CN" prepend="SET">
+			A.BCNC_NM_CN = (SELECT BIZ_NAME FROM CO_OVERSEA_BIZ_MASTER_FILE WHERE SEQ = #seq# AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			, A.PRSDT_NM_CN = (SELECT BOSS_NAME FROM CO_OVERSEA_BIZ_MASTER_FILE WHERE SEQ = #seq# AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+		</isEqual>
+		<isEqual property="language" compareValue="JP" prepend="SET">
+			A.BCNC_NM_JP = (SELECT BIZ_NAME FROM CO_OVERSEA_BIZ_MASTER_FILE WHERE SEQ = #seq# AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+			, A.PRSDT_NM_JP = (SELECT BOSS_NAME FROM CO_OVERSEA_BIZ_MASTER_FILE WHERE SEQ = #seq# AND SUPP_COMP_ID = A.SUPP_COMP_ID)
+		</isEqual>
+		WHERE SUPP_COMP_ID = (SELECT SUPP_COMP_ID FROM CO_OVERSEA_BIZ_MASTER_FILE WHERE SEQ = #seq#)
+	</update>
+
+	<update id="updateOverseaCorpStatus" parameterClass="java.util.HashMap">
+		UPDATE CO_OVERSEA_BIZ_MASTER_FILE
+		   SET STATUS = #status#
+		 WHERE SEQ = #seq#
+	</update>
+
+	<insert id="insertOverseaCorpInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CO_OVERSEA_BIZ_MASTER_FILE
+		     ( SEQ
+		     , SUPP_COMP_ID
+		     , LANGUAGE
+		     , BIZ_NAME
+		     , BOSS_NAME
+		     , STATUS
+		     )
+		VALUES
+		     ( (SELECT NVL(MAX(SEQ),0)+1 FROM CO_OVERSEA_BIZ_MASTER_FILE)
+		     , #supp_comp_id#
+		     , #language#
+		     , #biz_name#
+		     , #boss_name#
+		     , 'U'
+		     )
+	</insert>
+
+	<sql id="hotline_list">
+		SELECT A.OVERSEA_HOTLINE_ID
+			 , A.OVERSEA_HOTLINE_TYPE
+			 , A.WRITER
+			 , A.ACCESS_NAME
+			 , A.WRITER_PASSWORD
+			 , A.WRITER_PEOPLENUM
+			 , A.WRITER_EMAIL
+			 , A.WRITER_TELEPHONE
+			 , A.PURCHASE_NUMBER
+			 , A.CONTENTS
+			 , CASE WHEN LENGTH(A.CONTENTS) > 35 THEN REPLACE(REPLACE(SUBSTR(A.CONTENTS, 0, 35),chr(13),''),chr(10),'')||'...' ELSE REPLACE(REPLACE(A.CONTENTS, chr(13),''),chr(10),'') END CONTENTS_SUBSTR
+			 , A.WRITE_DATE
+			 , A.CONFIRM_STEP
+			 , A.CONFIRM_TEXT
+			 , A.CONFIRM_DATE
+			 , A.OP_ACCESS_NAME
+			 , B.COMN_CD_NM AS OVERSEA_HOTLINE_TYPE_NM
+			 , C.COMN_CD_NM AS CONFIRM_STEP_NM
+		  FROM CM_OVERSEA_HOTLINE A
+			 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'OVERSEA_HOTLINE_TYPE') B
+			 , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'CONFIRM_STEP') C
+		 WHERE A.OVERSEA_HOTLINE_TYPE = B.COMN_CD_ID(+)
+		   AND A.CONFIRM_STEP = C.COMN_CD_ID(+)
+		<isNotEmpty property="oversea_hotline_id" prepend="AND">
+			A.OVERSEA_HOTLINE_ID = #oversea_hotline_id#
+		</isNotEmpty>
+		<isNotEmpty property="search_writer" prepend="AND">
+			A.WRITER LIKE #search_writer#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="search_oversea_hotline_type" prepend="AND">
+			A.OVERSEA_HOTLINE_TYPE = #search_oversea_hotline_type#
+		</isNotEmpty>
+		<isNotEmpty property="search_confirm_step" prepend="AND">
+			A.CONFIRM_STEP = #search_confirm_step#
+		</isNotEmpty>
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+			A.WRITE_DATE BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectHotLineList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY OVERSEA_HOTLINE_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="hotline_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectHotLineCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="hotline_list" />)
+	</select>
+
+	<update id="updateHotLineConfirm" parameterClass="java.util.HashMap">
+		UPDATE CM_OVERSEA_HOTLINE
+		  SET CONFIRM_STEP = #confirm_step#
+			, CONFIRM_TEXT = #confirm_text#
+			, CONFIRM_DATE = REPLACE(#confirm_date#, '-')
+			, OP_ACCESS_NAME = NVL(#login_usr_id#, 'ADMIN')
+		WHERE OVERSEA_HOTLINE_ID = #oversea_hotline_id#
+	</update>
+
+	<sql id="order_list">
+		SELECT /*+ USE_NL(A, B, C, D, E, CA, CB) */
+			   A.ORDER_ID
+			 , A.NATION_CD
+			 , B.ORDER_ITM_ID
+			 , D.BCNC_NM
+			 , B.SUPPO_RGIST_POCD
+			 , B.SUPP_PO_NM
+			 , E.POFNO||'-'||E.POMNO||'-'||E.POLNO AS PO_TEL
+			 , TO_CHAR(A.ORDER_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ORDER_DATE
+			 , A.ORDRR_NM
+			 , A.ORDRR_TELNO
+			 , A.ORDRR_HTELNO
+			 , A.ORDRR_ZIPCD
+			 , A.ORDRR_ADDR1
+			 , A.ORDRR_ADDR2
+			 , B.RECPTER_NM
+			 , B.RECPTER_TELNO
+			 , B.RECPTER_ZIPCD
+			 , B.RECPTER_ADDR1
+			 , B.RECPTER_ADDR2
+			 , B.GOODS_CD
+			 , B.GOODS_NM
+			 , B.REQ_CNT
+			 , B.ORDER_DTAIL_STUS_CD
+			 , CA.COMN_CD_NM AS ORDER_DTAIL_STUS_NM
+			 , NVL(CB.COMN_CD_NM, '국문') AS NATION_NM
+			 , B.EXTRA_GOODS_CNT
+			 , DECODE(NVL(B.EMS_AMT, 0), 0, '무료', TO_CHAR(B.EMS_AMT, 'FM9,999,999')) EMS_AMT	/* 해외 배송비 */
+			 , TO_CHAR(NVL(B.EMS_DC_AMT, 0),'FM9,999,999') EMS_DC_AMT /* EMS 할인액 */
+			 , TO_CHAR(NVL(B.DC_APPLY_PRC, 0) + NVL(B.OPTN_GOODS_APPLY_PRC, 0) + NVL(B.SEND_PRC, 0), 'FM9,999,999') DC_APPLY_PRC	/* 주문금액 */
+			 , TO_CHAR(NVL(A.TOT_CPN_DC_AMT, 0) + NVL(A.PNT_USE_AMT, 0) +NVL(A.PO_PNT_USE_AMT, 0)
+					 + NVL(A.PREMI_CUST_PNT_SETL_AMT, 0) + NVL(A.OKCASH_USE_AMT, 0), 'FM9,999,999') AS TOT_DC_PRC	/* 할인금액 */
+			 , TO_CHAR(C.SETL_APPR_AMT,'FM9,999,999') AS SETL_APPR_AMT
+		FROM OD_ORDER_MAST A, OD_ORDER_ITM B, OD_ORDER_SETL C, CO_SUPP_COMP_MAST D, PICMT0060 E, CM_COMN_CD CA, CM_COMN_CD CB
+		WHERE A.ORDER_ID = B.ORDER_ID
+		AND A.ORDER_ID = C.ORDER_ID
+		AND B.SUPP_COMP_ID = D.SUPP_COMP_ID
+		AND B.SUPPO_RGIST_POCD = E.REGIPOCD
+		AND B.ORDER_DTAIL_STUS_CD = CA.COMN_CD_ID
+		AND A.NATION_CD = CB.COMN_CD_ID
+		AND CA.CD_GRP_ID = 'ORDER_DTAIL_STUS_CD'
+		AND CB.CD_GRP_ID = 'LANG_CD'
+		AND C.SETL_SEQ = '1'
+		AND B.PAVLN_DIV_CD = '07'
+		AND A.COPRTN_ORDER_YN = 'N'
+		AND E.USEYN = 'Y'
+		AND E.DSCDPOYN = 'N'
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="order_id">
+					A.ORDER_ID LIKE #search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="ponm">
+					B.SUPP_PO_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="bcnc_nm">
+					D.BCNC_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="ordrr_nm">
+					A.ORDRR_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.ORDER_ID LIKE #search_text#||'%'
+				OR B.SUPP_PO_NM LIKE '%'||#search_text#||'%'
+				OR D.BCNC_NM LIKE '%'||#search_text#||'%'
+				OR A.ORDRR_NM LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_order_stus_cd" prepend="AND">
+			A.ORDER_STUS_CD = #search_order_stus_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_order_dtail_stus_cd" prepend="AND">
+			B.ORDER_DTAIL_STUS_CD = #search_order_dtail_stus_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_nation_cd" prepend="AND">
+			A.NATION_CD = #search_nation_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+			TO_CHAR(A.ORDER_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectOverseaOrderList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY ORDER_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="order_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectOverseaOrderCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="order_list" />)
+	</select>
+
+	<sql id="orderDtail_list">
+		SELECT A.ORDER_ID
+			 , TO_CHAR(A.ORDER_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ORDER_DATE
+			 , A.ORDRR_NM
+			 , A.ACCESS_NAME
+			 , A.ORDRR_TELNO
+			 , A.ORDRR_HTELNO
+			 , C.EMS_AMT
+			 , C.EMS_DC_AMT
+			 , C.DC_APPLY_PRC + C.OPTN_GOODS_APPLY_PRC + C.SEND_PRC AS DC_APPLY_PRC
+			 , B.AMOUNT_RM
+			 , B.AMOUNT_SP
+			 , B.AMOUNT_COUPON
+			 , B.AMOUNT_OKCASH
+			 , B.SETL_APPR_AMT
+			 , B.SETL_MEAN_CD
+			 , CA.COMN_CD_NM AS SETL_MEAN_NM
+			 , CB.COMN_CD_NM AS ORDER_STUS_NM
+			 , C.SEND_NATION_CD
+			 , A.NATION_CD
+			 , NVL(F_GET_COMN_CD_NM('LANG_CD', A.NATION_CD), '국문') AS NATION_NM
+			 , F_GET_COMN_CD_NM('NATION_CD', C.SEND_NATION_CD) AS SEND_NATION_NM
+		  FROM OD_ORDER_MAST A, OD_ORDER_SETL B
+		  	 , (SELECT ORDER_ID
+		  	 		 , SEND_NATION_CD
+		  	 		 , SUM(DC_APPLY_PRC) AS DC_APPLY_PRC
+		  	 		 , SUM(OPTN_GOODS_APPLY_PRC) AS OPTN_GOODS_APPLY_PRC
+		  	 		 , SUM(SEND_PRC) AS SEND_PRC
+		  	 		 , SUM(EMS_AMT) AS EMS_AMT
+		  	 		 , SUM(EMS_DC_AMT) EMS_DC_AMT
+		  	 	  FROM OD_ORDER_ITM
+		  	 	 WHERE PAVLN_DIV_CD = '07' GROUP BY ORDER_ID, SEND_NATION_CD) C
+		  	 , CM_COMN_CD CA
+		  	 , CM_COMN_CD CB
+		 WHERE A.ORDER_ID = B.ORDER_ID
+		   AND A.ORDER_ID = C.ORDER_ID
+		   AND B.SETL_MEAN_CD = CA.COMN_CD_ID
+		   AND A.ORDER_STUS_CD = CB.COMN_CD_ID
+		   AND CA.CD_GRP_ID = 'SETL_MEAN_CD'
+		   AND CB.CD_GRP_ID = 'ORDER_STUS_CD'
+		   AND B.SETL_SEQ = '1'
+		   AND A.COPRTN_ORDER_YN = 'N'
+		<isNotEmpty property="search_nation_cd" prepend="AND">
+			A.NATION_CD = #search_nation_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_send_nation_cd" prepend="AND">
+			C.SEND_NATION_CD = #search_send_nation_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+			TO_CHAR(A.ORDER_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		</isNotEmpty>
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="order_id">
+					A.ORDER_ID LIKE #search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="ordrr_nm">
+					A.ORDRR_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.ORDER_ID LIKE #search_text#||'%' OR A.ORDRR_NM LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectOverseaOrderDtailList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY ORDER_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="orderDtail_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectOverseaOrderDtailCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="orderDtail_list" />)
+	</select>
+
+</sqlMap>

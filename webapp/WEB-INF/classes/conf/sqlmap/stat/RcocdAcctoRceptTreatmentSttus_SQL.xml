@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.RcocdAcctoRceptTreatmentSttus">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!--총괄국 목록 -->
+	<select id="selectRegipocdList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT 
+				PONM, 
+				REGIPOCD
+			FROM PICMT0060 
+			WHERE 1 = 1
+			AND RCOCD = #oRcoCd#
+			AND USEYN = 'Y'
+			AND PODIVCD = '06'
+			AND DSCDPOYN = 'N'
+			ORDER BY REGIPOCD
+	    ]]>
+	</select>
+	
+	<!--청별 취급실적현황 -->
+	<select id="retrieveOfficeResultSrch" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+		 	SELECT
+		 		DAY,
+				CHUNGNAME,
+				CHUNG_CODE,
+				SERVER_ECODE,
+				SERVER_NAME,
+				NAME,
+				QTY1,
+				AMT1,
+				QTY2,
+				AMT2,
+				QTY3,
+				AMT3,
+				NVL(QTY1, 0) + NVL(QTY2, 0) + NVL(QTY3, 0) QTY_SUM,
+				NVL(AMT1, 0) + NVL(AMT2, 0) + NVL(AMT3, 0) AMT_SUM
+		 	FROM
+				(SELECT 
+					DAY,
+					CHUNGNAME,
+					CHUNG_CODE,
+					SERVER_ECODE,
+					SERVER_NAME,
+					NAME,
+					SUM(DECODE(SHOP,'0',DECODE(CHUNG_CODE - CHUNG_CODE1,0 ,QTY,0),0)) QTY1,
+					SUM(DECODE(SHOP,'0',DECODE(CHUNG_CODE - CHUNG_CODE1,0 ,AMT,0),0)) AMT1,
+					SUM(DECODE(SHOP,'0',DECODE(CHUNG_CODE - CHUNG_CODE1,0 ,0,QTY),0)) QTY2,
+					SUM(DECODE(SHOP,'0',DECODE(CHUNG_CODE - CHUNG_CODE1,0 ,0,AMT),0)) AMT2,
+					SUM(DECODE(SHOP,'1',QTY,0)) QTY3,
+					SUM(DECODE(SHOP,'1',AMT,0)) AMT3
+				FROM (
+						SELECT 
+							TO_CHAR(A.APPR_DATE, 'YYYY-MM-DD') DAY,
+							DECODE(B.PAVLN_DIV_CD,'02','1','0') SHOP,
+							(SELECT F_GET_COMN_CD_NM('RCO_CD', C.RCOCD) FROM DUAL) CHUNGNAME,
+							C.REGIPOCD AS SERVER_ECODE,
+							(SELECT PONM FROM PICMT0060 SC WHERE USEYN = 'Y' AND C.MPOREGIPOCD = SC.REGIPOCD ) AS SERVER_NAME,
+							C.PONM AS NAME,
+							C.RCOCD AS CHUNG_CODE,
+							D.RCOCD AS CHUNG_CODE1, 
+							D.MPOREGIPOCD AS SERVER_ECODE1,
+							SUM(NVL(B.REQ_CNT, 0)) QTY,
+							SUM(B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) AMT
+						FROM OD_ORDER_MAST A, OD_ORDER_ITM B , PICMT0060 C, PICMT0060 D
+						WHERE 1 = 1
+						AND A.ORDER_ID = B.ORDER_ID
+						AND A.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd#,'YYYYMMDD') AND TO_DATE(#search_end_ymd#||'235959','YYYYMMDDHH24MISS')
+						AND A.ORDER_STUS_CD NOT IN ('O01', 'O07')
+						AND B.GOODS_CANCEL_YN = 'N'
+				]]>
+						<isNotEqual property="oRcoCd" compareValue="0">
+							<![CDATA[
+								AND C.RCOCD = #oRcoCd#
+							]]>	
+							
+							<isNotEqual property="regipocd" compareValue="">
+								<![CDATA[
+									AND C.MPOREGIPOCD = #regipocd#
+								]]>	
+							</isNotEqual>
+						</isNotEqual>
+				<![CDATA[
+						AND B.DC_APPLY_PRC > 0
+						AND A.RECOM_PO_RGISTPOCD = C.REGIPOCD
+						AND C.USEYN = 'Y'
+						AND B.SUPPO_RGIST_POCD = D.REGIPOCD
+						AND D.USEYN = 'Y'
+						AND A.RECEVPO_RGISTPOCD IN('89903', '85414')
+						AND A.ORDRR_RECOM_PO_CD IS NOT NULL
+						GROUP BY TO_CHAR(A.APPR_DATE, 'YYYY-MM-DD'), DECODE(B.PAVLN_DIV_CD,'02','1','0'), C.RCOCD, C.MPOREGIPOCD, C.REGIPOCD, C.PONM, D.RCOCD, D.MPOREGIPOCD
+					)
+				GROUP BY DAY,CHUNG_CODE,CHUNGNAME,SERVER_ECODE,SERVER_NAME,NAME)
+			ORDER BY DAY,CHUNG_CODE,CHUNGNAME,SERVER_ECODE,SERVER_NAME,NAME	
+	    ]]>
+	</select>
+</sqlMap>

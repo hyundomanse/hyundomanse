@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboGoodsApprove">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 공급상품 등록승인 현황조회 -->
+	<sql id="goods_approve_list_query">
+		SELECT GMGM.CHG_DATE													/* 변경일시 */
+		        , GMGM.GOODS_STUS_CD 											/* 등록상태 */
+		        , CSCM.BCNC_NM   												/* 업체명 */
+		        , GMGM.GOODS_CD  												/* 상품코드 */
+		        , GMGM.GOODS_NM 												/* 상품명 */
+		        , GMGM.STD_DIV_CD 												/* 규격 */
+		        , GMGM.CNSMR_PRC 												/* 소비자가 */
+		        , GMGM.STD_SELL_PRC 											/* 판매가 */
+		        , GMGM.SUPP_BGIN_YMD || ' ~ ' || GMGM.SUPP_END_YMD SUPP_YMD    	/* 공급기간 */
+		        , GMGM.GOODS_CHG_REASN_CONT 									/* 반영내용 */
+		        , GMGM.MD_APPR_REJCT_REASN 										/* 승인불가사유 */
+		        , GMGM.REG_DATE 												/* 등록일 */
+		        , CATE.CTGRY_NM 												/* 카테고리명 */
+		  FROM GD_MGT_GOODS_MAST GMGM, CO_SUPP_COMP_MAST CSCM, 
+		        ( SELECT GEDG.GOODS_CD, MIN(SALE_PRICE) SALE_PRICE
+		            FROM EV_EVENT_MAST EEM, GD_MGT_EVENT_DC_GOODS GEDG
+		           WHERE EEM.EVENT_ID = GEDG.EVENT_ID
+		             AND EEM.BEFCITY_YN = 'Y'
+		             AND GEDG.SALE_PRICE <![CDATA[>]]> 0
+		             AND (EEM.EVENT_STRT_YMD <![CDATA[<=]]> TO_CHAR(SYSDATE, 'yyyymmddhh24mi') AND EEM.EVENT_END_YMD <![CDATA[>=]]> TO_CHAR(SYSDATE, 'yyyymmddhh24mi'))
+		          GROUP BY GEDG.GOODS_CD
+		         ) EV, (SELECT A.CTGRY_CD, A.GOODS_CD, SUBSTR(SYS_CONNECT_BY_PATH(B.CTGRY_NM, '>'),2) AS CTGRY_NM
+          		  FROM GD_MGT_GOODS_CTGRY A, GD_CTGRY_MAST B WHERE B.CTGRY_CD =  A.CTGRY_CD(+) AND A.BASIC_CTGRY_YN = 'Y'
+         		 START WITH B.CTGRY_LEVEL = '0' CONNECT BY PRIOR B.CTGRY_CD = B.HRNK_CTGRY_CD ) CATE
+		 WHERE GMGM.SUPP_COMP_ID = CSCM.SUPP_COMP_ID
+		   AND GMGM.GOODS_CD = EV.GOODS_CD(+)
+		   AND GMGM.GOODS_CD = CATE.GOODS_CD(+)
+		   <isNotEmpty property="search_ctgry_cd" prepend="AND">
+		       GMGM.GOODS_CD IN (SELECT DISTINCT GOODS_CD 
+		                      FROM GD_MGT_GOODS_CTGRY
+		                     WHERE CTGRY_CD IN ( SELECT A.CTGRY_CD FROM GD_CTGRY_MAST A WHERE  A.USE_YN = 'Y'
+		                                         START WITH A.CTGRY_CD = #search_ctgry_cd#
+		                                       CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD )  /* 상품 카테고리 */
+		                    )
+		   </isNotEmpty>
+		   <isNotEmpty property="search_strt_ymd" prepend="AND">
+		       GMGM.CHG_DATE <![CDATA[>=]]> #search_strt_ymd# 			/* 상품변경일시 */
+		   </isNotEmpty>
+		   <isNotEmpty property="search_end_ymd" prepend="AND">
+		       GMGM.CHG_DATE <![CDATA[<=]]> #search_end_ymd# 			/* 상품변경일시 */
+		   </isNotEmpty>
+		   <isNotEmpty property="search_supp_comp_id" prepend="AND">
+		       CSCM.SUPP_COMP_ID = #search_supp_comp_id#    				/* 공급업체 */
+		   </isNotEmpty>
+		   <isNotEmpty property="search_sell_typ_cd" prepend="AND">
+		       GMGM.SELL_TYP_CD = #search_sell_typ_cd#    					/* 판매유형 */
+		   </isNotEmpty>
+		   <isNotEmpty property="search_appr_proc_cd" prepend="AND">
+		       GMGM.APPR_PROC_CD = #search_appr_proc_cd#   					/* 승인상태 */
+		   </isNotEmpty>
+		   <isNotEmpty property="searchType">
+		   	<isEqual property="searchType" compareValue="01">
+		   		AND GMGM.GOODS_NM like '%' || #searchTxt# || '%'			/* 상품명 */
+		   	</isEqual>
+		   	<isEqual property="searchType" compareValue="02">				/* 상품코드 */
+		   		AND GMGM.GOODS_CD like '%' || #searchTxt# || '%'
+		   	</isEqual>
+		   </isNotEmpty>
+			ORDER BY GMGM.REG_DATE
+	</sql>
+	
+	<!-- 공급상품 등록승인 현황조회 카운트 -->
+	<select id="selectGoodsApproveListCount" parameterClass="com.devwork.common.util.CommandMap" resultClass="java.lang.Integer">
+		/* selectGoodsApproveListCount */
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="goods_approve_list_query" />)
+	</select>
+	
+	<!-- 공급상품 등록승인 현황조회 목록 -->
+	<select id="selectGoodsApproveList" parameterClass="com.devwork.common.util.CommandMap" resultClass="commMap">
+		/* selectGoodsApproveList */
+		SELECT *
+			FROM ( SELECT
+					ROW_NUMBER () OVER (ORDER BY REG_DATE DESC) RNUM
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="goods_approve_list_query" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<sql id="selectGoodsPriceTrace">
+	   SELECT 
+	       A.*,
+	       (SELECT GOODS_NM FROM GD_GOODS_MAST WHERE GOODS_CD = A.GOODS_CD) GOODS_NM
+	    FROM
+	       (
+	         SELECT
+				 GOODS_CD,
+				 MIN(GOODS_CHG_DATE) GOODS_CHG_DATE, /*변경일시*/
+				 CNSMR_PRC, /*소비자가*/
+				 STD_SELL_PRC, /*기준판매가*/
+				 PUCHAS_PRC, /*매입가*/
+				 DC_APPLY_PRC /*할인적용가*/
+			FROM  GD_GOODS_HISTOR
+			WHERE GOODS_CD =#goods_cd#
+			GROUP BY GOODS_CD,CNSMR_PRC,STD_SELL_PRC,PUCHAS_PRC,DC_APPLY_PRC
+	        ) A
+	</sql>
+	<select id="selectGoodsPriceTraceListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		/* selectGoodsPriceTraceListCount */
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectGoodsPriceTrace" />)
+	</select>
+	<select id="selectGoodsPriceTraceList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		/* selectGoodsPriceTraceList */
+		SELECT *
+			FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY GOODS_CHG_DATE DESC) RNUM
+					</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="selectGoodsPriceTrace" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	<!-- 상품가격변동 LIST -->
+	<select id="selectGoodsCostList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<include refid="pagingHeader"/>
+		SELECT	A.BIZ_CODE
+				,A.BIZNAME
+				,B.ITEM_CODE
+				,B.ITEM_NAME
+				,B.PRICE_SALE
+				,B.CATEGORYCODE
+				,B.UNIT
+				,TO_CHAR(C.START_DATE,'YYYY-MM-DD') AS START_DATE
+				,TO_CHAR(C.END_DATE,'YYYY-MM-DD') AS END_DATE
+				,C.NOE_REASON
+				,C.ITEMIDX
+				,C.gubun
+				,C.PRICE_CONSUMER
+				,C.AFT_PRICE_CONSUMER
+				,TRUNC((C.AFT_PRICE_CONSUMER/C.PRICE_CONSUMER)*100-100,2)||'%' AS CHANGE_PER
+				,DECODE(C.CHANGE_GUBUN,'01','인상','02','인하','') AS CHANGE_GUBUN
+				,C.NUM
+		FROM	CF_SUPPLIER A
+				,CF_ITEMS B
+				,CF_ITEMSHISTORY C
+		WHERE	A.BIZ_CODE = B.SUPPLIER_CODE
+		  AND	B.ITEMIDX = C.ITEMIDX
+		  AND	C.GUBUN = '02'
+		<isNotEmpty property="search_supp_comp_id" prepend="AND">
+			A.BIZ_CODE = #search_supp_comp_id#
+		</isNotEmpty>
+		<isNotEmpty property="" prepend="AND">
+			
+		</isNotEmpty>
+		
+		ORDER BY C.START_DATE DESC
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 상품가격변동 COUNT -->
+	<select id="selectGoodsCostTotCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT	COUNT(*)
+		FROM	CF_SUPPLIER A
+				,CF_ITEMS B
+				,CF_ITEMSHISTORY C
+		WHERE	A.BIZ_CODE = B.SUPPLIER_CODE||'X'
+		  AND	B.ITEMIDX = C.ITEMIDX
+		  AND	C.GUBUN =  '02'
+		ORDER BY  C.ITEMIDX, C.START_DATE DESC
+	</select>
+</sqlMap>

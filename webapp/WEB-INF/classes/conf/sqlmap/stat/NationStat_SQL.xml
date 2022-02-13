@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.NationStat">
+
+	<select id="selectNationCtgryTypeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT ROWNUM AS RNUM, A.*
+		  FROM ( 
+		        SELECT A.SEND_NATION_CD
+		             , TO_CHAR(A.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+		             , TO_CHAR(A.CNT,'FM999,999,999,999') AS CNT
+		             , B.NATION_NM_KO
+		             , C.CTGRY_NM
+		           FROM (SELECT A.SEND_NATION_CD
+							  , B.CTGRY_CD
+							  , SUM(D.SETL_APPR_AMT) AS SETL_APPR_AMT
+							  , COUNT(*) AS CNT
+		                  FROM OD_ORDER_ITM A, GD_GOODS_CTGRY B, OD_ORDER_MAST C, OD_ORDER_SETL D
+		                 WHERE A.GOODS_CD = B.GOODS_CD
+		                   AND A.ORDER_ID = C.ORDER_ID
+		                   AND A.ORDER_ID = D.ORDER_ID
+		                   AND A.OVSEA_SEND_GOODS_YN = 'Y'
+		                   AND C.ORDER_STUS_CD NOT IN ('O01', 'O06')
+		                   AND A.GOODS_CANCEL_YN = 'N'
+		                   AND D.SETL_SEQ = '1'
+						<isNotEmpty property="search_pavln" prepend="AND">
+							<isEqual property="search_pavln" compareValue="MM">
+								A.GOODS_CD IN (SELECT GOODS_CD 
+												 FROM GD_GOODS_CTGRY
+												WHERE USE_YN = 'Y'
+												  AND BASIC_CTGRY_YN = 'Y'
+												  AND PAVLN_DIV_CD = '05')
+							</isEqual>
+							<isNotEqual property="search_pavln" compareValue="MM">
+								C.NATION_CD = #search_pavln#
+							</isNotEqual>
+						</isNotEmpty>
+						<isNotEmpty property="search_nation" prepend="AND">
+							A.SEND_NATION_CD = #search_nation#
+						</isNotEmpty>
+						<isNotEmpty property="search_strt_ymd" prepend="AND">
+							TO_CHAR(C.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+						</isNotEmpty>
+	                 GROUP BY A.SEND_NATION_CD, B.CTGRY_CD) A, CM_OVSEA_SEND_NATION_CD B, GD_CTGRY_MAST C
+		         WHERE A.SEND_NATION_CD = B.NATION_CD(+)
+		           AND A.CTGRY_CD = C.CTGRY_CD
+		         ORDER BY A.SEND_NATION_CD ) A
+	</select>
+	
+	<select id="selectNationSum" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		 SELECT TO_CHAR(SUM(D.SETL_APPR_AMT),'FM999,999,999,999') AS SETL_APPR_AMT
+			  , TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+           FROM OD_ORDER_ITM A, GD_GOODS_CTGRY B, OD_ORDER_MAST C, OD_ORDER_SETL D
+          WHERE A.GOODS_CD = B.GOODS_CD
+            AND A.ORDER_ID = C.ORDER_ID
+            AND A.ORDER_ID = D.ORDER_ID
+            AND A.OVSEA_SEND_GOODS_YN = 'Y'
+            AND C.ORDER_STUS_CD NOT IN ('O01', 'O06')
+            AND A.GOODS_CANCEL_YN = 'N'
+            AND D.SETL_SEQ = '1'
+		<isNotEmpty property="search_pavln" prepend="AND">
+			<isEqual property="search_pavln" compareValue="MM">
+				A.GOODS_CD IN (SELECT GOODS_CD 
+								 FROM GD_GOODS_CTGRY
+								WHERE USE_YN = 'Y'
+								  AND BASIC_CTGRY_YN = 'Y'
+								  AND PAVLN_DIV_CD = '05')
+			</isEqual>
+			<isNotEqual property="search_pavln" compareValue="MM">
+				C.NATION_CD = #search_pavln#
+			</isNotEqual>
+		</isNotEmpty>
+		<isNotEmpty property="search_nation" prepend="AND">
+			A.SEND_NATION_CD = #search_nation#
+		</isNotEmpty>
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+			TO_CHAR(C.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		</isNotEmpty>
+	</select>
+
+	<select id="selectNationGoodsTypeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT ROWNUM AS RNUM, A.*
+		  FROM ( 
+				SELECT A.SEND_NATION_CD
+					 , TO_CHAR(A.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+					 , TO_CHAR(A.CNT,'FM999,999,999,999') AS CNT
+					 , A.GOODS_CD
+					 , B.NATION_NM_KO
+					 , C.GOODS_NM
+					 , C.SUPP_COMP_ID
+					 , D.BCNC_NM
+					 , E.PONM POST_NAME
+					 , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'RCO_CD' AND COMN_CD_ID = E.RCOCD) AS RCONM
+				  FROM ( SELECT A.SEND_NATION_CD
+							  , A.GOODS_CD
+							  , SUM(C.SETL_APPR_AMT) AS SETL_APPR_AMT
+							  , COUNT(*) AS CNT
+						   FROM OD_ORDER_ITM A, OD_ORDER_MAST B, OD_ORDER_SETL C
+						  WHERE A.ORDER_ID = B.ORDER_ID
+						    AND A.ORDER_ID = C.ORDER_ID
+							AND A.OVSEA_SEND_GOODS_YN = 'Y'
+							AND B.ORDER_STUS_CD NOT IN ('O01', 'O06')
+							AND A.GOODS_CANCEL_YN = 'N'
+							AND C.SETL_SEQ = '1'
+						<isNotEmpty property="search_pavln" prepend="AND">
+							<isEqual property="search_pavln" compareValue="MM">
+								A.GOODS_CD IN (SELECT GOODS_CD 
+												 FROM GD_GOODS_CTGRY
+												WHERE USE_YN = 'Y'
+												  AND BASIC_CTGRY_YN = 'Y'
+												  AND PAVLN_DIV_CD = '05')
+							</isEqual>
+							<isNotEqual property="search_pavln" compareValue="MM">
+								B.NATION_CD = #search_pavln#
+							</isNotEqual>
+						</isNotEmpty>
+						<isNotEmpty property="search_nation" prepend="AND">
+							A.SEND_NATION_CD = #search_nation#
+						</isNotEmpty>
+						<isNotEmpty property="search_strt_ymd" prepend="AND">
+							TO_CHAR(B.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+						</isNotEmpty>
+				GROUP BY A.SEND_NATION_CD, A.GOODS_CD
+				)  A, CM_OVSEA_SEND_NATION_CD B, GD_GOODS_MAST C, CO_SUPP_COMP_MAST D, PICMT0060 E
+		 WHERE A.SEND_NATION_CD = B.NATION_CD(+)
+		   AND A.GOODS_CD = C.GOODS_CD
+		   AND C.SUPP_COMP_ID = D.SUPP_COMP_ID
+		   AND D.SUPPO_RGIST_POCD = E.REGIPOCD
+		   AND E.USEYN='Y'
+		   AND E.DSCDPOYN = 'N'
+		 ORDER BY A.SEND_NATION_CD, A.GOODS_CD ) A
+	</select>
+
+	<select id="selectNationEmsSp1TypeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT ROWNUM AS RNUM, A.*
+		  FROM ( 
+				SELECT A.SEND_NATION_CD
+					 , B.NATION_NM_KO
+					 , TO_CHAR(A.SETL_APPR_AMT,'FM999,999,999,999') AS SETL_APPR_AMT
+					 , TO_CHAR(A.CNT,'FM999,999,999,999') AS CNT
+					 , TO_CHAR(A.EMS_CNT,'FM999,999,999,999') AS EMS_CNT
+					 , TO_CHAR(A.EMS_AMT,'FM999,999,999,999') AS EMS_AMT
+					 , TO_CHAR(A.SP_CNT,'FM999,999,999,999') AS SP_CNT
+					 , TO_CHAR(A.SP_AMT,'FM999,999,999,999') AS SP_AMT
+				  FROM ( SELECT A.SEND_NATION_CD
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',1,0)) AS EMS_CNT
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)) AS EMS_AMT
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',0,1)) AS SP_CNT
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)) AS SP_AMT
+							  , SUM(C.SETL_APPR_AMT) AS SETL_APPR_AMT
+							  , COUNT(*) AS CNT
+						   FROM OD_ORDER_ITM A, OD_ORDER_MAST B, OD_ORDER_SETL C
+						  WHERE A.ORDER_ID = B.ORDER_ID
+						    AND A.ORDER_ID = C.ORDER_ID
+							AND A.OVSEA_SEND_GOODS_YN = 'Y'
+							AND B.ORDER_STUS_CD NOT IN ('O01', 'O06')
+							AND A.GOODS_CANCEL_YN = 'N'
+							AND C.SETL_SEQ = '1'
+						<isNotEmpty property="search_pavln" prepend="AND">
+							<isEqual property="search_pavln" compareValue="MM">
+								A.GOODS_CD IN (SELECT GOODS_CD 
+												 FROM GD_GOODS_CTGRY
+												WHERE USE_YN = 'Y'
+												  AND BASIC_CTGRY_YN = 'Y'
+												  AND PAVLN_DIV_CD = '05')
+							</isEqual>
+							<isNotEqual property="search_pavln" compareValue="MM">
+								B.NATION_CD = #search_pavln#
+							</isNotEqual>
+						</isNotEmpty>
+						<isNotEmpty property="search_nation" prepend="AND">
+							A.SEND_NATION_CD = #search_nation#
+						</isNotEmpty>
+						<isNotEmpty property="search_strt_ymd" prepend="AND">
+							TO_CHAR(B.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+						</isNotEmpty>
+				GROUP BY A.SEND_NATION_CD) A, CM_OVSEA_SEND_NATION_CD B
+		 WHERE A.SEND_NATION_CD = B.NATION_CD(+)
+		 ORDER BY A.SEND_NATION_CD ) A
+	</select>
+	
+	<select id="selectNationEmsSp1TypeSum" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		 SELECT TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',1,0)),'FM999,999,999,999') AS EMS_CNT
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)),'FM999,999,999,999') AS EMS_AMT
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',0,1)),'FM999,999,999,999') AS SP_CNT
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)),'FM999,999,999,999') AS SP_AMT
+			  , TO_CHAR(SUM(C.SETL_APPR_AMT),'FM999,999,999,999') AS SETL_APPR_AMT
+			  , TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+		   FROM OD_ORDER_ITM A, OD_ORDER_MAST B, OD_ORDER_SETL C
+		  WHERE A.ORDER_ID = B.ORDER_ID
+		    AND A.ORDER_ID = C.ORDER_ID
+			AND A.OVSEA_SEND_GOODS_YN = 'Y'
+			AND B.ORDER_STUS_CD NOT IN ('O01', 'O06')
+			AND A.GOODS_CANCEL_YN = 'N'
+			AND C.SETL_SEQ = '1'
+		<isNotEmpty property="search_pavln" prepend="AND">
+			<isEqual property="search_pavln" compareValue="MM">
+				A.GOODS_CD IN (SELECT GOODS_CD 
+								 FROM GD_GOODS_CTGRY
+								WHERE USE_YN = 'Y'
+								  AND BASIC_CTGRY_YN = 'Y'
+								  AND PAVLN_DIV_CD = '05')
+			</isEqual>
+			<isNotEqual property="search_pavln" compareValue="MM">
+				B.NATION_CD = #search_pavln#
+			</isNotEqual>
+		</isNotEmpty>
+		<isNotEmpty property="search_nation" prepend="AND">
+			A.SEND_NATION_CD = #search_nation#
+		</isNotEmpty>
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+			TO_CHAR(B.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		</isNotEmpty>
+	</select>
+	
+	<select id="selectNationEmsSp2TypeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT ROWNUM AS RNUM, A.*
+		  FROM ( 
+				SELECT A.SEND_NATION_CD
+					 , B.NATION_NM_KO
+					 , TO_CHAR(A.EMS_CNT,'FM999,999,999,999') AS EMS_CNT
+					 , TO_CHAR(A.EMS_AMT1,'FM999,999,999,999') AS EMS_AMT1
+					 , TO_CHAR(A.EMS_AMT2,'FM999,999,999,999') AS EMS_AMT2
+					 , TO_CHAR(A.EMS_AMT3,'FM999,999,999,999') AS EMS_AMT3
+					 , TO_CHAR(A.SP_CNT,'FM999,999,999,999') AS SP_CNT
+					 , TO_CHAR(A.SP_AMT1,'FM999,999,999,999') AS SP_AMT1
+					 , TO_CHAR(A.SP_AMT2,'FM999,999,999,999') AS SP_AMT2
+					 , TO_CHAR(A.SP_AMT3,'FM999,999,999,999') AS SP_AMT3
+					 , TO_CHAR(A.CNT,'FM999,999,999,999') AS CNT
+					 , TO_CHAR(A.AMT,'FM999,999,999,999') AS AMT
+					 , TO_CHAR(A.AMT1,'FM999,999,999,999') AS AMT1
+					 , TO_CHAR(A.AMT2,'FM999,999,999,999') AS AMT2
+				  FROM ( SELECT A.SEND_NATION_CD
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',1,0)) AS EMS_CNT
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)) AS EMS_AMT1
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0)) AS EMS_AMT2
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)- DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0)) AS EMS_AMT3
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',0,1)) AS SP_CNT
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)) AS SP_AMT1
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)) AS SP_AMT2
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)- DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)) AS SP_AMT3
+							  , COUNT(A.ORDER_ID) AS CNT
+							  , SUM(C.SETL_APPR_AMT) AS AMT
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0)+DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)) AS AMT1
+							  , SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)- DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0))
+							   +SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)- DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)) AS AMT2
+						   FROM OD_ORDER_ITM A, OD_ORDER_MAST B, OD_ORDER_SETL C
+						  WHERE A.ORDER_ID = B.ORDER_ID
+						    AND A.ORDER_ID = C.ORDER_ID
+							AND A.OVSEA_SEND_GOODS_YN = 'Y'
+							AND B.ORDER_STUS_CD NOT IN ('O01', 'O06')
+							AND A.GOODS_CANCEL_YN = 'N'
+							AND C.SETL_SEQ = '1'
+						<isNotEmpty property="search_pavln" prepend="AND">
+							<isEqual property="search_pavln" compareValue="MM">
+								A.GOODS_CD IN (SELECT GOODS_CD 
+												 FROM GD_GOODS_CTGRY
+												WHERE USE_YN = 'Y'
+												  AND BASIC_CTGRY_YN = 'Y'
+												  AND PAVLN_DIV_CD = '05')
+							</isEqual>
+							<isNotEqual property="search_pavln" compareValue="MM">
+								B.NATION_CD = #search_pavln#
+							</isNotEqual>
+						</isNotEmpty>
+						<isNotEmpty property="search_nation" prepend="AND">
+							A.SEND_NATION_CD = #search_nation#
+						</isNotEmpty>
+						<isNotEmpty property="search_strt_ymd" prepend="AND">
+							TO_CHAR(B.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+						</isNotEmpty>
+				GROUP BY A.SEND_NATION_CD) A, CM_OVSEA_SEND_NATION_CD B
+		 WHERE A.SEND_NATION_CD = B.NATION_CD(+)
+		 ORDER BY A.SEND_NATION_CD ) A
+	</select>
+	
+	<select id="selectNationEmsSp2TypeSum" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		 SELECT TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',1,0)),'FM999,999,999,999') AS EMS_CNT
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)),'FM999,999,999,999') AS EMS_AMT1
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0)),'FM999,999,999,999') AS EMS_AMT2
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)- DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0)),'FM999,999,999,999') AS EMS_AMT3
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',0,1)),'FM999,999,999,999') AS SP_CNT
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)),'FM999,999,999,999') AS SP_AMT1
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)),'FM999,999,999,999') AS SP_AMT2
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)- DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)),'FM999,999,999,999') AS SP_AMT3
+			  , TO_CHAR(COUNT(A.ORDER_ID),'FM999,999,999,999') AS CNT
+			  , TO_CHAR(SUM(C.SETL_APPR_AMT),'FM999,999,999,999') AS AMT
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0)+DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)),'FM999,999,999,999') AS AMT1
+			  , TO_CHAR(SUM(DECODE(A.WISH_SEND_DATE,'EMS', C.SETL_APPR_AMT,0)- DECODE(A.WISH_SEND_DATE,'EMS', A.OVSEA_GOODS_PRC,0))
+			   +SUM(DECODE(A.WISH_SEND_DATE,'EMS',0, C.SETL_APPR_AMT)- DECODE(A.WISH_SEND_DATE,'EMS',0, A.OVSEA_GOODS_PRC)),'FM999,999,999,999') AS AMT2
+		   FROM OD_ORDER_ITM A, OD_ORDER_MAST B, OD_ORDER_SETL C
+		  WHERE A.ORDER_ID = B.ORDER_ID
+		    AND A.ORDER_ID = C.ORDER_ID
+			AND A.OVSEA_SEND_GOODS_YN = 'Y'
+			AND B.ORDER_STUS_CD NOT IN ('O01', 'O06')
+			AND A.GOODS_CANCEL_YN = 'N'
+			AND C.SETL_SEQ = '1'
+		<isNotEmpty property="search_pavln" prepend="AND">
+			<isEqual property="search_pavln" compareValue="MM">
+				A.GOODS_CD IN (SELECT GOODS_CD 
+								 FROM GD_GOODS_CTGRY
+								WHERE USE_YN = 'Y'
+								  AND BASIC_CTGRY_YN = 'Y'
+								  AND PAVLN_DIV_CD = '05')
+			</isEqual>
+			<isNotEqual property="search_pavln" compareValue="MM">
+				B.NATION_CD = #search_pavln#
+			</isNotEqual>
+		</isNotEmpty>
+		<isNotEmpty property="search_nation" prepend="AND">
+			A.SEND_NATION_CD = #search_nation#
+		</isNotEmpty>
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+			TO_CHAR(B.APPR_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		</isNotEmpty>
+	</select>
+	
+</sqlMap>

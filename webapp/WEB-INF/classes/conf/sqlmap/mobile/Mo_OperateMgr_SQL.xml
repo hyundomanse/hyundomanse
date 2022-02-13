@@ -1,0 +1,580 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="MO.Operate">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+		
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<!-- GNB MENU START-->
+	<select id="selectGnbList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	ROWNUM
+		      , GNB_SEQ 
+		      , GNB_NM
+		      , SORT_SEQ
+		      , BBC_YN
+		      , REQST_URL
+		      , TO_CHAR(DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+              , TO_CHAR(DSPY_STRT_DATE,'HH24') AS txFrTm
+              , TO_CHAR(DSPY_STRT_DATE,'MI') AS txFrMn
+              , TO_CHAR(DSPY_END_DATE,'YYYYMMDD') AS calToDate
+              , TO_CHAR(DSPY_END_DATE,'HH24') AS txToTm
+              , TO_CHAR(DSPY_END_DATE,'MI') AS txToMn
+		      , DEL_YN
+		FROM	MP_MOBILE_GNB_MGMT
+		WHERE	DEL_YN = 'N'
+		<isNotEmpty property="search_text">
+		AND		GNB_NM LIKE '%'||#search_text#||'%' 
+		</isNotEmpty>
+		ORDER BY ROWNUM ASC
+	</select>
+	
+	<select id="selectGnbListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(*) AS CNT
+		FROM	MP_MOBILE_GNB_MGMT
+		WHERE	DEL_YN = 'N'
+		<isNotEmpty property="search_text">
+		AND		GNB_NM LIKE '%'||#search_text#||'%' 
+		</isNotEmpty>
+	</select>
+	
+	<insert id="insertGnbList" parameterClass="java.util.HashMap">
+		INSERT INTO MP_MOBILE_GNB_MGMT 
+		VALUES (
+			  GNB_SEQ.NEXTVAL
+			, #gnb_nm#
+			, #sort_seq#
+			, #bbc_yn#
+			, #reqst_url#
+			, 'N'
+			, TO_DATE(#cal_from_date# || #tx_fr_tm# || #tx_fr_mn# || '00', 'YYYYMMDDHH24MISS')
+			, TO_DATE(#cal_to_date# || #tx_to_tm# || #tx_to_mn# || '59', 'YYYYMMDDHH24MISS')
+			, SYSDATE
+			, #reger_id#
+			, ''
+			, '')
+	</insert>
+	
+	<update id="updateGnbList" parameterClass="java.util.HashMap">
+		UPDATE	MP_MOBILE_GNB_MGMT
+		SET		GNB_NM = #gnb_nm#
+			  , SORT_SEQ = #sort_seq#
+			  , BBC_YN = #bbc_yn#
+			  , REQST_URL = #reqst_url#
+		<isNotEmpty property="del_yn">
+			  , DEL_YN = #del_yn#
+		</isNotEmpty> 
+			  , DSPY_STRT_DATE = TO_DATE(#cal_from_date# || #tx_fr_tm# || #tx_fr_mn# || '00', 'YYYYMMDDHH24MISS')
+			  , DSPY_END_DATE = TO_DATE(#cal_to_date# || #tx_to_tm# || #tx_to_mn# || '59', 'YYYYMMDDHH24MISS')
+			  , CHG_DATE = SYSDATE
+			  , CHGER_ID = #login_id#
+		WHERE	GNB_SEQ = #gnb_seq#
+	</update>
+	<!-- GNB MENU END-->
+		
+	<!-- SEARCH CODE START -->
+	
+	<!-- 추천검색어 목록조회 -->
+	<select id="selectSearchCodeList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>	
+		<![CDATA[
+		SELECT	ROWNUM
+		      , SRCH_SEQ 
+		      , SRCH_NM
+		      , BBC_YN
+		      , REQST_URL
+		      , TO_CHAR(DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		      , CASE WHEN TO_CHAR(DSPY_END_DATE, 'YYYY-MM-DD') = '9999-12-31' THEN '상시게시'
+                           ELSE TO_CHAR(DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') END                         AS DSPY_END_DATE
+		      , TO_CHAR(DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+              , TO_CHAR(DSPY_STRT_DATE,'HH24') AS txFrTm
+              , TO_CHAR(DSPY_STRT_DATE,'MI') AS txFrMn
+              , TO_CHAR(DSPY_END_DATE,'YYYYMMDD') AS calToDate
+              , TO_CHAR(DSPY_END_DATE,'HH24') AS txToTm
+              , TO_CHAR(DSPY_END_DATE,'MI') AS txToMn
+		      , DEL_YN
+		      , CASE WHEN REG_DATE <= CHG_DATE THEN TO_CHAR(CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+              , CASE WHEN REG_DATE <= CHG_DATE THEN CHGER_ID
+                          ELSE REGER_ID END							                                   AS lastId
+		FROM	MP_MOBILE_SRCH_MGMT
+		]]>
+		WHERE	DEL_YN = 'N'
+		<isNotEmpty property="search_text">
+		AND		SRCH_NM LIKE '%'||#search_text#||'%' 
+		</isNotEmpty>
+		ORDER BY SRCH_SEQ ASC
+		<include refid="pagingFooter"/>
+	</select>
+	
+	<!-- 추천검색어 목록건수 -->
+	<select id="selectSearchCodeListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM MP_MOBILE_SRCH_MGMT
+		 WHERE DEL_YN = 'N' 
+		     <isNotEmpty property="search_text">
+			 AND		SRCH_NM LIKE '%'||#search_text#||'%' 
+		    </isNotEmpty> 
+	</select>	
+	
+	<!-- 추천검색어 저장, 신규저장-->
+	<insert id="insertSearchCodeMgr" parameterClass="java.util.HashMap">
+		 INSERT INTO MP_MOBILE_SRCH_MGMT
+		 (
+				       	  SRCH_SEQ
+				       	, SRCH_NM
+	                    , BBC_YN
+	                    , REQST_URL
+	                    , DEL_YN
+	                    , DSPY_STRT_DATE
+	                    , DSPY_END_DATE
+	                    , REG_DATE
+	                    , REGER_ID
+			       )VALUES(
+			       		  (SELECT NVL(MAX(TO_NUMBER(SRCH_SEQ))+1, 1) FROM MP_MOBILE_SRCH_MGMT)
+			       		, #srchNm#                                                                                                                                          
+		       		    , #bbcYn#                                                      
+		       		    , #reqstUrl#                                              
+		       		    , 'N'                                                                     		     	       		     
+		       		    , TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')	    
+		       		    , TO_DATE(REPLACE(#calToDate#,'-') || #txToTm# || #txToMn# || '00'  ,'YYYYMMDDHH24MISS')     		                           
+		       		    , SYSDATE                                   					            
+		       		    , 'admin'                                              
+			       ) 
+	</insert>
+	
+	<!-- 추천검색어 업데이트 -->
+	<update id="updateSearchCodeMgr" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_SRCH_MGMT
+		   SET  SRCH_NM		      = #srchNm#
+			 	, BBC_YN			      = #bbcYn#
+			    , REQST_URL			  = #reqstUrl#
+			    , DSPY_STRT_DATE   = TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')
+		     	, DSPY_END_DATE    = TO_DATE(REPLACE(#calToDate#,'-')  || #txToTm# || #txToMn# || '59' ,'YYYYMMDDHH24MISS')
+			 	, CHGER_ID		      = 'tester'
+			 	, CHG_DATE	          = SYSDATE
+		 WHERE SRCH_SEQ   = #srchSeq#
+	</update>
+	
+	<!-- 추천검색어 일괄저장-->
+	<update id="updateAllSearchCodeMgr" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_SRCH_MGMT
+		SET   BBC_YN = #bbcYn#
+	          , CHG_DATE = SYSDATE
+			  , CHGER_ID = #chgerId#
+		WHERE 	SRCH_SEQ = #srchSeq#
+	</update>
+	
+	<!--추천검색어 삭제-->
+	<update id="updateDelSearchCodeMgr" parameterClass="java.util.HashMap">
+		UPDATE	 MP_MOBILE_SRCH_MGMT
+		SET		
+		<isNotEmpty property="delYn">
+			    DEL_YN = #delYn#
+		</isNotEmpty> 
+		WHERE	SRCH_SEQ = #srchSeq#
+	</update>
+<!-- SEARCH CODE END -->
+	
+<!-- PROMOTE IMAGE START -->
+	<select id="selectPromoteList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT	ROWNUM
+		      , A.PR_IMAGE_SEQ 
+		      , A.ATTCHFILE_ID
+		      , A.PR_IMAGE_NM
+		      , A.BBC_YN
+		      , A.REQST_URL
+		      , TO_CHAR(A.DSPY_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS DSPY_STRT_DATE
+		      , CASE WHEN TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD') = '9999-12-31' THEN '상시게시'
+                           ELSE TO_CHAR(A.DSPY_END_DATE, 'YYYY-MM-DD HH24:MI:SS') END                         AS DSPY_END_DATE
+		      , TO_CHAR(A.DSPY_STRT_DATE,'YYYYMMDD') AS calFromDate
+              , TO_CHAR(A.DSPY_STRT_DATE,'HH24') AS txFrTm
+              , TO_CHAR(A.DSPY_STRT_DATE,'MI') AS txFrMn
+              , TO_CHAR(A.DSPY_END_DATE,'YYYYMMDD') AS calToDate
+              , TO_CHAR(A.DSPY_END_DATE,'HH24') AS txToTm
+              , TO_CHAR(A.DSPY_END_DATE,'MI') AS txToMn
+		      , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI:SS')  
+                          ELSE TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI:SS') END                            AS lastDate
+              , CASE WHEN A.REG_DATE <= A.CHG_DATE THEN A.CHGER_ID
+                          ELSE A.REGER_ID END							                                   AS lastId
+		      , A.DEL_YN
+		      , REPLACE(B.FILE_STRE_PATH, '\') AS IMAGE_PATH
+			  , B.STRE_FILE_NM AS IMAGE_NM
+			  , B.ORIG_FILE_NM AS IMAGE_ORIG_NM
+			  , B.FILE_EXTNER AS IMAGE_EXTNER 
+			  , B.FILE_SIZE AS IMAGE_SIZE
+		FROM	MP_MOBILE_PR_MGMT A, CM_FILE_MGT B
+		WHERE	A.DEL_YN = 'N'
+		AND		A.BBC_TYPE = 'P'
+		AND     A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		]]>
+		<isNotEmpty property="search_text">
+		AND		A.PR_IMAGE_NM LIKE '%'||#search_text#||'%' 
+		</isNotEmpty>
+		ORDER BY ROWNUM ASC
+	</select>
+	
+	<select id="selectPromoteListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(A.PR_IMAGE_SEQ) AS CNT
+		FROM	MP_MOBILE_PR_MGMT A, CM_FILE_MGT B
+		WHERE	A.DEL_YN = 'N'
+		AND     A.ATTCHFILE_ID = B.ATTCHFILE_ID
+		<isNotEmpty property="search_text">
+		AND		A.PR_IMAGE_NM LIKE '%'||#search_text#||'%' 
+		</isNotEmpty>
+	</select>
+	
+	<insert id="insertPromoteList" parameterClass="java.util.HashMap">
+		 INSERT INTO MP_MOBILE_PR_MGMT
+		 (
+				       	  PR_IMAGE_SEQ
+				       	, ATTCHFILE_ID
+				       	, PR_IMAGE_NM
+	                    , BBC_YN
+	                    , REQST_URL
+	                    , DEL_YN
+	                    , DSPY_STRT_DATE
+	                    , DSPY_END_DATE
+	                    , REG_DATE
+	                    , REGER_ID
+	                    , BBC_TYPE
+			       )VALUES(
+			       		  (SELECT NVL(MAX(TO_NUMBER(PR_IMAGE_SEQ))+1, 1) FROM MP_MOBILE_PR_MGMT)
+			       		, #attchfileId# 
+			       		, #prImageNm#                                                                                                                                             
+		       		    , #bbcYn#                                                      
+		       		    , #reqstUrl#                                              
+		       		    , 'N'                                                                     		     	       		     
+		       		    , TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')	    
+		       		    , TO_DATE(REPLACE(#calToDate#,'-') || #txToTm# || #txToMn# || '00'  ,'YYYYMMDDHH24MISS')     		                           
+		       		    , SYSDATE                                   					            
+		       		    , #login_usr_id# 
+		       		    , 'P'                                             
+			       ) 
+	</insert>
+	
+	<update id="updatePromoteList" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_PR_MGMT
+		   SET PR_IMAGE_NM = #prImageNm#
+		<isNotEmpty property="attchfileId" prepend=",">
+			   ATTCHFILE_ID	= #attchfileId#
+		</isNotEmpty>
+			 , BBC_YN			        = #bbcYn#
+			 , REQST_URL			    = #reqstUrl#
+			 , DSPY_STRT_DATE    = TO_DATE(REPLACE(#calFromDate#,'-') || #txFrTm# || #txFrMn# || '00'  ,'YYYYMMDDHH24MISS')
+		     , DSPY_END_DATE     = TO_DATE(REPLACE(#calToDate#,'-')  || #txToTm# || #txToMn# || '59' ,'YYYYMMDDHH24MISS')
+			 , CHGER_ID		        = #chgerId#
+			 , CHG_DATE	            = SYSDATE
+		 WHERE PR_IMAGE_SEQ  = #prImageSeq#
+		</update>
+		
+		<update id="updateAllPromoteList" parameterClass="java.util.HashMap">
+		UPDATE MP_MOBILE_PR_MGMT
+		   SET BBC_YN			    = #bbcYn#
+			  , CHGER_ID		        = #chgerId#
+			  , CHG_DATE	            = SYSDATE
+		 WHERE PR_IMAGE_SEQ   = #prImageSeq#
+		</update>
+		
+		<update id="updateDelPromoteList" parameterClass="java.util.HashMap">     
+			UPDATE   MP_MOBILE_PR_MGMT
+				   SET   DEL_YN = #delYn#
+			 			, CHGER_ID = #chgerId#
+			  		  	, CHG_DATE = SYSDATE
+			WHERE	PR_IMAGE_SEQ = #prImageSeq#
+		</update>
+<!-- PROMOTE IMAGE END -->
+
+<!-- POSTRECOMMENDLIST START-->
+	<sql id="postRecom_list">
+		SELECT  (CASE WHEN A.PODIVCD IN ('06','07','10','13','14') THEN (CASE WHEN A.PONM like '%우체국%' THEN A.PONM ELSE A.PONM||'우체국' END)
+                																							    WHEN A.PODIVCD = '08' THEN (CASE WHEN A.PONM like '%취급%' THEN A.PONM ELSE A.PONM||'우편취급국' END)
+                																								WHEN A.PODIVCD = '09' THEN (CASE WHEN A.PONM like '%출장%'  THEN A.PONM ELSE A.PONM||'우체국' END)
+                																								WHEN A.PODIVCD IN ('12','17') THEN (CASE WHEN A.PONM like '%출장%' THEN A.PONM ELSE A.PONM||'우편출장소' END)
+                    			  ELSE A.PONM  END) AS PONM
+                /*, A.REGIPOCD*/
+                /*, A.REGIPOCD AS POSTCD*/
+                /*, A.EDPSCD*/
+                /*, B.COMN_CD_ID AS RCOCD*/ 
+                , B.COMN_CD_NM AS RCOCDNM
+                , COUNT(EV.ANSWER4) AS RECOM_CNT
+        FROM 
+             EV_MALL_EVENT EV
+           , PICMT0060 A
+           , (SELECT T2.CD_GRP_ID 
+			           , T2.COMN_CD_ID 
+			           , T2.COMN_CD_NM 
+               FROM CM_COMN_CD_GRP T1, 
+                         CM_COMN_CD T2 
+             WHERE T1.CD_GRP_ID = T2.CD_GRP_ID 
+                 AND T1.CD_GRP_ID = 'RCO_CD' 
+                 AND T2.USE_YN = 'Y') B 
+        WHERE EV.PRZWIN_EVENT_ID = '0' /* 앱추천우체국 키값*/
+            AND EV.ANSWER4  = A.REGIPOCD
+            AND A.USEYN = 'Y'
+            AND A.DSCDPOYN = 'N'
+            AND LENGTH(A.REGIPOCD) > 3
+            AND A.PODIVCD NOT IN ('01','02','03','04','11','15','16','18')
+            AND A.REGIPOCD NOT IN ('10248','89967','T0000','T0001','89903')
+            AND A.REGIPOCD NOT LIKE '9%'
+            AND A.REGIPOCD NOT LIKE 'Z%'
+            AND A.RCOCD = B.COMN_CD_ID	   
+	   <isNotEmpty property="search_text" prepend="AND">
+	   		  A.PONM LIKE '%'||#search_text#||'%'	
+	   </isNotEmpty>
+	   
+	   <isNotEmpty property="search_type" prepend="AND">
+	   		  A.RCOCD = #search_type#	
+	   </isNotEmpty>
+	   
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+	   		  TO_CHAR(EV.SPRT_DATE, 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#   		
+	   </isNotEmpty>
+	    GROUP BY (CASE WHEN A.PODIVCD IN ('06','07','10','13','14') THEN (CASE WHEN A.PONM like '%우체국%' THEN A.PONM ELSE A.PONM||'우체국' END)
+                																									WHEN A.PODIVCD = '08' THEN (CASE WHEN A.PONM like '%취급%' THEN A.PONM ELSE A.PONM||'우편취급국' END)
+                																									WHEN A.PODIVCD = '09' THEN (CASE WHEN A.PONM like '%출장%'  THEN A.PONM ELSE A.PONM||'우체국' END)
+                																									WHEN A.PODIVCD IN ('12','17') THEN (CASE WHEN A.PONM like '%출장%' THEN A.PONM ELSE A.PONM||'우편출장소' END)
+                    			  ELSE A.PONM  END)
+                , A.REGIPOCD
+                , A.REGIPOCD 
+                , A.EDPSCD
+                , B.COMN_CD_ID 
+                , B.COMN_CD_NM   
+	</sql>
+
+	<select id="selectPostRecomList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+				 ROW_NUMBER () OVER (ORDER BY A.RECOM_CNT DESC) RNUM
+				</isEmpty>
+				, DENSE_RANK() OVER (ORDER BY A.RECOM_CNT DESC) RANKING
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="postRecom_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectPostRecomListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="postRecom_list" />)
+	</select>
+	
+	<select id="selRcocdNmListList" parameterClass="java.util.HashMap" resultClass="commMap">
+			SELECT  T2.CD_GRP_ID 
+			           , T2.COMN_CD_ID AS VALUE
+			           , T2.COMN_CD_NM AS NAME
+               FROM CM_COMN_CD_GRP T1, 
+                         CM_COMN_CD T2 
+             WHERE T1.CD_GRP_ID = T2.CD_GRP_ID 
+                 AND T1.CD_GRP_ID = 'RCO_CD' 
+                 AND T2.USE_YN = 'Y'
+	</select>
+<!-- POSTRECOMMENDLIST END-->
+	
+	<sql id="przwin_list">
+        SELECT A.DSPY_SEQ
+        	 , A.PRZWIN_EVENT_ID
+        	 , A.EVENT_NM
+             , TO_CHAR(A.EVENT_STRT_DATE, 'YYYY-MM-DD') AS EVENT_STRT_DATE
+             , TO_CHAR(A.EVENT_STRT_DATE, 'HH24') AS FR_TM
+             , TO_CHAR(A.EVENT_STRT_DATE, 'MI') AS FR_MN
+             , TO_CHAR(A.EVENT_END_DATE, 'YYYY-MM-DD') AS EVENT_END_DATE
+             , TO_CHAR(A.EVENT_END_DATE, 'HH24') AS TO_TM
+             , TO_CHAR(A.EVENT_END_DATE, 'MI') AS TO_MN       	
+        	 , A.PRZWIN_EVENT_DIV_CD		/* 당첨이벤트 구분 코드 */
+        	 , B.USE_YN
+        	 , B.DSPY_STUS_CD
+        	 , CASE WHEN B.DSPY_STUS_CD = '20' THEN '게시중'
+             		    WHEN B.DSPY_STUS_CD = '10' THEN '예약게시'
+                        WHEN B.DSPY_STUS_CD = '30' THEN '일시게시중지'
+                        WHEN B.DSPY_STUS_CD = '40' THEN '종료'
+                           ELSE NULL END                                                    AS MO_DSPY_STUS_NM   /* 모바일진행상태(수정요청함) */
+        	 , DSPY_STUS_CD.COMN_CD_NM AS DSPY_STUS_NM
+        	 , PRZWIN_EVENT_DIV_CD.COMN_CD_NM AS PRZWIN_EVENT_DIV_NM
+        	 , CUST_BNEF.COMN_CD_NM AS CUST_BNEF_NM
+        	 , PRZWIN_TYP_CD.COMN_CD_NM AS PRZWIN_TYP_NM
+        	 , A.MAIN_ATTCHFILE_ID
+        	 , A.LOGO_ATTCHFILE_ID
+        	 , A.MOBILE_ATTCHFILE_ID
+        	 , A.PRZWIN_EVENT_DESC
+           	 , IMAGE.FILE_STRE_PATH || IMAGE.STRE_FILE_NM AS IMAGE_PATH
+           	 , IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+           	 , LOGOIMAGE.FILE_STRE_PATH || LOGOIMAGE.STRE_FILE_NM AS LOGO_IMAGE_PATH
+          	 , LOGOIMAGE.ORIG_FILE_NM AS LOGO_IMAGE_ORIG_NM
+           	 , MOBILEIMAGE.FILE_STRE_PATH || MOBILEIMAGE.STRE_FILE_NM AS MOBILE_IMAGE_PATH
+          	 , MOBILEIMAGE.ORIG_FILE_NM AS MOBILE_IMAGE_ORIG_NM
+          	 , MOBILE_URL
+          	 , NVL(C.CNT, 0) AS PRZWINER_CNT
+          	 , NVL(D.CNT, 0) AS ENTRY_CNT
+          	 , NVL(GOODS_CNT.CNT, 0) AS GOODS_CNT
+          	 , A.SORT_SEQ AS SORT_ORDER
+          FROM EV_EVENT_PRZWIN_MAST A
+             , DP_DSPY_MAST B
+             , (SELECT PRZWIN_EVENT_ID, COUNT(*) AS CNT FROM EV_EVENT_PRZWINER GROUP BY PRZWIN_EVENT_ID) C
+             , (SELECT PRZWIN_EVENT_ID, COUNT(*) AS CNT FROM EV_MALL_EVENT WHERE USEYN = 'Y' GROUP BY PRZWIN_EVENT_ID) D
+             , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'DSPY_STUS_CD') DSPY_STUS_CD
+             , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PRZWIN_EVENT_DIV_CD') PRZWIN_EVENT_DIV_CD
+             , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'CUST_BNEF') CUST_BNEF
+             , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PRZWIN_TYP_CD') PRZWIN_TYP_CD
+             , (SELECT PRZWIN_EVENT_ID, COUNT(*) AS CNT FROM EV_EVENT_PREMIEUM_GOODS WHERE USE_YN = 'Y' GROUP BY PRZWIN_EVENT_ID) GOODS_CNT
+             , CM_FILE_MGT IMAGE
+             , CM_FILE_MGT LOGOIMAGE
+             , CM_FILE_MGT MOBILEIMAGE
+         WHERE A.DSPY_SEQ = B.DSPY_SEQ
+           AND A.PRZWIN_EVENT_DIV_CD != '01' --웹이 아님(00-웹+모바일,01-웹,02-모바일)
+           AND A.PRZWIN_EVENT_ID = C.PRZWIN_EVENT_ID(+)
+           AND A.PRZWIN_EVENT_ID = D.PRZWIN_EVENT_ID(+)
+           AND B.DSPY_STUS_CD = DSPY_STUS_CD.COMN_CD_ID(+)
+           AND A.PRZWIN_EVENT_DIV_CD = PRZWIN_EVENT_DIV_CD.COMN_CD_ID(+)
+           AND A.CUST_BNEF = CUST_BNEF.COMN_CD_ID(+)
+           AND A.PRZWIN_TYP_CD = PRZWIN_TYP_CD.COMN_CD_ID(+)
+           AND A.PRZWIN_EVENT_ID = GOODS_CNT.PRZWIN_EVENT_ID(+)
+           AND A.MAIN_ATTCHFILE_ID = IMAGE.ATTCHFILE_ID(+)
+           AND A.LOGO_ATTCHFILE_ID = LOGOIMAGE.ATTCHFILE_ID(+)
+           AND A.MOBILE_ATTCHFILE_ID = MOBILEIMAGE.ATTCHFILE_ID(+)
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="przwin_event_id">
+					A.PRZWIN_EVENT_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="event_nm">
+					A.EVENT_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( A.PRZWIN_EVENT_ID LIKE '%'||#search_text#||'%' OR A.EVENT_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(REPLACE(#search_strt_ymd#, '-') BETWEEN TO_CHAR(B.DSPY_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(B.DSPY_END_DATE, 'YYYYMMDD')
+			OR REPLACE(#search_end_ymd#, '-') BETWEEN TO_CHAR(B.DSPY_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(B.DSPY_END_DATE, 'YYYYMMDD'))
+	   </isNotEmpty>
+	   <isNotEmpty property="search_cust_bnef" prepend="AND">
+			A.CUST_BNEF = #search_cust_bnef#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_przwin_typ_cd" prepend="AND">
+			A.PRZWIN_TYP_CD = #search_przwin_typ_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="przwin_event_id" prepend="AND">
+			A.PRZWIN_EVENT_ID = #przwin_event_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			B.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_przwin_event_div_cd" prepend="AND">
+			A.PRZWIN_EVENT_DIV_CD = #search_przwin_event_div_cd#
+	   </isNotEmpty>
+	</sql>
+	
+	<select id="selectEventPrzwinList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY DSPY_SEQ DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="przwin_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	
+	<select id="selectEventPrzwinCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="przwin_list" />)
+	</select>
+	
+	<!--  모바일 이벤트 일괄저장-->
+	<update id="updateAllEventSortSeqMgr" parameterClass="java.util.HashMap">
+		UPDATE	 EV_EVENT_PRZWIN_MAST
+		      SET	SORT_SEQ = #sortOrder#
+		WHERE 	PRZWIN_EVENT_ID = #przwin_event_id#
+	</update>
+	
+	<!--  모바일 이벤트 저장/수정 -->
+	<insert id="insertEventPrzwinInfo" parameterClass="java.util.HashMap">
+		MERGE INTO EV_EVENT_PRZWIN_MAST
+			 USING DUAL
+				ON (PRZWIN_EVENT_ID = #przwin_event_id#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   EVENT_NM					= #event_nm#
+				 , PRZWIN_EVENT_DIV_CD		= #przwin_event_div_cd#
+				 , EVENT_STRT_DATE			= TO_DATE(REPLACE(#event_strt_date#, '-') || #fr_tm# || #fr_mn#, 'YYYYMMDDHH24MI')
+				 , EVENT_END_DATE			= TO_DATE(REPLACE(#event_end_date#, '-') || #to_tm# || #to_mn#, 'YYYYMMDDHH24MI')
+				<isNotEmpty property="mobile_attchfile_id" prepend=",">
+					MOBILE_ATTCHFILE_ID = #mobile_attchfile_id#
+				</isNotEmpty>
+				<isEmpty property="new_mobile_attchfile_id_yn">
+					<isEqual property="image_delyn" compareValue="Y" prepend=",">
+						MOBILE_ATTCHFILE_ID = NULL
+					</isEqual>
+				</isEmpty>
+		         , MOBILE_URL 		= #mobile_url#
+		         , CHG_DATE			= SYSDATE
+		         , CHGER_ID			= #login_usr_id#
+		         , SORT_SEQ          = #sort_order# 
+		WHEN NOT MATCHED THEN
+			INSERT 
+		         ( PRZWIN_EVENT_ID
+		         , PRZWIN_EVENT_DIV_CD
+		         , DSPY_SEQ
+				 , EVENT_NM
+				 , EVENT_STRT_DATE
+				 , EVENT_END_DATE
+		         , MOBILE_ATTCHFILE_ID
+		         , MOBILE_URL
+		         , REG_DATE
+		         , CHG_DATE
+		         , REGER_ID
+		         , CHGER_ID 
+		         , SORT_SEQ)
+		  VALUES ( #przwin_event_id#
+		  		 , #przwin_event_div_cd#
+		         , #dspy_seq#
+				 , #event_nm#
+				 , TO_DATE(REPLACE(#event_strt_date#, '-') || #fr_tm# || #fr_mn#, 'YYYYMMDDHH24MI')
+				 , TO_DATE(REPLACE(#event_end_date#, '-') || #to_tm# || #to_mn#, 'YYYYMMDDHH24MI')
+		         , #mobile_attchfile_id#
+		         , #mobile_url#
+		         , SYSDATE
+		         , SYSDATE
+		         , NVL(#login_usr_id#, 'ADMIN')
+		         , NVL(#login_usr_id#, 'ADMIN')
+		         , #sort_order#
+		         )
+	</insert>
+	
+</sqlMap>

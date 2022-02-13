@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboDeliver">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT 	A.*
+						, ROWNUM  AS RNUM
+				FROM (
+		]]>
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+						) A	WHERE ROWNUM <= #lastIndex#
+				) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<!-- 배송수단 지정 변경 이력 리스트 카운트 -->
+	<select id="selectDeliverHistoryListCount" parameterClass="com.devwork.common.util.CommandMap" resultClass="java.lang.Integer">
+		/* selectDeliverHistoryListCount */
+		SELECT 1 AS CNT
+		  FROM DUAL
+	</select>
+	
+	<!-- 배송수단 지정 변경 이력 조회 목록 -->
+	<select id="selectDeliverHistoryList" parameterClass="com.devwork.common.util.CommandMap" resultClass="commMap">
+		/* selectDeliverHistoryList */
+		SELECT 1
+			FROM DUAL
+	</select>
+	
+	<!-- 공급업체 배송수단 조회 LIST -->
+	<select id="selectCompDeliveryList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT
+				CS.SUPP_COMP_ID
+				,CM.BCNC_NM
+				,CS.SEND_SEQ
+				,SEND_PSSB_AREA_CD.COMN_CD_NM AS SEND_PSSB_AREA_CD_NM
+				,SEND_PSSB_AREA_DTAIL_CD.COMN_CD_NM AS SEND_PSSB_AREA_DTAIL_CD_NM
+				,SEND_METH_DIV_CD.COMN_CD_NM AS SEND_METH_DIV_CD_NM
+				,CS.OUTWARE_ADDR
+				,CS.RETRNGD_EXCHG_ADDR
+				,SENDNON_DIV_CD.COMN_CD_NM AS SENDNON_DIV_CD_NM
+				,SENDNON_ADD_DIV_CD.COMN_CD_NM AS SENDNON_ADD_DIV_CD_NM
+				,SETL_METH_DIV_CD.COMN_CD_NM AS SETL_METH_DIV_CD_NM
+				,OVSEA_KIND_DIV_CD.COMN_CD_NM AS OVSEA_KIND_DIV_CD_NM
+				,OVSEA_EXP_DIV_CD.COMN_CD_NM AS OVSEA_EXP_DIV_CD_NM
+				,CS.REG_DATE
+				,CS.CHG_DATE
+		FROM	CO_SUPP_COMP_SEND CS
+				,CO_SUPP_COMP_MAST  CM
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SEND_PSSB_AREA_CD') SEND_PSSB_AREA_CD
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SEND_PSSB_AREA_DTAIL_CD') SEND_PSSB_AREA_DTAIL_CD
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SEND_METH_DIV_CD') SEND_METH_DIV_CD
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SENDNON_DIV_CD') SENDNON_DIV_CD
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SENDNON_ADD_DIV_CD') SENDNON_ADD_DIV_CD
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SETL_METH_DIV_CD') SETL_METH_DIV_CD
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='OVSEA_KIND_DIV_CD') OVSEA_KIND_DIV_CD
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='OVSEA_EXP_DIV_CD') OVSEA_EXP_DIV_CD
+		WHERE CM.SUPP_COMP_ID = CS.SUPP_COMP_ID
+		AND SEND_PSSB_AREA_CD.COMN_CD_ID(+) = SEND_PSSB_AREA_CD
+		AND SEND_PSSB_AREA_DTAIL_CD.COMN_CD_ID(+) = SEND_PSSB_AREA_DTAIL_CD
+		AND SEND_METH_DIV_CD.COMN_CD_ID(+) = SEND_METH_DIV_CD
+		AND SENDNON_DIV_CD.COMN_CD_ID(+) = SENDNON_DIV_CD
+		AND SENDNON_ADD_DIV_CD.COMN_CD_ID(+) = SENDNON_ADD_DIV_CD
+		AND SETL_METH_DIV_CD.COMN_CD_ID(+) = SETL_METH_DIV_CD
+		AND OVSEA_KIND_DIV_CD.COMN_CD_ID(+) = OVSEA_KIND_DIV_CD
+		AND OVSEA_EXP_DIV_CD.COMN_CD_ID(+) = OVSEA_EXP_DIV_CD
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 공급업체 배송수단 조회 COUNT -->
+	<select id="selectCompDeliveryListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM	CO_SUPP_COMP_SEND CS
+				,CO_SUPP_COMP_MAST  CM
+		WHERE CM.SUPP_COMP_ID = CS.SUPP_COMP_ID
+	</select>
+	<select id="selectCompDeliveryInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	CS.SUPP_COMP_ID
+				,CM.BCNC_NM
+				,CS.SEND_SEQ
+				,CS.SEND_PSSB_AREA_CD
+				,CS.SEND_PSSB_AREA_DTAIL_CD
+				,CS.SEND_METH_DIV_CD
+				,CS.SEND_METH_DTAIL_CD
+				,CS.VISIT_RECPT_YN
+				,CS.OUTWARE_ADDR
+				,CS.RETRNGD_EXCHG_ADDR
+				,CS.SENDNON_DIV_CD
+				,CS.SENDNON
+				,CS.SENDNON_LWEST_BUY_PRC
+				,CS.SENDNON_MAX_BUY_PRC
+				,CS.BUNDSEND_DIV_YN
+				,CS.SENDNON_ADD_DIV_CD
+				,CS.SETL_METH_DIV_CD
+				,CS.IDSRTS_ADD_SENDNON_SET_YN
+				,CS.JEJU_SENDNON
+				,CS.IDSRTS_SENDNON
+				,CS.SEND_ADD_SET_YN
+				,CS.EMS_YN
+				,CS.SMALL_PACKET_YN
+				,CS.WGHT
+				,CS.VOLM
+				,CS.OVSEA_KIND_DIV_CD
+				,CS.OVSEA_EXP_DIV_CD
+				,CS.PRCL_INMATL_NM
+				,CS.SENDLIMIT_ATPN
+				,CS.TEMPL_STRE_YN
+				,CS.TEMPL_NM
+				,CS.REG_DATE
+				,CS.CHG_DATE
+				,CS.REGER_ID
+				,CS.CHGER_ID
+		FROM	CO_SUPP_COMP_SEND CS, CO_SUPP_COMP_MAST CM
+		WHERE	CS.SUPP_COMP_ID = CM.SUPP_COMP_ID(+)
+		AND		CS.SUPP_COMP_ID = #suppCompId#
+		AND		CS.SEND_SEQ = #sendSeq#
+	</select>
+	<select id="selectMgtSendTemplate" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT SEND_SEQ AS VALUE
+			 , TEMPL_NM AS NAME
+		  FROM CO_SUPP_COMP_SEND
+		 WHERE TEMPL_STRE_YN = 'Y'
+		<isNotEmpty property="suppCompId" prepend="AND">
+			SUPP_COMP_ID = #suppCompId#
+		</isNotEmpty>
+	</select>
+	
+	<!-- 배송수단 등록 -->
+	<insert id="registCompDeliveryInfo" parameterClass="java.util.HashMap">
+			INSERT INTO CO_SUPP_COMP_SEND
+				 ( SUPP_COMP_ID
+				 , SEND_SEQ
+				 , SEND_PSSB_AREA_CD
+				 , SEND_PSSB_AREA_DTAIL_CD
+				 , SEND_METH_DIV_CD
+				 , SEND_METH_DTAIL_CD
+				 , VISIT_RECPT_YN
+				 , OUTWARE_ADDR
+				 , RETRNGD_EXCHG_ADDR
+				 , SENDNON_DIV_CD
+				 , SENDNON
+				 , SENDNON_LWEST_BUY_PRC
+				 , SENDNON_MAX_BUY_PRC
+				 , BUNDSEND_DIV_YN
+				 , SENDNON_ADD_DIV_CD
+				 , SETL_METH_DIV_CD
+				 , IDSRTS_ADD_SENDNON_SET_YN
+				 , JEJU_SENDNON
+				 , IDSRTS_SENDNON
+				 , SEND_ADD_SET_YN
+				 , EMS_YN
+				 , SMALL_PACKET_YN
+				 , OVSEA_KIND_DIV_CD
+				 , OVSEA_EXP_DIV_CD
+				 , PRCL_INMATL_NM
+				 , SENDLIMIT_ATPN
+				 , TEMPL_STRE_YN
+				 , TEMPL_NM
+				 , REG_DATE
+				 , REGER_ID )
+		  VALUES
+				 ( #suppCompId#
+				 <isNotEmpty property="sendSeq">
+				 , #sendSeq#
+				 </isNotEmpty>
+				 <isEmpty property="sendSeq">
+				 ,(SELECT NVL(MAX(SEND_SEQ),0)+1
+				  FROM	CO_SUPP_COMP_SEND
+				  WHERE SUPP_COMP_ID = #suppCompId#)
+				 </isEmpty>
+				 , #send_pssb_area_cd#
+				 , #send_pssb_area_dtail_cd#
+				 , #send_meth_div_cd#
+				 , #send_meth_dtail_cd#
+				 , #visit_recpt_yn#
+				 , #outware_addr#
+				 , #retrngd_exchg_addr#
+				 , #sendnon_div_cd#
+				 , #sendnon#
+				 , #sendnon_lwest_buy_prc#
+				 , #sendnon_max_buy_prc#
+				 , #bundsend_div_yn#
+				 , #sendnon_add_div_cd#
+				 , #setl_meth_div_cd#
+				 , #idsrts_add_sendnon_set_yn#
+				 , #jeju_sendnon#
+				 , #idsrts_sendnon#
+				 , #send_add_set_yn#
+				 , #ems_yn#
+				 , #small_packet_yn#
+				 , #ovsea_kind_div_cd#
+				 , #ovsea_exp_div_cd#
+				 , #prcl_inmatl_nm#
+				 , #sendlimit_atpn#
+				 , #templ_stre_yn#
+				 , #templ_nm#
+				 , SYSDATE
+				 , #loginId# )
+	</insert>
+	<!-- 배송수단 수정 -->
+	<insert id="updateCompDeliveryInfo" parameterClass="java.util.HashMap">
+	UPDATE	CO_SUPP_COMP_SEND
+	SET			SEND_PSSB_AREA_CD			= #send_pssb_area_cd#
+				, SEND_PSSB_AREA_DTAIL_CD		= #send_pssb_area_dtail_cd#
+				, SEND_METH_DIV_CD				= #send_meth_div_cd#
+				, SEND_METH_DTAIL_CD			= #send_meth_dtail_cd#
+				, VISIT_RECPT_YN				= #visit_recpt_yn#
+				, OUTWARE_ADDR					= #outware_addr#
+				, RETRNGD_EXCHG_ADDR			= #retrngd_exchg_addr#
+				, SENDNON_DIV_CD				= #sendnon_div_cd#
+				, SENDNON						= #sendnon#
+				, SENDNON_LWEST_BUY_PRC		= #sendnon_lwest_buy_prc#
+				, SENDNON_MAX_BUY_PRC			= #sendnon_max_buy_prc#
+				, BUNDSEND_DIV_YN				= #bundsend_div_yn#
+				, SENDNON_ADD_DIV_CD			= #sendnon_add_div_cd#
+				, SETL_METH_DIV_CD				= #setl_meth_div_cd#
+				, IDSRTS_ADD_SENDNON_SET_YN	= #idsrts_add_sendnon_set_yn#
+				, JEJU_SENDNON					= #jeju_sendnon#
+				, IDSRTS_SENDNON				= #idsrts_sendnon#
+				, SEND_ADD_SET_YN				= #send_add_set_yn#
+				, EMS_YN						= #ems_yn#
+				, SMALL_PACKET_YN				= #small_packet_yn#
+				, OVSEA_KIND_DIV_CD			= #ovsea_kind_div_cd#
+				, OVSEA_EXP_DIV_CD				= #ovsea_exp_div_cd#
+				, PRCL_INMATL_NM				= #prcl_inmatl_nm#
+				, SENDLIMIT_ATPN				= #sendlimit_atpn#
+				, TEMPL_STRE_YN				= #templ_stre_yn#
+				, TEMPL_NM						= #templ_nm#
+				, CHG_DATE						= SYSDATE
+				, CHGER_ID						= #loginId#
+	WHERE		SUPP_COMP_ID = #suppCompId#
+	AND			SEND_SEQ = #sendSeq#
+	</insert>
+	
+</sqlMap>

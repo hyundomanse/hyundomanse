@@ -1,0 +1,1119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.CommunityMgr">
+
+	<select id="selectCmntCodeInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT CMNT_ID AS VALUE
+			 , CMNT_NM AS NAME
+		  FROM CU_CMNT_MAST
+		 WHERE USE_YN = 'Y'
+	</select>
+
+	<select id="selectCmntGrpCodeInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT /* 파일명[파일설명] : CommunityMgr_SQL.xml[] SQL ID : selectCmntGrpCodeInfo */
+		       DISTINCT GRP_SEQ AS VALUE
+		       <isEqual prepend="," property="cmnt_id" compareValue="1">
+					DECODE(GRP_SEQ,1,'쿡 체험단','3','우아맘 체험단',GRP_SEQ) AS NAME
+			   </isEqual>
+			   <isNotEqual prepend="," property="cmnt_id" compareValue="1">
+					GRP_SEQ AS NAME
+			   </isNotEqual>
+		  FROM CU_CMNT_GRP A
+		 WHERE CMNT_ID = #cmnt_id#
+	</select>
+
+	<sql id="cmnt_list">
+		SELECT A.CMNT_ID
+			 , A.CMNT_NM
+			 , A.CMNT_DESC
+			 , A.CMNT_URL_PATH
+			 , A.USE_YN
+			 , DECODE(A.USE_YN, 'Y', '예', '아니오') AS USE_YN_NM
+		  FROM CU_CMNT_MAST A
+		<dynamic prepend="WHERE">
+		   <isNotEmpty property="search_text">
+				<isNotEmpty property="search_type" prepend="AND">
+					<isEqual property="search_type" compareValue="cmnt_id">
+						A.CMNT_ID LIKE '%'||#search_text#||'%'
+					</isEqual>
+					<isEqual property="search_type" compareValue="cmnt_nm">
+						A.CMNT_NM LIKE '%'||#search_text#||'%'
+					</isEqual>
+				</isNotEmpty>
+				<isEmpty property="search_type" prepend="AND">
+					(A.CMNT_ID LIKE '%'||#search_text#||'%' OR A.CMNT_NM LIKE '%'||#search_text#||'%')
+				</isEmpty>
+		   </isNotEmpty>
+		   <isNotEmpty property="search_use_yn" prepend="AND">
+				A.USE_YN = #search_use_yn#
+		   </isNotEmpty>
+		   <isNotEmpty property="cmnt_id" prepend="AND">
+				A.CMNT_ID = #cmnt_id#
+		   </isNotEmpty>
+		</dynamic>
+	</sql>
+
+	<select id="selectCmntList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY CMNT_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="cmnt_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCmntCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="cmnt_list" />)
+	</select>
+
+	<insert id="insertCmntInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CU_CMNT_MAST
+			 ( CMNT_ID
+			 , CMNT_NM
+			 , CMNT_DESC
+			 , CMNT_URL_PATH
+			 , USE_YN
+			 , REG_DATE
+			 , CHG_DATE
+			 , REGER_ID
+			 , CHGER_ID )
+		VALUES
+			 ( (SELECT MAX(NVL(CMNT_ID, 0)+1 ) FROM CU_CMNT_MAST )
+			 , #cmnt_nm#
+			 , #cmnt_desc#
+			 , #cmnt_url_path#
+			 , #use_yn#
+			 , SYSDATE
+			 , SYSDATE
+			 , #login_usr_id#
+			 , #login_usr_id# )
+	</insert>
+
+	<update id="updateCmntInfo" parameterClass="java.util.HashMap">
+		UPDATE CU_CMNT_MAST
+		   SET CMNT_NM		 = #cmnt_nm#
+			 , CMNT_DESC	 = #cmnt_desc#
+			 , CMNT_URL_PATH = #cmnt_url_path#
+			 , USE_YN		 = #use_yn#
+			 , CHG_DATE		 = SYSDATE
+			 , CHGER_ID		 = #login_usr_id#
+		 WHERE CMNT_ID		 = #cmnt_id#
+	</update>
+
+	<sql id="cmntGrp_list">
+		SELECT A.CMNT_ID
+			 , A.CMNT_NM
+			 , B.GRP_SEQ
+			 , B.GRP_LEVNO_NO
+			 , B.GRP_NM
+		<isNotEmpty property="list_yn" prepend=",">
+			   B.GRP_DESC
+		</isNotEmpty>
+			 , B.GOODS_CD
+			 , B.GOODS_NM
+			 , B.RCRIT_DIV_CD
+			 , B.ATTCHFILE_ID1
+			 , B.ATTCHFILE_ID2
+			 , B.ATTCHFILE_ID3
+			 , B.ATTCHFILE_ID4
+             , IMAGE1.FILE_STRE_PATH AS IMAGE1_PATH
+             , IMAGE1.STRE_FILE_NM AS IMAGE1_NM
+             , IMAGE1.ORIG_FILE_NM AS IMAGE1_ORIG_NM
+             , IMAGE2.FILE_STRE_PATH AS IMAGE2_PATH
+             , IMAGE2.STRE_FILE_NM AS IMAGE2_NM
+             , IMAGE2.ORIG_FILE_NM AS IMAGE2_ORIG_NM
+             , IMAGE3.FILE_STRE_PATH AS IMAGE3_PATH
+             , IMAGE3.STRE_FILE_NM AS IMAGE3_NM
+             , IMAGE3.ORIG_FILE_NM AS IMAGE3_ORIG_NM
+             , IMAGE4.FILE_STRE_PATH AS IMAGE4_PATH
+             , IMAGE4.STRE_FILE_NM AS IMAGE4_NM
+             , IMAGE4.ORIG_FILE_NM AS IMAGE4_ORIG_NM
+             , B.TRGT_STD_DESC
+			 , TO_DATE(B.RCRIT_STRT_YMD, 'YYYY-MM-DD') AS RCRIT_STRT_YMD
+			 , TO_DATE(B.RCRIT_END_YMD, 'YYYY-MM-DD') AS RCRIT_END_YMD
+			 , TO_DATE(B.MISSION_SUCC_YMD, 'YYYY-MM-DD') AS MISSION_SUCC_YMD
+			 , TO_DATE(B.PRZWINER_ANC_YMD, 'YYYY-MM-DD') AS PRZWINER_ANC_YMD
+			 , B.RCRIT_PRSN
+			 , B.GRP_STUS_CD
+			 , F_GET_COMN_CD_NM('GRP_STUS_CD', B.GRP_STUS_CD) AS STUS_NM
+			 , (SELECT COUNT(*) FROM CU_CMNT_GRP_PRSN WHERE CMNT_ID = A.CMNT_ID AND GRP_SEQ = B.GRP_SEQ AND GRP_LEVNO_NO = B.GRP_LEVNO_NO) AS PRSN_CNT
+		  FROM CU_CMNT_MAST A, CU_CMNT_GRP B
+		  	 , CM_FILE_MGT IMAGE1, CM_FILE_MGT IMAGE2, CM_FILE_MGT IMAGE3, CM_FILE_MGT IMAGE4
+		 WHERE A.CMNT_ID = B.CMNT_ID
+		   AND A.USE_YN = 'Y'
+		   AND B.ATTCHFILE_ID1 = IMAGE1.ATTCHFILE_ID(+)
+		   AND B.ATTCHFILE_ID2 = IMAGE2.ATTCHFILE_ID(+)
+		   AND B.ATTCHFILE_ID3 = IMAGE3.ATTCHFILE_ID(+)
+		   AND B.ATTCHFILE_ID4 = IMAGE4.ATTCHFILE_ID(+)
+	   <isNotEmpty property="grp_nm" prepend="AND">
+	   		B.GRP_NM LIKE '%'||#grp_nm#||'%'
+	   </isNotEmpty>
+	   <isNotEmpty property="search_grp_stus_cd" prepend="AND">
+			B.GRP_STUS_CD = #search_grp_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_cmnt_id" prepend="AND">
+			A.CMNT_ID = #search_cmnt_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+	   		(TO_CHAR(TO_DATE(B.RCRIT_STRT_YMD), 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#
+	   		OR
+	   		TO_CHAR(TO_DATE(B.RCRIT_END_YMD), 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#)
+	   </isNotEmpty>
+	   <isNotEmpty property="cmnt_id" prepend="AND">
+			A.CMNT_ID = #cmnt_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="grp_seq" prepend="AND">
+			B.GRP_SEQ = #grp_seq#
+	   </isNotEmpty>
+	   <isNotEmpty property="grp_levno_no" prepend="AND">
+			B.GRP_LEVNO_NO = #grp_levno_no#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectCmntGrpList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		SELECT  /* 파일명[파일설명] : CommunityMgr_SQL.xml[커뮤니티 그룹 조회] SQL ID : selectCmntGrpList */
+		       *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY CMNT_ID, GRP_SEQ, GRP_LEVNO_NO DESC) RNUM
+				</isEmpty>
+				<isNotEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY #sidx#) RNUM
+				</isNotEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="cmntGrp_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCmntGrpCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="cmntGrp_list" />)
+	</select>
+
+	<insert id="insertCmntGrpInfo" parameterClass="java.util.HashMap">
+		MERGE   /* 파일명[파일설명] : CommunityMgr_SQL.xml[커뮤니티 그룹 수정및등록] SQL ID : insertCmntGrpInfo */
+		        INTO CU_CMNT_GRP
+					 USING DUAL
+						ON ( CMNT_ID = #cmnt_id# AND GRP_SEQ = #grp_seq# AND GRP_LEVNO_NO = #grp_levno_no# )
+				WHEN MATCHED THEN
+					UPDATE SET
+						   GRP_NM = #grp_nm#
+						 , GRP_DESC = #grp_desc#
+						 , GOODS_CD = #goods_cd#
+						 , GOODS_NM = #goods_nm#
+						 , RCRIT_DIV_CD = #rcrit_div_cd#
+						 , TRGT_STD_DESC = #trgt_std_desc#
+						 , RCRIT_STRT_YMD = REPLACE(#rcrit_strt_ymd#, '-')
+						 , RCRIT_END_YMD = REPLACE(#rcrit_end_ymd#, '-')
+						 , MISSION_SUCC_YMD = REPLACE(#mission_succ_ymd#, '-')
+						 , PRZWINER_ANC_YMD = REPLACE(#przwiner_anc_ymd#, '-')
+						 , RCRIT_PRSN	 = #rcrit_prsn#
+						 , GRP_STUS_CD	 = #grp_stus_cd#
+					<isNotEmpty property="attchfile_id1" prepend=",">
+						ATTCHFILE_ID1 = #attchfile_id1#
+					</isNotEmpty>
+					<isNotEmpty property="attchfile_id2" prepend=",">
+						ATTCHFILE_ID2 = #attchfile_id2#
+					</isNotEmpty>
+					<isNotEmpty property="attchfile_id3" prepend=",">
+				    	ATTCHFILE_ID3 = #attchfile_id3#
+				    </isNotEmpty>
+					<isNotEmpty property="attchfile_id4" prepend=",">
+				    	ATTCHFILE_ID4 = #attchfile_id4#
+				    </isNotEmpty>
+				         , CHG_DATE = SYSDATE
+				         , CHGER_ID = #login_usr_id#
+				WHEN NOT MATCHED THEN
+					INSERT
+						  ( CMNT_ID
+						  , GRP_SEQ
+						  , GRP_LEVNO_NO
+						  , GRP_NM
+						  , GRP_DESC
+						  , GOODS_CD
+						  , GOODS_NM
+						  , RCRIT_DIV_CD
+						  , ATTCHFILE_ID1
+						  , ATTCHFILE_ID2
+						  , ATTCHFILE_ID3
+						  , ATTCHFILE_ID4
+						  , TRGT_STD_DESC
+						  , RCRIT_STRT_YMD
+						  , RCRIT_END_YMD
+						  , RCRIT_ANC_YMD
+						  , MISSION_SUCC_YMD
+						  , PRZWINER_ANC_YMD
+						  , RCRIT_PRSN
+						  , GRP_STUS_CD
+						  , REG_DATE
+						  , CHG_DATE
+						  , REGER_ID
+						  , CHGER_ID )
+					 VALUES
+						  ( #input_cmnt_id#
+					<isNotEmpty property="new_grp_seq_yn">
+						<isEqual property="new_grp_seq_yn" compareValue="Y" prepend=",">
+							    (SELECT NVL(MAX(GRP_SEQ)+1,1) FROM CU_CMNT_GRP WHERE CMNT_ID = #cmnt_id#)
+							  , '1'
+						</isEqual>
+						<isEqual property="new_grp_seq_yn" compareValue="N" prepend=",">
+							  	#new_grp_seq#
+							  , (SELECT NVL(MAX(GRP_LEVNO_NO)+1,1) FROM CU_CMNT_GRP WHERE CMNT_ID = #cmnt_id# AND GRP_SEQ = #new_grp_seq#)
+						</isEqual>
+					</isNotEmpty>
+					<isEmpty property="new_grp_seq_yn">
+						  , #grp_seq#
+						  , #grp_levno_no#
+					</isEmpty>
+
+						  , #grp_nm#
+						  , #grp_desc:CLOB#
+						  , #goods_cd#
+						  , #goods_nm#
+						  , #rcrit_div_cd#
+						  , #attchfile_id1#
+						  , #attchfile_id2#
+						  , #attchfile_id3#
+						  , #attchfile_id4#
+						  , #trgt_std_desc#
+						  , REPLACE(#rcrit_strt_ymd#, '-')
+						  , REPLACE(#rcrit_end_ymd#, '-')
+						  , REPLACE(#rcrit_anc_ymd#, '-')
+						  , REPLACE(#mission_succ_ymd#, '-')
+						  , REPLACE(#przwiner_anc_ymd#, '-')
+						  , #rcrit_prsn#
+						  , #grp_stus_cd#
+						  , SYSDATE
+						  , SYSDATE
+						  , #login_usr_id#
+						  , #login_usr_id# )
+	</insert>
+
+	<update id="updateCmntGrpImageInfo" parameterClass="java.util.HashMap">
+		UPDATE CU_CMNT_GRP
+		   SET CHG_DATE = SYSDATE
+		   	 , CHGER_ID = #login_usr_id#
+		    <isEqual property="image1_delyn" compareValue="Y" prepend=",">
+		    	ATTCHFILE_ID1 = NULL
+		    </isEqual>
+		    <isEqual property="image2_delyn" compareValue="Y" prepend=",">
+		    	ATTCHFILE_ID2 = NULL
+		    </isEqual>
+		    <isEqual property="image3_delyn" compareValue="Y" prepend=",">
+		    	ATTCHFILE_ID3 = NULL
+		    </isEqual>
+		    <isEqual property="image4_delyn" compareValue="Y" prepend=",">
+		    	ATTCHFILE_ID4 = NULL
+		    </isEqual>
+		 WHERE CMNT_ID = #cmnt_id#
+		   AND GRP_SEQ = #grp_seq#
+		   AND GRP_LEVNO_NO = #grp_levno_no#
+	</update>
+
+	<sql id="cmntGrpPrsn_list">
+		SELECT A.CMNT_ID
+			 , A.GRP_SEQ
+			 , A.GRP_LEVNO_NO
+			 , A.ACCESS_NAME
+			 , A.REQER_NM
+			 , A.REQER_EMAIL
+			 , A.REQER_TELNO
+			 , A.REQER_BLOG_ADDR
+			 , TO_CHAR(TO_DATE(A.REQ_YMD), 'YYYY-MM-DD') AS REQ_YMD
+			 , NVL(A.FIX_YN, 'N') AS FIX_YN
+			 , TO_CHAR(TO_DATE(A.FIX_YMD), 'YYYY-MM-DD') AS FIX_YMD
+			 , A.REQ_TTL
+			 , A.REQ_CONT
+			 , B.GOODS_CD
+			 , B.GOODS_NM
+			 , B.RCRIT_PRSN
+			 , B.GRP_NM
+		  FROM CU_CMNT_GRP_PRSN A, CU_CMNT_GRP B
+		 WHERE A.CMNT_ID = B.CMNT_ID
+		   AND A.GRP_SEQ = B.GRP_SEQ
+		   AND A.GRP_LEVNO_NO = B.GRP_LEVNO_NO
+		<isNotEmpty property="cmnt_id" prepend="AND">
+			A.CMNT_ID = #cmnt_id#
+		</isNotEmpty>
+		<isNotEmpty property="grp_seq" prepend="AND">
+			A.GRP_SEQ = #grp_seq#
+		</isNotEmpty>
+		<isNotEmpty property="grp_levno_no" prepend="AND">
+			A.GRP_LEVNO_NO = #grp_levno_no#
+		</isNotEmpty>
+		<isNotEmpty property="access_name" prepend="AND">
+			A.ACCESS_NAME = #access_name#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCmntGrpPrsnList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY ACCESS_NAME DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="cmntGrpPrsn_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCmntGrpPrsnCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="cmntGrpPrsn_list" />)
+	</select>
+
+	<update id="updateCmntGrpPrsnInfo" parameterClass="java.util.HashMap">
+		UPDATE CU_CMNT_GRP_PRSN
+		   SET FIX_YN = #fix_yn#
+			<isEqual property="fix_yn" compareValue="Y">
+				, FIX_YMD = TO_CHAR(SYSDATE, 'YYYYMMDD')
+			</isEqual>
+			<isNotEqual property="fix_yn" compareValue="Y">
+				, FIX_YMD = NULL
+			</isNotEqual>
+		   	 , CHGER_ID = #login_usr_id#
+		   	 , CHG_DATE = SYSDATE
+		 WHERE CMNT_ID = #cmnt_id#
+		   AND GRP_SEQ = #grp_seq#
+		   AND GRP_LEVNO_NO = #grp_levno_no#
+		<isNotEmpty property="mem_arr" prepend="AND">
+			ACCESS_NAME IN
+			<iterate property="mem_arr" open="("  close=")" conjunction=",">
+				#mem_arr[]#
+			</iterate>
+		</isNotEmpty>
+		<isNotEmpty property="access_name" prepend="AND">
+			ACCESS_NAME = #access_name#
+		</isNotEmpty>
+	</update>
+
+	<sql id="cmntNoti_list">
+		SELECT A.CMNT_ID
+			 , B.NOTICMATTER_SEQ
+			 , A.CMNT_NM
+			 , B.NOTIC_DIV_CD
+			 , TO_CHAR(TO_DATE(B.MAKEYMD), 'YYYY-MM-DD') AS MAKEYMD
+			 , B.MAKEER
+			 , (SELECT ADMIN_NM FROM CM_ADMIN_MAST WHERE ADMIN_ID = B.MAKEER) AS ADMIN_NM
+			 , B.TTL
+			 , B.CONT
+			 , B.EXPRN_GRP_DIV_CD
+			 , B.EXPRN_GRP_LEVNO_DIV
+			 , DECODE(EXPRN_GRP_DIV_CD, '1', '쿡 체험단', '3', '우아맘 체험단', '전체') AS EXPRN_GRP_DIV_NM
+		  FROM CU_CMNT_MAST A, CU_CMNT_NOTICMATTER B
+		 WHERE A.CMNT_ID = B.CMNT_ID
+		   AND A.USE_YN = 'Y'
+		   AND A.CMNT_ID = '1'
+		<isNotEmpty property="search_exprn_grp_div_cd" prepend="AND">
+			B.EXPRN_GRP_DIV_CD = #search_exprn_grp_div_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_exprn_grp_levno_div" prepend="AND">
+			B.EXPRN_GRP_LEVNO_DIV = #search_exprn_grp_levno_div#
+		</isNotEmpty>
+		<isNotEmpty property="noticmatter_seq" prepend="AND">
+			B.NOTICMATTER_SEQ = #noticmatter_seq#
+		</isNotEmpty>
+		<isNotEmpty property="search_notic_div_cd" prepend="AND">
+			B.NOTIC_DIV_CD = #search_notic_div_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="ttl">
+						B.TTL LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="cont">
+						B.CONT LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="makeer">
+						B.MAKEER LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+					(B.TTL LIKE '%'||#search_text#||'%'
+					 OR B.CONT LIKE '%'||#search_text#||'%'
+					 OR B.MAKEER LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCmntNotiList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY MAKEYMD DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="cmntNoti_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCmntNotiCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="cmntNoti_list" />)
+	</select>
+
+	<insert id="insertCmntNotiInfo" parameterClass="java.util.HashMap">
+		MERGE INTO CU_CMNT_NOTICMATTER
+					 USING DUAL
+						ON ( CMNT_ID = #cmnt_id# AND NOTICMATTER_SEQ = #noticmatter_seq# )
+				WHEN MATCHED THEN
+					UPDATE SET
+						   EXPRN_GRP_DIV_CD = #exprn_grp_div_cd#
+						 , EXPRN_GRP_LEVNO_DIV = #exprn_grp_levno_div#
+						 , TTL = #ttl#
+						 , CONT = #cont#
+				         , CHG_DATE = SYSDATE
+				         , CHGER_ID = #login_usr_id#
+				WHEN NOT MATCHED THEN
+					INSERT
+						  ( CMNT_ID
+						  , NOTICMATTER_SEQ
+						  , NOTIC_DIV_CD
+						  , EXPRN_GRP_DIV_CD
+						  , EXPRN_GRP_LEVNO_DIV
+						  , TTL
+						  , CONT
+						  , MAKEYMD
+						  , MAKEER
+						  , REG_DATE
+						  , CHG_DATE
+						  , REGER_ID
+						  , CHGER_ID )
+					 VALUES
+						  ( #input_cmnt_id#
+						  , (SELECT NVL(MAX(NOTICMATTER_SEQ)+1, 1) FROM CU_CMNT_NOTICMATTER WHERE CMNT_ID = #input_cmnt_id#)
+						  , #notic_div_cd#
+						  , #exprn_grp_div_cd#
+						  , #exprn_grp_levno_div#
+						  , #ttl#
+						  , #cont#
+						  , TO_CHAR(SYSDATE, 'YYYYMMDD')
+						  , #makeer#
+						  , SYSDATE
+						  , SYSDATE
+						  , #login_usr_id#
+						  , #login_usr_id# )
+	</insert>
+
+	<sql id="cmntBbsMgt_list">
+		SELECT A.CMNT_ID
+			 , A.CMNT_NM
+			 , B.BBS_SEQ
+			 , B.GRP_SEQ
+			 , B.BBS_NM
+			 , B.BBS_TYP_CD
+			 , B.BBS_DIV_CD
+			 , B.DIV_USE_YN
+			 , DECODE(B.DIV_USE_YN, 'Y', '사용', '사용안함') AS DIV_USE_YN_NM
+			 , B.ATTCHFILE_USE_YN
+			 , DECODE(B.ATTCHFILE_USE_YN, 'Y', '사용', '사용안함') AS ATTCHFILE_USE_YN_NM
+			 , F_GET_COMN_CD_NM('BBS_TYP_CD', B.BBS_TYP_CD) AS BBS_TYP_NM
+			 , F_GET_COMN_CD_NM('BBS_DIV_CD', B.BBS_DIV_CD) AS BBS_DIV_NM
+		  FROM CU_CMNT_MAST A, CU_CMNT_BBS_MGT B
+		 WHERE A.CMNT_ID = B.CMNT_ID
+		<isNotEmpty property="search_cmnt_id" prepend="AND">
+			A.CMNT_ID = #search_cmnt_id#
+		</isNotEmpty>
+		<isNotEmpty property="cmnt_id" prepend="AND">
+			A.CMNT_ID = #cmnt_id#
+		</isNotEmpty>
+		<isNotEmpty property="bbs_seq" prepend="AND">
+			B.BBS_SEQ = #bbs_seq#
+		</isNotEmpty>
+		<isNotEmpty property="grp_seq" prepend="AND">
+			B.GRP_SEQ = #grp_seq#
+		</isNotEmpty>
+		<isNotEmpty property="search_bbs_typ_cd" prepend="AND">
+			B.BBS_TYP_CD = #search_bbs_typ_cd#
+		</isNotEmpty>
+		<isEqual property="search_div_use_yn" compareValue="Y">
+			<isNotEmpty property="search_bbs_div_cd" prepend="AND">
+				B.BBS_DIV_CD = #search_bbs_div_cd#
+			</isNotEmpty>
+		</isEqual>
+		<isNotEmpty property="search_div_use_yn" prepend="AND">
+			B.DIV_USE_YN = #search_div_use_yn#
+		</isNotEmpty>
+		<isNotEmpty property="search_bbs_nm" prepend="AND">
+			B.BBS_NM LIKE '%'||#search_bbs_nm#||'%'
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCmntBbsMgtList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY CMNT_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="cmntBbsMgt_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCmntBbsMgtCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="cmntBbsMgt_list" />)
+	</select>
+
+	<select id="selectCmntBbsSeq" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT NVL(MAX(BBS_SEQ)+1, 1) FROM CU_CMNT_BBS_MGT WHERE CMNT_ID = #input_cmnt_id#
+	</select>
+
+	<insert id="insertCmntBbsMgrInfo" parameterClass="java.util.HashMap">
+		MERGE INTO CU_CMNT_BBS_MGT
+					 USING DUAL
+						ON ( CMNT_ID = #cmnt_id# AND BBS_SEQ = #bbs_seq# )
+				WHEN MATCHED THEN
+					UPDATE SET
+						   GRP_SEQ = #new_grp_seq#
+						 , BBS_NM = #bbs_nm#
+						 , BBS_TYP_CD = #bbs_typ_cd#
+						 , BBS_DIV_CD = #bbs_div_cd#
+						 , DIV_USE_YN = #div_use_yn#
+						 , ATTCHFILE_USE_YN = #attchfile_use_yn#
+				         , CHG_DATE = SYSDATE
+				         , CHGER_ID = #login_usr_id#
+				WHEN NOT MATCHED THEN
+					INSERT
+						  ( CMNT_ID
+						  , BBS_SEQ
+						  , GRP_SEQ
+						  , BBS_NM
+						  , BBS_TYP_CD
+						  , BBS_DIV_CD
+						  , DIV_USE_YN
+						  , ATTCHFILE_USE_YN
+						  , REG_DATE
+						  , CHG_DATE
+						  , REGER_ID
+						  , CHGER_ID )
+					 VALUES
+						  ( #cmnt_id#
+						  , #bbs_seq#
+						  , #new_grp_seq#
+						  , #bbs_nm#
+						  , #bbs_typ_cd#
+						  , #bbs_div_cd#
+						  , #div_use_yn#
+						  , #attchfile_use_yn#
+						  , SYSDATE
+						  , SYSDATE
+						  , #login_usr_id#
+						  , #login_usr_id# )
+	</insert>
+
+	<delete id="deleteCmntBbsRelGoodsInfo" parameterClass="java.util.HashMap">
+		DELETE FROM CU_CMNT_BBS_REL_GOODS
+		 WHERE CMNT_ID = #cmnt_id#
+		   AND BBS_SEQ = #bbs_seq#
+	</delete>
+
+	<insert id="insertCmntBbsRelGoodsInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CU_CMNT_BBS_REL_GOODS
+			  ( CMNT_ID
+			  , BBS_SEQ
+			  , GOODS_CD
+			  , INPUT_STUS_CD
+			  , REG_DATE
+			  , CHG_DATE
+			  , REGER_ID
+			  , CHGER_ID )
+		 VALUES
+			  ( #cmnt_id#
+			  , #bbs_seq#
+			  , #goods_cd#
+			  , #input_stus_cd#
+			  , SYSDATE
+			  , SYSDATE
+			  , #login_usr_id#
+			  , #login_usr_id# )
+	</insert>
+
+	<sql id="cmntBbsRelGoods_list">
+		SELECT A.CMNT_ID
+			 , A.BBS_SEQ
+			 , A.GOODS_CD
+			 , A.INPUT_STUS_CD
+			 , B.GOODS_NM
+			 , C.BCNC_NM
+			 , F_GET_COMN_CD_NM('INPUT_STUS_CD', A.INPUT_STUS_CD) AS INPUT_STUS_CD_NM
+		  FROM CU_CMNT_BBS_REL_GOODS A, GD_GOODS_MAST B, CO_SUPP_COMP_MAST C
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND B.SUPP_COMP_ID = C.SUPP_COMP_ID
+		   /* AND FN_GOODS_SUPP_YN(A.GOODS_CD) = 'Y' */
+		<isNotEmpty property="cmnt_id" prepend="AND">
+			A.CMNT_ID = #cmnt_id#
+		</isNotEmpty>
+		<isNotEmpty property="bbs_seq" prepend="AND">
+			A.BBS_SEQ = #bbs_seq#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCmntRelGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY GOODS_CD DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="cmntBbsRelGoods_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCmntRelGoodsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="cmntBbsRelGoods_list" />)
+	</select>
+
+	<select id="communityMenuTreeRootList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.CMNT_ID
+			 , A.MENU_SEQ
+		     , A.HRNK_MENU_SEQ
+		     , B.SUB_CNT
+		     , A.BBS_SEQ
+		     , A.MENU_NM
+		     , A.MENU_DPTH
+		     , A.MENU_ORDER
+		     , A.MENU_USE_YN
+	      FROM CU_CMNT_GRP_MENU A
+	     	 , ( SELECT CMNT_ID, HRNK_MENU_SEQ, COUNT(*) AS SUB_CNT
+				   FROM CU_CMNT_GRP_MENU
+				  GROUP BY CMNT_ID, HRNK_MENU_SEQ ) B
+	     WHERE A.CMNT_ID = B.CMNT_ID(+)
+	       AND A.MENU_SEQ = B.HRNK_MENU_SEQ(+)
+	       AND A.MENU_DPTH = 1
+	       AND A.CMNT_ID = #cmnt_id#
+	     ORDER BY A.MENU_ORDER
+	</select>
+
+	<select id="communityMenuTreeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.CMNT_ID
+			 , A.MENU_SEQ
+		     , A.HRNK_MENU_SEQ
+		     , B.SUB_CNT
+		     , A.BBS_SEQ
+		     , A.MENU_NM
+		     , A.MENU_DPTH
+		     , A.MENU_ORDER
+		     , A.MENU_USE_YN
+	      FROM CU_CMNT_GRP_MENU A
+	     	 , ( SELECT CMNT_ID, HRNK_MENU_SEQ, COUNT(*) AS SUB_CNT
+				   FROM CU_CMNT_GRP_MENU
+				  GROUP BY CMNT_ID, HRNK_MENU_SEQ ) B
+	     WHERE A.CMNT_ID = B.CMNT_ID(+)
+	       AND A.MENU_SEQ = B.HRNK_MENU_SEQ(+)
+	       AND A.CMNT_ID = #cmnt_id#
+	       AND A.HRNK_MENU_SEQ = #id#
+	     ORDER BY A.MENU_ORDER
+	</select>
+
+	<select id="selectCmntMenuDetailInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.CMNT_ID
+			 , A.MENU_SEQ
+		     , A.HRNK_MENU_SEQ
+		     , B.MENU_NM AS HRNK_MENU_NM
+		     , DECODE(B.MENU_NM, NULL, 'Y', 'N') TOP_YN
+		     , A.BBS_SEQ
+		     , C.BBS_NM
+		     , A.MENU_NM
+		     , A.MENU_DPTH
+		     , A.MENU_ORDER
+		     , A.MENU_USE_YN
+	      FROM CU_CMNT_GRP_MENU A, CU_CMNT_GRP_MENU B, CU_CMNT_BBS_MGT C
+	     WHERE A.CMNT_ID = B.CMNT_ID(+)
+	       AND A.HRNK_MENU_SEQ = B.MENU_SEQ(+)
+	       AND A.CMNT_ID = C.CMNT_ID(+)
+	       AND A.BBS_SEQ = C.BBS_SEQ(+)
+	       AND A.CMNT_ID = #cmnt_id#
+	       AND A.MENU_SEQ = #menu_seq#
+	</select>
+
+	<insert id="insertCmntMenuInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CU_CMNT_GRP_MENU
+		     ( CMNT_ID
+		     , MENU_SEQ
+		     , BBS_SEQ
+		     , MENU_NM
+		     , HRNK_MENU_SEQ
+		     , MENU_DPTH
+		     , MENU_ORDER
+		     , MENU_USE_YN
+		     , REG_DATE
+		     , CHG_DATE
+		     , REGER_ID
+		     , CHGER_ID )
+		VALUES
+		     ( #cmnt_id#
+		     , ( SELECT MAX(NVL(MENU_SEQ, 0)+1 ) FROM CU_CMNT_GRP_MENU WHERE CMNT_ID = #cmnt_id# )
+		     , #bbs_seq#
+		     , #menu_nm#
+	     <isEqual property="top_yn" compareValue="Y">
+		     , NULL
+		     , '1'
+	     </isEqual>
+	     <isNotEqual property="top_yn" compareValue="Y">
+		     , #hrnk_menu_seq#
+		     , NVL(((SELECT MENU_DPTH FROM CU_CMNT_GRP_MENU WHERE CMNT_ID = #cmnt_id# AND MENU_SEQ = #hrnk_menu_seq# ) + 1), '1')
+	     </isNotEqual>
+		     , #menu_order#
+		     , #menu_use_yn#
+		     , SYSDATE
+		     , SYSDATE
+		     , #login_usr_id#
+		     , #login_usr_id# )
+	</insert>
+
+	<update id="updateCmntMenuInfo" parameterClass="java.util.HashMap">
+		UPDATE CU_CMNT_GRP_MENU
+		   SET MENU_NM		 = #menu_nm#
+		     , BBS_SEQ		 = #bbs_seq#
+	     <isEqual property="top_yn" compareValue="Y">
+		     , MENU_DPTH	 = '1'
+	     </isEqual>
+	     <isNotEqual property="top_yn" compareValue="Y">
+		   	 , HRNK_MENU_SEQ = #hrnk_menu_seq#
+		     , MENU_DPTH	 = NVL(((SELECT MENU_DPTH FROM CU_CMNT_GRP_MENU WHERE CMNT_ID = #cmnt_id# AND MENU_SEQ = #hrnk_menu_seq# ) + 1), '1')
+	     </isNotEqual>
+		     , MENU_ORDER	 = #menu_order#
+		     , MENU_USE_YN	 = #menu_use_yn#
+		     , CHG_DATE		 = SYSDATE
+		     , CHGER_ID		 = #login_usr_id#
+		 WHERE CMNT_ID		 = #cmnt_id#
+		   AND MENU_SEQ		 = #menu_seq#
+	</update>
+
+	<delete id="deleteCmntMenuInfo" parameterClass="java.util.HashMap">
+		DELETE FROM CU_CMNT_GRP_MENU
+		 WHERE CMNT_ID	= #cmnt_id#
+		   AND ( MENU_SEQ = #menu_seq# OR HRNK_MENU_SEQ = #menu_seq# )
+	</delete>
+
+	<sql id="cmpain_list">
+		SELECT A.CMPAIN_YM
+			 , A.CMPAIN_TTL
+			 , A.CMPAIN_CONT
+			 , A.SRCH_CNT
+			 , A.ATTCHFILE_ID
+           	 , IMAGE.FILE_STRE_PATH || IMAGE.STRE_FILE_NM AS IMAGE_PATH
+           	 , IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+           	 , A.REPRSNT_ATTCHFILE_ID
+           	 , REPRSNT.FILE_STRE_PATH || REPRSNT.STRE_FILE_NM AS REPRSNT_PATH
+           	 , REPRSNT.ORIG_FILE_NM AS REPRSNT_ORIG_NM
+           	 , TO_CHAR(A.REG_DATE, 'YYYY-MM-DD HH24:MI') AS REG_DATE
+          FROM CU_CNTR_CMPAIN A, CM_FILE_MGT IMAGE, CM_FILE_MGT REPRSNT
+         WHERE A.ATTCHFILE_ID = IMAGE.ATTCHFILE_ID(+)
+           AND A.REPRSNT_ATTCHFILE_ID = REPRSNT.ATTCHFILE_ID(+)
+		<isNotEmpty property="cmpain_ym" prepend="AND">
+			A.CMPAIN_YM = #cmpain_ym#
+		</isNotEmpty>
+		<isNotEmpty property="search_cmpain_ttl" prepend="AND">
+			A.CMPAIN_TTL LIKE '%'||#search_cmpain_ttl#||'%'
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectCmntCmpainList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY CMPAIN_YM DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="cmpain_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCmntCmpainCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="cmpain_list" />)
+	</select>
+
+	<insert id="insertCmpainInfo" parameterClass="java.util.HashMap">
+		MERGE INTO CU_CNTR_CMPAIN
+			 USING DUAL
+				ON (CMPAIN_YM = #cmpain_ym#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   CMPAIN_TTL		= #cmpain_ttl#
+				 , CMPAIN_CONT		= #cmpain_cont#
+				<isNotEmpty property="attchfile_id" prepend=",">
+					ATTCHFILE_ID = #attchfile_id#
+				</isNotEmpty>
+				<isEmpty property="new_attchfile_id_yn">
+					<isEqual property="image_delyn" compareValue="Y" prepend=",">
+						ATTCHFILE_ID = NULL
+					</isEqual>
+				</isEmpty>
+				<isNotEmpty property="reprsnt_attchfile_id" prepend=",">
+					REPRSNT_ATTCHFILE_ID = #reprsnt_attchfile_id#
+				</isNotEmpty>
+				<isEmpty property="new_reprsnt_attchfile_id_yn">
+					<isEqual property="reprsnt_delyn" compareValue="Y" prepend=",">
+						REPRSNT_ATTCHFILE_ID = NULL
+					</isEqual>
+				</isEmpty>
+		         , CHG_DATE			= SYSDATE
+		         , CHGER_ID			= #login_usr_id#
+		WHEN NOT MATCHED THEN
+			INSERT
+		         ( CMPAIN_YM
+		         , ATTCHFILE_ID
+		         , CMPAIN_TTL
+		         , CMPAIN_CONT
+		         , SRCH_CNT
+		         , REPRSNT_ATTCHFILE_ID
+		         , REG_DATE
+		         , CHG_DATE
+		         , REGER_ID
+		         , CHGER_ID )
+		  VALUES ( #cmpain_ym#
+		         , #attchfile_id#
+		         , #cmpain_ttl#
+		         , #cmpain_cont#
+		         , 0
+		         , #reprsnt_attchfile_id#
+		         , SYSDATE
+		         , SYSDATE
+		         , NVL(#login_usr_id#, 'ADMIN')
+		         , NVL(#login_usr_id#, 'ADMIN') )
+	</insert>
+
+	<!-- 커뮤니티 게시물 관리 - 게시판 목록 -->
+	<select id="selectListCmntBbsCodeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+			B.BBS_SEQ AS VALUE
+			, B.BBS_NM AS NAME
+		FROM
+			CU_CMNT_MAST A
+			, CU_CMNT_BBS_MGT B
+		WHERE
+			A.CMNT_ID = B.CMNT_ID
+			AND A.CMNT_ID = #cmnt_id#
+   	</select>
+
+   	<select id="selectCmntArticleList" parameterClass="java.util.HashMap"
+   			resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY REG_DATE DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+							SELECT
+									T.CMNT_ID
+                           			, T.BBS_SEQ
+									, T.BBS_NO
+					                 , T.BBS_TTL
+					                 , T.SRCH_CNT
+					                 , T.RECOM_CNT
+					                 , T.IMAGE_URL
+					                 , T.ACCESS_NAME
+					                 , TO_CHAR(T.REG_DATE, 'YYYY/MM/DD HH24:MM:SS') AS REG_DATE
+	                         		, T.APPR_YN
+	                         		, DECODE(T.APPR_YN, 'Y', '승인', '미승인') AS APPR_YN_NAME
+							FROM
+									CU_CMNT_BBS T
+							WHERE
+									T.BBS_SEQ    = #search_bbs#
+		                    		AND        T.CMNT_ID    = #search_cmnt_id#
+		                    ORDER BY REG_DATE DESC
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectCmntArticleListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (
+		  		SELECT
+						T.BBS_NO
+				FROM
+						CU_CMNT_BBS T
+				WHERE
+						T.BBS_SEQ    = #search_bbs#
+                   		AND        T.CMNT_ID    = #search_cmnt_id#
+		  )
+	</select>
+
+	<select id="selectCmntArticleMgt" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT
+            A.CMNT_ID
+            , A.BBS_SEQ
+            , A.BBS_NO
+            , A.BBS_TTL
+            , A.BBS_CONT
+            , A.SRCH_CNT
+            , A.RECOM_CNT
+            , A.IMAGE_URL
+            , A.IMAGE_LIST
+            , A.ATTCHFILE_ID1
+            , A.ATTCHFILE_ID2
+            , A.ATTCHFILE_ID3
+            , A.ATTCHFILE_ID4
+            , A.ACCESS_NAME
+            , TO_CHAR(A.REG_DATE, 'YYYY/MM/DD HH24:MM:SS') AS REG_DATE
+            , A.APPR_YN
+            , DECODE(A.APPR_YN, 'Y', '승인', '미승인') AS APPR_YN_NAME
+            , B.BBS_NM
+            , B.GRP_SEQ
+            , C.GRP_NM
+            , C.GOODS_NM
+            , (SELECT NAME FROM MEMINFO WHERE ACCESS_NAME = A.ACCESS_NAME) AS NAME
+         FROM CU_CMNT_BBS A, CU_CMNT_BBS_MGT B, CU_CMNT_GRP C
+        WHERE A.BBS_SEQ = B.BBS_SEQ
+          AND A.CMNT_ID = B.CMNT_ID
+          AND A.EXPRN_CMNT_ID = C.CMNT_ID(+)
+          AND A.EXPRN_GRP_SEQ = C.GRP_SEQ(+)
+          AND A.EXPRN_GRP_LEVNO_NO = C.GRP_LEVNO_NO(+)
+          AND A.BBS_SEQ		= #bbs_seq#
+          AND A.CMNT_ID		= #cmnt_id#
+          AND A.BBS_NO		= #bbs_no#
+	</select>
+
+	<update id="updateCmntArticleAppr" parameterClass="java.util.HashMap">
+		UPDATE
+			CU_CMNT_BBS T
+		SET
+			APPR_YN = #appr_yn#
+		WHERE
+			T.BBS_SEQ			= #bbs_seq#
+			AND T.CMNT_ID		= #cmnt_id#
+			AND T.BBS_NO		= #bbs_no#
+	</update>
+
+	<insert id="insertCmntArticle" parameterClass="java.util.HashMap">
+		INSERT INTO CU_CMNT_BBS (
+			CMNT_ID
+			, BBS_SEQ
+			, BBS_NO
+			, BBS_TTL
+			, BBS_CONT
+			, APPR_YN
+			, ACCESS_NAME
+			, REGER_ID
+			, CHGER_ID
+			, BBS_TYP_CD
+		) VALUES (
+			#cmnt_id#
+			, #bbs_seq#
+			, SEQ_CU_CMNT_BBS.nextval
+			, #bbs_ttl#
+			, #bbs_cont#
+			, 'Y'
+			, #accessName#
+			, #accessName#
+			, #accessName#
+			, (
+				SELECT BBS_TYP_CD
+				FROM CU_CMNT_BBS_MGT
+				WHERE CMNT_ID = #cmnt_id# AND BBS_SEQ = #bbs_seq#
+			)
+		)
+	</insert>
+
+	<delete id="deleteCmntArticle" parameterClass="java.util.HashMap">
+		DELETE
+		FROM
+			CU_CMNT_BBS T
+		WHERE
+			T.BBS_SEQ			= #bbs_seq#
+			AND T.CMNT_ID		= #cmnt_id#
+			AND T.BBS_NO		= #bbs_no#
+	</delete>
+
+	<update id="updateCmntArticle" parameterClass="java.util.HashMap">
+		UPDATE
+			CU_CMNT_BBS T
+		SET
+			BBS_CONT = #bbs_cont#
+			, BBS_TTL = #bbs_ttl#
+			, CHGER_ID = #accessName#
+			, CHG_DATE = SYSDATE
+		WHERE
+			T.BBS_SEQ			= #bbs_seq#
+			AND T.CMNT_ID		= #cmnt_id#
+			AND T.BBS_NO		= #bbs_no#
+	</update>
+	
+	<select id="selectCmntExprnGrp" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT GRP_LEVNO_NO AS VALUE
+			 , GRP_LEVNO_NO AS NAME
+		  FROM CU_CMNT_GRP
+		 WHERE CMNT_ID = '1'
+		   AND GRP_SEQ = #exprn_grp_div_cd#
+	</select>
+	
+	<update id="updateLeftMenuStat" parameterClass="java.util.HashMap">
+		UPDATE CM_COMN_CD
+		   SET COMN_CD_NM = 'Y'
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = NVL(#login_usr_id#, 'ADMIN')
+		 WHERE CD_GRP_ID = 'MENU_RELOAD_STUS'
+		   AND COMN_CD_ID = 'LEFT_YN'
+	</update>
+	
+</sqlMap>

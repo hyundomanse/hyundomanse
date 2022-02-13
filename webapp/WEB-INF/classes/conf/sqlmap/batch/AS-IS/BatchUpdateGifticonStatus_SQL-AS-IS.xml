@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchUpdateGifticonStatus">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectOdGiftOrderList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT TR_ID                                                                                                                           
+				     , PURCHASE_ID                                                                                                                     
+				     , SHIP_TO_MOBILE                                                                                                                  
+				  FROM GIFTICON_SEND                                                                                                                   
+				 WHERE TR_ID IN (                                                                                                                      
+				                 SELECT MAX(TR_ID)                                                                                                       
+				                   FROM GIFTICON_SEND                                                                                                                                                                                                    
+				                  WHERE DEAL_STATE IN ('Y', 'N')                                                                                          
+				                    AND SEND_GBN IN('S','R','I')                                                                                                                                                                           
+				                    AND PURCHASE_ID IN ( SELECT PURCHASE_ID                                                                                                                                                        
+				                                           FROM GIFTICON_SEND                                                                                                                                                    
+				                                          WHERE DEAL_STATE IN ('Y', 'N')                                                                                                                             
+				                                            AND COMPLETE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'                                                        
+				                                            AND COMPLETE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'                                                              
+				                                            AND SEND_GBN = 'I'                                                                                                                                               
+				                                            AND PURCHASE_ID NOT IN ( SELECT PURCHASE_ID                                                                                              
+				                                                                       FROM GIFTICON_SEND                                                                                         
+				                                                                      WHERE DEAL_STATE IN ('Y', 'N')                                                                     
+				                                                                        AND SEND_GBN = 'C'                                                                                       
+				                                                                        AND CREATE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'  
+				                                                                        AND CREATE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999')     
+				                                        )                                                                                                
+				                 GROUP BY PURCHASE_ID                                                                                                  
+				                )                                                                                                                                                                                 
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT A.PURCHASE_ID                                                                   
+				     , A.GOODS_CODE                                                                    
+				     , 'http://image.epost.go.kr/goods/goods/' || A.GOODS_CODE || '_s.gif' GOODS_URL   
+				     , A.BIZ_NAME                                                                      
+				     , A.ACCESS_NAME                                                                   
+				     , B.NAME BILL_TO_NAME                                                             
+				     , C.NAME SHIP_TO_NAME                                                             
+				     , TRIM(REPLACE(B.MOBILE, '-', '')) BILL_TO_MOBILE                                 
+				     , TRIM(REPLACE(C.MOBILE, '-', '')) SHIP_TO_MOBILE                                 
+				     , A.COMPLETE_DATE                                                                 
+				     , A.STATUS                                                                        
+				     , A.TRACKING_NUMBER                                                               
+				  FROM TXORDER A, CONTACT B, CONTACT C                                                                                  
+				 WHERE A.GIFTICON_YN = 'Y'                                                             
+				   AND A.CANCEL_STATE = 'N'                                                            
+				   AND A.RECEV_PO_REGIPOCD = '89903'                                                   
+				   AND A.BILL_TO_ID = B.CONTACT_ID                                                     
+				   AND A.SHIP_TO_ID = C.CONTACT_ID                                                      
+				   AND A.PURCHASE_ID = ?                                                                                                              
+		]]>	 
+	</select>
+	
+	<select id="selectGifticonRecevList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT DISTINCT ORDERID    
+			  FROM GIFTICON_RECEV      
+			 WHERE TR_ID LIKE ? || '%'                                                                                               
+		]]>	 
+	</select>
+	
+	<update id="insertOdGiftOrder1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO GIFTICON_SEND ( TR_ID            
+                          , PURCHASE_ID      
+                          , GOODS_CODE       
+                          , GOODS_URL        
+                          , BIZ_NAME         
+                          , ACCESS_NAME      
+                          , BILL_TO_NAME     
+                          , SHIP_TO_NAME     
+                          , BILL_TO_MOBILE   
+                          , SHIP_TO_MOBILE   
+                          , STATUS           
+                          , TRACKING_NUMBER  
+                          , COMPLETE_DATE    
+                          , CREATE_DATE      
+                          , DEAL_STATE       
+                          , SEND_GBN         
+                          , ORDERID)         
+                   VALUES (  ? || '-' || LPAD(SEQ_GIFTICON_SEND.NEXTVAL, 6, '0') ,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?, ?, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 'N', 'R' , ?)                    	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	
+	<select id="selectOdGiftOrderList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT TR_ID                                                                                                                           
+				     , PURCHASE_ID                                                                                                                     
+				     , BILL_TO_NAME                                                                                                                    
+				     , BILL_TO_MOBILE                                                                                                                  
+				  FROM GIFTICON_SEND                                                                                                                   
+				 WHERE TR_ID IN (                                                                                                                      
+				                 SELECT MAX(TR_ID)                                                                                                       
+				                   FROM GIFTICON_SEND                                                                                                                                                                                                    
+				                  WHERE DEAL_STATE IN ('Y', 'N')                                                                                          
+				                    AND SEND_GBN IN('B','I')                                                                                                                                                                               
+				                    AND PURCHASE_ID IN ( SELECT PURCHASE_ID                                                                                                                                                        
+				                                           FROM GIFTICON_SEND                                                                                                                                                    
+				                                          WHERE DEAL_STATE IN ('Y', 'N')                                                                                                                             
+				                                            AND COMPLETE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'                                                        
+				                                            AND COMPLETE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'                                                              
+				                                            AND SEND_GBN = 'I'                                                                                                                                               
+				                                            AND PURCHASE_ID NOT IN ( SELECT PURCHASE_ID                                                                                              
+				                                                                       FROM GIFTICON_SEND                                                                                         
+				                                                                      WHERE DEAL_STATE IN ('Y', 'N')                                                                     
+				                                                                        AND SEND_GBN = 'C'                                                                                       
+				                                                                        AND CREATE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'  
+				                                                                        AND CREATE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999')     
+				                                        )                                                                                                
+				                 GROUP BY PURCHASE_ID                                                                                                  
+				                )                                                                                                                                                                                                                                                                  
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT A.PURCHASE_ID                                                                   
+				     , A.GOODS_CODE                                                                    
+				     , 'http://image.epost.go.kr/goods/goods/' || A.GOODS_CODE || '_s.gif' GOODS_URL   
+				     , A.BIZ_NAME                                                                      
+				     , A.ACCESS_NAME                                                                   
+				     , B.NAME BILL_TO_NAME                                                             
+				     , C.NAME SHIP_TO_NAME                                                             
+				     , TRIM(REPLACE(B.MOBILE, '-', '')) BILL_TO_MOBILE                                 
+				     , TRIM(REPLACE(C.MOBILE, '-', '')) SHIP_TO_MOBILE                                 
+				     , A.COMPLETE_DATE                                                                 
+				     , A.STATUS                                                                        
+				     , A.TRACKING_NUMBER                                                               
+				  FROM TXORDER A, CONTACT B, CONTACT C                                                                                  
+				 WHERE A.GIFTICON_YN = 'Y'                                                             
+				   AND A.CANCEL_STATE = 'N'                                                            
+				   AND A.RECEV_PO_REGIPOCD = '89903'                                                   
+				   AND A.BILL_TO_ID = B.CONTACT_ID                                                     
+				   AND A.SHIP_TO_ID = C.CONTACT_ID                                                      
+				   AND A.PURCHASE_ID = ?                                                                                                                                                             
+		]]>	 
+	</select>
+	
+	<select id="selectGifticonRecevList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT DISTINCT ORDERID    
+			  FROM GIFTICON_RECEV      
+			 WHERE TR_ID LIKE ? || '%'                                                                                         
+		]]>	 
+	</select>
+	
+	<update id="insertOdGiftOrder2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO GIFTICON_SEND ( TR_ID            
+                          , PURCHASE_ID      
+                          , GOODS_CODE       
+                          , GOODS_URL        
+                          , BIZ_NAME         
+                          , ACCESS_NAME      
+                          , BILL_TO_NAME     
+                          , SHIP_TO_NAME     
+                          , BILL_TO_MOBILE   
+                          , SHIP_TO_MOBILE   
+                          , STATUS           
+                          , TRACKING_NUMBER  
+                          , COMPLETE_DATE    
+                          , CREATE_DATE      
+                          , DEAL_STATE       
+                          , SEND_GBN         
+                          , ORDERID )        
+                   VALUES (  ? || '-' || LPAD(SEQ_GIFTICON_SEND.NEXTVAL, 6, '0') ,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 'N', 'B', ? )                             	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	
+	<select id="selectOdGiftOrderList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT TR_ID                                                                                                                           
+				     , PURCHASE_ID                                                                                                                     
+				     , STATUS                                                                                                                          
+				     , TRACKING_NUMBER                                                                                                                 
+				  FROM GIFTICON_SEND                                                                                                                   
+				 WHERE TR_ID IN (                                                                                                                      
+				                 SELECT MAX(TR_ID)                                                                                                       
+				                   FROM GIFTICON_SEND                                                                                                                                                                                                    
+				                  WHERE DEAL_STATE IN ('Y', 'N')                                                                                          
+				                    AND SEND_GBN IN('T','I')                                                                                                                                                                               
+				                    AND PURCHASE_ID IN ( SELECT PURCHASE_ID                                                                                                                                                        
+				                                           FROM GIFTICON_SEND                                                                                                                                                    
+				                                          WHERE DEAL_STATE IN ('Y', 'N')                                                                                                                             
+				                                            AND COMPLETE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'                                                        
+				                                            AND COMPLETE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'                                                              
+				                                            AND SEND_GBN = 'I'                                                                                                                                               
+				                                            AND PURCHASE_ID NOT IN ( SELECT PURCHASE_ID                                                                                              
+				                                                                       FROM GIFTICON_SEND                                                                                         
+				                                                                      WHERE DEAL_STATE IN ('Y', 'N')                                                                     
+				                                                                        AND SEND_GBN = 'C'                                                                                       
+				                                                                        AND CREATE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'  
+				                                                                        AND CREATE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999')     
+				                                        )                                                                                                
+				                 GROUP BY PURCHASE_ID                                                                                                  
+				                )                                                                                                                                                                                                                                                                                                                                                                  
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT A.PURCHASE_ID                                                                   
+				     , A.GOODS_CODE                                                                    
+				     , 'http://image.epost.go.kr/goods/goods/' || A.GOODS_CODE || '_s.gif' GOODS_URL   
+				     , A.BIZ_NAME                                                                      
+				     , A.ACCESS_NAME                                                                   
+				     , B.NAME BILL_TO_NAME                                                             
+				     , C.NAME SHIP_TO_NAME                                                             
+				     , TRIM(REPLACE(B.MOBILE, '-', '')) BILL_TO_MOBILE                                       
+				     , TRIM(REPLACE(C.MOBILE, '-', '')) SHIP_TO_MOBILE                                       
+				     , A.COMPLETE_DATE                                                                 
+				     , A.STATUS                                                                        
+				     , A.TRACKING_NUMBER                                                               
+				  FROM TXORDER A, CONTACT B, CONTACT C                                                                                  
+				 WHERE A.GIFTICON_YN = 'Y'                                                             
+				   AND A.CANCEL_STATE = 'N'                                                            
+				   AND A.RECEV_PO_REGIPOCD = '89903'                                                   
+				   AND A.BILL_TO_ID = B.CONTACT_ID                                                     
+				   AND A.SHIP_TO_ID = C.CONTACT_ID                                                      
+				   AND A.PURCHASE_ID = ?                                                                                                                                                                  
+		]]>	 
+	</select>
+	
+	<select id="selectGifticonRecevList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     SELECT DISTINCT ORDERID    
+			  FROM GIFTICON_RECEV      
+			 WHERE TR_ID LIKE ? || '%'                                                                                  
+		]]>	 
+	</select>
+	
+	<update id="insertOdGiftOrder3" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO GIFTICON_SEND ( TR_ID            
+                          , PURCHASE_ID      
+                          , GOODS_CODE       
+                          , GOODS_URL        
+                          , BIZ_NAME         
+                          , ACCESS_NAME      
+                          , BILL_TO_NAME     
+                          , SHIP_TO_NAME     
+                          , BILL_TO_MOBILE   
+                          , SHIP_TO_MOBILE   
+                          , STATUS           
+                          , TRACKING_NUMBER  
+                          , COMPLETE_DATE    
+                          , CREATE_DATE      
+                          , DEAL_STATE       
+                          , SEND_GBN         
+                          , ORDERID )        
+                   VALUES (  ? || '-' || LPAD(SEQ_GIFTICON_SEND.NEXTVAL, 6, '0') ,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 'N', 'T', ? )                	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	
+	<select id="selectOdGiftOrderList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		      SELECT PURCHASE_ID                                                                                                                                                                                                            
+			   FROM GIFTICON_SEND                                                                                                                                                     
+			  WHERE DEAL_STATE IN ('Y', 'N')                                                                                                                              
+			    AND COMPLETE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'                                                         
+			    AND COMPLETE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999'                                                               
+			    AND SEND_GBN = 'I'                                                                                                                                               
+			    AND PURCHASE_ID NOT IN ( SELECT PURCHASE_ID                                                                                               
+			                               FROM GIFTICON_SEND                                                                                          
+			                              WHERE DEAL_STATE IN ('Y', 'N')                                                                      
+			                                AND SEND_GBN = 'C'                                                                                        
+			                                AND CREATE_DATE > TO_CHAR(SYSDATE -15,'YYYYMMDD') || '000000'   
+			                                AND CREATE_DATE < TO_CHAR(SYSDATE,'YYYYMMDD') || '999999')                                                                                                                                                                                                                                                                                                       
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		       SELECT A.PURCHASE_ID                                                                                                                             
+				       , A.GOODS_CODE                                                                     
+				       , 'http://image.epost.go.kr/goods/goods/' || A.GOODS_CODE || '_s.gif' GOODS_URL     
+				       , A.BIZ_NAME                                                                       
+				       , A.ACCESS_NAME                                                                   
+				       , B.NAME BILL_TO_NAME                                                             
+				       , C.NAME SHIP_TO_NAME                                                             
+				       , TRIM(REPLACE(B.MOBILE, '-', '')) BILL_TO_MOBILE                                       
+				       , TRIM(REPLACE(C.MOBILE, '-', '')) SHIP_TO_MOBILE                                       
+				       , A.COMPLETE_DATE                                                                 
+				       , A.STATUS                                                                        
+				       , A.TRACKING_NUMBER                                                               
+				   FROM TXORDER A, CONTACT B, CONTACT C                                                              
+				  WHERE A.BILL_TO_ID = B.CONTACT_ID                                                        
+				    AND A.SHIP_TO_ID = C.CONTACT_ID                                                        
+				    AND A.PURCHASE_ID = ?                                                                  
+				    AND A.STATUS = '6'                                                                   
+				    AND A.CANCEL_STATE = 'Y'                                                             
+				    AND A.CANCEL_DATE IS NOT NULL                                                                                                                                                           
+		]]>	 
+	</select>
+	
+	<select id="selectGifticonRecevList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			  SELECT DISTINCT ORDERID    
+			    FROM GIFTICON_RECEV      
+			   WHERE TR_ID LIKE ? || '%'                                                                           
+		]]>	 
+	</select>
+	
+	<update id="insertOdGiftOrder4" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO GIFTICON_SEND ( TR_ID            
+                            , PURCHASE_ID      
+                            , GOODS_CODE       
+                            , GOODS_URL        
+                            , BIZ_NAME         
+                            , ACCESS_NAME      
+                            , BILL_TO_NAME     
+                            , SHIP_TO_NAME     
+                            , BILL_TO_MOBILE   
+                            , SHIP_TO_MOBILE   
+                            , STATUS           
+                            , TRACKING_NUMBER  
+                            , COMPLETE_DATE    
+                            , CREATE_DATE      
+                            , DEAL_STATE       
+                            , SEND_GBN         
+                            , ORDERID )        
+                     VALUES (  ? || '-' || LPAD(SEQ_GIFTICON_SEND.NEXTVAL, 6, '0') ,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?,  ?, ?, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 'N', 'C' , ? )                	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	 	
+	<update id="updateOdGiftOrder1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			  UPDATE GIFTICON_ORDER   
+			     SET CANCEL_YN = 'Y'  
+			   WHERE PURCHASE_ID = ?  
+			     AND CANCEL_YN = 'N'                	                                                                                                                                                                                                       
+		]]>
+	</update>	
+		 	
+	<select id="selectOdGiftOrderList5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		       SELECT A.PURCHASE_ID                  
+				      , A.STATUS                       
+				      , A.COMPLETE_DATE                
+				      , B.TR_ID                        
+				   FROM TXORDER A, GIFTICON_SEND B     
+				  WHERE A.PURCHASE_ID = B.PURCHASE_ID    
+				    AND A.STATUS = '2'                 
+				    AND A.CANCEL_STATE = 'N'           
+				    AND B.DEAL_STATE = 'N'             
+				    AND B.STATUS IS NULL                
+				    AND B.COMPLETE_DATE IS NULL         
+				    AND B.SEND_GBN = 'I'                                                                                                                                                                                                                                                                                                 
+		]]>	 
+	</select>
+	 	
+	<update id="updateOdGiftOrder2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			  UPDATE GIFTICON_ORDER   
+			     SET CANCEL_YN = 'Y'  
+			   WHERE PURCHASE_ID = ?  
+			     AND CANCEL_YN = 'N'                	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	 	
+</sqlMap>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http#//ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBankTownSendBatch">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT to_char(sysdate-1,'yyyymmdd') as BeforeDate, to_char(sysdate,'yyyymmdd') as ToDate
+			FROM   dual
+		]]>	 
+	</select>
+	
+	<select id="BankTownPayment_Call_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  purchase_id as sPURCHASE_ID
+			FROM banktown_origin
+			WHERE auth_date >= #sBeforeDate# and auth_date <= #sToDay#
+			AND auth_time  = 'Y' 
+			AND nvl(result,'E')  IN ('E','F')
+		]]>	 
+	</select>
+	
+	<select id="BankTownPayment_Call_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		   Select b.cnt as iRecBankCnt,c.cnt as iRecOnlineCnt
+		   From (		
+		       select count(*) cnt  
+					 from txorder
+					 where purchase_id = #sPURCHASEID#  
+					   AND paymethod   = 'B'
+					   AND status > '1'
+		   )b,
+		   (	 
+		       select count(*) cnt  
+					 from txorder
+					 where purchase_id = #sPURCHASEID#  
+					   AND paymethod   = 'O'
+					   AND status > '1'
+		   )c
+		]]>	 
+	</select>
+	
+	<update id="update_banktown_origin_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		   UPDATE banktown_origin
+	       SET  RESULT = 'E' ,RESULT_TEXT = '주문누락'
+	       WHERE PURCHASE_ID = #sPURCHASEID#
+		]]>	 
+	</update>
+	
+	<update id="update_banktown_origin_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		   UPDATE banktown_origin
+	       SET  STATE = 'F', RESULT ='F',RESULT_TEXT = '무통장중복'
+	       WHERE PURCHASE_ID = #sPURCHASEID#
+		]]>	 
+	</update>
+	
+	<update id="update_banktown_origin_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		   UPDATE banktown_origin
+	       SET  result = 'S'
+	       WHERE PURCHASE_ID = #sPURCHASEID#
+		]]>	 
+	</update>
+	
+	<select id="OnLinePayment_Call_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  purchase_id 
+		    FROM banktown_origin
+		    WHERE auth_date >= #sBeforeDate# and auth_date <= #sToDay#
+		    AND BILLTO_NAME  = 'Y' 
+		    AND nvl(STATE,'E')  IN ('E','F')
+		]]>	 
+	</select>
+	
+	<select id="OnLinePayment_Call_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		   Select b.cnt as iRecBankCnt,c.cnt as iRecOnlineCnt
+		   From (		
+		       select count(*) cnt  
+					 from txorder
+					 where purchase_id = :sPURCHASE_ID  
+					   AND paymethod   = 'B'
+					   AND status > '1'
+		   )b,
+		   (	 
+		       select count(*) cnt  
+					 from txorder
+					 where purchase_id = :sPURCHASE_ID  
+					   AND paymethod   = 'O'
+					   AND status > '1'
+		   )c
+		]]>	 
+	</select>
+	
+	<update id="update_banktown_origin_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		   UPDATE banktown_origin
+	       SET  STATE = 'E' ,RESULT_TEXT = '주문누락'
+	       WHERE PURCHASE_ID = #sPURCHASEID#
+		]]>	 
+	</update>
+	
+	<update id="update_banktown_origin_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		   UPDATE banktown_origin
+	       SET  STATE = 'F', RESULT ='F',RESULT_TEXT = '무통장중복'
+	       WHERE PURCHASE_ID = #sPURCHASEID#
+		]]>	 
+	</update>
+	
+	<update id="update_banktown_origin_06" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		   UPDATE banktown_origin
+	       SET  STATE = 'S'
+	       WHERE PURCHASE_ID = #sPURCHASEID#
+		]]>	 
+	</update>
+	
+</sqlMap>

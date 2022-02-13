@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.FlowerOrderLatePostStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectFlowerOrderLatePostList" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+			SELECT	RES.*
+					,(RES.LATE_TIME - RES.HOLIDAY_CNT * 24) AS REAL_LATE   
+			FROM (
+					SELECT	ROW_NUMBER() OVER(ORDER BY A.APPR_DATE DESC)AS RNUM
+							,(SELECT PONM FROM PICMT0060 WHERE B.SUPPO_RGIST_POCD = REGIPOCD AND USEYN = 'Y') AS PONM
+							,B.GOODS_NM
+							,A.ORDER_ID
+							,TO_CHAR(A.ORDER_DATE,'YYYY/MM/DD HH24:MI') AS ORDER_DATE /*주문일시*/
+							,TO_CHAR(A.APPR_DATE,'YYYY/MM/DD HH24:MI') AS APPR_DATE /*승인일시*/
+							,TO_CHAR(B.ORDER_CONF_DATE,'YYYY/MM/DD HH24:MI') AS ORDER_CONF_DATE /*주문확인일시*/
+							,TO_CHAR(B.SEND_DONE_DATE,'YYYY/MM/DD HH24:MI') AS SEND_DONE_DATE /*배송완료일시*/
+							,FLOOR((B.ORDER_CONF_DATE -  A.APPR_DATE)* 24) AS LATE_TIME
+							,(SELECT NAME FROM MEMINFO M WHERE M.ACCESS_NAME = A.ACCESS_NAME) NAME
+							,(SELECT COUNT(1) FROM HOLIDAY WHERE HOLIDAY BETWEEN TO_CHAR(B.ORDER_CONF_DATE,'yyyymmdd') AND TO_CHAR(A.APPR_DATE,'yyyymmdd')) AS HOLIDAY_CNT
+					FROM	OD_ORDER_MAST A
+							,OD_ORDER_ITM B
+					WHERE	A.ORDER_ID = B.ORDER_ID
+					AND 	B.PAVLN_DIV_CD = '04'
+					AND 	A.ORDER_STUS_CD NOT IN ('O05','O06','O08')
+					AND 	A.ORDER_CANCEL_DATE IS NULL
+					AND 	A.ORDER_DATE >= #searchFromDt#
+					AND 	A.ORDER_DATE <= #searchToDt#
+					AND 	FLOOR((B.ORDER_CONF_DATE -  A.APPR_DATE)* 24) >= #lateTime#
+			) RES
+			ORDER BY RES.APPR_DATE DESC
+			]]>
+	</select>
+
+</sqlMap>

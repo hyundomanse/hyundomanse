@@ -1,0 +1,712 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboSupply">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	<resultMap id="bbsCommMap" class="commMap" >
+		<result	property="BBS_NO"				column="BBS_NO" />
+		<result	property="TTL"					column="TTL" />
+		<result	property="CONT"					column="CONT" javaType="java.lang.String" jdbcType="CLOB"/>
+		<result	property="BBS_CONT_DIV_CD"		column="BBS_CONT_DIV_CD" />
+		<result	property="BBS_STR_DIV_CD"		column="BBS_STR_DIV_CD" />
+		<result	property="TOP_YN"				column="TOP_YN" />
+		<result	property="REG_DATE"				column="REG_DATE" />
+		<result	property="NOTIC_YN"				column="NOTIC_YN" />
+		<result	property="BBS_VIEW_NO"			column="BBS_VIEW_NO" />
+		<result	property="RPLY_YN"				column="RPLY_YN" />
+		<result	property="COMP_NM"				column="COMP_NM" />
+		<result	property="COMP_CD"				column="COMP_CD" />
+		<result	property="REG_DATE"				column="REG_DATE" />
+		<result	property="CHG_DATE"				column="CHG_DATE" />
+		<result	property="ANS_BBS_NO"			column="ANS_BBS_NO" />
+		<result	property="ANS_TTL"				column="ANS_TTL" />
+		<result	property="ANS_CONT"				column="ANS_CONT" javaType="java.lang.String" jdbcType="CLOB"/>
+		<result	property="ANS_REG_DATE"			column="ANS_REG_DATE" />
+		<result	property="CONTENTS_GBN"			column="CONTENTS_GBN" />
+		<result	property="ATTCHFILE_SEQ"		column="ATTCHFILE_SEQ" />
+		<result	property="ATTCH_FILE_NM"		column="ATTCH_FILE_NM" />
+		<result	property="ATTCH_ORIG_FILE_NM"	column="ATTCH_ORIG_FILE_NM" />
+		<result	property="ATTCH_FILE_PATH"		column="ATTCH_FILE_PATH" />
+	</resultMap>
+
+	<!-- 공급업체관리 게시판 리스트 카운트 -->
+	<select id="selectSupplyBbsMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="int">
+			select COUNT(*) as TOTCNT from CM_SUPPER_BBS A
+			WHERE BBS_CONT_DIV_CD = #bbs_cont_div_cd#
+			<isNotEmpty property="search_gbn">
+				  	AND A.BBS_STR_DIV_CD = #search_gbn#
+			</isNotEmpty>
+		<isNotEmpty property="searchTxt">
+			<isEqual property="searchCondition" compareValue="title">
+			AND A.TTL LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchCondition" compareValue="name">
+			AND A.REGER_ID LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchCondition" compareValue="contents">
+			AND A.CONT LIKE '%'||#searchTxt#||'%'
+			</isEqual>
+			<isEqual property="searchCondition" compareValue="">
+			AND (  A.TTL LIKE '%'||#searchTxt#||'%'  OR A.CONT LIKE '%'||#searchTxt#||'%' OR A.REGER_ID LIKE '%'||#searchTxt#||'%')
+			</isEqual>
+		</isNotEmpty>
+	</select>
+
+	<!-- 공급업체관리 게시판 리스트 -->
+	<select id="selectSupplyBbsMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	*
+		FROM (
+					SELECT ROW_NUMBER () OVER (ORDER BY BBS_NO DESC, BBS_VIEW_NO DESC, BBS_DPTH ASC) RNUM
+							,BBS_NO
+							,BBS_VIEW_NO
+							,TTL
+							,BBS_CONT_DIV_CD
+							,BBS_STR_DIV_CD
+							,RPLY_YN
+							,TOP_YN
+							,REG_DATE
+							,CHG_DATE
+							,REGER_ID
+							,CHGER_ID
+							,COMP_NM
+							,COMP_CD
+							,BBS_DPTH
+							,NVL(CLSDR_YN,'N') AS CLSDR_YN
+							,DECODE(NVL(CLSDR_YN,'N'),'Y','비공개','N','공개')AS CLSDR_YN_NM
+							,NVL(BBS_VIEW_NO,BBS_NO) AS BBS_VIEW_NO
+					FROM	CM_SUPPER_BBS A
+					WHERE	BBS_CONT_DIV_CD = '2'
+					AND 	NVL(NOTIC_YN,'Y') = 'Y'
+					<isNotEmpty property="searchWord">
+						<isEqual property="searchIndex" compareValue="All">
+							AND (TTL LIKE '%'||#searchWord#||'%'
+								 OR REGER LIKE '%'||#searchWord#||'%')
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="Ttl">
+							AND TTL LIKE '%'||#searchWord#||'%'
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="Reger">
+							AND REGER_ID LIKE '%'||#searchWord#||'%'
+						</isEqual>
+					</isNotEmpty>
+					<isNotEmpty property="searchRplyYn">
+						<isNotEqual property="searchRplyYn" compareValue="All">
+							AND RPLY_YN = #searchRplyYn#
+						</isNotEqual>
+					</isNotEmpty>
+					ORDER BY RNUM ASC
+			) A
+			WHERE 1=1
+			AND A.RNUM BETWEEN #firstIndex# AND #lastIndex#
+	</select>
+
+	<!-- 공급업체관리 게시판 상세정보 -->
+	<select id="selectSupplyBbsMgrDtlInfo" parameterClass ="java.util.HashMap" resultMap="bbsCommMap">
+			SELECT
+			     TTL
+			     ,CONT
+			     ,RPLY_YN
+			     ,BBS_VIEW_NO
+			     ,BBS_NO
+			     ,BBS_CONT_DIV_CD
+			     ,BBS_STR_DIV_CD
+			     ,TOP_YN
+			     ,COMP_NM
+			     ,COMP_CD
+			     ,REG_DATE
+			     ,NOTIC_YN
+			     ,DECODE(NOTIC_YN, 'N','미게시','게시') AS NOTICE_STATUS
+			     ,REG_DATE
+			     ,CHG_DATE
+			     ,REGER_ID
+			     ,CHGER_ID
+			     ,'' ANS_BBS_NO
+			     ,'' ANS_TTL
+			     ,'' ANS_CONT
+			     ,'' ANS_REG_DATE
+			     ,'' CONTENTS_GBN
+			     ,'' ATTCHFILE_SEQ
+	             ,'' ATTCH_FILE_NM
+	             ,'' ATTCH_ORIG_FILE_NM
+	             ,'' ATTCH_FILE_PATH
+			FROM CM_SUPPER_BBS WHERE BBS_NO = #bbs_no#
+	</select>
+
+	<!-- 공급업체관리 Q&A 상세정보 -->
+	<select id="selectSupplyQnaBbsMgrDtlInfo" parameterClass ="java.util.HashMap" resultMap="bbsCommMap">
+		SELECT
+			A.*
+		FROM
+			( SELECT
+	        	  A.BBS_NO
+	             ,A.TTL
+	             ,A.CONT
+	             ,A.CONT_DIV
+	             ,A.BIZ_DIV_CD
+	             ,A.TOP_YN
+	             ,A.NOTIC_YN
+	             ,A.QUEST_NO
+	             ,A.RPLY_YN
+	             ,A.COMP_NM
+	             ,A.COMP_CD
+	             ,A.REG_DATE
+	             ,A.CHG_DATE
+	             ,A.REGER_ID
+	             ,A.CHGER_ID
+	             ,B.TTL AS ANS_TTL
+	             ,B.BBS_NO AS ANS_BBS_NO
+	             ,B.CONT AS ANS_CONT
+	             ,B.REG_DATE AS ANS_REG_DATE
+	             ,DECODE(B.quest_no, B.bbs_no, 0, 1) AS CONTENTS_GBN --1:답변 / 0:질문
+	             ,C.ATTCHFILE_SEQ
+	             ,C.ATTCH_FILE_NM
+	             ,C.ATTCH_ORIG_FILE_NM
+	             ,C.ATTCH_FILE_PATH
+	             ,DECODE(A.quest_no, A.bbs_no, 0, 1) AS Q_CONTENTS_GBN --1:답변 / 0:질문
+	        FROM CM_SUPPER_BBS A LEFT OUTER JOIN CM_SUPPER_BBS B ON A.BBS_NO = B.QUEST_NO
+	        LEFT OUTER JOIN cm_supper_bbs_attchfile C ON B.BBS_NO = C.BBS_NO AND C.USE_YN = 'Y'
+	        WHERE A.BBS_NO = #bbs_no#
+	       ) A WHERE A.Q_CONTENTS_GBN = 0
+
+	</select>
+
+	<!-- 공급업체 QNA관리 답변 상태 수정 -->
+	<update id="updateSupplyQnaBbsAnswerYn" parameterClass="java.util.HashMap">
+			UPDATE CM_SUPPER_BBS SET RPLY_YN = #rply_yn# WHERE BBS_NO = #quest_no#
+	</update>
+
+	<!-- 공급업체 공통게시판 삭제 -->
+	<update id="deleteSupplyBbsInfo" parameterClass="java.util.HashMap">
+			DELETE CM_SUPPER_BBS WHERE
+			<isNotEqual property="rply_del_yn" compareValue = "N">
+				BBS_NO = #bbs_no#
+			</isNotEqual>
+			<isEqual property="rply_del_yn" compareValue = "N">
+					QUEST_NO = #bbs_no#
+			</isEqual>
+	</update>
+
+	<!-- 공급업체 공통게시판 게시 상태 수정 -->
+	<update id="updateSupplyBbsDisplay" parameterClass="java.util.HashMap">
+			UPDATE CM_SUPPER_BBS
+				SET NOTIC_YN = #notic_yn#
+				WHERE BBS_NO = #bbs_no#
+	</update>
+
+	<!-- 공급업체 공통게시판 등록 -->
+	<insert id="insertSupplyBbsInfo" parameterClass="java.util.HashMap">
+				INSERT INTO CM_SUPPER_BBS
+				(
+					  BBS_NO
+					   ,TTL
+					   ,CONT
+					   ,BBS_CONT_DIV_CD
+					   ,BBS_STR_DIV_CD
+					   ,BBS_VIEW_NO
+					   ,RPLY_YN
+					   ,COMP_NM
+					   ,COMP_CD
+					   ,TOP_YN
+					   ,REG_DATE
+					   ,NOTIC_YN
+					   ,REGER_ID
+				)VALUES(
+					 (SELECT NVL(MAX(BBS_NO),0)+1 FROM CM_SUPPER_BBS)
+					   ,#ttl#
+					   ,#cont#
+					   ,#bbs_cont_div_cd#
+					   ,#bbs_str_div_cd#
+					   ,#bbs_view_no#
+					   ,#rply_yn#
+					   ,#comp_nm#
+					   ,#comp_cd#
+					   ,#top_yn#
+					   ,SYSDATE
+					   ,#notic_yn#
+					   ,#reger_id#
+				)
+			<selectKey resultClass="String" keyProperty="bbs_no" >
+			SELECT NVL(MAX(BBS_NO),0) FROM CM_SUPPER_BBS
+			</selectKey>
+	</insert>
+
+	<!-- 공급업체 공통게시판 수정 -->
+	<update id="updateSupplyBbsInfo" parameterClass="java.util.HashMap">
+				UPDATE CM_SUPPER_BBS SET
+						TTL = #ttl#
+					   ,CONT = #cont#
+					   ,BBS_CONT_DIV_CD = #bbs_cont_div_cd#
+					   ,BBS_STR_DIV_CD = #bbs_str_div_cd#
+					   ,BBS_VIEW_NO = #bbs_view_no#
+					   ,RPLY_YN = #rply_yn#
+					   ,TOP_YN = #top_yn#
+					   ,CHGER_ID = #chger_id#
+					   ,CHG_DATE = SYSDATE
+				WHERE BBS_NO = #bbs_no#
+	</update>
+
+	<!-- 첨부파일 목록 -->
+	<select id="selectSupplyBbsFileList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT ATTCHFILE_SEQ
+		       , ATTCH_FILE_NM
+		       , ATTCH_FILE_PATH
+		       , ATTCH_FILE_CAPA
+		       <!-- , ATTCH_ORIG_FILE_NM -->
+		       , USE_YN
+		       , REG_DATE
+		       , CHG_DATE
+		       , REGER_ID
+		       , CHGER_ID
+		      FROM CM_SUPPER_BBS_ATTCHFILE
+		     WHERE USE_YN='Y'
+		     AND BBS_NO = #bbs_no#
+		     <isNotEmpty property="attchfile_seq">
+		     AND ATTCHFILE_SEQ = #attchfile_seq#
+		     </isNotEmpty>
+		     ORDER BY ATTCHFILE_SEQ
+	</select>
+
+	<!-- 첨부파일 상세정보 -->
+	<select id="selectSupplyBbsFileDtlInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+			SELECT ATTCHFILE_SEQ
+			       , ATTCH_FILE_NM
+			       , ATTCH_FILE_PATH
+			       , ATTCH_FILE_CAPA
+			       , USE_YN
+			       , REG_DATE
+			       , CHG_DATE
+			       , REGER_ID
+			       , CHGER_ID
+			      FROM CM_SUPPER_BBS_ATTCHFILE
+			     WHERE USE_YN = 'Y'
+			       AND BBS_NO = #bbs_no#
+			       AND ATTCHFILE_SEQ = #attchfile_seq#
+	</select>
+
+	<!-- 첨부파일 등록 -->
+	<insert id="insertSupplyBbsFileInfo" parameterClass="java.util.HashMap">
+				 INSERT INTO CM_SUPPER_BBS_ATTCHFILE
+			       (
+			              BBS_NO
+			              ,ATTCHFILE_SEQ
+			              ,ATTCH_FILE_NM
+			              ,ATTCH_FILE_PATH
+			              ,ATTCH_FILE_CAPA
+			              ,USE_YN
+			              ,REG_DATE
+			              ,REGER_ID
+			       )VALUES(
+			              #bbs_no#
+			              ,(SELECT NVL(MAX(TO_NUMBER(ATTCHFILE_SEQ))+1, '1') FROM CM_SUPPER_BBS_ATTCHFILE)
+			              ,#attch_file_nm#
+			              ,#attch_file_path#
+			              ,#attch_file_capa#
+			              ,'Y'
+			              ,SYSDATE
+			              ,#reger_id#
+			       )
+	</insert>
+
+	<!-- 첨부파일 삭제 -->
+	<update id="deleteSupplyBbsFileInfo" parameterClass="java.util.HashMap">
+				UPDATE CM_SUPPER_BBS_ATTCHFILE SET
+					USE_YN = 'N',
+					CHG_DATE = SYSDATE,
+					CHGER_ID = #chger_id#
+				WHERE BBS_NO = #bbs_no#
+				<isNotEmpty property="attchfile_seq">
+				AND ATTCHFILE_SEQ = #attchfile_seq#
+				</isNotEmpty>
+	</update>
+
+	<!--                                            -->
+
+	<!-- Q&A 조회 리스트 -->
+	<select id="selectSrmboQnabbsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<include refid="pagingHeader"/>
+				SELECT
+						BBS_NO
+						,BBS_VIEW_NO
+						,TTL
+						,BBS_CONT_DIV_CD
+						,BBS_STR_DIV_CD
+						,RPLY_YN
+						,TOP_YN
+						,TO_CHAR(REG_DATE,'YYYY-MM-DD')AS REG_DATE
+						,TO_CHAR(CHG_DATE,'YYYY-MM-DD')AS CHG_DATE
+						,REGER_ID
+						,CHGER_ID
+						,COMP_NM
+						,COMP_CD
+						,NVL(BBS_DPTH,1) AS BBS_DPTH
+						,NVL(CLSDR_YN,'N') AS CLSDR_YN
+						,DECODE(NVL(CLSDR_YN,'N'),'Y','비공개','N','공개')AS CLSDR_YN_NM
+						,DECODE(BBS_NO,BBS_VIEW_NO,'0','1') AS SORTNUM
+				FROM	CM_SUPPER_BBS
+				WHERE	BBS_CONT_DIV_CD = '3'
+				AND 	NVL(NOTIC_YN,'Y') = 'Y'
+					<isNotEmpty property="searchWord">
+	    		    	<isEqual property="searchIndex" compareValue="All">
+							AND (TTL LIKE '%'||#searchWord#||'%'
+								 OR REGER_ID LIKE '%'||#searchWord#||'%')
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="Ttl">
+							AND TTL LIKE '%'||#searchWord#||'%'
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="Reger">
+							AND REGER_ID LIKE '%'||#searchWord#||'%'
+						</isEqual>
+					</isNotEmpty>
+					<isNotEmpty property="searchRplyYn">
+						<isNotEqual property="searchRplyYn" compareValue="All">
+							AND RPLY_YN = #searchRplyYn#
+						</isNotEqual>
+					</isNotEmpty>
+				ORDER	BY BBS_VIEW_NO DESC, SORTNUM ASC, BBS_DPTH ASC
+		<include refid="pagingFooter"/>
+    </select>
+
+    <!-- Q&A 조회 리스트 카운트 -->
+	<select id="selectSrmboQnabbsListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT COUNT(*)
+	FROM (
+	        SELECT	BBS_NO
+	        FROM CM_SUPPER_BBS
+	        WHERE BBS_CONT_DIV_CD = #bbsContDivCd#
+	        	  AND NVL(NOTIC_YN,'Y') = 'Y'
+					<isNotEmpty property="searchWord">
+		    		    <isEqual property="searchIndex" compareValue="All">
+								AND (TTL LIKE '%'||#searchWord#||'%'
+									 OR REGER_ID LIKE '%'||#searchWord#||'%')
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="title">
+								AND TTL LIKE '%'||#searchWord#||'%'
+						</isEqual>
+						<isEqual property="searchIndex" compareValue="regId">
+								AND REGER_ID LIKE '%'||#searchWord#||'%'
+						</isEqual>
+					</isNotEmpty>
+					<isNotEmpty property="searchRplyYn">
+						<isNotEqual property="searchRplyYn" compareValue="All">
+								AND RPLY_YN = #searchRplyYn#
+						</isNotEqual>
+					</isNotEmpty>
+					<isNotEmpty property="searchFromDt">
+						<![CDATA[ AND REG_DATE >= ]]> #searchFromDt#
+					</isNotEmpty>
+					<isNotEmpty property="searchToDt">
+						<![CDATA[ AND REG_DATE <=]]> #searchToDt#
+					</isNotEmpty>
+	    )
+	</select>
+	<resultMap id="qnaBbsListMap" class="commMap">
+		<result property="BBS_NO"          	column="BBS_NO"         />
+		<result property="TTL"              column="TTL"            />
+		<result property="CONT"             column="CONT"		javaType="java.lang.String" jdbcType="CLOB"/>
+		<result property="BBS_CONT_DIV_CD"  column="BBS_CONT_DIV_CD"/>
+		<result property="BBS_CONT_DIV_NM"  column="BBS_CONT_DIV_NM"/>
+		<result property="BBS_STR_DIV_CD"   column="BBS_STR_DIV_CD" />
+		<result property="BBS_VIEW_NO"      column="BBS_VIEW_NO"    />
+		<result property="RPLY_YN"          column="RPLY_YN"        />
+		<result property="DEL_YMD"          column="DEL_YMD"        />
+		<result property="COMP_NM"          column="COMP_NM"        />
+		<result property="COMP_CD"          column="COMP_CD"        />
+		<result property="CLSDR_YN"         column="CLSDR_YN"       />
+		<result property="NOTIC_YN"         column="NOTIC_YN"       />
+		<result property="QUESTER_TELNO"    column="QUESTER_TELNO"  />
+		<result property="MAKEER_ID"        column="MAKEER_ID"       />
+		<result property="MAKEER_NM"    	column="MAKEER_NM"  />
+		<result property="MOBILE_TELNO"     column="MOBILE_TELNO"   />
+		<result property="QUESTER_EMAIL"    column="QUESTER_EMAIL"  />
+		<result property="ORDER_NO"         column="ORDER_NO"       />
+		<result property="GOODS_NO"        	column="GOODS_NO"       />
+		<result property="RPLY_WRITE_CONT" 	column="RPLY_WRITE_CONT"/>
+		<result property="REG_DATE"        	column="REG_DATE"       />
+		<result property="CHG_DATE"        	column="CHG_DATE"       />
+		<result property="REGER_ID"        	column="REGER_ID"       />
+		<result property="CHGER_ID"        	column="CHGER_ID"       />
+		<result property="TOP_YN"          	column="TOP_YN"         />
+		<result property="QUEST_GBN"        column="QUEST_GBN"      />
+		<result property="ATTCHFILE_ID"     column="ATTCHFILE_ID"   />
+	</resultMap>
+
+	<!-- Q&A 상세조회 -->
+	<select id="selectSrmboQnabbsDtl" parameterClass="java.util.HashMap" resultMap="qnaBbsListMap">
+		SELECT		BBS_NO
+					,TTL
+					,CONT
+					,BBS_CONT_DIV_CD
+					,F_GET_COMN_CD_NM('BBS_CONT_DIV_CD', BBS_CONT_DIV_CD) AS BBS_CONT_DIV_NM
+					,BBS_STR_DIV_CD
+					,NVL(BBS_VIEW_NO,BBS_NO) BBS_VIEW_NO
+					,NVL(RPLY_YN,'N') AS RPLY_YN
+					,DEL_YMD
+					,COMP_NM
+					,COMP_CD
+					,CLSDR_YN
+					,NOTIC_YN
+					,QUESTER_TELNO
+					,MOBILE_TELNO
+					,QUESTER_EMAIL
+					,ORDER_NO
+					,GOODS_NO
+					,RPLY_WRITE_CONT
+					,MAKEER_ID
+					,MAKEER_NM
+					,REG_DATE
+					,CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+					,TOP_YN
+					,DECODE(HRNK_BBS_NO, BBS_NO, 0, 1) AS QUEST_GBN
+					,ATTCHFILE_ID
+		FROM CM_SUPPER_BBS
+		<isEmpty property="questGbn">
+		WHERE BBS_NO = #bbsNo#
+		</isEmpty>
+		<isNotEmpty property="questGbn">
+			<isEqual property="questGbn" compareValue="1">
+		WHERE HRNK_BBS_NO = #bbsNo#
+			</isEqual>
+		</isNotEmpty>
+	</select>
+
+	<!-- 공지/안내 첨부파일 상세정보 -->
+	<select id="selectSrmboBbsFileDtlInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	ATTCHFILE_ID,
+			 	FILE_SEQ,
+			 	FILE_STRE_PATH,
+			 	STRE_FILE_NM,
+			 	ORIG_FILE_NM,
+			 	FILE_STRE_PATH || STRE_FILE_NM AS FILE_PATH,
+			 	FILE_EXTNER,
+			 	FILE_SIZE,
+			 	DEL_YN,
+			 	REG_DATE,
+			 	CHG_DATE,
+			 	REGER_ID,
+			 	CHGER_ID
+		FROM    CM_FILE_MGT
+		WHERE   ATTCHFILE_ID = #attchfileId#
+	</select>
+	<!-- Q&A 답변 시퀀스NO -->
+	<select id="selectSrmboBbsSeq" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT SEQ_CM_SUPPER_BBS_NO.NEXTVAL FROM DUAL
+	</select>
+	<!-- Q&A 답변 내용 등록 -->
+	<insert id="registSrmboBbsInfo" parameterClass="java.util.HashMap">
+	INSERT INTO CM_SUPPER_BBS
+		  (
+		   BBS_NO,
+		   BBS_VIEW_NO,
+		   TTL,
+		   CONT,
+		   MAKEER_ID,
+		   MAKEER_NM,
+		   COMP_NM,
+		   COMP_CD,
+		   RPLY_YN,
+		   SEND_FLAG,
+		   BBS_DPTH,
+		   BBS_CONT_DIV_CD,
+		   ATTCHFILE_ID,
+		   REGER_ID,
+		   REG_DATE
+		  )
+		VALUES
+		  (
+		   #bbsNo#,
+		   #hrnkBbsNo#,
+		   #ttl#,
+		   #cont#,
+		   #loginId#,
+		   #adminNm#,
+		   #suppCompNm#,
+		   #suppCompId#,
+		   'Y',
+		   '1',
+		   '2',
+		   #bbsContDivCd#,
+		   #attchfileId#,
+		   #loginId#,
+		   SYSDATE
+		   )
+	</insert>
+	<!-- Q&A 답변 처리 수정 -->
+	<update id="updateSrmboHrnkBbsInfo" parameterClass="java.util.HashMap">
+		UPDATE CM_SUPPER_BBS SET
+				RPLY_YN = #rplyYn#
+		WHERE BBS_NO = #hrnkBbsNo#
+	</update>
+	<!-- BBS 파일 등록 -->
+	<insert id="registSrmboBbsFileInfo" parameterClass="java.util.HashMap" >
+		INSERT INTO CM_FILE_MGT ( ATTCHFILE_ID
+								, FILE_SEQ
+								, FILE_STRE_PATH
+								, STRE_FILE_NM
+								, ORIG_FILE_NM
+								, FILE_EXTNER
+								, FILE_SIZE
+								, DEL_YN
+								, REG_DATE
+								, CHG_DATE
+								, REGER_ID
+								, CHGER_ID )
+						 VALUES ( #attchfileId#
+								, ( SELECT NVL(MAX(FILE_SEQ)+1, 0)
+									FROM CM_FILE_MGT
+									WHERE ATTCHFILE_ID = #attchfileId# )
+								, #fileStrePath#
+								, #streFileNm#
+								, #origFileNm#
+								, #fileExtner#
+								, #fileSize#
+								, 'N'
+								, SYSDATE
+								, SYSDATE
+								, #loginId#
+								, #loginId# )
+	</insert>
+		<!-- BBS파일 삭제 -->
+	<delete id="deleteSrmBbsFileInfo" parameterClass="java.util.HashMap">
+		DELETE FROM CM_FILE_MGT
+		WHERE ATTCHFILE_ID = #attchfileId#
+		<isNotEmpty property="fileSeq">
+		AND FILE_SEQ = #fileSeq#
+		</isNotEmpty>
+	</delete>
+		<!-- BBS 수정 -->
+	<update id="modifySrmboBbsInfo" parameterClass="java.util.HashMap">
+		UPDATE	CM_SUPPER_BBS
+		SET 	TTL           = #ttl#
+				,CONT          = #cont#
+				,ATTCHFILE_ID  = #attchfileId#
+				,CHGER_ID      = #loginId#
+				,CHG_DATE      = SYSDATE
+		WHERE 	BBS_NO		= #bbsNo#
+	</update>
+		<!-- BBS 삭제 -->
+	<update id="deleteSrmboBbsInfo" parameterClass="java.util.HashMap">
+		DELETE FROM CM_SUPPER_BBS
+		WHERE 	BBS_NO = #bbsNo#
+	</update>
+
+	<!-- 공지/안내 조회 리스트 카운트 -->
+	<select id="selectSrmboBoardListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM (
+				SELECT	BBS_NO
+				FROM CM_SUPPER_BBS
+				WHERE 1=1
+				  AND ( NOTIC_YN = 'Y' OR  NOTIC_YN IS NULL )
+				<isNotEmpty property="bbsContDivCd">
+			<isEqual property="bbsContDivCd" compareValue="6">
+			AND BBS_CONT_DIV_CD IN ('1','6')
+			</isEqual>
+			<isNotEqual property="bbsContDivCd" compareValue="6">
+			AND BBS_CONT_DIV_CD = #bbsContDivCd#
+			</isNotEqual>
+		</isNotEmpty>
+		<isEmpty property="bbsContDivCd">
+			AND BBS_CONT_DIV_CD IN('1','4','5','6','7')
+		</isEmpty>
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue="all">
+			AND (TTL LIKE '%'||#searchWord#||'%'
+			OR MAKEER_ID LIKE '%'||#searchWord#||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="title">
+			AND TTL LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="name">
+			AND MAKEER_NM LIKE '%'||#searchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchFromDt">
+			<![CDATA[ AND REG_DATE >= ]]> #searchFromDt#
+		</isNotEmpty>
+		<isNotEmpty property="searchToDt">
+			<![CDATA[ AND REG_DATE <= ]]> #searchToDt#
+		</isNotEmpty>
+		ORDER BY REG_DATE DESC, BBS_NO DESC
+			)
+	</select>
+	<!-- 공지/안내 조회 목록 -->
+	<select id="selectSrmboBoardList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT	BBS_NO                     /*게시판 번호*/
+				, BBS_VIEW_NO                /*게시물 번호*/
+				, TTL                        /*제목*/
+				, BBS_CONT_DIV_CD            /*게시판 내용 구분 코드*/
+				, F_GET_COMN_CD_NM('BBS_CONT_DIV_CD', BBS_CONT_DIV_CD) AS BBS_CONT_DIV_NM
+				, BBS_STR_DIV_CD             /*게시판 매장 구분 코드*/
+				, MAKEER_NM                  /*작성자 명*/
+				, NVL(CLSDR_YN, 'Y')   AS CLSDR_YN   /*공개여부*/
+				, DECODE( NVL(CLSDR_YN, 'Y'), 'Y', '공개', '비공개') AS CLSDR_NM
+				, NOTIC_YN					/*게시 여부*/
+				, SRCH_CNT					/*조회 수*/
+				, TO_CHAR(REG_DATE,'YYYY-MM-DD') AS REG_DATE	/*등록 일시*/
+				, TO_CHAR(CHG_DATE,'YYYY-MM-DD') AS CHG_DATE	/*수정 일시*/
+				, REGER_ID					/*등록자 아이디*/
+		  FROM  CM_SUPPER_BBS
+		WHERE 1=1
+		<isNotEmpty property="bbsContDivCd">
+			<isEqual property="bbsContDivCd" compareValue="6">
+			AND BBS_CONT_DIV_CD IN ('1','6')
+			</isEqual>
+			<isNotEqual property="bbsContDivCd" compareValue="6">
+			AND BBS_CONT_DIV_CD = #bbsContDivCd#
+			</isNotEqual>
+		</isNotEmpty>
+		<isEmpty property="bbsContDivCd">
+			AND BBS_CONT_DIV_CD IN('1','4','5','6')
+		</isEmpty>
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue="all">
+			AND (TTL LIKE '%'||#searchWord#||'%'
+			OR MAKEER_ID LIKE '%'||#searchWord#||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="title">
+			AND TTL LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="name">
+			AND MAKEER_NM LIKE '%'||#searchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="searchFromDt">
+			<![CDATA[ AND REG_DATE >= ]]> #searchFromDt#
+		</isNotEmpty>
+		<isNotEmpty property="searchToDt">
+			<![CDATA[ AND REG_DATE <= ]]> #searchToDt#
+		</isNotEmpty>
+		ORDER BY REG_DATE DESC, BBS_NO DESC
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 기타공지 게시판분류 코드 -->
+	<select id="selectSrmboBoardComnCdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT COMN_CD_ID AS VALUE
+				,COMN_CD_NM AS NAME
+		FROM CM_COMN_CD
+		WHERE CD_GRP_ID = 'BBS_CONT_DIV_CD'
+		AND COMN_CD_ID IN ('1','4','5','6','7')
+	</select>
+</sqlMap>

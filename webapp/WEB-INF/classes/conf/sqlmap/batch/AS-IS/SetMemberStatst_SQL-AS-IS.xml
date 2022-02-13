@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchAdjLaterPrc">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectDateList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT TO_CHAR(ADD_MONTHS(SYSDATE,-1),'YYYYMM')    YYMM, 
+			       TO_CHAR(ADD_MONTHS(SYSDATE,-1),'YYYYMM')|| '01'    FROM_DAY, 
+			       TO_CHAR(ADD_MONTHS(SYSDATE,-1),'YYYYMM')|| '31999999'    TO_DAY, 
+			       TO_CHAR(SYSDATE-1,'YYYYMMDD')  UP_DAY ,  
+			       TO_CHAR(SYSDATE-2,'YYYYMMDD')  UP_DAY_1,  
+			       TO_CHAR(ADD_MONTHS(SYSDATE-1,-36),'YYYYMMDD')  UP_YEAR_3 
+			FROM DUAL                                                                
+		]]>	 
+	</select>
+	
+	<select id="selectDateList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT                           
+				TO_CHAR((SELECT TO_DATE(?,'YYYYMMDD') FROM DUAL)-1,'YYYYMMDD')  UP_DAY_1, 
+				TO_CHAR((SELECT ADD_MONTHS(TO_DATE(?,'YYYYMMDD'),-36) FROM DUAL),'YYYYMMDD')  UP_YEAR_3
+			FROM DUAL                                                    
+		]]>	 
+	</select>
+	
+	<delete id="deleteMemberStat" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM MEMBER_STAT 
+			WHERE UP_DATE LIKE ? 
+		]]>
+	</delete>	
+	
+	<update id="insertMemberStat1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			 INSERT INTO MEMBER_STAT 
+                         ( UP_DATE,                  
+                          CNT_TYPE1,                 
+                          CNT_TYPE1_F,               
+                          CNT_TYPE1_KPS,             
+                          CNT_TYPE2,                 
+                          CNT_TYPE2_KPS,             
+                          CNT_TYPE3 ,                
+                          C_CNT_TYPE1,               
+                          C_CNT_TYPE1_F,             
+                          C_CNT_TYPE1_KPS,           
+                          C_CNT_TYPE2,               
+                          C_CNT_TYPE2_KPS,           
+                          C_CNT_TYPE3 ,              
+                          LOSS_TYPE1,                 
+                          LOSS_TYPE2,                 
+                          LOSS_TYPE3,                 
+                          MEM_TOTAL,                 
+                          DEL_TOTAL ,                
+                          MEM_TOTAL_BEFORE           
+                          )                          
+							SELECT UP_DATE,                                                                                      
+							       SUM(TYPE1) CNT_TYPE1,                                                                             
+							       SUM(TYPE1_F) CNT_TYPE1_F,                                                                         
+							       SUM(TYPE1_KPS) CNT_TYPE1_KPS,                                                                     
+							       SUM(TYPE2) CNT_TYPE2,                                                                             
+							       SUM(TYPE2_KPS) CNT_TYPE2_KPS,                                                                     
+							       SUM(TYPE3) CNT_TYPE3 ,                                                                            
+							       SUM(C_TYPE1) C_CNT_TYPE1,                                                                             
+							       SUM(C_TYPE1_F) C_CNT_TYPE1_F,                                                                         
+							       SUM(C_TYPE1_KPS) C_CNT_TYPE1_KPS,                                                                     
+							       SUM(C_TYPE2) C_CNT_TYPE2,                                                                             
+							       SUM(C_TYPE2_KPS) C_CNT_TYPE2_KPS,                                                                     
+							       SUM(C_TYPE3) C_CNT_TYPE3 ,                                                                            
+							       SUM(LOSS_TYPE1) LOSS_TYPE1,                                                                     
+							       SUM(LOSS_TYPE2) LOSS_TYPE2,                                                                     
+							       SUM(LOSS_TYPE3) LOSS_TYPE3,                                                                     
+							       SUM(TOTAL_MEM) TOTAL_MEM,                                                                     
+							       SUM(DEL_TOTAL) DEL_TOTAL ,                                                                    
+							       SUM(MEM_TOTAL_BEFORE) MEM_TOTAL_BEFORE                                                        
+							FROM (                                                                                               
+							SELECT SUBSTR(CREATE_DATE,1,8) UP_DATE,                                                              
+							       SUM(DECODE(MEMBER_TYPE,'1',1,0)) TYPE1,                                                       
+							       SUM(DECODE(MEMBER_TYPE,'1',DECODE(FOREIGN_YN,'Y',1,0),0)) TYPE1_F,                            
+							       SUM(DECODE(MEMBER_TYPE,'1',DECODE(KPS_YN,'Y',1,0),0)) TYPE1_KPS,                              
+							       SUM(DECODE(MEMBER_TYPE,'2',1,0)) TYPE2,                                                       
+							       SUM(DECODE(MEMBER_TYPE,'2',DECODE(KPS_YN,'Y',1,0),0)) TYPE2_KPS,                              
+									  SUM(DECODE(MEMBER_TYPE,'3',1,0)) TYPE3,                                                         
+							       0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                          
+								      0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+							       0 TOTAL_MEM ,0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                                    
+							  FROM MEMINFO                                                                                       
+							 WHERE                                                                                               
+							    CREATE_DATE LIKE ?||'%'                                                                          
+							   AND MEMBER_TYPE IN ('1','2','3')                                                                  
+							   AND STATUS IN ('1','2','4')                                                                       
+							   GROUP BY SUBSTR(CREATE_DATE,1,8)                                                                  
+							   UNION ALL                                                                                         
+							SELECT SUBSTR(DELETE_DATE,1,8),                                                                      
+							      0,0,0,0,0,0,                                                                                    
+							       SUM(DECODE(MEMBER_TYPE,'1',1,0)),                                                               
+							       SUM(DECODE(MEMBER_TYPE,'1',DECODE(FOREIGN_YN,'Y',1,0),0)),                                    
+							       SUM(DECODE(MEMBER_TYPE,'1',DECODE(KPS_YN,'Y',1,0),0)),                                        
+							       SUM(DECODE(MEMBER_TYPE,'2',1,0)),                                                             
+							       SUM(DECODE(MEMBER_TYPE,'2',DECODE(KPS_YN,'Y',1,0),0)),                                        
+							       SUM(DECODE(MEMBER_TYPE,'3',1,0)),                                                               
+							       0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+							       0 TOTAL_MEM ,0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                                    
+							  FROM MEMINFO                                                                                       
+							 WHERE                                                                                               
+							    DELETE_DATE  LIKE ?||'%'                                                                         
+							   AND MEMBER_TYPE IN ('1','2','3')                                                                  
+							   AND STATUS IN ('4')                                                                               
+							   GROUP BY SUBSTR(DELETE_DATE,1,8)                                                                  
+							UNION ALL                                                                                            
+							SELECT /*+ FULL(MEMINFO) */ ? UP_DATE,                                                                                    
+							       0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+							       0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                        
+							       0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+							       COUNT(ACCESS_NAME) TOTAL_MEM, 0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                   
+							  FROM MEMINFO                                                                                       
+							 WHERE                                                                                               
+							    ( CREATE_DATE <=  ?||'99'                                                                 
+							    AND MEMBER_TYPE IN ('1','2','3')                                                                 
+							    AND STATUS IN ('1','2')                                                                          
+							    )                                                                                                
+							    OR                                                                                               
+							    (                                                                                                
+							    CREATE_DATE <=  ?||'99'                                                                   
+							    AND MEMBER_TYPE IN ('1','2','3')                                                                 
+							    AND STATUS ='4'                                                                                  
+							    AND DELETE_DATE > ?                                                                       
+							    )                                                                                                
+							 UNION ALL                                                                                           
+							SELECT ? UP_DATE,                                                                                    
+							       0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+							       0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                        
+							       0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+							       0 TOTAL_MEM, COUNT(ACCESS_NAME) DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                   
+							  FROM MEMINFO                                                                                       
+							 WHERE                                                                                               
+							    DELETE_DATE <=  ?                                                                                
+							   AND MEMBER_TYPE IN ('1','2','3')                                                                  
+							   AND STATUS IN ('4')                                                                               
+							UNION ALL                                                                                            
+							SELECT ? UP_DATE,                                                                                    
+							       0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+							       0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                        
+							       0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+							       0 TOTAL_MEM, 0 DEL_TOTAL ,  MEM_TOTAL MEM_TOTAL_BEFORE                                 
+							  FROM MEMBER_STAT                                                                                   
+							 WHERE                                                                                               
+							    UP_DATE =   ?                                                                                    
+							UNION ALL                                                                                            
+							SELECT ? UP_DATE,                                                                                    
+							       0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+							       0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                              
+							       SUM(DECODE(MEMBER_TYPE,'1',1,0)) LOSS_TYPE1,                                        
+							       SUM(DECODE(MEMBER_TYPE,'2',1,0)) LOSS_TYPE2,                                        
+							       SUM(DECODE(MEMBER_TYPE,'3',1,0)) LOSS_TYPE3,                                        
+							     0 TOTAL_MEM ,0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                                    
+							  FROM MEMINFO                                                                                       
+							 WHERE                                                                                               
+							        TO_CHAR(LASTLOGIN_DT,'YYYYMMDD') <= ?                              
+							        AND MEMBER_TYPE IN ('1','2','3')                                                     
+							        AND STATUS IN ('1','2')                                                                
+							   )                                                                                                 
+							   GROUP BY UP_DATE                                                                                  
+		]]>
+	</update>
+		
+	<update id="insertMemberStat2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			  INSERT INTO MEMBER_STAT 
+	                               ( UP_DATE,                  
+	                                CNT_TYPE1,                 
+	                                CNT_TYPE1_F,               
+	                                CNT_TYPE1_KPS,             
+	                                CNT_TYPE2,                 
+	                                CNT_TYPE2_KPS,             
+	                                CNT_TYPE3 ,                
+	                                C_CNT_TYPE1,               
+	                                C_CNT_TYPE1_F,             
+	                                C_CNT_TYPE1_KPS,           
+	                                C_CNT_TYPE2,               
+	                                C_CNT_TYPE2_KPS,           
+	                                C_CNT_TYPE3 ,              
+	                                LOSS_TYPE1,                 
+	                                LOSS_TYPE2,                 
+	                                LOSS_TYPE3,                 
+	                                MEM_TOTAL,                 
+	                                DEL_TOTAL ,                
+	                                MEM_TOTAL_BEFORE           
+	                                )                  
+								      SELECT UP_DATE,                                                                                      
+								             SUM(TYPE1) CNT_TYPE1,                                                                             
+								             SUM(TYPE1_F) CNT_TYPE1_F,                                                                         
+								             SUM(TYPE1_KPS) CNT_TYPE1_KPS,                                                                     
+								             SUM(TYPE2) CNT_TYPE2,                                                                             
+								             SUM(TYPE2_KPS) CNT_TYPE2_KPS,                                                                     
+								             SUM(TYPE3) CNT_TYPE3 ,                                                                            
+								             SUM(C_TYPE1) C_CNT_TYPE1,                                                                             
+								             SUM(C_TYPE1_F) C_CNT_TYPE1_F,                                                                         
+								             SUM(C_TYPE1_KPS) C_CNT_TYPE1_KPS,                                                                     
+								             SUM(C_TYPE2) C_CNT_TYPE2,                                                                             
+								             SUM(C_TYPE2_KPS) C_CNT_TYPE2_KPS,                                                                     
+								             SUM(C_TYPE3) C_CNT_TYPE3 ,                                                                            
+								             SUM(LOSS_TYPE1) LOSS_TYPE1,                                                                     
+								             SUM(LOSS_TYPE2) LOSS_TYPE2,                                                                     
+								             SUM(LOSS_TYPE3) LOSS_TYPE3,                                                                           
+								             SUM(TOTAL_MEM) TOTAL_MEM,                                                                     
+								             SUM(DEL_TOTAL) DEL_TOTAL ,                                                                    
+								             SUM(MEM_TOTAL_BEFORE) MEM_TOTAL_BEFORE                                                        
+								      FROM (                                                                                               
+								      SELECT SUBSTR(CREATE_DATE,1,8) UP_DATE,                                                              
+								             SUM(DECODE(MEMBER_TYPE,'1',1,0)) TYPE1,                                                       
+								             SUM(DECODE(MEMBER_TYPE,'1',DECODE(FOREIGN_YN,'Y',1,0),0)) TYPE1_F,                            
+								             SUM(DECODE(MEMBER_TYPE,'1',DECODE(KPS_YN,'Y',1,0),0)) TYPE1_KPS,                              
+								             SUM(DECODE(MEMBER_TYPE,'2',1,0)) TYPE2,                                                       
+								             SUM(DECODE(MEMBER_TYPE,'2',DECODE(KPS_YN,'Y',1,0),0)) TYPE2_KPS,                              
+								         SUM(DECODE(MEMBER_TYPE,'3',1,0)) TYPE3,                                                         
+								         0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                          
+								         0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+								         0 TOTAL_MEM ,0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                                    
+								        FROM MEMINFO                                                                                       
+								       WHERE                                                                                               
+								          CREATE_DATE LIKE ?||'%'                                                                          
+								         AND MEMBER_TYPE IN ('1','2','3')                                                                  
+								         AND STATUS IN ('1','2','4')                                                                           
+								         GROUP BY SUBSTR(CREATE_DATE,1,8)                                                                  
+								         UNION ALL                                                                                         
+								      SELECT SUBSTR(DELETE_DATE,1,8),                                                                      
+								         0,0,0,0,0,0,                                                                                    
+								         SUM(DECODE(MEMBER_TYPE,'1',1,0)),                                                               
+								             SUM(DECODE(MEMBER_TYPE,'1',DECODE(FOREIGN_YN,'Y',1,0),0)),                                    
+								             SUM(DECODE(MEMBER_TYPE,'1',DECODE(KPS_YN,'Y',1,0),0)),                                        
+								             SUM(DECODE(MEMBER_TYPE,'2',1,0)),                                                             
+								             SUM(DECODE(MEMBER_TYPE,'2',DECODE(KPS_YN,'Y',1,0),0)),                                        
+								         SUM(DECODE(MEMBER_TYPE,'3',1,0)),                                                               
+								         0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+								         0 TOTAL_MEM ,0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                                    
+								        FROM MEMINFO                                                                                       
+								       WHERE                                                                                               
+								          DELETE_DATE LIKE ?||'%'                                                                          
+								         AND MEMBER_TYPE IN ('1','2','3')                                                                  
+								         AND STATUS IN ('4')                                                                               
+								         GROUP BY SUBSTR(DELETE_DATE,1,8)                                                                  
+								      UNION ALL                                                                                            
+								      SELECT ? UP_DATE,                                                                                    
+								             0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+								             0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                        
+								             0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+								             COUNT(ACCESS_NAME) TOTAL_MEM, 0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                   
+								        FROM MEMINFO                                                                                       
+								       WHERE                                                                                               
+								          ( CREATE_DATE <=  ?||'99'                                                                          
+								         AND MEMBER_TYPE IN ('1','2','3')                                                                  
+								         AND STATUS IN ('1','2')  )                                                                         
+							
+								         OR ( CREATE_DATE <=  ?||'99'                                                                          
+								         AND MEMBER_TYPE IN ('1','2','3')                                                                  
+								         AND STATUS ='4' AND DELETE_DATE > ? )                                                                          
+								       UNION ALL                                                                                           
+								      SELECT ? UP_DATE,                                                                                    
+								             0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+								             0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                        
+								             0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+								             0 TOTAL_MEM, COUNT(ACCESS_NAME) DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                   
+								        FROM MEMINFO                                                                                       
+								       WHERE                                                                                               
+								          DELETE_DATE <=  ?                                                                                
+								         AND MEMBER_TYPE IN ('1','2','3')                                                                  
+								         AND STATUS = '4'                                                                               
+								      UNION ALL                                                                                            
+								      SELECT ? UP_DATE,                                                                                    
+								             0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+								             0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                        
+								             0 LOSS_TYPE1, 0 LOSS_TYPE2, 0 LOSS_TYPE3,                          
+								             0 TOTAL_MEM, 0 DEL_TOTAL ,  MEM_TOTAL MEM_TOTAL_BEFORE                                 
+								        FROM MEMBER_STAT                                                                                       
+								       WHERE                                                                                               
+								          UP_DATE = ?                                                                          
+								      UNION ALL                                                                                            
+								      SELECT ? UP_DATE,                                                                                    
+								            0 TYPE1,0 TYPE1_F,0 TYPE1_KPS,0 TYPE2,0 TYPE2_KPS,0 TYPE3,                                      
+								            0 C_TYPE1,0 C_TYPE1_F,0 C_TYPE1_KPS,0 C_TYPE2,0 C_TYPE2_KPS,0 C_TYPE3,                              
+								            SUM(DECODE(MEMBER_TYPE,'1',1,0)) LOSS_TYPE1,                                        
+								            SUM(DECODE(MEMBER_TYPE,'2',1,0)) LOSS_TYPE2,                                        
+								            SUM(DECODE(MEMBER_TYPE,'3',1,0)) LOSS_TYPE3,                                        
+								           0 TOTAL_MEM ,0 DEL_TOTAL ,0 MEM_TOTAL_BEFORE                                                    
+								        FROM MEMINFO                                                                                       
+								       WHERE                                                                                               
+								              TO_CHAR(LASTLOGIN_DT,'YYYYMMDD') <= ?                              
+								              AND MEMBER_TYPE IN ('1','2','3')                                                     
+								              AND STATUS IN ('1','2')                                                                  
+								         )                                                                                                 
+								         GROUP BY UP_DATE                                                                                                                                                               
+		]]>
+	</update>
+		
+	
+		
+</sqlMap>

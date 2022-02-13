@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.File">
+	
+	<typeAlias alias="FileMngVO" type="com.devwork.common.vo.FileMngVO"/>
+	<typeAlias alias="FileMngDetailVO" type="com.devwork.common.vo.FileMngDetailVO"/>
+
+ 	<select id="selectFileList" parameterClass="java.util.HashMap" resultClass="java.util.LinkedHashMap">
+		SELECT ROWNUM AS RNUM
+			 , ATTCHFILE_ID
+			 , FILE_SEQ
+			 , FILE_STRE_PATH
+			 , STRE_FILE_NM
+			 , ORIG_FILE_NM
+			 , FILE_EXTNER
+			 , FILE_SIZE
+			 , DEL_YN
+			 , REG_DATE
+			 , CHG_DATE
+			 , REGER_ID
+			 , CHGER_ID
+		  FROM CM_FILE_MGT
+		 WHERE DEL_YN = 'N'
+		   AND ATTCHFILE_ID = #attchfile_id#
+ 	</select>
+
+ 	<select id="selectAtchFileDetail" parameterClass="FileMngDetailVO" resultClass="FileMngDetailVO">
+		SELECT ATTCHFILE_ID
+			 , FILE_SEQ
+			 , FILE_STRE_PATH
+			 , STRE_FILE_NM
+			 , ORIG_FILE_NM
+			 , FILE_EXTNER
+			 , FILE_SIZE
+			 , DEL_YN
+			 , REG_DATE
+			 , CHG_DATE
+			 , REGER_ID
+			 , CHGER_ID
+		  FROM CM_FILE_MGT
+		 WHERE DEL_YN = 'N'
+		   AND ATTCHFILE_ID = #attchfile_id#
+		   AND FILE_SEQ = #file_seq#
+		 ORDER BY FILE_SEQ
+ 	</select>
+ 	
+ 	<select id="getDeletedFiles" parameterClass="java.util.HashMap" resultClass="java.util.LinkedHashMap">
+		SELECT STRE_FILE_NM
+		     , FILE_STRE_PATH
+		  FROM CM_FILE_MGT 
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+		   AND FILE_SEQ = #file_seq#
+ 	</select>
+ 	
+ 	<select id="selectNextFileId" parameterClass="java.lang.String" resultClass="java.lang.String">
+		SELECT 'T_'||SEQ_CM_ATTCHFILE_ID.NEXTVAL FROM DUAL
+	</select>
+	
+	<select id="selectSumFileSize" parameterClass="FileMngVO" resultClass="java.lang.Integer">
+		SELECT NVL(SUM(NVL(FILE_SIZE,0)),0) AS SUM_FILE_SIZE 
+		  FROM CM_FILE_MGT
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+		   AND DEL_YN = 'N'
+	</select>
+ 	
+	<insert id="insertFileDetail" parameterClass="FileMngDetailVO" >
+		INSERT INTO CM_FILE_MGT ( ATTCHFILE_ID
+								, FILE_SEQ
+								, FILE_STRE_PATH
+								, STRE_FILE_NM
+								, ORIG_FILE_NM
+								, FILE_EXTNER
+								, FILE_SIZE
+								, DEL_YN
+								, REG_DATE
+								, CHG_DATE
+						<isNotEmpty property="upd_user_id">
+								, REGER_ID
+								, CHGER_ID
+						</isNotEmpty>
+								)
+						 VALUES ( #attchfile_id#
+								, ( SELECT NVL(MAX(FILE_SEQ)+1, 0)
+                                      FROM CM_FILE_MGT
+                                     WHERE ATTCHFILE_ID = #attchfile_id# )
+								, #file_stre_path#
+								, #stre_file_nm#
+								, #orig_file_nm#
+								, #file_extner#
+								, #file_size#
+								, 'N'
+								, SYSDATE
+								, SYSDATE
+						<isNotEmpty property="upd_user_id">
+								, #upd_user_id#
+								, #upd_user_id#
+						</isNotEmpty>
+								 )			
+	</insert>
+
+ 	<select id="selectDelList" parameterClass="FileMngVO" resultClass="FileMngDetailVO">
+		SELECT ATTCHFILE_ID
+			 , FILE_SEQ
+			 , FILE_STRE_PATH
+			 , STRE_FILE_NM
+			 , ORIG_FILE_NM
+			 , FILE_EXTNER
+			 , FILE_SIZE
+			 , DEL_YN
+			 , REG_DATE
+			 , CHG_DATE
+			 , REGER_ID
+			 , CHGER_ID
+		  FROM CM_FILE_MGT 
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+		   AND DEL_YN = 'Y'
+	  ORDER BY FILE_SEQ
+ 	</select>
+ 	
+	<update id="updateFileDetailDelYn" parameterClass="java.util.HashMap">
+		UPDATE CM_FILE_MGT
+		   SET DEL_YN = 'Y'
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+		 <isNotEmpty property="file_del_arr" prepend="AND">
+		 	FILE_SEQ IN
+			 <iterate property="file_del_arr" open="("  close=")" conjunction=",">
+				#file_del_arr[]#
+			</iterate>
+		</isNotEmpty>
+	</update>
+	
+	<update id="updateFileDetailDelAll" parameterClass="FileMngVO">
+		UPDATE CM_FILE_MGT
+		   SET DEL_YN = 'Y'
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+	</update>
+	
+	<select id="selectFileDelList" parameterClass="FileMngVO" resultClass="java.util.HashMap">
+		SELECT ATTCHFILE_ID
+			 , FILE_SEQ
+			 , FILE_STRE_PATH
+			 , STRE_FILE_NM
+		  FROM CM_FILE_MGT
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+	</select>
+	
+	<select id="selectFileDetail" parameterClass="FileMngDetailVO" resultClass="FileMngDetailVO">
+		SELECT ATTCHFILE_ID
+			 , FILE_SEQ
+			 , FILE_STRE_PATH
+			 , STRE_FILE_NM
+			 , ORIG_FILE_NM
+			 , FILE_EXTNER
+			 , FILE_SIZE
+		  FROM CM_FILE_MGT
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+		   AND FILE_SEQ = #file_seq#
+	</select>
+	
+	<update id="updateAttchFileDelYn" parameterClass="java.lang.String">
+		UPDATE CM_FILE_MGT
+		   SET DEL_YN = 'Y'
+		 WHERE ATTCHFILE_ID = #attchfile_id#
+	</update>
+	
+</sqlMap>

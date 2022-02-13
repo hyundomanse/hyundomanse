@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Flower">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	<!-- 꽃배달 승인 리스트 카운드 -->
+	<select id="selectFlowerTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM OD_SEND_GOODS_IMAGE A
+		 WHERE 1=1 
+		<isNotEmpty property="searchStrtYmd">
+			AND A.REG_DATE BETWEEN TO_DATE(#searchStrtYmd# || '000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchEndYmd# || '235959', 'YYYYMMDDHH24MISS')
+		</isNotEmpty>
+		<isNotEmpty property="searchStatus">
+    		AND A.IMAGE_APPR_STUS_CD = #searchStatus#
+    	</isNotEmpty>  
+	</select>
+	<!-- 꽃배달 승인 리스트-->
+	<select id="selectFlowerList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+         SELECT /*+ ordered use_nl(C B ORDER_DTAIL_STUS_CD) index_desc(C OD_SEND_GOODS_IMAGE_IX01) */
+             ROWNUM  AS CNUM,B.ORDER_ID,B.ORDER_ITM_ID,B.GOODS_CD,B.GOODS_NM,B.WISH_SEND_DATE,B.RECPTER_NM,B.SUPP_PO_NM,B.SUPP_COMP_NM,B.ORDER_CONF_DATE ,
+             B.REALRECPTER,C.IMAGE_APPR_STUS_CD,ORDER_DTAIL_STUS_CD.COMN_CD_NM AS ORDER_DTAIL_NM,
+             DECODE(NVL(C.IMAGE_APPR_STUS_CD,'00'),'00','등록전','01','승인전','02','승인완료','03','승인보류','') IMAGE_APPR_STUS_NM, C.REG_DATE
+         FROM  OD_SEND_GOODS_IMAGE C, OD_ORDER_ITM B
+            , (SELECT CD_GRP_ID, COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='ORDER_DTAIL_STUS_CD') ORDER_DTAIL_STUS_CD
+         WHERE B.ORDER_DTAIL_STUS_CD = ORDER_DTAIL_STUS_CD.COMN_CD_ID(+)
+         AND  B.ORDER_ITM_ID = C.ORDER_ITM_ID
+		<isNotEmpty property="searchStatus">
+    		AND    C.IMAGE_APPR_STUS_CD = #searchStatus#
+    	</isNotEmpty>  
+         <isNotEmpty property="searchStrtYmd">
+         	AND  C.REG_DATE BETWEEN TO_DATE(#searchStrtYmd# || '000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchEndYmd# || '235959', 'YYYYMMDDHH24MISS')
+         </isNotEmpty>
+		<include refid="pagingFooter"/>
+	</select>
+	
+	<!-- 꽃배달 승인상태 변경 -->
+	<update id="updateStatus" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE 	OD_SEND_GOODS_IMAGE SET		   		
+		   	IMAGE_APPR_STUS_CD 	= #imageApprStusCd#
+		   	, IMAGE_APPR_DATE 		= sysdate
+		   	, CHGER_ID 				= NVL(#chgerId#, 'ADMIN')
+		 WHERE 	ORDER_ITM_ID 		= #orderItmId#
+		 AND	GOODS_CD 			= #goodsCd#
+    ]]>
+	</update>
+	
+	<!-- 꽃배달 상세 정보 -->
+	<select id="selectFlowerInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+		SELECT	B.ORDER_ITM_ID, 	
+				B.GOODS_CD,
+				B.GOODS_NM || '(' || B.GOODS_CD || ')' AS GOODS_NM,
+				B.SUPP_COMP_NM,
+				D.TELNO,
+				C.IMAGE_APPR_STUS_CD,
+				E.FILE_STRE_PATH,
+				E.STRE_FILE_NM
+		FROM 	OD_ORDER_ITM B, OD_SEND_GOODS_IMAGE C, CO_SUPP_COMP_MAST D, CM_FILE_MGT E
+		WHERE	B.ORDER_ITM_ID 		= C.ORDER_ITM_ID
+		AND		B.SUPP_COMP_ID 		= D.SUPP_COMP_ID
+		AND		C.SEND_GOODS_IMAGE 	= E.ATTCHFILE_ID	
+		AND 	E.DEL_YN = 'N'
+		AND 	B.ORDER_ITM_ID 		= #orderItmId#
+		AND 	B.GOODS_CD 			= #goodsCd#
+		AND 	B.ORDER_ID			= #orderId#
+		]]>
+	</select>
+	
+	<!-- 꽃배달 우체국 정보 리스트 -->
+	<select id="selectFlowerDelivPostList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		/*FlowerMgr_SQL.xml  -  selectFlowerDelivPostList*/
+		<include refid="pagingHeader"/>
+		SELECT	
+				DELIVPOREGIPOCD, 
+				DELIVREGIPONM,
+				DELIVPOADDR,
+				SUPPPOREGIPOCD,
+				SUPPPOREGIPONM,
+				SUPPPOADDR,
+				SAVESTUS
+		FROM (
+				SELECT	C.DELIVPOREGIPOCD , 
+						D.PONM DELIVREGIPONM,
+						D.POADDR DELIVPOADDR,   
+						C.SUPPPOREGIPOCD,
+						(SELECT	E.PONM 
+						FROM PICMT0060 E
+						WHERE E.REGIPOCD=C.SUPPPOREGIPOCD 
+						AND E.USEYN='Y' AND E.DSCDPOYN = 'N'
+						)SUPPPOREGIPONM,
+						(SELECT F.POADDR 
+						FROM	PICMT0060 F 
+						WHERE	 F.REGIPOCD=C.SUPPPOREGIPOCD 
+						AND 	F.USEYN='Y' AND F.DSCDPOYN  = 'N') SUPPPOADDR ,  
+						C.SAVESTUS SAVESTUS
+				FROM	(SELECT B.DELIVPOREGIPOCD,    
+								A.SUPPPOREGIPOCD,   
+								DECODE(A.DELIVPOREGIPOCD,NULL,'I','U') SAVESTUS
+						FROM	PBSET0170 A,
+								(SELECT	DISTINCT DELIVREGIPOCD DELIVPOREGIPOCD
+								FROM	V_POSTALCODE 
+								WHERE	USEYN='Y') B 
+						WHERE	A.DELIVPOREGIPOCD(+) = B.DELIVPOREGIPOCD) C ,
+						PICMT0060 D
+				WHERE C.DELIVPOREGIPOCD=D.REGIPOCD  
+				AND D.USEYN ='Y'
+				AND D.DSCDPOYN = 'N'
+			)
+		WHERE 1=1
+		<isEqual property="suppDelivGbn" compareValue="D">
+			<isNotEmpty property="regipoCd" prepend="AND">
+				DELIVPOREGIPOCD = #regipoCd#
+			</isNotEmpty>
+			<isEqual property="noneRegist" compareValue="Y" prepend="AND">
+			DELIVPOREGIPOCD IS NULL 
+			</isEqual>
+		</isEqual>
+		<isEqual property="suppDelivGbn" compareValue="S" >
+			<isNotEmpty property="regipoCd" prepend="AND">
+				SUPPPOREGIPOCD = #regipoCd#
+			</isNotEmpty>
+			<isEqual property="noneRegist" compareValue="Y" prepend="AND">
+				SUPPPOREGIPOCD IS NULL 
+			</isEqual>
+		</isEqual>
+		ORDER BY DELIVPOREGIPOCD
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 꽃배달 우체국 정보 리스트 카운트-->
+	<select id="selectFlowerDelivPostListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		/*FlowerMgr_SQL.xml  -  selectFlowerDelivPostListTotCnt*/
+		SELECT	COUNT(*) TOTCNT
+		FROM (
+				SELECT
+						C.DELIVPOREGIPOCD , 
+						D.PONM DELIVREGIPONM,
+						D.POADDR DELIVPOADDR,   
+						C.SUPPPOREGIPOCD,
+						(SELECT	E.PONM 
+						FROM PICMT0060 E
+						WHERE E.REGIPOCD=C.SUPPPOREGIPOCD 
+						AND E.USEYN='Y' AND E.DSCDPOYN = 'N'
+						)SUPPPOREGIPONM,
+						(SELECT F.POADDR 
+						FROM	PICMT0060 F 
+						WHERE	 F.REGIPOCD=C.SUPPPOREGIPOCD 
+						AND 	F.USEYN='Y' AND F.DSCDPOYN  = 'N') SUPPPOADDR ,  
+						C.SAVESTUS SAVESTUS
+				FROM	(SELECT B.DELIVPOREGIPOCD,    
+								A.SUPPPOREGIPOCD,   
+								DECODE(A.DELIVPOREGIPOCD,NULL,'I','U') SAVESTUS
+						FROM	PBSET0170 A,
+								(SELECT	DISTINCT DELIVREGIPOCD DELIVPOREGIPOCD
+								FROM	V_POSTALCODE 
+								WHERE	USEYN='Y') B 
+						WHERE	A.DELIVPOREGIPOCD(+) = B.DELIVPOREGIPOCD) C ,
+						PICMT0060 D
+				WHERE C.DELIVPOREGIPOCD=D.REGIPOCD  
+				AND D.USEYN ='Y'
+				AND D.DSCDPOYN = 'N'
+			)
+		WHERE 1=1
+		<isEqual property="suppDelivGbn" compareValue="D">
+			<isNotEmpty property="regipoCd" prepend="AND">
+				DELIVPOREGIPOCD = #regipoCd#
+			</isNotEmpty>
+			<isEqual property="noneRegist" compareValue="Y" prepend="AND">
+			DELIVPOREGIPOCD IS NULL 
+			</isEqual>
+		</isEqual>
+		<isEqual property="suppDelivGbn" compareValue="S" >
+			<isNotEmpty property="regipoCd" prepend="AND">
+				SUPPPOREGIPOCD = #regipoCd#
+			</isNotEmpty>
+			<isEqual property="noneRegist" compareValue="Y" prepend="AND">
+				SUPPPOREGIPOCD IS NULL 
+			</isEqual>
+		</isEqual>
+	</select>
+	
+	<!-- 꽃배달 가능지역 정보 리스트 -->
+	<select id="selectFlowerDelivAreaList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		/*FlowerMgr_SQL.xml  -  selectFlowerDelivAreaList*/
+		<include refid="pagingHeader"/>
+		SELECT	P.RCOCD
+				,F_GET_COMN_CD_NM('RCO_CD',P.RCOCD) AS RCO_NM
+				, P.MPOREGIPOCD
+				, (SELECT PONM FROM PICMT0060 WHERE REGIPOCD = P.MPOREGIPOCD AND USEYN = 'Y') AS MPOREGIPONM
+				, B.SUPPO_RGIST_POCD
+				, P.PONM 
+				, B.BCNC_NM 
+				, B.SUPP_COMP_ID 
+				, G.GOODS_NM
+				, F.GOODS_CD 
+				, G.UNIT UNIT
+		FROM	CO_SUPP_COMP_MAST B, 
+				CM_FLW_GOODS_BIZINFO F,
+				GD_GOODS_MAST G,
+				PICMT0060 P,
+				CO_PAVLN_MGT CPM
+		WHERE 1=1
+				AND B.SUPP_COMP_ID = F.SUPP_COMP_ID
+				AND B.SUPP_COMP_ID = CPM.SUPP_COMP_ID
+				AND CPM.PAVLN_DIV_CD = '04' 
+				AND F.USE_YN = 'Y'
+				AND F.GOODS_CD = G.GOODS_CD
+				AND B.SUPPO_RGIST_POCD = P.REGIPOCD
+				AND P.USEYN = 'Y'
+				<isNotEmpty property="searchPstGrcCd" prepend="AND">
+					AND P.RCOCD = #searchPstGrcCd#
+				</isNotEmpty>
+				<isNotEmpty property="searchSmrizeBuraCd">
+					AND P.MPOREGIPOCD = #searchSmrizeBuraCd#
+				</isNotEmpty>
+				<isNotEmpty property="searchSuplyBuraCd" prepend="AND">
+					AND B.SUPPO_RGIST_POCD = #searchSuplyBuraCd#
+				</isNotEmpty>
+				<isNotEmpty property="search_supp_comp_id" prepend="AND">
+					AND B.SUPP_COMP_ID LIKE '%' || #search_supp_comp_id# || '%'
+				</isNotEmpty>
+				<isNotEmpty property="goodsCd" prepend="AND">
+					AND F.GOODS_CD LIKE '%' || #goodsCd# || '%'
+				</isNotEmpty>
+				<isNotEmpty property="goodsName" prepend="AND">
+					AND G.GOODS_NAME LIKE '%' || #goodsName# || '%'
+				</isNotEmpty>
+		ORDER BY RCOCD, PONM
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 꽃배달 가능지역 정보 리스트 카운트-->
+	<select id="selectFlowerDelivAreaListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		/*FlowerMgr_SQL.xml  -  selectFlowerDelivAreaListTotCnt*/
+		SELECT	COUNT(*) TOTCNT
+		FROM	CO_SUPP_COMP_MAST B, 
+				CM_FLW_GOODS_BIZINFO F,
+				GD_GOODS_MAST G,
+				PICMT0060 P,
+				CO_PAVLN_MGT CPM
+		WHERE 1=1
+		AND 	B.SUPP_COMP_ID = F.SUPP_COMP_ID
+		AND 	B.SUPP_COMP_ID = CPM.SUPP_COMP_ID
+		AND 	CPM.PAVLN_DIV_CD = '04' 
+		AND 	F.USE_YN = 'Y'
+		AND 	F.GOODS_CD = G.GOODS_CD
+		AND 	B.SUPPO_RGIST_POCD = P.REGIPOCD
+		AND 	P.USEYN = 'Y'
+		<isNotEmpty property="searchPstGrcCd" prepend="AND">
+			AND P.RCOCD = #searchPstGrcCd#
+		</isNotEmpty>
+		<isNotEmpty property="searchSmrizeBuraCd">
+			AND P.MPOREGIPOCD = #searchSmrizeBuraCd#
+		</isNotEmpty>
+		<isNotEmpty property="searchSuplyBuraCd" prepend="AND">
+			AND B.SUPPO_RGIST_POCD = #searchSuplyBuraCd#
+		</isNotEmpty>
+		<isNotEmpty property="search_supp_comp_id" prepend="AND">
+			AND B.SUPP_COMP_ID LIKE '%' || #search_supp_comp_id# || '%'
+		</isNotEmpty>
+		<isNotEmpty property="goodsCd" prepend="AND">
+			AND F.GOODS_CD LIKE '%' || #goodsCd# || '%'
+		</isNotEmpty>
+		<isNotEmpty property="goodsName" prepend="AND">
+			AND G.GOODS_NAME LIKE '%' || #goodsName# || '%'
+		</isNotEmpty>
+	</select>
+		<!-- 꽃배달 가능지역 정보 (전국) 리스트 -->
+	<select id="selectFlowerDelivAreaAllList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		/*FlowerMgr_SQL.xml  -  selectFlowerDelivAreaAllList*/
+		<include refid="pagingHeader"/>
+		SELECT 	'전국' RCO_NAME
+				, '전국' PONM
+				, G.GOODS_CD 
+				, G.GOODS_NM
+				, '전체' SUPP_COMP_ID
+				, '전체' BCNC_NM
+				, G.UNIT UNIT 
+		FROM	GD_GOODS_MAST G
+				,CO_SUPP_COMP_MAST B
+				,CO_PAVLN_MGT CPM
+		WHERE	G.GOODS_CD NOT IN (SELECT GOODS_CD FROM CM_FLW_GOODS_BIZINFO WHERE USE_YN='Y') /* CM_FLW_GOODS_BIZINFO 테이블에 정보 없으면 전국배송 */
+		AND 	G.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.SUPP_COMP_ID = CPM.SUPP_COMP_ID
+		AND 	CPM.PAVLN_DIV_CD = '04' 
+		AND 	G.GOODS_STUS_CD IN ('01', '05')
+		ORDER BY G.GOODS_NM
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 꽃배달 가능지역 정보 (전국) 리스트 카운트-->
+	<select id="selectFlowerDelivAreaAllListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		/*FlowerMgr_SQL.xml  -  selectFlowerDelivAreaAllListTotCnt*/
+		SELECT COUNT(*) TOTCNT
+		FROM	GD_GOODS_MAST G
+				,CO_SUPP_COMP_MAST B
+				,CO_PAVLN_MGT CPM
+		WHERE	G.GOODS_CD NOT IN (SELECT GOODS_CD FROM CM_FLW_GOODS_BIZINFO WHERE USE_YN='Y') /* CM_FLW_GOODS_BIZINFO 테이블에 정보 없으면 전국배송 */
+		AND 	G.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.SUPP_COMP_ID = CPM.SUPP_COMP_ID
+		AND 	CPM.PAVLN_DIV_CD = '04' 
+		AND 	G.GOODS_STUS_CD IN ('01', '05')
+		ORDER BY G.GOODS_NM
+	</select>
+</sqlMap>

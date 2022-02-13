@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatRefundReport">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 환불리포트(송금일자기준) 리스트 조회 -->
+	<select id="selectRefundReportList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT 
+	          OOM.ORDER_ID                    															/* 주문아이디 */
+	        , OOI.ORDER_ITM_ID              															/* 주문아이템아이디 */
+	        , OOM.ORDER_DATE               																/* 주문일시 */
+	        , OOM.APPR_DATE                 															/* 승인일시 */
+	        , OOM.SETL_MEAN_CD            																/* 결제수단코드 */
+	        , (SELECT F_GET_COMN_CD_NM('SETL_MEAN_CD', OOM.SETL_MEAN_CD) FROM DUAL) AS SETL_MEAN_NM     /* 결제수단코드명 */
+	        , NVL(OOEP.FINANCE_NAME, '-') AS FINANCE_NAME 												/* 계좌은행명 */       
+	        , NVL(OOEP.ACCOUNT_SEED_NO, '-') AS ACCOUNT_NO 												/* 암호화계좌번호 */ 
+	        , NVL(OOEP.DEPOSITOR, '-') AS DEPOSITOR														/* 예금주 */
+	        , NVL(MIN(OOEP.SETTLE_DATE), '-') AS SETTLE_DATE											/* 환불일자 */
+	        , NVL(SUM(OOEP.REF_PRICE),0) AS REF_PRICE      												/* 환불액 */
+	        , OOI.PAVLN_DIV_CD																			/* 전시관분류코드 */
+		    , ( SELECT COMN_CD_NM
+		          FROM CM_COMN_CD
+		         WHERE CD_GRP_ID = 'PAVLN_DIV_CD' AND COMN_CD_ID = OOI.PAVLN_DIV_CD) AS PAVLN_DIV_NM    /* 전시관 명 */	        
+	        
+	FROM OD_ORDER_MAST OOM
+	   , OD_ORDER_ITM OOI
+	   , OD_ONLINE_EX_PRICE OOEP
+	WHERE 1=1
+	     AND OOM.ORDER_ID = OOI.ORDER_ID
+	     AND OOI.ORDER_ITM_ID = OOEP.ORDER_ITM_ID(+)
+	     AND OOI.ORDER_DTAIL_STUS_CD IN ('C08', 'C10', 'C12', 'C13')     								/* C08: 반품환불요청, C10: 반품환불확인, C12: 반품환불대기, C13: 반품환불완료 */
+	     AND OOI.GOODS_CANCEL_YN = 'Y'
+         AND OOM.APPR_DATE <![CDATA[>=]]> TO_DATE(#searchFromDt#||'000000'	,'YYYYMMDDHH24MISS') 
+         AND OOM.APPR_DATE <![CDATA[<=]]> TO_DATE(#searchToDt#||'235959'	,'YYYYMMDDHH24MISS') 	     
+     	 
+		<isEqual property="cbAccount" compareValue="credit">
+			AND OOM.SETL_MEAN_CD IN ('02', '03')	/* 신용카드(국내), 신용카드(해외)*/
+		</isEqual>
+		<isEqual property="cbAccount" compareValue="all">
+			AND OOM.SETL_MEAN_CD = DECODE(#cbAccount#, 'CYBER', '12', 'ONLINE', '01', 'BANKTOWN', '06')
+		</isEqual>
+		<isEmpty property="cbAccount">
+		   AND OOM.SETL_MEAN_CD = OOM.SETL_MEAN_CD
+		</isEmpty>
+		<isNotEmpty property="search_pavln_id">
+			AND OOI.PAVLN_DIV_CD = #search_pavln_id#	/* 전시관 */
+		</isNotEmpty>
+					     
+	  GROUP BY  OOM.ORDER_ID
+              , OOI.ORDER_ITM_ID
+              , OOM.ORDER_DATE
+              , OOM.APPR_DATE 
+              , OOM.SETL_MEAN_CD
+              , OOEP.FINANCE_NAME
+              , OOEP.ACCOUNT_SEED_NO
+              , OOEP.DEPOSITOR
+              , OOEP.REF_PRICE
+              , OOI.PAVLN_DIV_CD
+	
+	  ORDER BY  OOM.ORDER_ID         
+              , OOI.ORDER_ITM_ID 
+	</select>
+		
+</sqlMap>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchOrder_Postage">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<delete id="deleteEcOrderPostageInterface1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			delete from EAI.EC_ORDER_POSTAGE_INTERFACE    
+			where txorder_id in (                           
+			    select txorder_id from (                   
+			        select txorder_id,count(*) from EAI.EC_ORDER_POSTAGE_INTERFACE    
+					    where create_DATE >= to_char(add_months(sysdate , -2 ),'yyyymmdd')    
+					      AND create_DATE <= to_char(sysdate,'yyyymmdd') || '99999'           
+			          AND gbn = '01'       
+			        group by txorder_id    
+			        having count(*) > 1    
+			    )                          
+			)		                            
+		]]>
+	</delete>	
+	 	
+	<delete id="deleteEcOrderPostageInterface2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			delete from EAI.EC_ORDER_POSTAGE_INTERFACE   
+			Where 1=1                                    
+				and create_DATE >= to_char(add_months(sysdate , -2 ),'yyyymmdd')  
+				AND create_DATE <= to_char(sysdate,'yyyymmdd') || '99999'  
+				AND gbn = '01'  
+				and tracking_number ='1111111IMSI'        
+             	                                                                                                                                                                                                       
+		]]>
+	</delete>	
+	 	
+	<update id="insertEcOrderPostageInterface" parameterClass="java.util.HashMap">
+		<![CDATA[
+			Insert into EAI.EC_ORDER_POSTAGE_INTERFACE
+													(txorder_id,gbn,tracking_number,create_date,status)
+													Select txorder_id,'01',tracking_number ,to_char(sysdate,'yyyymmddhh24miss'),'0'
+													From (
+													  Select /*+ INDEX( TXORDER TXORDER_IX10) */
+														txorder_id,nvl(tracking_number,'1111111IMSI') tracking_number
+													  From TXORDER
+													  WHERE COMPLETE_DATE >= to_char(add_months(sysdate , -2 ),'yyyymmdd')
+													 AND COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '99999'
+													 AND STATUS not IN ('1','9')
+													 AND SHOP_ID  = '8'
+													 AND CANCEL_STATE = 'N'
+													  MINUS
+													  Select txorder_id,tracking_number
+													  From EAI.EC_ORDER_POSTAGE_INTERFACE
+													  Where create_DATE >= to_char(add_months(sysdate , -3 ),'yyyymmdd')
+													 AND create_DATE <= to_char(sysdate,'yyyymmdd') || '99999'
+													    AND gbn = '01'
+													) 
+	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	 	
+</sqlMap>

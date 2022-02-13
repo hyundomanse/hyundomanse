@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.OpratnSttusReportTotal">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!--운용현황보고(TOTAL) -->
+	<select id="retrieveECOrderStatByYmd" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT  
+				TO_CHAR(TO_DATE(USE_DATE, 'YYYYMMDD'), 'YYYY/MM/DD') AS DAY,
+	            NVL(SUM(SUM1),0) AS SUM_POST,
+	            NVL(SUM(CNT1),0) AS CNT_POST,
+	            NVL(SUM(SUM2),0) AS SUM_FLOWER,
+	            NVL(SUM(CNT2),0) AS CNT_FLOWER,
+	            NVL(SUM(SUM3),0) AS SUM_MART,
+	            NVL(SUM(CNT3),0) AS CNT_MART,
+	            NVL(SUM(SUM4),0) AS SUM_B2B,
+	            NVL(SUM(CNT4),0) AS CNT_B2B,
+	            NVL(SUM(SUM5),0) AS SUM_OVERSEA,
+	            NVL(SUM(CNT5),0) AS CNT_OVERSEA,
+	            NVL(SUM(SUM8),0) AS SUM_EC,
+	            NVL(SUM(CNT8),0) AS CNT_EC,
+	            NVL(SUM(SUM9),0) AS SUM_CHUNG,
+	            NVL(SUM(CNT9),0) AS CNT_CHUNG,
+	            NVL(SUM(SUM10),0) AS SUM_DAE,
+	            NVL(SUM(CNT10),0) AS CNT_DAE,
+	            NVL(SUM(SUM11),0) AS SUM_OVER_EC,
+	            NVL(SUM(CNT11),0) AS CNT_OVER_EC,
+	            (NVL(SUM(CNT1),0) + NVL(SUM(CNT2),0) + NVL(SUM(CNT3),0)+NVL(SUM(CNT4),0)+NVL(SUM(CNT5),0) + NVL(SUM(CNT8),0) + NVL(SUM(CNT9),0) + NVL(SUM(CNT10),0)) + NVL(SUM(CNT11),0) AS CNT_TOT,
+	            (NVL(SUM(SUM1),0) + NVL(SUM(SUM2),0) + NVL(SUM(SUM3),0)+NVL(SUM(SUM4),0)+NVL(SUM(SUM5),0) + NVL(SUM(SUM8),0) + NVL(SUM(SUM9),0) + NVL(SUM(SUM10),0)) + NVL(SUM(SUM11),0) AS SUM_TOT
+	      FROM (SELECT  
+	      			DECODE(SHOPID ,'01',SUM(SALES_AMOUNT)) SUM1,
+                    DECODE(SHOPID ,'04',SUM(SALES_AMOUNT)) SUM2,
+                    DECODE(SHOPID ,'03',SUM(SALES_AMOUNT)) SUM3,
+                    DECODE(SHOPID ,'08',SUM(SALES_AMOUNT)) SUM4,
+                    DECODE(SHOPID ,'07',SUM(SALES_AMOUNT)) SUM5,
+                    DECODE(SHOPID ,'02',SUM(SALES_AMOUNT)) SUM8,
+                    DECODE(SHOPID ,'12',SUM(NVL(SALES_AMOUNT,0))) SUM9,
+                    DECODE(SHOPID ,'92',SUM(NVL(SALES_AMOUNT,0))) SUM10,
+                    DECODE(SHOPID ,'07',SUM(NVL(SALES_AMOUNT,0)),'11',SUM(NVL(SALES_AMOUNT,0)),0) SUM11,
+                    DECODE(SHOPID ,'01',SUM(DESIRED_QUANTITY)) CNT1,
+                    DECODE(SHOPID ,'04',SUM(DESIRED_QUANTITY)) CNT2,
+                    DECODE(SHOPID ,'03',SUM(DESIRED_QUANTITY)) CNT3,
+                    DECODE(SHOPID ,'08',SUM(DESIRED_QUANTITY)) CNT4,
+                    DECODE(SHOPID ,'07',SUM(DESIRED_QUANTITY)) CNT5,
+                    DECODE(SHOPID ,'02',SUM(DESIRED_QUANTITY)) CNT8,
+                    DECODE(SHOPID ,'12',SUM(NVL(DESIRED_QUANTITY,0))) CNT9,
+                    DECODE(SHOPID ,'92',SUM(NVL(DESIRED_QUANTITY,0))) CNT10,
+                    DECODE(SHOPID ,'07',SUM(NVL(DESIRED_QUANTITY,0)),'11',SUM(NVL(DESIRED_QUANTITY,0)),0) CNT11,
+                    USE_DATE
+	              FROM MP_HISTORY_STAT A, CM_USE_DATE B
+	             WHERE 1 = 1
+	             AND DAY(+) = SUBSTR(USE_DATE,1,4) || '/' || SUBSTR(USE_DATE,5,2) || '/' || SUBSTR(USE_DATE,7,2)
+	            ]]>
+	            <isNotEmpty property="searchOrderMdaDivCd">
+					<![CDATA[
+						AND A.ORDER_MDA_DIV_CD(+) = #searchOrderMdaDivCd#
+					]]>		
+				</isNotEmpty>
+				<![CDATA[
+	             AND B.USE_DATE BETWEEN #search_strt_ymd# AND #search_end_ymd#
+	          GROUP BY SHOPID, USE_DATE
+	           )
+		  GROUP BY USE_DATE
+		  ORDER BY USE_DATE 
+	    ]]>
+	</select>
+	
+</sqlMap>

@@ -1,0 +1,1372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchGoodsBestSort">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<delete id="deleteGoodsBest_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				Delete from GD_GOODS_BEST
+				where DAYS = to_char(sysdate,'yyyymmdd')
+		]]>	 
+	</delete>
+	
+	<delete id="deleteGoodsBestRank_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				Delete from GD_GOODS_BEST_RANK
+				where DAYS = to_char(sysdate,'yyyymmdd')
+		]]>	 
+	</delete>
+	
+	<insert id="insertGoodsBest_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO GD_GOODS_BEST (GBN,DAYS,APPLY_CHK,ACCESS_NAME)
+					SELECT '11',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '12',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '13',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '14',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '15',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '16',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '21',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '22',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '23',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '24',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+					union all	
+					SELECT '25',to_char(sysdate,'yyyymmdd'),'N','auto' from dual
+		]]>	 
+	</insert>
+	
+	<insert id="insertGoodsBestRank_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO GD_GOODS_BEST_RANK (DAYS,GBN,GOODS_CD,CTGRY_CD,RANK)
+					SELECT TO_CHAR(SYSDATE,'YYYYMMDD'),A.GBN,A.GOODS_CD,C.CTGRY_CD ,'11' 
+                    FROM GD_GOODS_BEST_RANK A , GD_GOODS_MAST B , GD_GOODS_CTGRY C
+                    WHERE A.GOODS_CD = B.GOODS_CD
+                    AND B.GOODS_CD = C.GOODS_CD
+                    AND A.DAYS =TO_CHAR(SYSDATE-1,'YYYYMMDD')
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT /*+ leading(a) use_nl(a b c) */
+                          C.GOODS_CD as sGoodsCode, 
+                          D.CTGRY_CD as sCateGory_Code, 
+                          count(B.ORDER_ITM_ID ) as iCnt, 
+                          SUM(B.DC_APPLY_PRC )  as iNum 
+                     FROM OD_ORDER_MAST A,
+                        OD_ORDER_ITM B,
+                        GD_GOODS_MAST C,
+                        GD_GOODS_CTGRY D
+                   WHERE A.APPR_DATE >= sysdate-7
+                     AND A.APPR_DATE <= sysdate
+                     AND A.ORDER_ID    = B.ORDER_ID
+                     AND B.GOODS_CD    = C.GOODS_CD
+                     AND C.GOODS_CD = D.GOODS_CD
+                     AND substr(C.GOODS_CD,1,2) <> '70'
+                     AND substr(C.GOODS_CD,1,1) <> 'E'
+                     AND B.ORDER_STUS_CD = 'D03'
+                  AND B.GOODS_CANCEL_YN = 'N'
+                  and A.RECEVPO_RGISTPOCD in('89903','85414')
+                  AND B.DC_APPLY_PRC > 0
+                GROUP BY C.GOODS_CD, D.CTGRY_CD
+                ORDER BY sCateGory_Code DESC, iCnt desc,iNum DESC
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT GOODS_CD as tGoodsCd
+				FROM GD_GOODS_BEST_RANK
+				WHERE CTGRY_CD = #sOldCateGoryCode#
+				AND RANK = 11
+				AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND GBN ='11'                                                                                                                                                                       
+		]]>	 
+	</select>
+	
+	<update id="updateGoodsBestRank_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#
+				AND GBN = '11'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                                                                                                                                                       
+		]]>	 
+	</update>
+	
+	<delete id="deleteGoodsBestRank_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    DELETE FROM GD_GOODS_BEST_RANK 
+			    WHERE CTGRY_CD = #sOldCateGoryCode#
+			    AND RANK = 11
+			    AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+			    AND GBN ='11'                                                                                                                                                                       
+		]]>	 
+	</delete>
+	
+	<select id="ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt 
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '11'
+				and GOODS_CD = #iGoodsCd#                                                                                                                                                                       
+		]]>	 
+	</select>
+	
+	<update id="updateGoodsBestRank_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#
+				AND GBN = '11'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')
+		]]>	 
+	</update>
+	
+	<insert id="insertGoodsBestRank_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO GD_GOODS_BEST_RANK	(
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+							to_char(sysdate,'yyyymmdd'),
+							'11',
+							#sGoodsCode#,
+							#sCateGoryCode#,
+							#iFixRank#
+				from dual
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt 
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '11'
+				and GOODS_CD = #iGoodsCd#                                                                                                                                                                       
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  APPLY_DATE = to_char(sysdate,'yyyymmdd') ,
+				     APPLY_CHK = 'Y'
+				WHERE days = to_char(sysdate,'yyyymmdd')
+				  AND gbn = '11'                                                                                                                                                                       
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_10" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT /*+ leading(a b) use_hash(a b) full(b) */
+                        b.GOODS_CD as sGoodsCode,
+                        C.CTGRY_CD as sCateGory_Code,
+                        count(*) as iNum
+                FROM OD_JIM_GOODS a,  GD_GOODS_MAST b, GD_GOODS_CTGRY C
+                WHERE a.GOODS_CD = b.GOODS_CD
+                AND A.GOODS_CD = C.GOODS_CD
+                AND A.REG_DATE >= sysdate-60
+                AND a.REG_DATE <= sysdate
+                AND substr(b.GOODS_CD,1,2) <> '70'
+                AND substr(b.GOODS_CD,1,1) <> 'E'
+                GROUP BY b.GOODS_CD,C.CTGRY_CD
+                ORDER BY sCateGory_Code DESC, iNum DESC                                                                                                                                                                  
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_11" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT GOODS_CD 
+				FROM GD_GOODS_BEST_RANK
+				WHERE CTGRY_CD = #sOldCateGoryCode#
+				AND RANK = 11
+				AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND GBN ='12'                                                                                                                                                            
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#
+				AND GBN = '12'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                                                                                                                                
+		]]>	 
+	</update>
+	
+	<delete id="deleteGOODS_BEST_RANK_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    DELETE FROM GD_GOODS_BEST_RANK 
+			    WHERE CTGRY_CD = #sOldCateGoryCode#
+			    AND RANK = 11
+			    AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+			    AND GBN ='12'                                                                                                                               
+		]]>	 
+	</delete>
+	
+	<select id="ORDER_SUBMIT_12" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '12'
+				and GOODS_CD = #iGoodsCd#                                                                                                                                            
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#
+				AND GBN = '12'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                                                                                                                           
+		]]>	 
+	</update>
+	
+	<insert id="insertGOODS_BEST_RANK_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											 )
+				SELECT 
+							to_char(sysdate,'yyyymmdd'),
+							'12',
+							#sGoodsCode#,
+							#sCateGoryCode#,
+							#iFixRank#
+				from dual                                                                                                                               
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_13" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '12'                                                                                                                                            
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_06" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '12'                                                                                                                                            
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_20" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT /*+ leading(a) use_nl(a b) */
+                       C.GOODS_CD as sGoodsCode, 
+                       D.CTGRY_CD as sCateGory_Code,
+                       count(B.ORDER_ITM_ID) as iCnt, 
+                       SUM(B.DC_APPLY_PRC) as iNum
+                     FROM OD_ORDER_MAST A,
+                        OD_ORDER_ITM B,
+                        GD_GOODS_MAST C,
+                        GD_GOODS_CTGRY D
+                   WHERE A.APPR_DATE >= sysdate-60
+                     AND A.APPR_DATE <= sysdate
+                     AND A.ORDER_ID    = B.ORDER_ID
+                     AND B.GOODS_CD    = C.GOODS_CD
+                     AND C.GOODS_CD = D.GOODS_CD
+                     AND B.GOODS_CD     in ( select GOODS_CD from GD_GOODS_MAST 
+                                           where REG_DATE = sysdate-12
+                                             and  GOODS_STUS_CD in ('01','05')
+                                        )     
+                     AND substr(C.GOODS_CD,1,2) <> '70'
+                     AND substr(C.GOODS_CD,1,1) <> 'E'
+                     AND B.ORDER_STUS_CD = 'D03'
+                  AND B.GOODS_CANCEL_YN  = 'N'
+                  AND B.DC_APPLY_PRC > 0
+                  and A.RECEVPO_RGISTPOCD in('89903','85414')
+                GROUP BY C.GOODS_CD, D.CTGRY_CD
+                ORDER BY sCateGory_Code ,iCnt DESC, iNum DESC                                                
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_21" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT GOODS_CD 
+				FROM GD_GOODS_BEST_RANK
+				WHERE CTGRY_CD = #sOldCateGoryCode#
+				AND RANK = 11
+				AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND GBN ='13'                                                                                                                              
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_07" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#
+				AND GBN = '13'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                                                                               
+		]]>	 
+	</update>
+	
+	<delete id="deleteGOODS_BEST_RANK_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    DELETE FROM GD_GOODS_BEST_RANK 
+			    WHERE CTGRY_CD = #sOldCateGoryCode#
+			    AND RANK = 11
+			    AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+			    AND GBN ='13'                                                                                                                               
+		]]>	 
+	</delete>
+	
+	<select id="ORDER_SUBMIT_22" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '13'
+				and GOODS_CD = #iGoodsCd#                                                                                                                        
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_08" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#
+				AND GBN = '13'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                                                                        
+		]]>	 
+	</update>
+	
+	<insert id="insertGOODS_BEST_RANK_05" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'13',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank#
+				from dual                                                                                                             
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_23" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '13'
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_09" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '13'                                                                                    
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_30" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT /*+ leading(a) use_nl(a b) */
+                           C.GOODS_CD as sGoodsCode, 
+                           D.CTGRY_CD as sCateGory_Code,
+                           count(B.ORDER_ITM_ID) as iCnt, 
+                           SUM(B.DC_APPLY_PRC ) as iNum
+                    FROM OD_ORDER_MAST A,
+                                 OD_ORDER_ITM B,
+                                 GD_GOODS_MAST C,
+                                 GD_GOODS_CTGRY D
+                       WHERE A.APPR_DATE >= sysdate-7
+                         AND A.APPR_DATE <= sysdate
+                         AND A.ORDER_ID    = B.ORDER_ID
+                         AND B.GOODS_CD    = C.GOODS_CD
+                         AND C.GOODS_CD    = D.GOODS_CD
+                         AND substr(C.GOODS_CD,1,2) <> '70'
+                         AND substr(C.GOODS_CD,1,1) <> 'E'
+                         AND B.ORDER_STUS_CD = 'D03'
+                      AND B.GOODS_CANCEL_YN = 'N'
+                      AND A.RECEVPO_RGISTPOCD in('89903','85414')
+                      AND B.DC_APPLY_PRC > 0
+                    GROUP BY C.GOODS_CD,D.CTGRY_CD
+                    ORDER BY iCnt desc,iNum DESC                                                                                
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_31" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT GOODS_CD 
+				FROM GD_GOODS_BEST_RANK
+				WHERE RANK = 11
+				AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND GBN ='14'                                                                                
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_10" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#
+				AND GBN = '14'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                                                  
+		]]>	 
+	</update>
+	
+	<update id="updateST_GOODS_MASTER_11" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE ST_GOODS_MASTER 
+				SET  GD_GOODS_BEST_RANK = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#                                                                         
+		]]>	 
+	</update>
+	
+	<update id="updateGOODS_MASTER_12" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GOODS_MASTER 
+				SET  GD_GOODS_BEST_RANK = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#                                                          
+		]]>	 
+	</update>
+	
+	<delete id="deleteGOODS_BEST_RANK_06" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    DELETE FROM GD_GOODS_BEST_RANK 
+			    WHERE RANK = 11
+			    AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+			    AND GBN ='14'                                                                                                                              
+		]]>	 
+	</delete>
+	
+	<select id="ORDER_SUBMIT_32" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				FROM  GD_GOODS_BEST_RANK
+				WHERE days = to_char(sysdate,'yyyymmdd')
+				AND gbn  = '14'
+				AND GOODS_CD = #iGoodsCd#                                                                                
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_13" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#
+				AND GBN = '14'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                                        
+		]]>	 
+	</update>
+	
+	<insert id="insertGOODS_BEST_RANK_06" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'14',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank#
+				from dual                                                                                                    
+		]]>	 
+	</insert>
+	
+	<update id="updateST_GOODS_MASTER_14" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_SM 
+				SET  POPLR_GOODS_INDEX = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#                                                       
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_33" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '14'                                                       
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_16" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '14'                                                  
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_40" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    select /*+ leading(a b) use_hash(a b) full(b) */
+                          B.GOODS_CD as sGoodsCode, 
+                          C.CTGRY_CD as sCateGory_Code,
+                          count(A.ACCESS_NAME) as iCnt, 
+                          SUM(B.DC_APPLY_PRC) as iNum
+                from OD_JIM_GOODS a,  GD_GOODS_MAST b, GD_GOODS_CTGRY C
+                where a.GOODS_CD = b.GOODS_CD
+                and A.REG_DATE >= sysdate-60
+                and A.REG_DATE <= sysdate
+                AND substr(b.GOODS_CD,1,2) <> '70'
+                AND substr(b.GOODS_CD,1,1) <> 'E'
+                group by b.goods_cd, C.CTGRY_CD
+                ORDER BY iNum DESC                                           
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_41" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT GOODS_CD 
+				FROM GD_GOODS_BEST_RANK
+				WHERE RANK = 11
+				AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND GBN ='15'                                      
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_17" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#
+				AND GBN = '15'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                         
+		]]>	 
+	</update>
+	
+	<update id="updateST_GOODS_MASTER_18" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_SM 
+				SET  JIM_GOODS_INDEX = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#                                            
+		]]>	 
+	</update>
+	
+	<delete id="deleteGOODS_BEST_RANK_07" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    DELETE FROM GD_GOODS_BEST_RANK 
+			    WHERE RANK = 11
+			    AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+			    AND GBN ='15'                                                                                                                            
+		]]>	 
+	</delete>
+	
+	<select id="ORDER_SUBMIT_42" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '15'
+				and GOODS_CD = #iGoodsCd#                                   
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_20" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#
+				AND GBN = '15'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                                     
+		]]>	 
+	</update>
+	
+	<insert id="insertGOODS_BEST_RANK_07" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'15',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank#
+				from dual                                                                                        
+		]]>	 
+	</insert>
+	
+	<update id="updateST_GOODS_MASTER_21" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_SM 
+				SET  JIM_GOODS_INDEX = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#                                   
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_43" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '15'                                  
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_MASTER_23" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				         apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '15'                              
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_50" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT /*+ leading(a) use_nl(a b)*/
+                       C.GOODS_CD as sGoodsCode, 
+                       D.CTGRY_CD as sCateGory_Code,
+                       count(B.ORDER_ITM_ID ) as iCnt, 
+                       SUM(B.DC_APPLY_PRC) as iNum
+                     FROM OD_ORDER_MAST A,
+                        OD_ORDER_ITM B,
+                        GD_GOODS_MAST C,
+                        GD_GOODS_CTGRY D
+                   WHERE A.APPR_DATE >= sysdate-60
+                     AND A.APPR_DATE <= sysdate
+                     AND A.ORDER_ID    = B.ORDER_ID
+                     AND B.GOODS_CD    = C.GOODS_CD
+                     AND C.GOODS_CD    = D.GOODS_CD
+                     AND B.GOODS_CD     in ( select GOODS_CD from GD_GOODS_MAST 
+                                    where REG_DATE = sysdate-12
+                           and  GOODS_STUS_CD in ('01','05')
+                                  )     
+                     AND substr(C.GOODS_CD,1,2) <> '70'
+                     AND substr(C.GOODS_CD,1,1) <> 'E'
+                     AND B.ORDER_STUS_CD = 'D03'
+                     AND B.GOODS_CANCEL_YN = 'N'
+                  AND B.DC_APPLY_PRC > 0
+                  and A.RECEVPO_RGISTPOCD in('89903','85414')
+                GROUP BY C.GOODS_CD,D.CTGRY_CD
+                ORDER BY iCnt DESC, iNum DESC                             
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_51" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT GOODS_CD 
+				FROM GD_GOODS_BEST_RANK
+				WHERE RANK = 11
+				AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND GBN ='16'                             
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_24" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #tRank#		
+				WHERE GBN = '16'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                          
+		]]>	 
+	</update>
+	
+	<update id="updateST_GOODS_MASTER_25" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				UPDATE GD_GOODS_SM
+				SET  NEW_GOODS_INDEX = #tRank#
+				WHERE GOODS_CD = #tGoodsCd#                 
+		]]>	 
+	</update>
+	
+	<delete id="deleteGOODS_BEST_RANK_08" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    DELETE FROM GD_GOODS_BEST_RANK 
+			    WHERE RANK = 11
+			    AND DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+			    AND GBN ='16'                                                                                                                           
+		]]>	 
+	</delete>
+	
+	<select id="ORDER_SUBMIT_52" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '16'
+				and GOODS_CD = #iGoodsCd#                       
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_MASTER_27" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #iFixRank#
+				WHERE GBN = '16'
+				     AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD')                    
+		]]>	 
+	</update>
+	
+	<insert id="insertGOODS_BEST_RANK_08" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'16',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank#
+				from dual                                                                                        
+		]]>	 
+	</insert>
+	
+	<update id="updateST_GOODS_MASTER_28" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_SM
+				SET  NEW_GOODS_INDEX = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#                  
+		]]>	 
+	</update>
+	
+	<update id="updateGOODS_MASTER_29" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				UPDATE GD_GOODS_SM
+				SET  NEW_GOODS_INDEX = #iFixRank#
+				WHERE GOODS_CD = #tGoodsCd#                    
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_53" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '16'                    
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_30" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '16'               
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_60" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT 
+                        GOODS_CD  as sGoodsCode,
+                        CTGRY_CD  as sCateGory_Code,
+                        cnt as iCnt,
+                        PRICE  as iNum  
+                            FROM (
+                                  SELECT /*+ leading(a) use_nl(a b) */
+                                       C.GOODS_CD, 
+                                       D.CTGRY_CD,
+                                       count(B.ORDER_ITM_ID) cnt, 
+                                       SUM(B.DC_APPLY_PRC ) PRICE
+                                     FROM OD_ORDER_MAST A,
+                                        OD_ORDER_ITM B,
+                                        GD_GOODS_MAST C,
+                                        GD_GOODS_CTGRY D
+                                   WHERE A.APPR_DATE >= sysdate-7
+                                     AND A.APPR_DATE <= sysdate
+                                     AND A.ORDER_ID    = B.ORDER_ID
+                                     AND B.GOODS_CD    = C.GOODS_CD
+                                     AND C.GOODS_CD    = D.GOODS_CD
+                                  AND D.CTGRY_CD IN (
+                                                           SELECT DISTINCT CATEGORY_CODE FROM GOODS_BEST_INFO
+                                                           WHERE GBN = '21'
+                                                     )    
+                                     AND substr(C.GOODS_CD,1,2) <> '70'
+                                     AND substr(C.GOODS_CD,1,1) <> 'E'
+                                     AND B.ORDER_STUS_CD = 'D03'
+                                  AND B.GOODS_CANCEL_YN  = 'N'
+                                  AND B.DC_APPLY_PRC > 0
+                                  and A.RECEVPO_RGISTPOCD in('89903','85414')
+                                GROUP BY C.GOODS_CD,D.CTGRY_CD
+                                ORDER BY cnt DESC, PRICE DESC
+                            ) 
+                            WHERE ROWNUM < 101                
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_61" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '21'
+				  and CTGRY_CD = #sCateGoryCode#                
+		]]>	 
+	</select>
+	
+	<insert id="insertGOODS_BEST_RANK_09" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'21',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank# 
+				from dual                                                                            
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_62" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '21'             
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_31" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '21'              
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_70" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT 
+                        GOODS_CD  as sGoodsCode,
+                        CTGRY_CD  as sCateGory_Code,
+                        cnt as iCnt,
+                        PRICE  as iNum 
+                FROM (
+                      SELECT /*+ leading(a) use_nl(a b) */
+                   C.GOODS_CD, 
+                   D.CTGRY_CD,
+                   count(B.ORDER_ITM_ID) cnt, 
+                   SUM(B.DC_APPLY_PRC ) PRICE
+                         FROM OD_ORDER_MAST A,
+                            OD_ORDER_ITM B,
+                            GD_GOODS_MAST C,
+                            GD_GOODS_CTGRY D
+                       WHERE A.APPR_DATE >= sysdate-7
+                         AND A.APPR_DATE <= sysdate
+                         AND A.ORDER_ID    = B.ORDER_ID
+                         AND B.GOODS_CD    = C.GOODS_CD
+                         AND C.GOODS_CD    = D.GOODS_CD
+                      AND D.CTGRY_CD IN (
+                                               SELECT DISTINCT CATEGORY_CODE FROM GOODS_BEST_INFO
+                                               WHERE GBN = '22'
+                                         )    
+                         AND substr(C.GOODS_CD,1,2) <> '70'
+                         AND substr(C.GOODS_CD,1,1) <> 'E'
+                         AND B.ORDER_STUS_CD = 'D03'
+                      AND B.GOODS_CANCEL_YN  = 'N'
+                      AND B.DC_APPLY_PRC > 0
+                      and A.RECEVPO_RGISTPOCD in('89903','85414')
+                    GROUP BY C.GOODS_CD,D.CTGRY_CD
+                    ORDER BY CNT DESC, PRICE DESC
+                ) 
+                WHERE ROWNUM < 101          
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_71" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '22'
+				  and CTGRY_CD = #sCateGoryCode#                
+		]]>	 
+	</select>
+	
+	<insert id="insertGOODS_BEST_RANK_10" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'22',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank# 
+				from dual                                                                            
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_72" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '22'           
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_32" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '22'            
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_80" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT 
+                        GOODS_CD  as sGoodsCode,
+                        CTGRY_CD  as sCateGory_Code,
+                        cnt as iCnt,
+                        PRICE  as iNum 
+                FROM (
+                      SELECT /*+ leading(a) use_nl(a b) */
+                           C.GOODS_CD, 
+                           D.CTGRY_CD ,
+                           count(B.ORDER_ITM_ID ) cnt, 
+                           SUM(B.DC_APPLY_PRC ) PRICE
+                         FROM OD_ORDER_MAST A,
+                            OD_ORDER_ITM B,
+                            GD_GOODS_MAST C,
+                            GD_GOODS_CTGRY D
+                       WHERE A.APPR_DATE >= sysdate-7
+                         AND A.APPR_DATE <= sysdate
+                         AND A.ORDER_ID    = B.ORDER_ID
+                         AND B.GOODS_CD    = C.GOODS_CD
+                         AND C.GOODS_CD    = D.GOODS_CD
+                      AND D.CTGRY_CD IN (
+                                               SELECT DISTINCT CATEGORY_CODE FROM GOODS_BEST_INFO
+                                               WHERE GBN = '23'
+                                         )    
+                         AND substr(C.GOODS_CD,1,2) <> '70'
+                         AND substr(C.GOODS_CD,1,1) <> 'E'
+                         AND B.ORDER_STUS_CD = 'D03'
+                      AND B.GOODS_CANCEL_YN  = 'N'
+                      AND B.DC_APPLY_PRC > 0
+                      and A.RECEVPO_RGISTPOCD in('89903','85414')
+                    GROUP BY C.GOODS_CD,D.CTGRY_CD
+                    ORDER BY CNT DESC, PRICE DESC
+                ) 
+                WHERE ROWNUM < 101     
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_81" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '23'
+				  and CTGRY_CD = #sCateGoryCode#     
+		]]>	 
+	</select>
+	
+	<insert id="insertGOODS_BEST_RANK_11" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'23',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank# 
+				from dual                                                                           
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_82" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '23'  
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_33" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '23'         
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_90" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT 
+                        GOODS_CD  as sGoodsCode,
+                        CTGRY_CD  as sCateGory_Code,
+                        cnt as iCnt,
+                        PRICE  as iNum 
+                FROM (
+                      SELECT /*+ leading(a) use_nl(a b)*/
+                           C.GOODS_CD, 
+                           D.CTGRY_CD,
+                           count(B.ORDER_ITM_ID) cnt, 
+                           SUM(B.DC_APPLY_PRC ) PRICE
+                         FROM OD_ORDER_MAST A,
+                            OD_ORDER_ITM B,
+                            GD_GOODS_MAST C,
+                            GD_GOODS_CTGRY D
+                       WHERE A.APPR_DATE >= sysdate-7
+                         AND A.APPR_DATE <= sysdate
+                         AND A.ORDER_ID    = B.ORDER_ID
+                         AND B.GOODS_CD    = C.GOODS_CD
+                         AND C.GOODS_CD = D.GOODS_CD
+                      AND D.CTGRY_CD IN (
+                                               SELECT DISTINCT CATEGORY_CODE FROM GOODS_BEST_INFO
+                                               WHERE GBN = '24'
+                                         )    
+                         AND substr(C.GOODS_CD,1,2) <> '70'
+                         AND substr(C.GOODS_CD,1,1) <> 'E'
+                         AND B.ORDER_STUS_CD = 'D03'
+                      AND B.GOODS_CANCEL_YN = 'N'
+                      AND B.DC_APPLY_PRC > 0
+                      and A.RECEVPO_RGISTPOCD in('89903','85414')
+                    GROUP BY C.GOODS_CD,D.CTGRY_CD
+                    ORDER BY CNT DESC, PRICE DESC
+                ) 
+                WHERE ROWNUM < 101  
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_91" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '24'
+				  and CTGRY_CD = #sCateGoryCode#
+		]]>	 
+	</select>
+	
+	<insert id="insertGOODS_BEST_RANK_12" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CODE,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'24',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank# 
+				from dual                                                                     
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_92" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '24'
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_34" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '24'       
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_100" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		    SELECT GOODS_CD  as sGoodsCode,
+                       CTGRY_CD  as sCateGory_Code,
+                       cnt as iCnt,
+                       PRICE  as iNum 
+              FROM (
+                     SELECT /*+ leading(a) use_nl(a b)*/
+                          C.GOODS_CD, 
+                          D.CTGRY_CD,
+                          count(B.ORDER_ITM_ID) cnt, 
+                          SUM(B.DC_APPLY_PRC ) PRICE
+                        FROM OD_ORDER_MAST A,
+                           OD_ORDER_ITM B,
+                           GD_GOODS_MAST C,
+                           GD_GOODS_CTGRY D
+                      WHERE A.APPR_DATE >= sysdate-7
+                        AND A.APPR_DATE <= sysdate
+                        AND A.ORDER_ID    = B.ORDER_ID
+                        AND B.GOODS_CD    = C.GOODS_CD
+                        AND C.GOODS_CD = D.GOODS_CD
+                     AND D.CTGRY_CD IN (
+                                              SELECT DISTINCT CATEGORY_CODE FROM GOODS_BEST_INFO
+                                              WHERE GBN = '25'
+                                        )    
+                        AND substr(C.GOODS_CD,1,2) <> '70'
+                        AND substr(C.GOODS_CD,1,1) <> 'E'
+                        AND B.ORDER_STUS_CD = 'D03'
+                     AND B.GOODS_CANCEL_YN  = 'N'
+                     AND B.DC_APPLY_PRC > 0
+                     and A.RECEVPO_RGISTPOCD in('89903','85414')
+                   GROUP BY C.GOODS_CD, D.CTGRY_CD
+                   ORDER BY CNT DESC, PRICE DESC
+               ) 
+               WHERE ROWNUM < 101
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_101" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '25'
+				  and CTGRY_CD = #sCateGoryCode#
+		]]>	 
+	</select>
+	
+	<insert id="insertGOODS_BEST_RANK_13" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CD,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'25',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank# 
+				from dual                                                                     
+		]]>	 
+	</insert>
+	
+	<select id="ORDER_SUBMIT_102" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn  = '25'
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_35" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '25'    
+		]]>	 
+	</update>
+	
+	<delete id="deleteGOODS_BEST_RANK_09" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    DELETE FROM GD_GOODS_BEST_RANK 
+				WHERE DAYS =TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND GBN ='26'                                                                                                                   
+		]]>	 
+	</delete>
+	
+	<select id="ORDER_SUBMIT_110" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT 
+                    G.GOODS_CD as sGoodsCode, 
+                    D.CTGRY_CD as sCateGoryCode,
+                    ROUND(NVL(SUM(C.QUALITY)/COUNT(C.GOODS_IDN),0)) as iCnt,
+                    NVL(SUM(C.QUALITY),0) as iNum
+                FROM GD_GOODS_MAST G, SERVICE_SATISFACTION C, GD_GOODS_CTGRY D
+                WHERE G.GOODS_CD = TO_CHAR(C.GOODS_IDN) 
+                AND G.GOODS_CD = D.GOODS_CD
+                GROUP BY G.GOODS_CD,D.CTGRY_CD                
+                ORDER BY sCateGoryCode, iNum DESC
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_111" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '26'
+				and GOODS_CD = #iGoodsCd#
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_36" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST_RANK 
+				SET	RANK = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd#
+				AND GBN = '26'
+				AND DAYS = TO_CHAR(SYSDATE,'YYYYMMDD') 
+		]]>	 
+	</update>
+	
+	<insert id="insertGOODS_BEST_RANK_14" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO GD_GOODS_BEST_RANK (
+												DAYS,
+												GBN,
+												GOODS_CODE,
+												CTGRY_CD,
+												RANK
+											)
+				SELECT 
+						to_char(sysdate,'yyyymmdd'),
+						'26',
+						#sGoodsCode#,
+						#sCateGoryCode#,
+						#iFixRank# 
+				from dual                                                                     
+		]]>	 
+	</insert>
+	
+	<update id="updateGOODS_BEST_RANK_37" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_SM 
+				SET  PREMI_GOODS_INDEX = #iFixRank#
+				WHERE GOODS_CD = #iGoodsCd# 
+		]]>	 
+	</update>
+	
+	<select id="ORDER_SUBMIT_112" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT count(*) as iCategory_Cnt
+				from  GD_GOODS_BEST_RANK
+				where days = to_char(sysdate,'yyyymmdd')
+				and gbn  = '26'
+		]]>	 
+	</select>
+	
+	<update id="updateGOODS_BEST_RANK_39" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    UPDATE GD_GOODS_BEST
+				SET  apply_date = to_char(sysdate,'yyyymmdd') ,
+				     apply_chk = 'Y'
+				where days = to_char(sysdate,'yyyymmdd')
+				  and gbn = '26'
+		]]>	 
+	</update>
+	
+	<insert id="insertSHOP_INFO_TRANS_15" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO SHOP_INFO_TRANS (
+												DAYS,
+												TRGT_TBL,
+												TRGT_TBL_KEY1,
+												TRGT_TBL_KEY2,
+												SEND_YN,
+												SEND_CONT,
+												SEND_YMD
+											)
+				VALUES(
+						TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || SHOP_INFO_TRANS_SEQ.NEXTVAL,
+						'GOODS_BEST',
+						to_char(sysdate,'yyyymmdd'),
+						'DAYS',
+						'N',
+						'베스트상품정보변경',
+						NULL
+					  )                                                                
+		]]>	 
+	</insert>
+	
+	<insert id="insertSHOP_INFO_TRANS_16" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			    INSERT INTO SHOP_INFO_TRANS (
+												DAYS,
+												TRGT_TBL,
+												TRGT_TBL_KEY1,
+												TRGT_TBL_KEY2,
+												SEND_YN,
+												SEND_CONT,
+												SEND_YMD
+											)
+				VALUES(
+						TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || SHOP_INFO_TRANS_SEQ.NEXTVAL,
+						'GOODS_BEST_RANK',
+						to_char(sysdate,'yyyymmdd'),
+						'DAYS',
+						'N',
+						'베스트상품정보변경',
+						NULL
+					  )                                                                
+		]]>	 
+	</insert>
+	
+</sqlMap>

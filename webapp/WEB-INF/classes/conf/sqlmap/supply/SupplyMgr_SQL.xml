@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Supply">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 공급업체관리 리스트 조회 -->
+	<select id="selectSupplyMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+         SELECT T2.ONUM
+	         , T2.SUPP_COMP_DIV_CD
+	         , T2.SUPP_COMP_DIV_CD_NM
+	         , T2.POSTNAME
+	         , T2.POSTOFFICE
+	         , T2.PO_ECODE
+	         , T2.BCNC_NM
+	         , T2.SUPP_COMP_ID
+	         , T2.PRSDT_NM
+	         , T2.COMPREG_NO
+	         , T2.CNTRAC_REQ_YMD
+	         , T2.ENTRPS
+	         , T2.INDUTY
+	         , T2.TELNO
+	         , T2.FAXNO
+	         , T2.ADDR1
+	         , T2.PRSDT_MOBILE_NO
+	         , T2.CNTRAC_DSUSE_YMD
+	         , T2.CNTRAC_STOP_END_YMD
+	         , T2.CNTRAC_STUS_CD
+	         , T2.CNTRAC_STUS_CD_NM
+	         , T2.CNTRAC_STOP_REASN  
+	         , T2.REGER_ID
+	         , T2.REG_DATE
+	         , T2.CHGER_ID
+	         , T2.CHG_DATE
+        FROM(
+            SELECT
+		        <isEmpty property="sidx">
+		        	ROW_NUMBER() OVER(ORDER BY T1.SUPP_COMP_ID DESC) AS ONUM	
+		        </isEmpty>	
+		         , T1.SUPP_COMP_DIV_CD
+		         , T1.SUPP_COMP_DIV_CD_NM
+		         , T1.POSTNAME
+		         , T1.POSTOFFICE
+		         , T1.PO_ECODE
+		         , T1.BCNC_NM
+		         , T1.SUPP_COMP_ID
+		         , T1.PRSDT_NM
+		         , T1.COMPREG_NO
+		         , T1.CNTRAC_REQ_YMD
+		         , T1.ENTRPS
+		         , T1.INDUTY
+		         , T1.TELNO
+		         , T1.FAXNO
+		         , T1.ADDR1
+		         , T1.PRSDT_MOBILE_NO
+		         , T1.CNTRAC_DSUSE_YMD
+		         , T1.CNTRAC_STOP_END_YMD
+		         , T1.CNTRAC_STUS_CD
+		         , T1.CNTRAC_STUS_CD_NM
+		         , T1.CNTRAC_STOP_REASN
+		         , T1.REGER_ID
+		         , T1.REG_DATE
+		         , T1.CHGER_ID
+		         , T1.CHG_DATE  
+            FROM(
+                SELECT              
+			           SUPP_COMP_DIV_CD
+			         , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='STR_DIV_CD' AND COMN_CD_ID=S.SUPP_COMP_DIV_CD) AS SUPP_COMP_DIV_CD_NM
+			         , (SELECT PONM FROM PICMT0060 WHERE REGIPOCD = S.SUPPO_RGIST_POCD AND USEYN='Y')AS POSTNAME
+			         , (SELECT POSHORTNM FROM PICMT0060 WHERE REGIPOCD=(SELECT HRNKORREGIPOCD FROM PICMT0060 WHERE REGIPOCD = S.SUPPO_RGIST_POCD AND USEYN='Y'  )  AND USEYN='Y'  ) AS POSTOFFICE
+			         , PO_ECODE
+			         , BCNC_NM
+			         , SUPP_COMP_ID
+			         , PRSDT_NM
+			         , COMPREG_NO
+			         , CNTRAC_REQ_YMD
+			         , ENTRPS
+			         , INDUTY
+			         , TELNO
+			         , FAXNO
+			         , ADDR1
+			         , PRSDT_MOBILE_NO
+			         , CNTRAC_DSUSE_YMD
+			         , CNTRAC_STOP_END_YMD
+			         , CNTRAC_STUS_CD
+			         , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SUPPCOMP_STUS_CD' AND COMN_CD_ID=S.CNTRAC_STUS_CD) AS CNTRAC_STUS_CD_NM
+			         , CNTRAC_STOP_REASN
+			         , REGER_ID
+			         , REG_DATE
+			         , CHGER_ID
+			         , CHG_DATE
+                FROM CO_SUPP_COMP_MAST S
+                WHERE 1=1
+            )T1
+            WHERE 1=1
+            <!-- 매장구분 -->
+			<isNotEmpty property="suppCompDivCd">
+				AND T1.SUPP_COMP_DIV_CD = #suppCompDivCd#
+			</isNotEmpty>
+
+			<!-- 계약상태 -->			            
+			<isNotEmpty property="cntracStusCd">
+				AND T1.CNTRAC_STUS_CD = #cntracStusCd#
+			</isNotEmpty>
+			
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="01">
+					AND (T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%' OR T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%' OR T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%' OR T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%')
+				</isEqual>																
+			</isNotEmpty> 
+			            
+        )T2
+        WHERE 1=1
+        <isNotNull property="firstIndex">
+        	<isNotNull property="lastIndex">
+        		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+        	</isNotNull>
+        </isNotNull>           
+
+        <isEmpty property="sidx">
+        	ORDER BY T2.ONUM DESC	
+        </isEmpty>
+	</select>
+	
+	<!-- 공급업체관리 리스트 카운트 -->
+	<select id="selectSupplyMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT DISTINCT COUNT(*) OVER() TOTCNT
+           FROM CO_SUPP_COMP_MAST
+          WHERE 1=1
+            <!-- 매장구분 -->
+			<isNotEmpty property="suppCompDivCd">
+				AND T1.SUPP_COMP_DIV_CD = #suppCompDivCd#
+			</isNotEmpty>
+
+			<!-- 계약상태 -->			            
+			<isNotEmpty property="cntracStusCd">
+				AND T1.CNTRAC_STUS_CD = #cntracStusCd#
+			</isNotEmpty>
+			
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="01">
+					AND (T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%' OR T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%' OR T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%' OR T1.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%')
+				</isEqual>																
+			</isNotEmpty>      
+	</select>	
+		
+</sqlMap>

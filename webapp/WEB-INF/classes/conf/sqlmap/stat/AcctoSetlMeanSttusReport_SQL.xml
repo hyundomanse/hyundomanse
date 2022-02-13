@@ -1,0 +1,887 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.AcctoSetlMeanSttus">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 즉시이체 현황보고서 -->
+	<select id="selectBanktownSttusReportList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT ORDER_ID
+			  ,RESULT
+			  ,ORDRR_NM
+			  ,ACCESS_NAME
+			  ,PAY_BANK
+			  ,AUTH_NUM
+			  ,TO_CHAR(TO_DATE(AUTH_TIME, 'YYYY/MM/DD HH24:MI:SS'), 'YYYY/MM/DD HH24:MI:SS') AUTH_TIME
+			  ,PRICE
+			  ,SETL_MEAN_CD
+			  ,RESULT_NAME
+			  ,ORDER_MDA_DIV_CD
+			  ,F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', ORDER_MDA_DIV_CD) ORDER_MDA_DIV_NM
+		  FROM (
+				SELECT T1.ORDER_ID
+					  ,T1.RESULT
+					  ,T1.ORDRR_NM
+					  ,T1.ACCESS_NAME
+					  ,T1.PAY_BANK
+					  ,T1.AUTH_NUM
+					  ,T1.AUTH_TIME
+					  ,T1.PRICE
+					  ,T1.SETL_MEAN_CD
+					  ,T1.RESULT_NAME
+					  ,T1.ORDER_MDA_DIV_CD
+				  FROM (
+						SELECT T.ORDER_ID
+							  ,CASE WHEN T.PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN 9
+									WHEN T.PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN 8
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN 0
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN 1
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN 0
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN 1
+									ELSE NULL
+								END RESULT
+							  ,ORDRR_NM
+							  ,ACCESS_NAME
+							  ,PAY_BANK
+							  ,CASE WHEN T.PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN CANCEL_AUTH_NUM
+									WHEN T.PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN CANCEL_AUTH_NUM
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN APPR_AUTH_NUM
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN APPR_AUTH_NUM
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN APPR_AUTH_NUM
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN APPR_AUTH_NUM
+									ELSE ''
+								END AUTH_NUM
+							  ,CASE WHEN T.PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN CANCEL_AUTH_TIME
+									WHEN T.PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN CANCEL_AUTH_TIME
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN APPR_AUTH_TIME
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN APPR_AUTH_TIME
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN APPR_AUTH_TIME
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN APPR_AUTH_TIME
+									ELSE ''
+								END AUTH_TIME
+							  ,T.PRICE
+							  ,T.SETL_MEAN_CD
+							  ,CASE WHEN T.PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN '승인취소'
+									WHEN T.PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN '매입취소'
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN '승인(부분취소)'
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE > 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN '매입(부분취소)'
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 0 OR T.RESULT = 9) THEN '승인'
+									WHEN T.PRICE > 0 AND T.CANCEL_PRICE = 0 AND (T.RESULT = 1 OR T.RESULT = 8) THEN '매입'
+									ELSE ''
+								END RESULT_NAME
+							  ,T.ORDER_MDA_DIV_CD
+						  FROM (
+								SELECT A.ORDER_ID
+									  ,MAX(B.RESULT) RESULT
+									  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+									  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+									  ,MAX(B.PAY_BANK) PAY_BANK
+									  ,MIN(B.AUTH_NUM) APPR_AUTH_NUM
+									  ,MAX(B.AUTH_NUM) CANCEL_AUTH_NUM
+									  ,MIN(B.AUTH_TIME) APPR_AUTH_TIME
+									  ,MAX(B.AUTH_TIME) CANCEL_AUTH_TIME
+									  ,SUM(DECODE(B.RESULT, 0, B.PRICE, 1, B.PRICE, 9, B.PRICE*(-1), 8, B.PRICE*(-1), 0)) PRICE
+									  ,SUM(DECODE(B.RESULT, 0, B.PRICE, 1, B.PRICE, 9, 0, 8, 0, 0)) APPR_PRICE
+									  ,SUM(DECODE(B.RESULT, 0, 0, 1, 0, 9, B.PRICE, 8, B.PRICE, 0)) CANCEL_PRICE
+									  ,MAX(A.SETL_MEAN_CD) SETL_MEAN_CD
+									  ,DECODE(MAX(B.RESULT), 0, '승인', 1, '매입', 9, '승인취소', 8, '매입취소', '') RESULT_NAME
+									  ,MAX(A.ORDER_MDA_DIV_CD) ORDER_MDA_DIV_CD
+								  FROM OD_ORDER_MAST A
+									  ,OD_BANKTOWN B
+								 WHERE 1 = 1
+								   AND A.ORDER_ID = B.ORDER_ID
+								   AND EXISTS (SELECT 1 FROM OD_BANKTOWN WHERE ORDER_ID = B.ORDER_ID
+																				AND AUTH_TIME BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+																				AND AUTH_TIME > #searchCnvrsDate#||'000000')
+								 GROUP BY A.ORDER_ID
+										 ,A.ORDRR_NM
+										 ,A.ACCESS_NAME
+								) T
+						) T1
+				 WHERE AUTH_TIME BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND AUTH_TIME > #searchCnvrsDate#||'000000'
+				UNION ALL
+				SELECT A.ORDER_ID
+					  ,B.RESULT RESULT
+					  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+					  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+					  ,B.PAY_BANK
+					  ,B.AUTH_NUM
+					  ,B.AUTH_TIME
+					  ,B.PRICE
+					  ,A.SETL_MEAN_CD
+					  ,DECODE(B.RESULT, 0, '승인', 1, '매입', 9, '승인취소', 8, '매입취소', '') RESULT_NAME
+					  ,A.ORDER_MDA_DIV_CD
+				  FROM OD_ORDER_MAST A
+					  ,OD_BANKTOWN B
+				 WHERE 1 = 1
+				   AND A.ORDER_ID = B.ORDER_ID
+				   AND B.AUTH_TIME BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND B.AUTH_TIME < #searchCnvrsDate#||'000000'
+				 GROUP BY A.ORDER_ID
+						 ,B.RESULT
+						 ,A.ORDRR_NM
+						 ,A.ACCESS_NAME
+						 ,B.PAY_BANK
+						 ,B.AUTH_NUM
+						 ,B.AUTH_TIME
+						 ,B.PRICE
+						 ,A.SETL_MEAN_CD
+						 ,A.ORDER_MDA_DIV_CD
+			)
+			 WHERE 1 = 1
+			]]>
+			<isNotEmpty property="searchSetlMeanCd">
+			   AND SETL_MEAN_CD = #searchSetlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchSetlStusCd">
+			   AND RESULT = #searchSetlStusCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchOrderMdaDivCd">
+			   AND ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="authcode">
+				   AND AUTH_NUM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND ORDRR_NM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR AUTHCODE LIKE '%' || #searchText# || '%'
+				 		OR ORDRR_NM LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY AUTH_TIME
+	</select>
+	
+	<!-- 카드결제 현황보고서 -->
+	<select id="selectCreditCardSttusReportList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT ORDER_ID
+			  ,STATE
+			  ,ORDRR_NM
+			  ,ACCESS_NAME
+			  ,CARDNAME
+			  ,APPROVAL_NO PG_ORDER_ID
+			  ,TO_CHAR(TO_DATE(AUTHDATE, 'YYYY/MM/DD HH24:MI:SS'), 'YYYY/MM/DD HH24:MI:SS') AUTHDATE
+			  ,AMT
+			  ,SETL_MEAN_CD
+			  ,F_GET_COMN_CD_NM('SETL_MEAN_CD',SETL_MEAN_CD) SETL_MEAN_NM
+			  ,STATE_NAME
+			  ,ORDER_MDA_DIV_CD
+			  ,F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', ORDER_MDA_DIV_CD) ORDER_MDA_DIV_NM
+			  ,TO_CHAR(ORDER_DATE, 'YYYY/MM/DD') ORDER_DATE
+		  FROM (
+				SELECT T1.ORDER_ID
+					  ,T1.STATE
+					  ,T1.ORDRR_NM
+					  ,T1.ACCESS_NAME
+					  ,T1.CARDNAME
+					  ,T1.APPROVAL_NO
+					  ,T1.AUTHDATE
+					  ,T1.AMT
+					  ,T1.SETL_MEAN_CD
+					  ,T1.STATE_NAME
+					  ,T1.ORDER_MDA_DIV_CD
+					  ,T1.ORDER_DATE
+				  FROM (
+						SELECT T.ORDER_ID
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D2'
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S2'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D3'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S3'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D1'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S1'
+									ELSE ''
+								END STATE
+							  ,ORDRR_NM
+							  ,ACCESS_NAME
+							  ,CARDNAME
+							  ,APPROVAL_NO
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN APPR_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN APPR_AUTHDATE
+									ELSE ''
+								END AUTHDATE
+							  ,T.AMT
+							  ,T.SETL_MEAN_CD
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인취소'
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입취소'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인(부분취소)'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입(부분취소)'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입'
+									ELSE ''
+								END STATE_NAME
+							  ,T.ORDER_MDA_DIV_CD
+							  ,T.ORDER_DATE
+						  FROM (
+								SELECT A.ORDER_ID
+									  ,MAX(B.STATUS) STATUS
+									  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+									  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+									  ,MAX(B.ACQUIRE_NAME) CARDNAME
+									  ,MAX(B.APPROVAL_NO) APPROVAL_NO
+									  ,MIN(B.APPROVAL_TIME) APPR_AUTHDATE
+									  ,MAX(B.APPROVAL_TIME) CANCEL_AUTHDATE
+									  ,SUM(DECODE(B.STATUS, 'D1', B.TOTAL_AMOUNT, 'S1', B.TOTAL_AMOUNT, 'D2', B.TOTAL_AMOUNT*(-1), 'S2', B.TOTAL_AMOUNT*(-1), 0)) AMT
+									  ,SUM(DECODE(B.STATUS, 'D1', B.TOTAL_AMOUNT, 'S1', B.TOTAL_AMOUNT, 'D2', 0, 'S2', 0, 0)) APPR_AMT
+									  ,SUM(DECODE(B.STATUS, 'D1', 0, 'S1', 0, 'D2', B.TOTAL_AMOUNT, 'S2', B.TOTAL_AMOUNT, 0)) CANCEL_AMT
+									  ,MAX(A.SETL_MEAN_CD) SETL_MEAN_CD
+									  ,DECODE(MAX(B.STATUS), 'D1', '승인', 'S1', '매입', 'D2', '승인취소', 'S2', '매입취소', '') STATE_NAME
+									  ,MAX(A.ORDER_MDA_DIV_CD) ORDER_MDA_DIV_CD
+									  ,MAX(A.ORDER_DATE) ORDER_DATE
+								  FROM OD_ORDER_MAST A
+									  ,OD_CREDIT_CARD_SETL_INFO B
+								 WHERE 1 = 1
+								   AND A.ORDER_ID = B.ORDER_ID
+								   AND EXISTS (SELECT 1 FROM OD_CREDIT_CARD_SETL_INFO WHERE ORDER_ID = B.ORDER_ID
+																						AND ORDER_DATE BETWEEN TO_DATE(#searchFromDate#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDate#||'235959','YYYYMMDDHH24MISS')
+																						AND ORDER_DATE > TO_DATE(#searchCnvrsDate#||'000000','YYYYMMDDHH24MISS'))
+								 GROUP BY A.ORDER_ID
+										 ,A.ORDRR_NM
+										 ,A.ACCESS_NAME
+								) T
+						) T1
+				 WHERE AUTHDATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND AUTHDATE > #searchCnvrsDate#||'000000'
+				UNION ALL
+				SELECT A.ORDER_ID
+					  ,B.STATUS STATE
+					  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+					  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+					  ,B.ACQUIRE_NAME CARDNAME
+					  ,B.APPROVAL_NO PG_ORDER_ID
+					  ,B.APPROVAL_TIME
+					  ,B.TOTAL_AMOUNT AMT
+					  ,A.SETL_MEAN_CD
+					  ,DECODE(B.STATUS, 'D1', '승인', 'S1', '매입', 'D2', '승인취소', 'S2', '매입취소', '') STATE_NAME
+					  ,A.ORDER_MDA_DIV_CD
+					  ,A.ORDER_DATE
+				  FROM OD_ORDER_MAST A
+					  ,OD_CREDIT_CARD_SETL_INFO B
+				 WHERE 1 = 1
+				   AND A.ORDER_ID = B.ORDER_ID
+				   AND B.ORDER_DATE BETWEEN TO_DATE(#searchFromDate#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDate#||'235959','YYYYMMDDHH24MISS')
+				   AND B.ORDER_DATE < TO_DATE(#searchCnvrsDate#||'000000','YYYYMMDDHH24MISS')
+				 GROUP BY A.ORDER_ID
+						 ,B.STATUS
+						 ,A.ORDRR_NM
+						 ,A.ACCESS_NAME
+						 ,B.ACQUIRE_NAME
+						 ,B.APPROVAL_NO
+						 ,B.APPROVAL_TIME
+						 ,B.TOTAL_AMOUNT
+						 ,A.SETL_MEAN_CD
+						 ,A.ORDER_MDA_DIV_CD
+						 ,A.ORDER_DATE
+			) T2
+			 WHERE 1 = 1
+			   AND EXISTS (SELECT 1
+							 FROM OD_ORDER_ITM
+							WHERE ORDER_ID = T2.ORDER_ID
+							  AND ORDER_STUS_CD IN ('O02','O04','D02','D03','D04')
+							  AND ORDER_DTAIL_STUS_CD IN ('O02','B03','B04','O07'))
+			]]>
+			<isNotEmpty property="searchSetlMeanCd">
+			   AND SETL_MEAN_CD = #searchSetlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchSetlStusCd">
+			   AND STATE = #searchSetlStusCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchOrderMdaDivCd">
+			   AND ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="authcode">
+				   AND PG_ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND ORDRR_NM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR PG_ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ORDRR_NM LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY AUTHDATE
+	</select>
+	
+	<!-- 간편결제 현황보고서 -->
+	<select id="selectEasyPaySttusReportList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT ORDER_ID
+			  ,STATE
+			  ,ORDRR_NM
+			  ,ACCESS_NAME
+			  ,CARDNAME
+			  ,TO_CHAR(TO_DATE(AUTHDATE, 'YYYY/MM/DD HH24:MI:SS'), 'YYYY/MM/DD HH24:MI:SS') AUTHDATE
+			  ,AMT
+			  ,PAYMETHOD
+			  ,STATE_NAME
+			  ,ORDER_MDA_DIV_CD
+			  ,F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', ORDER_MDA_DIV_CD) ORDER_MDA_DIV_NM
+		  FROM (
+				SELECT T1.ORDER_ID
+					  ,T1.STATE
+					  ,T1.ORDRR_NM
+					  ,T1.ACCESS_NAME
+					  ,T1.CARDNAME
+					  ,T1.AUTHDATE
+					  ,T1.AMT
+					  ,T1.PAYMETHOD
+					  ,T1.STATE_NAME
+					  ,T1.ORDER_MDA_DIV_CD
+				  FROM (
+						SELECT T.ORDER_ID
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D2'
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S2'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D3'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S3'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D1'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S1'
+									ELSE ''
+								END STATE
+							  ,ORDRR_NM
+							  ,ACCESS_NAME
+							  ,CARDNAME
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN APPR_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN APPR_AUTHDATE
+									ELSE ''
+								END AUTHDATE
+							  ,T.AMT
+							  ,T.PAYMETHOD
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인취소'
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입취소'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인(부분취소)'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입(부분취소)'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입'
+									ELSE ''
+								END STATE_NAME
+							  ,T.ORDER_MDA_DIV_CD
+						  FROM (
+								SELECT A.ORDER_ID
+									  ,MAX(B.STATUS) STATUS
+									  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+									  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+									  ,MAX(B.CARDNAME) CARDNAME
+									  ,MIN(B.AUTHDATE) APPR_AUTHDATE
+									  ,MAX(B.AUTHDATE) CANCEL_AUTHDATE
+									  ,SUM(DECODE(B.STATUS, 'D1', B.AMT, 'S1', B.AMT, 'D2', B.AMT*(-1), 'S2', B.AMT*(-1), 0)) AMT
+									  ,SUM(DECODE(B.STATUS, 'D1', B.AMT, 'S1', B.AMT, 'D2', 0, 'S2', 0, 0)) APPR_AMT
+									  ,SUM(DECODE(B.STATUS, 'D1', 0, 'S1', 0, 'D2', B.AMT, 'S2', B.AMT, 0)) CANCEL_AMT
+									  ,MAX(B.PAYMETHOD) PAYMETHOD
+									  ,DECODE(MAX(B.STATUS), 'D1', '승인', 'S1', '매입', 'D2', '승인취소', 'S2', '매입취소', '') STATE_NAME
+									  ,MAX(A.ORDER_MDA_DIV_CD) ORDER_MDA_DIV_CD
+								  FROM OD_ORDER_MAST A
+									  ,OD_KAKAO_PAYMENT B
+								 WHERE 1 = 1
+								   AND A.ORDER_ID = B.ORDER_ID
+								   AND EXISTS (SELECT 1 FROM OD_KAKAO_PAYMENT WHERE ORDER_ID = B.ORDER_ID
+																				AND AUTHDATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+																				AND AUTHDATE > #searchCnvrsDate#||'000000')
+								 GROUP BY A.ORDER_ID
+										 ,A.ORDRR_NM
+										 ,A.ACCESS_NAME
+								) T
+						) T1
+				 WHERE AUTHDATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND AUTHDATE > #searchCnvrsDate#||'000000'
+				UNION ALL
+				SELECT A.ORDER_ID
+					  ,B.STATUS STATE
+					  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+					  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+					  ,B.CARDNAME
+					  ,B.AUTHDATE
+					  ,B.AMT
+					  ,B.PAYMETHOD
+					  ,DECODE(B.STATUS, 'D1', '승인', 'S1', '매입', 'D2', '승인취소', 'S2', '매입취소', '') STATE_NAME
+					  ,A.ORDER_MDA_DIV_CD
+				  FROM OD_ORDER_MAST A
+					  ,OD_KAKAO_PAYMENT B
+				 WHERE 1 = 1
+				   AND A.ORDER_ID = B.ORDER_ID
+				   AND B.AUTHDATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND B.AUTHDATE < #searchCnvrsDate#||'000000'
+				 GROUP BY A.ORDER_ID
+						 ,B.STATUS
+						 ,A.ORDRR_NM
+						 ,A.ACCESS_NAME
+						 ,B.CARDNAME
+						 ,B.AUTHDATE
+						 ,B.AMT
+						 ,B.PAYMETHOD
+						 ,A.ORDER_MDA_DIV_CD
+			)
+			 WHERE 1 = 1
+			]]>
+			<isNotEmpty property="searchSetlMeanCd">
+			   AND PAYMETHOD = #searchSetlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchSetlStusCd">
+			   AND STATE = #searchSetlStusCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchOrderMdaDivCd">
+			   AND ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="authcode">
+				   AND AUTHCODE LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND ORDRR_NM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR AUTHCODE LIKE '%' || #searchText# || '%'
+				 		OR ORDRR_NM LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY AUTHDATE
+	</select>
+
+	<!-- 휴대폰결제 현황보고서 -->
+	<select id="selectMobileSttusReportList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT ORDER_ID
+			  ,STATE
+			  ,ORDRR_NM
+			  ,ACCESS_NAME
+			  ,TID
+			  ,TO_CHAR(TO_DATE(AUTHDATE, 'YYYY/MM/DD HH24:MI:SS'), 'YYYY/MM/DD HH24:MI:SS') AUTHDATE
+			  ,AMT
+			  ,SETL_MEAN_CD
+			  ,STATE_NAME
+			  ,ORDER_MDA_DIV_CD
+			  ,F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', ORDER_MDA_DIV_CD) ORDER_MDA_DIV_NM
+		  FROM (
+				SELECT T1.ORDER_ID
+					  ,T1.STATE
+					  ,T1.ORDRR_NM
+					  ,T1.ACCESS_NAME
+					  ,T1.TID
+					  ,T1.AUTHDATE
+					  ,T1.AMT
+					  ,T1.SETL_MEAN_CD
+					  ,T1.STATE_NAME
+					  ,T1.ORDER_MDA_DIV_CD
+				  FROM (
+						SELECT T.ORDER_ID
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D2'
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S2'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D3'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S3'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN 'D1'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN 'S1'
+									ELSE ''
+								END STATE
+							  ,ORDRR_NM
+							  ,ACCESS_NAME
+							  ,TID
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN CANCEL_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN APPR_AUTHDATE
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN APPR_AUTHDATE
+									ELSE ''
+								END AUTHDATE
+							  ,T.AMT
+							  ,T.SETL_MEAN_CD
+							  ,CASE WHEN T.AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인취소'
+									WHEN T.AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입취소'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인(부분취소)'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT > 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입(부분취소)'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'D1' OR T.STATUS = 'D2') THEN '승인'
+									WHEN T.AMT > 0 AND T.CANCEL_AMT = 0 AND (T.STATUS = 'S1' OR T.STATUS = 'S2') THEN '매입'
+									ELSE ''
+								END STATE_NAME
+							  ,T.ORDER_MDA_DIV_CD
+						  FROM (
+								SELECT A.ORDER_ID
+									  ,MAX(B.STATUS) STATUS
+									  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+									  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+									  ,MAX(TID) TID
+									  ,MIN(B.APPTIME) APPR_AUTHDATE
+									  ,MAX(B.APPTIME) CANCEL_AUTHDATE
+									  ,SUM(DECODE(B.STATUS, 'D1', B.AMOUNT, 'S1', B.AMOUNT, 'D2', B.AMOUNT*(-1), 'S2', B.AMOUNT*(-1), 0)) AMT
+									  ,SUM(DECODE(B.STATUS, 'D1', B.AMOUNT, 'S1', B.AMOUNT, 'D2', 0, 'S2', 0, 0)) APPR_AMT
+									  ,SUM(DECODE(B.STATUS, 'D1', 0, 'S1', 0, 'D2', B.AMOUNT, 'S2', B.AMOUNT, 0)) CANCEL_AMT
+									  ,MAX(A.SETL_MEAN_CD) SETL_MEAN_CD
+									  ,DECODE(MAX(B.STATUS), 'D1', '승인', 'S1', '매입', 'D2', '승인취소', 'S2', '매입취소', '') STATE_NAME
+									  ,MAX(A.ORDER_MDA_DIV_CD) ORDER_MDA_DIV_CD
+								  FROM OD_ORDER_MAST A
+									  ,OD_MOBILE_PAYMENT B
+								 WHERE 1 = 1
+								   AND A.ORDER_ID = B.ORDER_ID
+								   AND EXISTS (SELECT 1 FROM OD_CREDIT_CARD_SETL_INFO WHERE ORDER_ID = B.ORDER_ID
+																						AND APPTIME BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+																						AND APPTIME > #searchCnvrsDate#||'000000')
+								 GROUP BY A.ORDER_ID
+										 ,A.ORDRR_NM
+										 ,A.ACCESS_NAME
+								) T
+						) T1
+				 WHERE AUTHDATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND AUTHDATE > #searchCnvrsDate#||'000000'
+				UNION ALL
+				SELECT A.ORDER_ID
+					  ,B.STATUS STATE
+					  ,NVL(A.ORDRR_NM, '.') ORDRR_NM
+					  ,NVL(A.ACCESS_NAME, '.') ACCESS_NAME
+					  ,B.TID
+					  ,B.APPTIME
+					  ,B.AMOUNT AMT
+					  ,A.SETL_MEAN_CD
+					  ,DECODE(B.STATUS, 'D1', '승인', 'S1', '매입', 'D2', '승인취소', 'S2', '매입취소', '') STATE_NAME
+					  ,A.ORDER_MDA_DIV_CD
+				  FROM OD_ORDER_MAST A
+					  ,OD_MOBILE_PAYMENT B
+				 WHERE 1 = 1
+				   AND A.ORDER_ID = B.ORDER_ID
+				   AND B.APPTIME BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND B.APPTIME < #searchCnvrsDate#||'000000'
+				 GROUP BY A.ORDER_ID
+						 ,B.STATUS
+						 ,A.ORDRR_NM
+						 ,A.ACCESS_NAME
+						 ,B.TID
+						 ,B.APPTIME
+						 ,B.AMOUNT
+						 ,A.SETL_MEAN_CD
+						 ,A.ORDER_MDA_DIV_CD
+			)
+			 WHERE 1 = 1
+			]]>
+			<isNotEmpty property="searchSetlMeanCd">
+			   AND SETL_MEAN_CD = #searchSetlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchSetlStusCd">
+			   AND STATE = #searchSetlStusCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchOrderMdaDivCd">
+			   AND ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="authcode">
+				   AND TID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND ORDRR_NM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR TID LIKE '%' || #searchText# || '%'
+				 		OR ORDRR_NM LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY AUTHDATE
+	</select>
+
+	<!-- 포인트 결제 현황보고서 - 포인트 현황 -->
+	<select id="selectPointSetlSttusReportList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT ORDER_ID
+			  ,SETL_MEAN_CD
+			  ,F_GET_COMN_CD_NM('SETL_MEAN_CD',SETL_MEAN_CD) SETL_MEAN_NM
+			  ,ORDER_MDA_DIV_CD
+			  ,F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', ORDER_MDA_DIV_CD) ORDER_MDA_DIV_NM
+			  ,ORDRR_NM
+			  ,ACCESS_NAME
+			  ,AMT01
+			  ,AMT02
+			  ,AMT03
+			  ,AMT04
+			  ,AMT05
+			  ,AMT06
+			  ,AMT07
+			  ,AMT08
+			  ,AMT09
+			  ,AMT10
+			  ,AMT11
+			  ,AMT12
+		  FROM (
+				SELECT A.ORDER_ID
+					  ,A.SETL_MEAN_CD
+					  ,MAX(A.ORDER_MDA_DIV_CD) ORDER_MDA_DIV_CD
+					  ,MAX(A.ORDRR_NM) ORDRR_NM
+					  ,MAX(A.ACCESS_NAME) ACCESS_NAME
+					  ,SUM(NVL(B.DC_APPLY_PRC,0) + NVL(B.OPTN_GOODS_APPLY_PRC,0)) AS AMT01
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'N',(B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) - (B.PREMI_CUST_PNT_SETL_AMT + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (B.PNT_USE_AMT + NVL(B.PNT_REFUND_SETL_AMT, 0)) - B.CPN_DC_AMT - NVL(B.OKCASH_USE_AMT,0) - NVL(B.WALLET_SETL_AMT,0),0)) AS AMT02
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'Y',(B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) - (B.PREMI_CUST_PNT_SETL_AMT + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (B.PNT_USE_AMT + NVL(B.PNT_REFUND_SETL_AMT, 0)) - B.CPN_DC_AMT - NVL(B.OKCASH_USE_AMT,0) - NVL(B.WALLET_SETL_AMT,0),0)) AS AMT03
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'N',NVL(B.CPN_DC_AMT,0),0)) AS AMT04
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'Y',NVL(B.CPN_DC_AMT,0),0)) AS AMT05
+					  ,SUM(NVL(B.PNT_USE_AMT,0)) AS AMT06
+					  ,SUM(NVL(B.PNT_REFUND_SETL_AMT,0)) AS AMT07
+					  ,SUM(NVL(B.PREMI_CUST_PNT_SETL_AMT,0)) AS AMT08
+					  ,SUM(NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT,0)) AS AMT09
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'N',NVL(B.OKCASH_USE_AMT,0),0)) AS AMT10
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'Y',NVL(B.OKCASH_USE_AMT,0),0)) AS AMT11
+					  ,0 AS AMT12
+				  FROM OD_ORDER_MAST A
+					  ,OD_ORDER_ITM B
+				 WHERE A.ORDER_ID = B.ORDER_ID
+				   AND A.APPR_DATE BETWEEN TO_DATE(#searchFromDate#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchToDate#||'235959','YYYYMMDDHH24MISS')
+				   AND B.ORDER_STUS_CD <> 'O01'
+				   AND NVL(B.PNT_USE_AMT,0) + NVL(B.PNT_REFUND_SETL_AMT,0) <> 0
+				 GROUP BY A.ORDER_ID, A.SETL_MEAN_CD
+				 ORDER BY A.ORDER_ID, A.SETL_MEAN_CD
+			)
+			 WHERE 1 = 1
+			]]>
+			<isNotEmpty property="searchSetlMeanCd">
+			   AND SETL_MEAN_CD = #searchSetlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchOrderMdaDivCd">
+			   AND ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND ORDRR_NM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR ORDRR_NM LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY ORDER_ID, SETL_MEAN_CD
+	</select>
+
+	<!-- 포인트 결제 현황보고서 - 우편 포인트 현황 -->
+	<select id="selectPointSetlSttusReportList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT 
+             C.REG_DATE,
+             MAX(C.ORDER_ID) ORDER_ID,
+             MAX(C.ACCESS_NAME) ACCESS_NAME,
+             MAX(C.NAME) ORDRR_NM,
+             NVL(SUM(NVL(D.USE_POINT,0) * 10 ),0) AMT01,
+             NVL(SUM(NVL(D.ACCU_POINT,0) * 10 ),0) AMT02,      
+             '' CREATE_DATE  
+		  FROM (
+				SELECT A.ORDER_ID ,
+                     MAX(A.ACCESS_NAME) ACCESS_NAME, 
+                     MAX(B.NAME) NAME,
+                     A.REG_DATE
+                 FROM MB_MEM_ACCMLAMT_HISTOR A, MEMINFO B
+                 WHERE A.ACCESS_NAME = B.ACCESS_NAME
+						   AND A.REG_DATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+						   AND A.JOBGBN = '01'
+						   AND A.RM_TYPE = 'U'
+						   AND A.CASE_CONT NOT IN ( '우체국계좌 적립포인트' ,'기부','우체국계좌 적립포인트 회수')
+						 GROUP BY order_id,a.reg_date
+						) C, MB_MEM_ACCMLAMT_HISTOR  D
+				WHERE C.ORDER_ID= D.ORDER_ID
+			   GROUP BY C.ORDER_ID,C.REG_DATE
+			]]>			
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR NAME LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY ORDER_ID
+	</select>
+
+	<!-- 포인트 결제 현황보고서 - 생활마트/전통시장 포인트 현황 -->
+	<select id="selectPointSetlSttusReportList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT ORDER_ID
+			  ,SETL_MEAN_CD
+			  ,F_GET_COMN_CD_NM('SETL_MEAN_CD',SETL_MEAN_CD) SETL_MEAN_NM
+			  ,ORDER_MDA_DIV_CD
+			  ,F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', ORDER_MDA_DIV_CD) ORDER_MDA_DIV_NM
+			  ,ORDRR_NM
+			  ,ACCESS_NAME
+			  ,AMT01
+			  ,AMT02
+			  ,REG_DATE
+		  FROM (
+				SELECT A.ORDER_ID
+					  ,MAX(A.SETL_MEAN_CD) SETL_MEAN_CD
+					  ,MAX(A.ORDER_MDA_DIV_CD) ORDER_MDA_DIV_CD
+					  ,MAX(A.ORDRR_NM) ORDRR_NM
+					  ,MAX(A.ACCESS_NAME) ACCESS_NAME
+					  ,NVL(SUM(NVL(B.USE_POINT,0) ),0) AMT01
+					  ,NVL(SUM(NVL(B.ACCU_POINT,0)),0) AMT02
+					  ,B.REG_DATE
+				  FROM OD_ORDER_MAST A
+					  ,MB_MEM_ACCMLAMT_HISTOR B
+				 WHERE A.ORDER_ID = B.ORDER_ID
+				   AND B.REG_DATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND B.TYPE_CD <![CDATA[<>]]> 'A1'
+				   AND B.JOBGBN = '02'
+				<isEqual property="searchPntGbnCd" compareValue="3">
+				   AND ESCROW_GBN = 'GC' /* GC:생활마트  TM:전통시장 */
+				</isEqual>
+				<isEqual property="searchPntGbnCd" compareValue="4">
+				   AND ESCROW_GBN = 'TM' /* GC:생활마트  TM:전통시장 */
+				</isEqual>
+				   AND B.CASE_CONT NOT IN ( '우체국계좌 적립포인트' ,'기부','우체국계좌 적립포인트 회수')
+				 GROUP BY A.ORDER_ID, B.REG_DATE
+			)
+			 WHERE 1 = 1
+			<isNotEmpty property="searchSetlMeanCd">
+			   AND SETL_MEAN_CD = #searchSetlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchOrderMdaDivCd">
+			   AND ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND ORDRR_NM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR ORDRR_NM LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY ORDER_ID, SETL_MEAN_CD
+	</select>
+
+	<!-- 포인트 결제 현황보고서 - 결손 포인트 현황 -->
+	<select id="selectPointSetlSttusReportList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT ORDER_ID
+			  ,SETL_MEAN_CD
+			  ,F_GET_COMN_CD_NM('SETL_MEAN_CD',SETL_MEAN_CD) SETL_MEAN_NM
+			  ,ORDER_MDA_DIV_CD
+			  ,F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', ORDER_MDA_DIV_CD) ORDER_MDA_DIV_NM
+			  ,ORDRR_NM
+			  ,ACCESS_NAME
+			  ,AMT01
+			  ,AMT02
+			  ,AMT03
+			  ,AMT04
+			  ,AMT05
+			  ,AMT06
+			  ,AMT07
+			  ,AMT08
+			  ,AMT09
+			  ,AMT10
+			  ,AMT11
+			  ,AMT12
+			  ,TO_CHAR(TO_DATE(CREATE_DATE, 'YYYY/MM/DD HH24:MI:SS'), 'YYYY/MM/DD HH24:MI:SS') CREATE_DATE
+		  FROM (
+				SELECT A.ORDER_ID
+					  ,A.SETL_MEAN_CD
+					  ,F_GET_COMN_CD_NM('SETL_MEAN_CD',A.SETL_MEAN_CD) SETL_MEAN_NM
+					  ,MAX(A.ORDER_MDA_DIV_CD) ORDER_MDA_DIV_CD
+					  ,MAX(A.ORDRR_NM) ORDRR_NM
+					  ,MAX(A.ACCESS_NAME) ACCESS_NAME
+					  ,SUM(NVL(B.DC_APPLY_PRC,0) + NVL(B.OPTN_GOODS_APPLY_PRC,0)) AMT01
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'N',(B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) - (B.PREMI_CUST_PNT_SETL_AMT + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (B.PNT_USE_AMT + NVL(B.PNT_REFUND_SETL_AMT, 0)) - B.CPN_DC_AMT - NVL(B.OKCASH_USE_AMT,0) - NVL(B.WALLET_SETL_AMT,0),0)) AMT02
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'Y',(B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)) - (B.PREMI_CUST_PNT_SETL_AMT + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (B.PNT_USE_AMT + NVL(B.PNT_REFUND_SETL_AMT, 0)) - B.CPN_DC_AMT - NVL(B.OKCASH_USE_AMT,0) - NVL(B.WALLET_SETL_AMT,0),0)) AMT03
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'N',NVL(B.CPN_DC_AMT,0),0)) AMT04
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'Y',NVL(B.CPN_DC_AMT,0),0)) AMT05
+					  ,SUM(NVL(B.PNT_USE_AMT,0)) AMT06
+					  ,SUM(NVL(B.PNT_REFUND_SETL_AMT,0)) AMT07
+					  ,SUM(NVL(B.PREMI_CUST_PNT_SETL_AMT,0)) AMT08
+					  ,SUM(NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT,0)) AMT09
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'Y',NVL(B.OKCASH_USE_AMT,0),0)) AMT10
+					  ,SUM(DECODE(B.GOODS_CANCEL_YN,'N',NVL(B.OKCASH_USE_AMT,0),0)) AMT11
+					  ,MAX(NVL(C.AMOUNT,0)) AMT12
+					  ,MAX(C.CREATE_DATE) CREATE_DATE
+				  FROM OD_ORDER_MAST A
+					  ,OD_ORDER_ITM B
+					  ,MB_EX_PRICE C
+				 WHERE A.ORDER_ID = B.ORDER_ID
+				   AND A.ORDER_ID = C.ORDER_ID
+				   AND C.CREATE_DATE BETWEEN #searchFromDate#||'000000' AND #searchToDate#||'235959'
+				   AND B.ORDER_STUS_CD <> 'O01'
+				   AND NVL(B.PNT_USE_AMT,0) + NVL(B.PNT_REFUND_SETL_AMT,0) <> 0
+				 GROUP BY A.ORDER_ID, A.SETL_MEAN_CD
+				 ORDER BY A.ORDER_ID, A.SETL_MEAN_CD
+			)
+			 WHERE 1 = 1
+			]]>
+			<isNotEmpty property="searchSetlMeanCd">
+			   AND SETL_MEAN_CD = #searchSetlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchOrderMdaDivCd">
+			   AND ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="searchText">
+				<isEqual property="searchType" compareValue="orderId">
+				   AND ORDER_ID LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="accessName">
+				   AND ACCESS_NAME LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="ordrrName">
+				   AND ORDRR_NM LIKE '%' || #searchText# || '%'
+				</isEqual>
+				<isEmpty property="searchType">
+				   AND ( ORDER_ID LIKE '%' || #searchText# || '%'
+				 		OR ACCESS_NAME LIKE '%' || #searchText# || '%'
+				 		OR ORDRR_NM LIKE '%' || #searchText# || '%' )
+				</isEmpty>
+			</isNotEmpty>
+			 ORDER BY ORDER_ID, SETL_MEAN_CD
+	</select>
+</sqlMap>

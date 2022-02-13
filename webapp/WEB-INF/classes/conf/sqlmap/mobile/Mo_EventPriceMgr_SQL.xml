@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="MO.Event">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT	*
+		FROM	(SELECT	A.*,
+						ROWNUM  AS RNUM
+				 FROM	(
+		]]>
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+						) A
+				 WHERE	ROWNUM <= #lastIndex#
+				)
+		WHERE	RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 기존 전시 목록조회 : sDspyList -->
+	<select id="sDspyList" resultClass="commMap">
+		SELECT	COMN_CD_ID AS CODE, COMN_CD_NM AS NAME
+		FROM	CM_COMN_CD
+		WHERE	CD_GRP_ID = 'PAVLN_DIV_CD'
+		ORDER BY COMN_CD_ID ASC
+	</select>
+
+	<!-- 카테고리 조회 : sCategoryTreeChild -->
+	<select id="sCategoryTreeChild" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT	A.CTGRY_NM AS ctgrynm
+					,A.CTGRY_LEVEL AS depth
+			        ,B.leaf AS leaf
+			        ,A.CTGRY_CD as ctgrycd
+			        ,A.PAVLN_DIV_CD as marketIndex
+			        ,A.CTGRY_DESC as ctgrydesc
+			        ,A.HRNK_CTGRY_CD as hrnkctgrycd
+			        ,A.USE_YN as useyn
+			        ,A.SORT_ORDER as noticsortorder
+			        ,A.PN_CTGRY_CD as pnctgrycd
+			        ,A.REG_DATE as regdate
+			        ,A.CHG_DATE as chgdate
+			        ,A.REGER_ID as regerid
+			        ,A.CHGER_ID as chgerid
+			FROM	GD_CTGRY_MAST A
+					,(SELECT CONNECT_BY_ISLEAF AS LEAF, CTGRY_CD
+			          FROM	 GD_CTGRY_MAST
+			          WHERE	 1=1
+			          START WITH HRNK_CTGRY_CD = #ctgrycd#
+			          CONNECT BY PRIOR CTGRY_CD = HRNK_CTGRY_CD) B
+			WHERE	A.CTGRY_CD = B.CTGRY_CD
+			AND		A.HRNK_CTGRY_CD = #ctgrycd#
+	    ]]>
+		<isNotEmpty property="marketIndex">
+			AND		STR_DIV_CD = #marketIndex#
+		</isNotEmpty>
+			ORDER BY SORT_ORDER
+	</select>
+
+    <!-- 템플릿 목록조회 : sTemplList -->
+	<select id="sTemplList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	TEMPL_SEQ AS CODE, TEMPL_NM AS NAME
+		FROM	DP_DSPY_TEMPL
+		WHERE	USE_YN = 'Y'
+	</select>
+
+	<!-- 템플릿 경로조회 : sTemplPrevLoImg-->
+	<select id="sTemplPrevLoImg" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT	REPLACE(FILE_STRE_PATH, '\')||'/'||STRE_FILE_NM||'.'||FILE_EXTNER AS FILENAME, ORIG_FILE_NM AS ORIGFILENM
+			FROM	CM_FILE_MGT
+		]]>
+		<isNotEmpty property="attchfileId">
+			WHERE	ATTCHFILE_ID IN (#attchfileId#)
+		</isNotEmpty>
+	</select>
+
+    <!-- 모바일특가 템플릿 시퀀스 조회 : sMospTemplSeq -->
+   	<select id="sMospTemplSeq" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SEQ_TEMPL_SEQ.NEXTVAL AS TEMPL_SEQ FROM DUAL
+		]]>
+	</select>
+
+    <!-- 모바일특가 템플릿 등록 or 업데이트 : iMospTempl -->
+	<insert id="iMospTempl" parameterClass="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO DP_DSPY_TEMPL T1
+				USING (	SELECT	#templSeq#			AS TEMPL_SEQ			/* 템플릿일련번호 */
+			            		,#templNm#			AS TEMPL_NM				/* 템플릿명 */
+			                    ,#templDesc#		AS TEMPL_DESC			/* 템플릿 설명*/
+			                    ,#templDivCd#		AS TEMPL_DIV_CD			/* 템플릿 구분코드templDivCd */
+			                    ,#useYn#			AS USE_YN				/* 사용여부 */
+			                    ,SYSDATE			AS REG_DATE				/* 등록일시 */
+			                    ,SYSDATE			AS CHG_DATE				/* 수정일시 */
+			                    ,#regerId#			AS REGER_ID				/* 등록자 아이디 */
+			                    ,#chgerId#			AS CHGER_ID				/* 수정자 아이디 */
+			                    ,#templImgWidth#	AS TEMPL_IMG_WIDTH		/* 이미지 가로 크기 */
+			                    ,#templImgHeight#	AS TEMPL_IMG_HEIGHT		/* 이미지 세로 크기 */
+			                    ,#templImgNum#		AS TEMPL_IMG_NUM		/* 이미지 진열 수 */
+						FROM	DUAL) T2
+					ON (T1.TEMPL_SEQ = T2.TEMPL_SEQ)
+			    WHEN MATCHED THEN
+			    	UPDATE
+			        SET		T1.TEMPL_NM			= T2.TEMPL_NM
+			        		,T1.TEMPL_DESC		= T2.TEMPL_DESC
+			                ,T1.TEMPL_DIV_CD	= T2.TEMPL_DIV_CD
+			                ,T1.USE_YN			= T2.USE_YN
+			                ,T1.CHGER_ID		= T2.CHGER_ID
+			                ,T1.CHG_DATE		= SYSDATE
+			                ,T1.TEMPL_IMG_WIDTH	= T2.TEMPL_IMG_WIDTH
+			                ,T1.TEMPL_IMG_HEIGHT= T2.TEMPL_IMG_HEIGHT
+			                ,T1.TEMPL_IMG_NUM	= T2.TEMPL_IMG_NUM
+				WHEN NOT MATCHED THEN
+			    	INSERT (T1.TEMPL_SEQ, T1.TEMPL_NM, T1.TEMPL_DESC, T1.TEMPL_DIV_CD
+			                ,T1.USE_YN, T1.REG_DATE, T1.REGER_ID, T1.TEMPL_IMG_WIDTH
+			                ,T1.TEMPL_IMG_HEIGHT, T1.TEMPL_IMG_NUM
+			        ) VALUES (T2.TEMPL_SEQ, T2.TEMPL_NM, T2.TEMPL_DESC, T2.TEMPL_DIV_CD
+			                ,T2.USE_YN, T2.REG_DATE, T2.REGER_ID, T2.TEMPL_IMG_WIDTH
+			                ,T2.TEMPL_IMG_HEIGHT, T2.TEMPL_IMG_NUM
+					) 
+		]]>
+	</insert>
+
+	<!-- 모바일특가 템플릿 삭제 : uMospTempl -->
+	<update id="uMospTempl" parameterClass="java.util.HashMap">
+		UPDATE	DP_DSPY_TEMPL
+		SET		USE_YN = 'N'
+		WHERE	TEMPL_SEQ = #templSeq#
+	</update>
+    
+    <!-- 모바일특가 템플릿 미리보기 : sMospTemplPrev -->
+	<select id="sMospTemplPrev" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT	TEMPL_SEQ			/* 템플릿 일련번호 */
+					,TEMPL_DESC			/* 템플릿 설명 */
+					,TEMPL_DIV_CD		/* 템플릿 구분 코드 */
+					,USE_YN				/* 사용 여부 */
+					,REG_DATE			/* 등록 일시 */
+					,CHG_DATE			/* 수정 일시 */
+					,REGER_ID			/* 등록자 */
+					,CHGER_ID			/* 수정자 */
+					,TEMPL_IMG_WIDTH	/* 진열상품 넓이 */
+					,TEMPL_IMG_HEIGHT	/* 진열상품 높이 */
+					,TEMPL_IMG_NUM		/* 진열 상품 진열수 */
+			FROM	DP_DSPY_TEMPL
+			WHERE	TEMPL_SEQ = #templSeq#
+		]]>
+	</select>
+
+	<!-- 모바일특가 템플릿 미리보기 이미지 경로 : sMospTemplPrevLoImg -->
+	<select id="sMospTemplPrevLoImg" parameterClass="map" resultClass="commMap">
+		<![CDATA[
+			SELECT	T2.ORIG_FILE_NM, REPLACE(T2.FILE_STRE_PATH, '\')||'/'||T2.STRE_FILE_NM||'.'||T2.FILE_EXTNER AS FILE_FULL_NAME
+			FROM	GD_GOODS_IMAGE T1, CM_FILE_MGT T2
+			WHERE	T1.REPRSNT_IMAGE = T2.ATTCHFILE_ID
+		]]>
+		<isNotEmpty property="goodsArr" prepend="AND">
+			<iterate property="goodsArr" open="(" close=")" conjunction="OR">
+				(T1.GOODS_CD = #goodsArr[]#)
+			</iterate>
+		</isNotEmpty>
+	</select>
+
+    <!-- 모바일특가 상태별 조회 : sMospStateCnt -->
+	<select id="sMospStateCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(1) AS CNT
+        FROM	DP_DSPY_MAST
+        WHERE	DSPY_TYP_CD = '70'
+		<isNotEmpty property="stateCd">
+		AND		DSPY_STUS_CD = #stateCd#
+		</isNotEmpty>
+	</select>
+
+	<!-- 모바일특가 목록조회 : sMospList -->
+    <select id="sMospList" resultClass="commMap">
+		<include refid="pagingHeader"/>	
+			<![CDATA[
+    			SELECT	T1.PAVLN_DIV_CD																					/* 전시관 분류 코드(27:모바일 특가) */
+                		,T1.DSPY_SEQ																					/* 전시 일련번호 */
+                        ,T1.MOSP_ID																						/* 모바일특가 ID */
+                        ,T1.TEMPL_SEQ																					/* 템플릿 일련번호 */
+						,(SELECT COMN_CD_NM
+						  FROM	 CM_COMN_CD
+						  WHERE	 CD_GRP_ID = 'PAVLN_DIV_CD'
+						  AND	 COMN_CD_ID = T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM											/* 전시관 명 */
+						,T1.MOSP_NM																						/* 모바일특가 명 */
+						,(SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ=T1.TEMPL_SEQ) AS TEMPL_NM					/* 템플릿 명 */
+						,DECODE(T1.USE_YN, 'Y','예','아니오') AS USE_YN_NM												/* 사용여부 */
+						,T1.LINK_BANNER_IMAGE																			/* 링크이미지 배너 */
+						,T1.USE_YN																						/* 사용 여부 */
+                        ,TO_CHAR(T1.MOSP_STRT_DATE,'YYYY-MM-DD HH24:MI:SS') AS MOSP_STRT_DATE							/* 모바일특가 시작 일시 */
+                        ,TO_CHAR(T1.MOSP_END_DATE,'YYYY-MM-DD HH24:MI:SS') AS MOSP_END_DATE								/* 모바일특가 종료 일시 */
+                        ,DECODE(T2.DSPY_STUS_CD,'10','진행대기','20','진행중','30','일시중지','종료') AS DSPY_STUS_CD	/* 모바일특가 상태(10:진행대기, 20:진행중, 30:일시중지, 40:종료) */
+                        ,T1.CHGER_ID																					/* 최종 수정 ID */
+                        ,TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') AS CHG_DATE										/* 최종 수정일자 */
+				FROM	EV_MOSP_MAST T1, DP_DSPY_MAST T2
+                WHERE	T1.DSPY_SEQ = T2.DSPY_SEQ
+                AND		T2.DSPY_TYP_CD = '70'																			/* 전시 타입코드(50:모바일 이벤트전, 60:모바일 기획전, 70:모바일 특가) */
+            ]]>
+            <isNotEmpty property="dspyStusCd">
+               	AND		T2.DSPY_STUS_CD = #dspyStusCd#																	/* 이벤트 상태 */
+			</isNotEmpty>
+			<isNotEmpty property="schMospId">
+				AND		T1.MOSP_ID = #schPlnbefId#																		/* 모바일특가 코드 */
+			</isNotEmpty>
+			<isNotEmpty property="schMospNm">
+				AND		T1.MOSP_NM LIKE '%'||#schPlnbefNm#||'%'															/* 모바일특가 명칭 */
+			</isNotEmpty>
+			<isNotEmpty property="rdoUseYn">
+				AND		T1.USE_YN = #rdoUseYn#																			/* 사용여부 */
+			</isNotEmpty>
+			<isNotEmpty property="rdoImgYn">
+				AND		T1.LINK_BANNER_IMAGE IS NOT NULL																/* 배너 유무 */
+			</isNotEmpty>
+            <isNotEmpty property="calPlnbefStrtDate">
+            	AND		(TO_CHAR(T1.MOSP_STRT_DATE,'YYYY-MM-DD') BETWEEN #calPlnbefStrtDate# AND #calPlnbefEndDate#		/* 모바일 특가 시작-종료 일자로 검색 */ 
+                		 OR TO_CHAR(T1.MOSP_END_DATE,'YYYY-MM-DD') BETWEEN #calPlnbefStrtDate# AND #calPlnbefEndDate#)
+            </isNotEmpty>
+        <include refid="pagingFooter"/>
+    </select>
+    
+	<!-- 모바일특가 목록건수 : sMospListCnt -->
+	<select id="sMospListCnt" parameterClass="java.util.HashMap" resultClass="int">
+    	SELECT	COUNT(1) AS CNT
+    	FROM	EV_MOSP_MAST T1, DP_DSPY_MAST T2
+    	WHERE	T1.DSPY_SEQ = T2.DSPY_SEQ
+        AND		T2.DSPY_TYP_CD = '70'																				/* 전시 타입코드(50:모바일 이벤트전, 60:모바일 기획전, 70:모바일 특가) */
+		<isNotEmpty property="dspyStusCd">
+			AND		T2.DSPY_STUS_CD = #dspyStusCd#																	/* 이벤트 상태 */
+		</isNotEmpty>
+		<isNotEmpty property="schMospId">
+			AND		T1.MOSP_ID = #schPlnbefId#																		/* 모바일특가 코드 */
+		</isNotEmpty>
+		<isNotEmpty property="schMospNm">
+			AND		T1.MOSP_NM LIKE '%'||#schPlnbefNm#||'%'															/* 모바일특가 명칭 */
+		</isNotEmpty>
+		<isNotEmpty property="rdoUseYn">
+			AND		T1.USE_YN = #rdoUseYn#																			/* 사용여부 */
+		</isNotEmpty>
+		<isNotEmpty property="rdoImgYn">
+			AND		T1.LINK_BANNER_IMAGE IS NOT NULL																/* 배너 유무 */
+		</isNotEmpty>
+		<isNotEmpty property="calPlnbefStrtDate">
+           	AND		(TO_CHAR(T1.MOSP_STRT_DATE,'YYYY-MM-DD') BETWEEN #calPlnbefStrtDate# AND #calPlnbefEndDate#		/* 모바일 특가 시작-종료 일자로 검색 */ 
+               		 OR TO_CHAR(T1.MOSP_END_DATE,'YYYY-MM-DD') BETWEEN #calPlnbefStrtDate# AND #calPlnbefEndDate#)
+		</isNotEmpty>
+	</select>
+
+    <!-- 모바일특가 상세조회 : sMospDtlList -->
+	<select id="sMospDtlList" parameterClass="java.util.HashMap" resultClass="commMap">		
+		<![CDATA[
+			SELECT	MOSP_ID
+					,DSPY_SEQ
+			        ,(SELECT COMN_CD_NM
+			          FROM	 CM_COMN_CD
+			          WHERE	 CD_GRP_ID = 'PAVLN_DIV_CD'
+			          AND	 COMN_CD_ID = T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM											/* 전시관명 */
+			        ,(SELECT DSPY_STUS_CD
+			          FROM	 DP_DSPY_MAST T2
+			          WHERE	 T1.DSPY_SEQ = T2.DSPY_SEQ) AS DSPY_STUS_CD												/* 이벤트 진행 상태 */
+			        ,PAVLN_DIV_CD
+			        ,MOSP_NM
+			        ,TO_CHAR(MOSP_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ALL_MOSP_STRT_DATE
+			        ,TO_CHAR(MOSP_STRT_DATE, 'YYYYMMDD') AS MOSP_STRT_DATE
+			        ,TO_CHAR(MOSP_STRT_DATE, 'HH24') AS FR_TM
+			        ,TO_CHAR(MOSP_STRT_DATE, 'MI') AS FR_MN
+			        ,TO_CHAR(MOSP_END_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ALL_MOSP_END_DATE
+			        ,TO_CHAR(MOSP_END_DATE, 'YYYYMMDD') AS MOSP_END_DATE
+			        ,TO_CHAR(MOSP_END_DATE, 'HH24') AS TO_TM
+			        ,TO_CHAR(MOSP_END_DATE, 'MI') AS TO_MN
+			        ,USE_YN
+			        ,TEMPL_SEQ
+			        ,(SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ=T1.TEMPL_SEQ) AS TEMPL_NM
+			        ,(SELECT ITM_VIEW_CNT FROM DP_DSPY_TEMPL_ITM WHERE TEMPL_SEQ=T1.TEMPL_SEQ) AS TEMPL_IMG_NUM	/* 이미지 진열수 */
+			FROM	EV_MOSP_MAST T1
+			WHERE	MOSP_ID = #mospId#
+		]]>
+	</select>
+
+    <!-- 모바일특가 상세상품조회 : sMospDtlGoodsList -->
+    <select id="sMospDtlGoodsList" parameterClass="java.util.HashMap" resultClass="commMap">
+    	<![CDATA[
+			SELECT	T1.MOSP_ID																						/* 모바일특가 ID */
+					,T1.DSPY_SEQ																					/* 전시일련번호 */
+			        ,T2.GOODS_CD																					/* 상품코드 */
+			        ,T3.GOODS_NM																					/* 상품명 */
+			        ,T6.DSPY_STUS_CD																				/* 기획전 상태 1:진행대기 2:진행중 3:일시중지 4:종료 */
+			        ,(SELECT BCNC_NM
+			          FROM	 CO_SUPP_COMP_MAST S1
+			          WHERE	 S1.SUPP_COMP_ID = T3.SUPP_COMP_ID) AS SUPP_COMP_NM										/* 공급 업체 명 */
+			        ,T3.CNSMR_PRC																					/* 판매가  */
+			        ,T2.DSPY_SPOT_CD																				/* 전시위치 */
+			        ,T2.FIXAMT_DC																					/* 정액 할인_행사가 */
+			        ,T2.DC_APPLY_PRC																				/* 할인 적용가 */
+			        ,T2.DC_APPLY_PRC AS EVENT_PRC																	/* 할인 적용가(조회용) */
+			        ,T1.TEMPL_SEQ																					/* 템플릿 일련번호 */
+			        ,T5.ATTCHFILE_ID																				/* 첨부파일 ID */
+			        ,T5.ORIG_FILE_NM																				/* 원본 파일명 */
+			        ,REPLACE(T5.FILE_STRE_PATH,'\')||'/'||T5.STRE_FILE_NM||'.'||T5.FILE_EXTNER AS FILE_FULL_NAME	/* 이미지 경로 */
+			FROM	EV_MOSP_MAST T1
+					,EV_MOSP_GOODS T2
+			        ,GD_GOODS_MAST T3
+			        ,GD_GOODS_IMAGE T4                      /* 상품 이미지 정보 테이블 */
+			        ,CM_FILE_MGT T5                         /* 이미지 업로드 정보 테이블 */
+			        ,DP_DSPY_MAST T6                        /* 전시 마스터 테이블 */
+			WHERE	T1.MOSP_ID = T2.MOSP_ID
+			AND		T1.DSPY_SEQ = T2.DSPY_SEQ
+			AND		T1.DSPY_SEQ = T6.DSPY_SEQ
+			AND		T2.GOODS_CD = T3.GOODS_CD
+			AND		T3.GOODS_CD = T4.GOODS_CD
+			AND		T4.REPRSNT_IMAGE = T5.ATTCHFILE_ID
+			AND		T1.MOSP_ID = #mospId#
+    	]]>
+    	   ORDER BY T2.ONUM DESC
+    	
+    </select>
+
+	<!-- 모바일특가 신규저장 mospId 시퀀스 조회 : sMospMastKey -->
+	<select id="sMospMastKey" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SEQ_MOSP_ID.NEXTVAL AS MOSP_ID FROM DUAL
+		]]>
+	</select>
+
+    <!-- 모바일특가 등록 or 업데이트 : iMospDtl -->
+	<insert id="iMosp" parameterClass="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO EV_MOSP_MAST T1
+				USING (
+			    		SELECT	#mospId# AS MOSP_ID															/* 기획전 ID */
+			            		,#dspySeq# AS DSPY_SEQ														/* 전시 일련번호 */
+			                    ,#lstPavlnDivId# AS PAVLN_DIV_CD											/* 전시관 ID */
+			                    ,#txMospNm# AS MOSP_NM														/* 모바일특가 명 */
+			                    ,#calPlnbefStrtDate#||#txFrTm#||#txFrMn#||'00' AS MOSP_STRT_DATE			/* 모바일특가 시작 일시 */
+			                    ,#calPlnbefEndDate#||#txToTm#||#txToMn#||'59' AS MOSP_END_DATE				/* 모바일특가 종료 일시 */
+			                    ,#templSeq# AS TEMPL_SEQ													/* 템플릿 일련번호 */
+			                    ,#rdoUseYn# AS USE_YN														/* 사용 여부 */
+			                    ,#regerId# AS REGER_ID														/* 등록자 아이디 */
+			                    ,#chgerId# AS CHGER_ID														/* 수정자 아이디 */
+						FROM	DUAL) T2
+			    	ON (T1.MOSP_ID = T2.MOSP_ID)
+				WHEN MATCHED THEN
+			    	UPDATE
+			        SET		T1.MOSP_NM = T2.MOSP_NM
+			        		,T1.DSPY_SEQ = T2.DSPY_SEQ
+			                ,T1.PAVLN_DIV_CD = T2.PAVLN_DIV_CD
+			                ,T1.MOSP_STRT_DATE = TO_DATE(T2.MOSP_STRT_DATE,'YYYYMMDDHH24MISS')
+			                ,T1.MOSP_END_DATE = TO_DATE(T2.MOSP_END_DATE,'YYYYMMDDHH24MISS')
+			                ,T1.TEMPL_SEQ = T2.TEMPL_SEQ
+			                ,T1.USE_YN = T2.USE_YN
+			                ,T1.CHGER_ID = T2.CHGER_ID
+			    WHEN NOT MATCHED THEN
+			    	INSERT(T1.MOSP_ID
+			        		,T1.DSPY_SEQ
+			                ,T1.PAVLN_DIV_CD
+			                ,T1.MOSP_NM
+			                ,T1.MOSP_STRT_DATE
+			                ,T1.MOSP_END_DATE
+			                ,T1.TEMPL_SEQ
+			                ,T1.USE_YN
+			                ,T1.REG_DATE
+			                ,T1.CHG_DATE
+			                ,T1.REGER_ID
+			                ,T1.CHGER_ID
+			                ,T1.DEL_YN
+			        )VALUES(T2.MOSP_ID
+			        		,T2.DSPY_SEQ
+			                ,T2.PAVLN_DIV_CD
+			                ,T2.MOSP_NM
+			                ,TO_DATE(T2.MOSP_STRT_DATE,'YYYYMMDDHH24MISS')
+			                ,TO_DATE(T2.MOSP_END_DATE,'YYYYMMDDHH24MISS')
+			                ,T2.TEMPL_SEQ
+			                ,T2.USE_YN
+			                ,SYSDATE
+			                ,SYSDATE
+			                ,T2.REGER_ID
+			                ,T2.CHGER_ID
+			                ,'N'
+			        ) 
+		]]>
+	</insert>
+
+	<!-- 모바일특가 전시 등록 or 업데이트 : iMospDspy -->
+	<insert id="iMospDspy" parameterClass="java.util.HashMap">
+		<![CDATA[
+			MERGE INTO DP_DSPY_MAST T1
+				USING (
+			    		SELECT	#dspySeq# AS DSPY_SEQ										/* 전시 일련번호   */
+			            		,#dspyStrtDate#||#txFrTm#||#txFrMn#||'00' AS DSPY_STRT_DATE	/* 전시 시작 일시  */
+			                    ,#dspyEndDate#||#txToTm#||#txToMn#||'59' AS DSPY_END_DATE	/* 전시 종료 일시  */
+			                    ,#useYn# AS USE_YN											/* 사용 여부       */
+			                    ,#dspyNm# AS DSPY_NM										/* 전시 명         */
+			                    ,#templSeq# AS TEMPL_SEQ									/* 템플릿 일련번호 */
+			                    ,#regerId# AS REGER_ID										/* 등록자 아이디   */
+			                    ,#chgerId# AS CHGER_ID										/* 수정자 아이디   */
+			                    ,#dspyStusCd# AS DSPY_STUS_CD								/* 진행상태 10:진행대기 20:진행중 30:일시중지 40:종료 */
+						FROM	DUAL) T2
+			    	ON (T1.DSPY_SEQ = T2.DSPY_SEQ)
+			    WHEN MATCHED THEN
+			    	UPDATE
+			        SET		DSPY_STRT_DATE = TO_DATE(T2.DSPY_STRT_DATE,'YYYYMMDDHH24MISS')
+			        		,DSPY_END_DATE = TO_DATE(T2.DSPY_END_DATE,'YYYYMMDDHH24MISS')
+			                ,USE_YN = #useYn#
+			                ,DSPY_NM = #dspyNm#
+			                ,TEMPL_SEQ = #templSeq#
+			                ,CHG_DATE = SYSDATE
+			                ,CHGER_ID = #chgerId#
+			                ,DSPY_STUS_CD = #dspyStusCd#
+				WHEN NOT MATCHED THEN
+			    	INSERT(T1.DSPY_SEQ
+			        		,T1.CONTS_DIV_CD
+			                ,T1.DSPY_TYP_CD
+			                ,T1.DSPY_STRT_DATE
+			                ,T1.DSPY_END_DATE
+			                ,T1.DSPY_STUS_CD
+			                ,T1.USE_YN
+			                ,T1.DSPY_NM
+			                ,T1.TEMPL_SEQ
+			                ,T1.REG_DATE
+			                ,T1.CHG_DATE
+			                ,T1.REGER_ID
+			                ,T1.CHGER_ID
+			                ,T1.DEL_YN
+			        )VALUES(T2.DSPY_SEQ
+			        		,''
+			                ,'70'
+			                ,TO_DATE(T2.DSPY_STRT_DATE,'YYYYMMDDHH24MISS')
+			                ,TO_DATE(T2.DSPY_END_DATE ,'YYYYMMDDHH24MISS')
+			                ,T2.DSPY_STUS_CD
+			                ,T2.USE_YN
+			                ,T2.DSPY_NM
+			                ,T2.TEMPL_SEQ
+			                ,SYSDATE
+			                ,SYSDATE
+			                ,T2.REGER_ID
+			                ,T2.CHGER_ID
+			                ,'N'
+			        )
+		]]>
+	</insert>
+
+	<!-- 모바일특가 상품삭제 : dMospGoods -->
+	<delete id="dMospGoods" parameterClass="java.util.HashMap">
+		DELETE FROM EV_MOSP_GOODS
+		WHERE MOSP_ID = #mospId#
+	</delete>
+
+	<!-- 모바일특가 전시 시퀀스 조회 : sMospDspySeq -->
+	<select id="sMospDspySeq" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SEQ_DSPY_SEQ.NEXTVAL AS DSPY_SEQ FROM DUAL
+		]]>
+	</select>
+
+	<!-- 모바일특가 전시삭제 : dMospDspy -->
+	<delete id="dMospDspy" parameterClass="java.util.HashMap">
+		UPDATE	DP_DSPY_MAST
+		SET		DEL_YN = 'Y'
+		WHERE	DSPY_SEQ = (SELECT DSPY_SEQ FROM EV_MOSP_MAST WHERE MOSP_ID = #mospId#)
+	</delete>
+</sqlMap>

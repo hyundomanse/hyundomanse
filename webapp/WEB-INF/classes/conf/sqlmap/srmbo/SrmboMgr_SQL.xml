@@ -1,0 +1,2125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Srmbo">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 공급업체관리 리스트 조회 -->
+	<select id="selectSupplyMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM (
+				SELECT	ROW_NUMBER () OVER (ORDER BY A.REG_DATE DESC NULLS LAST) RNUM
+						,A.SUPP_COMP_DIV_CD
+						,F_GET_COMN_CD_NM('SUPP_COMP_DIV_CD',A.SUPP_COMP_DIV_CD) AS SUPP_COMP_DIV_CD_NM
+						,(SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='RCO_CD' AND COMN_CD_ID= (   SELECT  RCOCD  FROM PICMT0060 where  REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' and rownum = 1)) AS RCONM
+						,(SELECT PONM FROM PICMT0060 WHERE REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN='Y' and DSCDPOYN = 'N'  and rownum = 1   )  AS POSTNAME
+						,(SELECT PONM FROM PICMT0060 WHERE  REGIPOCD = (SELECT HRNKORREGIPOCD FROM PICMT0060 WHERE REGIPOCD = A.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1)  AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1  ) AS POSTOFFICE
+						,A.PO_ECODE
+						,A.BCNC_NM
+						,A.SUPP_COMP_ID
+						,A.PRSDT_NM
+						,A.COMPREG_NO
+						,A.CNTRAC_REQ_YMD
+						,A.ENTRPS
+						,A.INDUTY
+						,A.TELNO
+						,A.FAXNO
+						,A.ADDR1
+						,A.PRSDT_MOBILE_NO
+						,A.CNTRAC_DSUSE_YMD
+						,A.CNTRAC_STOP_END_YMD
+						,B.SUPP_COMP_STUS_CD
+						,F_GET_COMN_CD_NM('SUPP_COMP_STUS_CD',B.SUPP_COMP_STUS_CD) AS SUPP_COMP_STUS_NM
+						,A.CNTRAC_STOP_REASN
+						,A.REGER_ID
+						,A.REG_DATE
+						,A.CHGER_ID
+						,A.CHG_DATE
+						,B.PAVLN_DIV_CD
+						,F_GET_COMN_CD_NM('PAVLN_DIV_CD',B.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+				FROM CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+				WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+				<!-- 매장구분 -->
+				<isNotEmpty property="pavlnDivCd">
+					AND B.PAVLN_DIV_CD = #pavlnDivCd#
+				</isNotEmpty>
+				<!-- 계약상태 -->
+				<isNotEmpty property="cntracStusCd">
+					AND B.SUPP_COMP_STUS_CD = #cntracStusCd#
+				</isNotEmpty>
+				<!-- 청별 -->
+				<isNotEmpty property="postname">
+					AND A.SUPPO_RGIST_POCD IN (
+											SELECT REGIPOCD
+											FROM PICMT0060
+											WHERE RCOCD = #postname#
+											AND USEYN='Y'
+												<isNotEmpty property="postoffice">
+													AND MPOREGIPOCD = #postoffice#
+												</isNotEmpty>
+											)
+				</isNotEmpty>
+				<!-- 검색구분 -->
+				<isNotEmpty property="searchTxt">
+					<isEqual property="searchType" compareValue="01">
+						AND A.BCNC_NM LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="02">
+						AND A.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+				</isNotEmpty>
+			)
+		<isNotEmpty property="firstIndex">
+			<isNotEmpty property="lastIndex">
+		WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+			</isNotEmpty>
+		</isNotEmpty>
+	</select>
+
+	<!-- 공급업체관리 리스트 카운트 -->
+	<select id="selectSupplyMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+		WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+			<!-- 매장구분 -->
+			<isNotEmpty property="pavlnDivCd">
+				AND B.PAVLN_DIV_CD = #pavlnDivCd#
+			</isNotEmpty>
+			<!-- 계약상태 -->
+			<isNotEmpty property="cntracStusCd">
+				AND B.SUPP_COMP_STUS_CD = #cntracStusCd#
+			</isNotEmpty>
+				<!-- 청별 -->
+				<isNotEmpty property="postname">
+					AND A.SUPPO_RGIST_POCD IN (
+											SELECT REGIPOCD
+											FROM PICMT0060
+											WHERE RCOCD = #postname#
+											AND USEYN='Y'
+												<isNotEmpty property="postoffice">
+													AND MPOREGIPOCD = #postoffice#
+												</isNotEmpty>
+											)
+				</isNotEmpty>
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="01">
+					AND A.BCNC_NM LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="02">
+					AND A.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+			</isNotEmpty>
+	</select>
+	<!-- 공급업체전시관 리스트 조회 -->
+	<select id="selectSuppCompPavlnDivCdList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+ 		SELECT T2.CD_GRP_ID
+		     , T2.COMN_CD_ID AS value
+		     , T2.COMN_CD_NM AS name
+		  FROM CM_COMN_CD_GRP T1
+		     , CM_COMN_CD T2
+		 WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+		   AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'
+		   AND COMN_CD_ID &lt; 10
+		   AND COMN_CD_ID NOT IN (06,07,09)
+		 ORDER BY T2.SORT_ORDER ASC
+	</select>
+	<!-- 공급업체분류 코드 리스트 조회 -->
+	<select id="selectSuppCompDivCdList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	COMN_CD_ID VALUE
+				,COMN_CD_NM NAME
+		FROM	CM_COMN_CD
+		WHERE	CD_GRP_ID = 'SUPP_COMP_DIV_CD'
+		AND 	COMN_CD_ID IN ('02','03','99')
+	</select>
+	<!-- 고객번호검증 -->
+	<select id="custNoValid" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM PRCTT0040
+		WHERE CUSTNO = #custNo#
+	</select>
+	<!-- 고객검증 및 공급국 조회 -->
+	<select id="custNoValidInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT A.CUSTNO
+				,A.REGIPOCD
+				,B.EDPSCD
+				,B.PONM
+		FROM PRCTT0040 A , PICMT0060 B
+		WHERE CUSTNO = #custNo#
+		AND A.REGIPOCD = B.REGIPOCD
+		AND B.DSCDPOYN = 'N'
+		AND B.USEYN = 'Y'
+		AND ROWNUM = 1
+	</select>
+	<!-- 우체국 택배계약번호 검증, EMS 계약번호 검증 -->
+	<select id="contractNoValid" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT
+				COUNT(*)
+			FROM PRCTT0040
+		WHERE
+		<isNotEmpty property="poHdryCntracNo">
+			CUSTNO = #custNo#
+			AND APPRNO = #poHdryCntracNo#
+		</isNotEmpty>
+		<isNotEmpty property="emsCntracNo">
+			CUSTNO = #custNo#
+			AND APPRNO = #emsCntracNo#
+		</isNotEmpty>
+	</select>
+	<!-- 공급업체 수정 정보 조회 -->
+	<select id="selectSuppCompMastInfo" parameterClass="java.util.HashMap" resultClass="CommMap">
+		SELECT
+				A.SUPP_COMP_ID
+				,A.SUPP_COMP_DIV_CD
+				,A.COMPREG_NO
+				,A.CORP_REG_NO
+				,A.COMM_SELL_RPRT_NO
+				,A.PO_ECODE
+				,A.BCNC_NM
+				,A.TAX_CALDOC_COMP_NM
+				,A.INDUTY
+				,A.ENTRPS
+				,A.PRSDT_NM
+				,A.PRSDT_MOBILE_NO
+				,A.CORP_SSN
+				,A.CUST_NO
+				,A.TAXT_DIV_CD
+				,A.EMAIL
+				,A.TELNO
+				,A.FAXNO
+				,A.ZIPCD
+				,A.ADDR1
+				,A.ADDR2
+				,A.SEND_ZIPCD
+				,A.SEND_ADDR
+				,A.SEND_DTAIL_ADDR
+				,A.SEND_TELNO
+				,A.RETRNGD_DLVY_ZIPCD
+				,A.RETRNGD_DLVY_POSTADDR
+				,A.RETRNGD_DLVY_DTAILADDR
+				,A.PO_HDRY_CNTRAC_NO
+				,A.EMS_CNTRAC_NO
+				,A.ADJ_BANK_CD
+				,F_GET_COMN_CD_NM('BANK_CD',A.ADJ_BANK_CD) ADJ_BANK_CD_NM
+				,A.ADJ_ACC_NO
+				,A.ADJ_DPSTR
+				,A.SUPPO_RGIST_POCD
+				,A.PO_ECODE
+				,(SELECT PONM FROM PICMT0060 WHERE REGIPOCD = A.SUPPO_RGIST_POCD AND DSCDPOYN = 'N' AND USEYN = 'Y')AS PONM
+				,A.BCNC_NM_US
+				,A.BCNC_NM_JP
+				,A.BCNC_NM_CN
+				,A.PRSDT_NM_US
+				,A.PRSDT_NM_JP
+				,A.PRSDT_NM_CN
+				,A.TRMNL_ID
+				,A.CHG_DATE
+				,A.CHGER_ID
+				,A.SEND_MEAN_MBY_DIV_CD
+				,A.HDRYCO_CD
+				,A.CHRGER_NAME
+				,A.CHRGER_MOBILE
+				,A.CHRGER_EMAIL
+				,A.ADJ_CHRG_NM
+				,A.ADJ_CHRG_EMAIL
+				,A.ADJ_CHRG_HP_NO
+				,A.ADJ_CHRG_TEL_NO
+				,A.SHIP_AMT
+				,A.CNTRAC_DSUSE_REASN
+				,A.CNTRAC_STOP_REASN
+				,SUBSTR(A.CNTRAC_STRT_YM,1,4)||'-'||SUBSTR(A.CNTRAC_STRT_YM,5,2) AS CNTRAC_STRT_YM
+				,SUBSTR(A.CNTRAC_DSUSE_YMD,1,4)||'-'||SUBSTR(A.CNTRAC_DSUSE_YMD,5,2)||'-'||SUBSTR(A.CNTRAC_DSUSE_YMD,7,2) AS CNTRAC_DSUSE_YMD
+				,SUBSTR(A.CNTRAC_STOP_STRT_YMD,1,4)||'-'||SUBSTR(A.CNTRAC_STOP_STRT_YMD,5,2)||'-'||SUBSTR(A.CNTRAC_STOP_STRT_YMD,7,2) AS CNTRAC_STOP_STRT_YMD
+				,SUBSTR(A.CNTRAC_STOP_END_YMD,1,4)||'-'||SUBSTR(A.CNTRAC_STOP_END_YMD,5,2)||'-'||SUBSTR(A.CNTRAC_STOP_END_YMD,7,2) AS CNTRAC_STOP_END_YMD
+				,B.BCNC_LOGO_IMAGE_FILE_ID
+				,(SELECT CHG_RSN FROM CO_SUPP_COMP_HISTOR WHERE SUPP_COMP_ID = A.SUPP_COMP_ID AND ROWNUM = 1) AS CHG_RSN /*업체정보변경사유*/
+				,(SELECT FILE_STRE_PATH FROM CM_FILE_MGT WHERE ATTCHFILE_ID = B.BCNC_LOGO_IMAGE_FILE_ID) AS FILE_PATH
+				,(SELECT STRE_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID = B.BCNC_LOGO_IMAGE_FILE_ID) AS STR_FILE_NM
+				,(SELECT ORIG_FILE_NM FROM CM_FILE_MGT WHERE ATTCHFILE_ID = B.BCNC_LOGO_IMAGE_FILE_ID) AS ORI_FILE_NM
+				,A.SUPP_BRAND_NM
+				,A.SUPP_AREA
+		FROM	CO_SUPP_COMP_MAST A
+				,CO_SUPP_COMP_DTAIL_INFO B
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+		AND 	A.SUPP_COMP_ID = #suppCompId#
+	</select>
+	<!-- 공급업체 전시관 조회 -->
+	<select id="selectSuppCompPavlnList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	/* 파일명[파일설명] : SrmboMgr_SQL.xml[공급업체상세-공급업체 전시관 조회] SQL ID : selectSuppCompPavlnList */
+				A.PAVLN_ID
+				,F_GET_COMN_CD_NM('PAVLN_DIV_CD',A.PAVLN_DIV_CD) PAVLN_DIV_CD_NM
+				,A.PAVLN_DIV_CD
+				,F_GET_COMN_CD_NM('SUPP_COMP_STUS_CD',A.SUPP_COMP_STUS_CD) SUPP_COMP_STUS_CD_NM
+				,A.SUPP_COMP_STUS_CD
+				,B.PAVLN_NM
+		FROM	CO_PAVLN_MGT A, CO_PAVLN_MAST B
+		WHERE	A.PAVLN_ID = B.PAVLN_ID
+		AND 	A.SUPP_COMP_ID = #suppCompId#
+	</select>
+	<!-- 공급업체 등록 0_1 공급업체 번호 채번 -->
+	<select id="selectSuppCompId" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT SEQ_CO_SUPP_COMP_ID.NEXTVAL FROM DUAL
+	</select>
+	<!-- 공급업체 ID 중복체크 -->
+	<select id="selectSuppCompIdDup" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(SUPP_COMP_ID)
+		FROM CO_SUPP_COMP_MAST
+		WHERE SUPP_COMP_ID = #suppCompId#
+	</select>
+	<select id="selectNewRegipocd" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT DECODE(#pavlnDivCd#,'02','Z','03','E','05','M')||(MAX(SUBSTR(REGIPOCD,2))+1)
+		FROM PICMT0060
+		WHERE REGIPOCD LIKE DECODE(#pavlnDivCd#,'02','Z','03','E','05','M')||'%'
+	</select>
+	<insert id="insertNewPicmt0060" parameterClass="java.util.HashMap">
+		INSERT INTO PICMT0060
+		(
+			REGIPOCD
+			, POCHGSEQ
+			, HRNKORREGIPOCD
+			, HRNKORPOCHGSEQ
+			, EDPSCD
+			, POSTCD
+			, MPOPOSTCD
+			, RCOCD
+			, DELIVTREATPOYN
+			, CUSTOMTREATYN
+			, POGRADECD
+			, PODIVCD
+			, DSCDPOYN
+			, PONM
+			, ZIPCD
+			, POADDR
+			, POFNO
+			, POMNO
+			, POLNO
+			, BIZFAXFNO
+			, BIZFAXMNO
+			, BIZFAXLNO
+			, XPRTMAILTREATYN
+			, HIGHWGHTTREATYN
+			, SUPEXPTREATYN
+			, MPOIP
+			, LTUPDYMD
+			, MPOREGIPOCD
+			, COMPPOREGIPOCD
+			, USEYN
+			, WORKTYPECD
+			, POSHORTNM
+			, LTUPDCD
+			, FNCTREATYN
+		)VALUES(
+			#suppoRgistPocd#
+			, '1'
+			, ' '
+			, '1'
+			, SUBSTR(#suppCompId#,4,6)
+			, SUBSTR(#suppCompId#,4,6)
+			, ' '
+			, ' '
+			, 'N'
+			, 'N'
+			, 'EE'
+			, ' '
+			, 'N'
+			, #bcncNm2#
+			, #zipcd#
+			, #addr1#||' '||#addr2#
+			, #telno1#
+			, #telno2#
+			, #telno3#
+			, #faxno1#
+			, #faxno2#
+			, #faxno3#
+			, 'N'
+			, 'N'
+			, 'N'
+			, 'N'
+			, TO_CHAR(sysdate, 'YYYYMMDD')
+			, ' '
+			, ' '
+			, 'Y'
+			, 'EE'
+			, #bcncNm3#
+			, 'Y'
+			, 'Y'
+		)
+	</insert>
+
+	<update id="updatePicmt0060" parameterClass="java.util.HashMap">
+		UPDATE PICMT0060
+		SET   POCHGSEQ        =  '1'
+			, HRNKORREGIPOCD  =  ' '
+			, HRNKORPOCHGSEQ  =  '1'
+			, MPOPOSTCD       =  ' '
+			, RCOCD           =  ' '
+			, DELIVTREATPOYN  =  'N'
+			, CUSTOMTREATYN   =  'N'
+			, POGRADECD       =  'EE'
+			, PODIVCD         =  ' '
+			, DSCDPOYN        =  'N'
+			, PONM            =  #bcncNm2#
+			, POADDR          =  #addr1#||' '||#addr2#
+			, POFNO           =  #telno1#
+			, POMNO           =  #telno2#
+			, POLNO           =  #telno3#
+			, BIZFAXFNO       =  #faxno1#
+			, BIZFAXMNO       =  #faxno2#
+			, BIZFAXLNO       =  #faxno3#
+			, XPRTMAILTREATYN =  'N'
+			, HIGHWGHTTREATYN =  'N'
+			, SUPEXPTREATYN   =  'N'
+			, MPOIP           =  'N'
+			, LTUPDYMD        =  TO_CHAR(sysdate, 'YYYYMMDD')
+			, MPOREGIPOCD     =  ' '
+			, COMPPOREGIPOCD  =  ' '
+			, USEYN           =  'Y'
+			, WORKTYPECD      =  'EE'
+			, POSHORTNM       =  #bcncNm3#
+			, LTUPDCD         =  'Y'
+			, FNCTREATYN      =  'Y'
+		WHERE REGIPOCD = #suppoRgistPocd#
+	</update>
+
+	<!-- 공급업체 등록 0_2 우체국 Ecode 조회 -->
+	<select id="selectPoEcode" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT EDPSCD
+		FROM PICMT0060
+		WHERE	REGIPOCD	= #suppoRgistPocd#
+		AND 	USEYN='Y'
+		AND 	DSCDPOYN = 'N'
+	</select>
+	<!-- 공급업체 수정 1_1 공급업체 마스터 수정 -->
+	<insert id="upadteSuppCompMast" parameterClass="java.util.HashMap">
+		UPDATE  CO_SUPP_COMP_MAST
+		SET
+			SUPP_COMP_DIV_CD	= #suppCompDivCd#
+			,COMPREG_NO			= #compregNo1# || #compregNo2# || #compregNo3#
+			,CORP_REG_NO 		= #corpRegNo1# || #corpRegNo2#
+			,COMM_SELL_RPRT_NO	= #commSellRprtNo#
+			,PO_ECODE			= #poEcode#
+			,BCNC_NM			= #bcncNm#
+			,TAX_CALDOC_COMP_NM	= #bcncNm#
+			,INDUTY				= #induty#
+			,ENTRPS				= #entrps#
+			,PRSDT_NM			= #prsdtNm#
+			,PRSDT_MOBILE_NO	= #prsdtMobileNo1# || #prsdtMobileNo2# || #prsdtMobileNo3#
+			,CORP_SSN			= #corpSsn#
+			,CUST_NO 			= #custNo#
+			,TAXT_DIV_CD		= #taxtDivCd#
+			<isNotEmpty property="email1">
+				<isNotEmpty property="email2">
+				,EMAIL				= #email1# ||'@'|| #email2#
+				</isNotEmpty>
+			</isNotEmpty>
+			,TELNO				= #telno1# || #telno2# || #telno3#
+			,FAXNO				= #faxno1# || #faxno2# || #faxno3#
+			,ZIPCD				= #zipcd#
+			,ADDR1				= #addr1#
+			,ADDR2				= #addr2#
+			,SEND_ZIPCD			= #sendZipcd#
+			,SEND_ADDR			= #sendAddr#
+			,SEND_DTAIL_ADDR	= #sendDtailAddr#
+			,SEND_TELNO			= #telno1# || #telno2# || #telno3#
+			,TRMNL_ID			= #trmnlId#
+			,RETRNGD_DLVY_ZIPCD	= 	#retrngdDlvyZipcd#
+			,RETRNGD_DLVY_POSTADDR = #retrngdDlvyPostaddr#
+			,RETRNGD_DLVY_DTAILADDR = #retrngdDlvyDtailaddr#
+			,PO_HDRY_CNTRAC_NO	= #poHdryCntracNo#
+			,EMS_CNTRAC_NO		= #emsCntracNo#
+			<isEqual property="adjAccNoChk" compareValue="Y">
+			,ADJ_BANK_CD 		= #adjBankCd#
+			,ADJ_ACC_NO			= #adjAccNo#
+			,ADJ_DPSTR			= #adjDpstr#
+			</isEqual>
+			,SUPPO_RGIST_POCD	= #suppoRgistPocd#
+			,BCNC_NM_US			= #bcncNmUs#
+			,BCNC_NM_JP			= #bcncNmJp#
+			,BCNC_NM_CN			= #bcncNmCn#
+			,PRSDT_NM_US		= #prsdtNmUs#
+			,PRSDT_NM_JP		= #prsdtNmJp#
+			,PRSDT_NM_CN		= #prsdtNmCn#
+			,CHG_DATE			= SYSDATE
+			,CHGER_ID			= #loginId#
+			,SEND_MEAN_MBY_DIV_CD	= #sendMeanMbyDivCd#
+			<isEqual property="sendMeanMbyDivCd" compareValue="01">
+				,HDRYCO_CD			= ''
+			</isEqual>
+			<isEqual property="sendMeanMbyDivCd" compareValue="02">
+				,HDRYCO_CD			= #hdrycoCd#
+			</isEqual>
+			,CHRGER_NAME		= #chrgerName#
+			,CHRGER_MOBILE		= #chrgerMobile1# || #chrgerMobile2# || #chrgerMobile3#
+			<isNotEmpty property="chrgerEmail1">
+				<isNotEmpty property="chrgerEmail2">
+			,CHRGER_EMAIL		= #chrgerEmail1# ||'@'|| #chrgerEmail2#
+				</isNotEmpty>
+			</isNotEmpty>
+			,ADJ_CHRG_NM		= #adjChrgNm#
+			<isNotEmpty property="adjChrgEmail1">
+				<isNotEmpty property="adjChrgEmail2">
+			,ADJ_CHRG_EMAIL		= #adjChrgEmail1#|| '@' ||#adjChrgEmail2#
+				</isNotEmpty>
+			</isNotEmpty>
+			,ADJ_CHRG_HP_NO		= #adjChrgHpNo1#||#adjChrgHpNo2#||#adjChrgHpNo3#
+			,ADJ_CHRG_TEL_NO	= #adjChrgTelNo1#||#adjChrgTelNo2#||#adjChrgTelNo3#
+			,SHIP_AMT			= REPLACE(#shipAmt#,',','')
+			,CNTRAC_DSUSE_YMD	= REPLACE(#cntracDsuseYmd#,'-','')
+			,CNTRAC_DSUSE_REASN = #cntracStopReasn#
+			,CNTRAC_STOP_END_YMD = REPLACE(#cntracStopEndYmd#,'-','')
+			,CNTRAC_STOP_STRT_YMD = REPLACE(#cntracStopStrtYmd#,'-','')
+			,CNTRAC_STRT_YM = REPLACE(#cntracStrtYm#,'-','')
+			,SUPP_BRAND_NM		= #suppBrandNm#
+			,SUPP_AREA		    = #suppArea#
+		WHERE SUPP_COMP_ID = #suppCompId#
+	</insert>
+	<!-- 공급업체 수정 1_1 공급업체 상품 마스터 수정 공급국 수정-->
+	<update id="updateSuppCompGoodsMgtMast" parameterClass="java.util.HashMap">
+		UPDATE GD_MGT_GOODS_MAST
+		SET 	SUPPO_RGIST_POCD = #suppoRgistPocd#
+				,GOODS_CHG_REASN_CD = '99'
+				,GOODS_CHG_REASN_CONT = '공급국 수정'
+				,CHG_DATE = SYSDATE
+				,CHGER_ID = #loginId#
+		WHERE SUPP_COMP_ID = #suppCompId#
+	</update>
+	<!-- 공급업체 수정 1_1 공급업체 상품 마스터 수정 공급국 수정-->
+	<update id="updateSuppCompGoodsMast" parameterClass="java.util.HashMap">
+		UPDATE GD_GOODS_MAST
+		SET 	SUPPO_RGIST_POCD = #suppoRgistPocd#
+				,GOODS_CHG_REASN_CD = '99'
+				,GOODS_CHG_REASN_CONT = '공급국 수정'
+				,CHG_DATE = SYSDATE
+				,CHGER_ID = #loginId#
+		WHERE SUPP_COMP_ID = #suppCompId#
+	</update>
+	<!-- 공급업체 수정 1_1_2 로고이미지 수정 -->
+	<insert id="upadteSuppLogoImg" parameterClass="java.util.HashMap">
+		MERGE INTO CO_SUPP_COMP_DTAIL_INFO
+		USING DUAL
+		ON (SUPP_COMP_ID = #suppCompId#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				BCNC_LOGO_IMAGE_FILE_ID = #attchfileId#
+				,CHGER_ID				= #loginId#
+				,CHG_DATE				= SYSDATE
+		WHEN NOT MATCHED THEN
+		INSERT(
+				SUPP_COMP_ID
+				,BCNC_LOGO_IMAGE_FILE_ID
+
+			   )
+		VALUES(
+				#suppCompId#
+				,#attchfileId#
+			   )
+	</insert>
+	<!-- 공급업체 수정 1_1_3 로고이미지 삭제 -->
+	<update id="deleteSuppLogoImg1" parameterClass="java.util.HashMap">
+		UPDATE	CO_SUPP_COMP_DTAIL_INFO
+		SET 	BCNC_LOGO_IMAGE_FILE_ID = ''
+				,CHGER_ID				= #loginId#
+				,CHG_DATE				= SYSDATE
+		WHERE	SUPP_COMP_ID			= #suppCompId#
+	</update>
+	<!-- 공급업체 수정 1_1_4 로고이미지 삭제 -->
+	<update id="deleteSuppLogoImg2" parameterClass="java.util.HashMap">
+		DELETE FROM CM_FILE_MGT WHERE ATTCHFILE_ID = #delFileId#
+	</update>
+
+
+	<!-- 공급업체 등록 1_1 공급업체 마스터 등록 -->
+	<insert id="insertSuppCompMast" parameterClass="java.util.HashMap">
+			INSERT INTO CO_SUPP_COMP_MAST
+			(
+				SUPP_COMP_ID
+				,SUPP_COMP_DIV_CD
+				<isNotEmpty property="compregNo1">
+				,COMPREG_NO
+				</isNotEmpty>
+				<isNotEmpty property="corpRegNo1">
+				,CORP_REG_NO
+				</isNotEmpty>
+				,BCNC_NM
+				,TAX_CALDOC_COMP_NM
+				,INDUTY
+				,ENTRPS
+				,PRSDT_NM
+				<isNotEmpty property="prsdtMobileNo1">
+				,PRSDT_MOBILE_NO
+				</isNotEmpty>
+				,CORP_SSN
+				<isNotEmpty property="email1">
+				,EMAIL
+				</isNotEmpty>
+				<isNotEmpty property="telno1">
+				,TELNO
+				</isNotEmpty>
+				<isNotEmpty property="faxno1">
+				,FAXNO
+				</isNotEmpty>
+				,SUPPO_RGIST_POCD
+				,CHRGER_NAME
+				<isNotEmpty property="chrgerMobile1">
+				,CHRGER_MOBILE
+				</isNotEmpty>
+				<isNotEmpty property="chrgerEmail1">
+				,CHRGER_EMAIL
+				</isNotEmpty>
+				,CNTRAC_STRT_YM
+				,PO_ECODE
+				,ZIPCD
+				,ADDR1
+				,ADDR2
+				,SUPP_BRAND_NM
+				,SUPP_AREA
+				,SINCE
+				,REGER_ID
+				,REG_DATE
+				,NATION_CD
+			)
+			VALUES(
+				#suppCompId#
+				,#suppCompDivCd#
+				<isNotEmpty property="compregNo1">
+				,#compregNo1#||#compregNo2#||#compregNo3#
+				</isNotEmpty>
+				<isNotEmpty property="corpRegNo1">
+				,#corpRegNo1#||#corpRegNo2#
+				</isNotEmpty>
+				,#bcncNm#
+				,#bcncNm#
+				,#induty#
+				,#entrps#
+				,#prsdtNm#
+				<isNotEmpty property="prsdtMobileNo1">
+				,#prsdtMobileNo1#||#prsdtMobileNo2#||#prsdtMobileNo3#
+				</isNotEmpty>
+				,#corpSsn#
+				<isNotEmpty property="email1">
+				,#email1#||'@'||#email2#
+				</isNotEmpty>
+				<isNotEmpty property="telno1">
+				,#telno1#||#telno2#||#telno3#
+				</isNotEmpty>
+				<isNotEmpty property="faxno1">
+				,#faxno1#||#faxno2#||#faxno3#
+				</isNotEmpty>
+				,#suppoRgistPocd#
+				,#chrgerName#
+				<isNotEmpty property="chrgerMobile1">
+				,#chrgerMobile1#||#chrgerMobile2#||#chrgerMobile3#
+				</isNotEmpty>
+				<isNotEmpty property="chrgerEmail1">
+				,#chrgerEmail1#||'@'||#chrgerEmail2#
+				</isNotEmpty>
+				,TO_CHAR(SYSDATE,'YYYYMM')
+				,(	SELECT EDPSCD
+					FROM PICMT0060
+					WHERE REGIPOCD = #suppoRgistPocd#
+					AND 	USEYN='Y'
+					AND 	DSCDPOYN = 'N')
+				,#zipcd#
+				,#addr1#
+				,#addr2#
+				,#suppBrandNm#
+				,#suppArea#
+				,#since#
+				,#loginId#
+				,SYSDATE
+				,'KO'
+			)
+	</insert>
+	<!-- 공급업체 등록 1_2 전시 정보 등록 -->
+	<insert id="insertSupplyPavln" parameterClass="java.util.HashMap">
+			MERGE INTO CO_PAVLN_MGT
+			USING DUAL
+			ON (SUPP_COMP_ID = #suppCompId#
+				AND PAVLN_DIV_CD = #pavlnDivCdParam#
+			)
+			WHEN MATCHED THEN
+				UPDATE
+				SET
+					<isEqual property="pavlnDivCdParam" compareValue="05">
+					PAVLN_ID = #pavlnIdMarket#
+					</isEqual>
+					<isEqual property="pavlnDivCdParam" compareValue="08">
+					PAVLN_ID = #pavlnIdBtb#
+					</isEqual>
+					<isNotEqual property="pavlnDivCdParam" compareValue="05">
+						<isNotEqual property="pavlnDivCdParam" compareValue="08">
+						PAVLN_ID = #pavlnId#
+						</isNotEqual>
+					</isNotEqual>
+					,CHG_DATE = SYSDATE
+					,CHGER_ID = #loginId#
+			WHEN NOT MATCHED THEN
+			INSERT
+				(
+				PAVLN_ID        ,
+				SUPP_COMP_ID    ,
+				PAVLN_DIV_CD    ,
+				SUPP_COMP_STUS_CD,
+				REG_DATE        ,
+				CHG_DATE        ,
+				REGER_ID        ,
+				CHGER_ID
+				 )
+			VALUES (
+				<isEqual property="pavlnDivCdParam" compareValue="05">
+				#pavlnIdMarket#,
+				</isEqual>
+				<isEqual property="pavlnDivCdParam" compareValue="08">
+				#pavlnIdBtb#,
+				</isEqual>
+				<isNotEqual property="pavlnDivCdParam" compareValue="05">
+					<isNotEqual property="pavlnDivCdParam" compareValue="08">
+					#pavlnId#       ,
+					</isNotEqual>
+				</isNotEqual>
+				#suppCompId#    ,
+				#pavlnDivCdParam#,
+				'02' /*입점요청*/	,
+				sysdate         ,
+				sysdate         ,
+				#loginId#        ,
+				#loginId#
+				)
+	</insert>
+	<!-- 공급업체 수정 전시구분 삭제 -->
+	<delete id="deleteSupplyPavln" parameterClass="java.util.HashMap">
+		DELETE
+		FROM	CO_PAVLN_MGT
+		WHERE	SUPP_COMP_ID = #suppCompId#
+		<isNotEmpty property="tempPavln">
+		AND 	PAVLN_DIV_CD NOT IN #tempPavln#
+		</isNotEmpty>
+		<isNotEmpty property="pavlnDivCd">
+		AND 	PAVLN_DIV_CD NOT IN
+			<iterate property="pavlnDivCd" open="("  close=")" conjunction=",">
+						#pavlnDivCd[]#
+			</iterate>
+		</isNotEmpty>
+	</delete>
+	<!-- 공급업체 등록 1_3 히스토리 등록 -->
+	<insert id="insertSuppCompHistor" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO CO_SUPP_COMP_HISTOR
+				(
+					SUPP_COMP_ID
+					,SUPP_COMP_IMPRTY_REASN
+					,MOV_REG_DIV_CD
+					,SUPP_COMP_DIV_CD
+					,COMPREG_NO
+					,CORP_REG_NO
+					,COMM_SELL_RPRT_NO
+					,SUPP_PO_ID
+					,PO_ECODE
+					,BCNC_NM
+					,TAX_CALDOC_COMP_NM
+					,INDUTY
+					,ENTRPS
+					,PRSDT_NM
+					,BCNC_GRADE_CD
+					,PRSDT_GRADE_CD
+					,PRSDT_MOBILE_NO
+					,CORP_SSN
+					,BIZFLD_AEA
+					,EMPEE_CNT
+					,SUPP_COMP_INTRCN
+					,CUST_NO
+					,JOIN_NO
+					,TAXT_DIV_CD
+					,NATION_CD
+					,BIZFLD_LOC
+					,HDOFC_LOC
+					,SUPP_COMP_URL
+					,EMAIL
+					,TELNO
+					,FAXNO
+					,ZIPCD
+					,ADDR1
+					,ADDR2
+					,SEND_ZIPCD
+					,SEND_ADDR
+					,SEND_DTAIL_ADDR
+					,SEND_NO
+					,SEND_TELNO
+					,RETRNGD_DLVY_ZIPCD
+					,RETRNGD_DLVY_POSTADDR
+					,RETRNGD_DLVY_DTAILADDR
+					,CNTRAC_STRT_YY
+					,CNTRAC_REQ_YMD
+					,OPN_YMD
+					,CNTRAC_REASN
+					,CNTRAC_STOP_STRT_YMD
+					,CNTRAC_STOP_END_YMD
+					,CNTRAC_CANCEL_YMD
+					,CNTRAC_DSUSE_YMD
+					,CNTRAC_STOP_REASN
+					,CNTRAC_END_REASN
+					,CNTRAC_CANCEL_REASN
+					,CNTRAC_DSUSE_REASN
+					,BCNC_CNTRAC_NO
+					,LWRNK_BCNC_NO
+					,PO_HDRY_CNTRAC_NO
+					,EMS_CNTRAC_NO
+					,ADJ_BANK_CD
+					,ADJ_ACC_NO
+					,ADJ_DPSTR
+					,ADJ_AUTO_YN
+					,ADJ_TYP_CD
+					,ADJ_INFO_DIV
+					,ADJ_VAT_ADD_YN
+					,PRC_PAY_DIV_CD
+					,SUPPO_RGIST_POCD
+					,COPRTN_FEE_AGREE_TURF
+					,COPRTN_FEE_TURF_CHG_REQ
+					,COPRTN_FEE_CHG_STUS_CD
+					,COPRTN_FEE_CHG_REQ_YMD
+					,COPRTN_FEE_CHG_APPR_YMD
+					,SUPP_COMP_PO_ACC_NO
+					,BCNC_NM_US
+					,BCNC_NM_JP
+					,BCNC_NM_CN
+					,PRSDT_NM_US
+					,PRSDT_NM_JP
+					,PRSDT_NM_CN
+					,TRMNL_ID
+					,FLWR_DELIV_COMP_DSTB
+					,AFTPMN_TREAT_APPR_NO
+					,ACCOUNT
+					,INET_NOTIC_USE_YN
+					,NOW_SUPP_COMP_CD
+					,SUPP_COMP_SEQ
+					,CNTRAC_STRT_YM
+					,REG_DATE
+					,CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+					,BUNDSEND_CONDSUB_NONPAY
+					,SEND_MEAN_MBY_DIV_CD
+					,PARTNR_ID
+					,HDRYCO_CD
+					/*,MBR_CATGR_TP*/
+					,CHRGER_NAME
+					,CHRGER_MOBILE
+					,CHRGER_EMAIL
+					,SHIP_AMT
+					,SUPP_COMP_CHG_DATE
+					,CHG_RSN
+				 )
+			SELECT
+					SUPP_COMP_ID
+					,SUPP_COMP_IMPRTY_REASN
+					,MOV_REG_DIV_CD
+					,SUPP_COMP_DIV_CD
+					,COMPREG_NO
+					,CORP_REG_NO
+					,COMM_SELL_RPRT_NO
+					,SUPP_PO_ID
+					,PO_ECODE
+					,BCNC_NM
+					,TAX_CALDOC_COMP_NM
+					,INDUTY
+					,ENTRPS
+					,PRSDT_NM
+					,BCNC_GRADE_CD
+					,PRSDT_GRADE_CD
+					,PRSDT_MOBILE_NO
+					,CORP_SSN
+					,BIZFLD_AEA
+					,EMPEE_CNT
+					,SUPP_COMP_INTRCN
+					,CUST_NO
+					,JOIN_NO
+					,TAXT_DIV_CD
+					,NATION_CD
+					,BIZFLD_LOC
+					,HDOFC_LOC
+					,SUPP_COMP_URL
+					,EMAIL
+					,TELNO
+					,FAXNO
+					,ZIPCD
+					,ADDR1
+					,ADDR2
+					,SEND_ZIPCD
+					,SEND_ADDR
+					,SEND_DTAIL_ADDR
+					,SEND_NO
+					,SEND_TELNO
+					,RETRNGD_DLVY_ZIPCD
+					,RETRNGD_DLVY_POSTADDR
+					,RETRNGD_DLVY_DTAILADDR
+					,CNTRAC_STRT_YY
+					,CNTRAC_REQ_YMD
+					,OPN_YMD
+					,CNTRAC_REASN
+					,CNTRAC_STOP_STRT_YMD
+					,CNTRAC_STOP_END_YMD
+					,CNTRAC_CANCEL_YMD
+					,CNTRAC_DSUSE_YMD
+					,CNTRAC_STOP_REASN
+					,CNTRAC_END_REASN
+					,CNTRAC_CANCEL_REASN
+					,CNTRAC_DSUSE_REASN
+					,BCNC_CNTRAC_NO
+					,LWRNK_BCNC_NO
+					,PO_HDRY_CNTRAC_NO
+					,EMS_CNTRAC_NO
+					,ADJ_BANK_CD
+					,ADJ_ACC_NO
+					,ADJ_DPSTR
+					,ADJ_AUTO_YN
+					,ADJ_TYP_CD
+					,ADJ_INFO_DIV
+					,ADJ_VAT_ADD_YN
+					,PRC_PAY_DIV_CD
+					,SUPPO_RGIST_POCD
+					,COPRTN_FEE_AGREE_TURF
+					,COPRTN_FEE_TURF_CHG_REQ
+					,COPRTN_FEE_CHG_STUS_CD
+					,COPRTN_FEE_CHG_REQ_YMD
+					,COPRTN_FEE_CHG_APPR_YMD
+					,SUPP_COMP_PO_ACC_NO
+					,BCNC_NM_US
+					,BCNC_NM_JP
+					,BCNC_NM_CN
+					,PRSDT_NM_US
+					,PRSDT_NM_JP
+					,PRSDT_NM_CN
+					,TRMNL_ID
+					,FLWR_DELIV_COMP_DSTB
+					,AFTPMN_TREAT_APPR_NO
+					,ACCOUNT
+					,INET_NOTIC_USE_YN
+					,NOW_SUPP_COMP_CD
+					,SUPP_COMP_SEQ
+					,CNTRAC_STRT_YM
+					,REG_DATE
+					,CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+					,BUNDSEND_CONDSUB_NONPAY
+					,SEND_MEAN_MBY_DIV_CD
+					,PARTNR_ID
+					,HDRYCO_CD
+					/*,MBR_CATGR_TP*/
+					,CHRGER_NAME
+					,CHRGER_MOBILE
+					,CHRGER_EMAIL
+					,SHIP_AMT
+					,SYSDATE
+					,#chgRsn# AS CHG_RSN
+			FROM CO_SUPP_COMP_MAST
+			WHERE SUPP_COMP_ID = #suppCompId#
+		]]>
+	</insert>
+	<!-- 공급업체 등록 2 계약서 정보 등록 -->
+	<insert id="insertSuppCompContractDtl" parameterClass="java.util.HashMap">
+		INSERT INTO SC_CONTRACT_DTL
+			(
+				CONTRAC_ID,
+				SUPP_COMP_ID,
+				CONFIRM
+			)
+			SELECT A.CONTRAC_ID,#suppCompId#,'N'
+			FROM	SC_CONTRACT_MST A
+			WHERE	A.PAVLN_DIV_CD	IN (SELECT B.PAVLN_DIV_CD
+									FROM	CO_PAVLN_MGT B
+									WHERE	B.SUPP_COMP_ID =#suppCompId#)
+			AND 	CNTR_YEAR >= TO_CHAR(SYSDATE,'YYYY')
+	</insert>
+	<!-- 공급업체 등록 2 계약서 정보 수정 -->
+	<insert id="insertNewSuppCompContractDtl" parameterClass="java.util.HashMap">
+		MERGE INTO SC_CONTRACT_DTL
+		USING DUAL
+		ON (SUPP_COMP_ID = #suppCompId# AND
+			CONTRAC_ID = #contracId#)
+		WHEN NOT MATCHED THEN
+		INSERT
+			(
+				CONTRAC_ID,
+				SUPP_COMP_ID,
+				CONFIRM
+			)
+		VALUES
+			(
+				#contracId#,
+				#suppCompId#,
+				'N'
+			)
+	</insert>
+	<!-- 공급업체 수정 전시구분 삭제 -->
+	<delete id="deleteSuppCompContractDtl" parameterClass="java.util.HashMap">
+		DELETE
+		FROM	SC_CONTRACT_DTL
+		WHERE	SUPP_COMP_ID = #suppCompId#
+		AND 	CONTRAC_ID IN (SELECT CONTRAC_ID
+								FROM SC_CONTRACT_MST
+								WHERE PAVLN_DIV_CD NOT IN
+								<isNotEmpty property="tempPavln">
+									#tempPavln#
+								</isNotEmpty>
+								<isNotEmpty property="pavlnDivCd">
+									<iterate property="pavlnDivCd" open="("  close=")" conjunction=",">
+										#pavlnDivCd[]#
+									</iterate>
+								</isNotEmpty>
+					)
+	</delete>
+	<!-- 공급업체 수정 2 공급업체가 가입해야하는 계약서 리스트 조회 -->
+	<select id="selectSuppContractMstList" parameterClass="java.util.HashMap" resultClass="CommMap">
+		SELECT A.CONTRAC_ID
+			FROM	SC_CONTRACT_MST A
+			WHERE	A.PAVLN_DIV_CD	IN (SELECT B.PAVLN_DIV_CD
+									FROM	CO_PAVLN_MGT B
+									WHERE	B.SUPP_COMP_ID =#suppCompId#)
+			AND 	CNTR_YEAR >= TO_CHAR(SYSDATE,'YYYY')
+	</select>
+
+
+
+
+	<!-- 공급업체 등록 3 접속 정보 등록 -->
+	<insert id="insertSuppCompMemMast" parameterClass="java.util.HashMap">
+
+		INSERT INTO MB_SUPP_COMP_MEM_MAST		/*SrmboMgr_SQL.xml insertSuppCompMem*/
+			( SUPP_COMP_ACCESS_NAME
+			,SUPP_COMP_ID
+			,ADMINNM
+			,PASSWD
+			,PASSWD_LOCK_YN
+			,ADMIN_DIV_CD
+			,ADMIN_STUS_CD
+			,NTT_RUN_PLCY_AGREE_YN
+			,NTT_RUN_PLCY_AGREE_YMD
+			,PRSNL_INFO_TREAT_PSSB_YN
+			,EMAIL_ADDR
+			,EMAIL_RECV_YN
+			,PO_ECODE
+			,REG_DATE
+			,CHG_DATE
+			,REGER_ID
+			,CHGER_ID
+			,MAIN_ID_YN
+			)
+		VALUES
+			(#suppCompId#
+			,#suppCompId#
+			,#prsdtNm#
+			,#password#
+			,'N'
+			,'20'
+			,'30'
+			,'N'
+			,'N'
+			,'N'
+			,#email1#||'@'||#email2#
+			,'N'
+			,#poEcode#
+			,SYSDATE
+			,SYSDATE
+			,#loginId#
+			,#loginId#
+			,'Y'
+			)
+	</insert>
+	<!-- 우정청 리스트 -->
+	<select id="selectRcoCdList" parameterClass="java.util.HashMap" resultClass="CommMap">
+		SELECT	COMN_CD_ID	VALUE
+				,COMN_CD_NM	NAME
+		FROM	CM_COMN_CD
+		WHERE	CD_GRP_ID = 'RCO_CD'
+		AND 	USE_YN = 'Y'
+		ORDER BY COMN_CD_ID
+	</select>
+	<!-- 우정청 선택번호 -->
+	<select id="selectRcoCdInfo" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT	RCOCD
+		FROM	PICMT0060
+		WHERE	REGIPOCD = #suppoRgistPocd#
+		AND 	USEYN = 'Y'
+		AND 	DSCDPOYN = 'N'
+	</select>
+	<!-- 총괄국 리스트 -->
+	<select id="selectHrnkOrRegipoCdList" parameterClass="java.util.HashMap" resultClass="CommMap">
+		SELECT	REGIPOCD 	VALUE
+				, PONM		NAME
+		FROM	PICMT0060
+		WHERE	RCOCD = (	SELECT RCOCD
+							FROM PICMT0060
+							WHERE REGIPOCD = #suppoRgistPocd#
+							AND 	USEYN = 'Y' AND DSCDPOYN = 'N')
+		AND 	PODIVCD IN ('05', '06', '10', '18')
+		AND 	USEYN = 'Y'
+		AND 	DSCDPOYN = 'N'
+		ORDER BY REGIPOCD ASC
+	</select>
+	<!-- 총괄국 선택번호 -->
+	<select id="selectHrnkOrRegipoCdInfo" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT HRNKORREGIPOCD
+		FROM PICMT0060
+		WHERE REGIPOCD = #suppoRgistPocd#
+		AND     USEYN = 'Y' AND DSCDPOYN = 'N'
+	</select>
+	<!-- 공급국 리스트 -->
+	<select id="selectRegipocdList" parameterClass="java.util.HashMap" resultClass="CommMap">
+		SELECT	REGIPOCD	VALUE
+				, PONM		NAME
+		FROM PICMT0060
+		WHERE	PODIVCD IN ('06', '07', '08', '09', '12', '13')
+		AND 	USEYN = 'Y' AND DSCDPOYN = 'N'
+		AND 	MPOREGIPOCD =	(SELECT HRNKORREGIPOCD
+								FROM	PICMT0060
+								WHERE	REGIPOCD = #suppoRgistPocd#
+								AND 	USEYN = 'Y' AND DSCDPOYN = 'N')
+		ORDER BY REGIPOCD ASC
+	</select>
+
+
+	<!-- 공급업체 수수료정보 등록 -->
+	<insert id="insertSupplyFee" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO CO_SUPP_COMP_FEE
+				(
+				SUPP_COMP_ID            ,
+				FEE_APPLY_SEQ           ,
+				FEE_APPLY_TYP_CD        ,
+				FEE_APPLY_MINVAL        ,
+				FEE_APPLY_MAXVAL        ,
+				FEE_APPLY_RATE          ,
+				FEE_APPLY_STRT_DATE     ,
+				FEE_APPLY_END_DATE      ,
+				POINT_RATE              ,
+				REG_DATE                ,
+				CHG_DATE                ,
+				REGER_ID                ,
+				CHGER_ID
+				 )
+			VALUES (
+				#suppCompId#            ,
+				(SELECT NVL(MAX(FEE_APPLY_SEQ)+1, 1) FROM CO_SUPP_COMP_FEE)         ,
+				#feeApplyTypCd#         ,
+				#feeApplyMinval#        ,
+				#feeApplyMaxval#        ,
+				#feeRate#          ,
+				#feeApplyStrtDate#      ,
+				#feeApplyEndDate#       ,
+				#pointRate#             ,
+				sysdate                 ,
+				sysdate                 ,
+				#userId#                ,
+				#userId#
+          )
+            ]]>
+	</insert>
+	<!-- 공급업체 승인 -->
+	<update id="updateSupplyApprove" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE CO_SUPP_COMP_MAST
+	      SET
+				SUPP_COMP_IMPRTY_REASN      = #suppCompImprtyReasn#,
+				CHG_DATE        = SYSDATE,
+				CHGER_ID    	= #userId#
+	      WHERE SUPP_COMP_ID  = #suppCompId#
+	]]>
+	</update>
+	<!-- 공급업체 정보수정 -->
+	<update id="updateSupply" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE CM_ADMIN_MENU_MAST
+	      SET   MENU_NM         = #menuNm#,
+				MENU_LEVEL      = #menuLevel#,
+				SORT_ORDER      = #sortOrder#,
+				HRNK_MENU_ID    = #hrnkMenuId#,
+				MENU_URL		= #menuUrl#,
+				MENU_DESC       = #menuDesc#,
+				USE_YN          = #useYn#,
+				CHG_DATE        = SYSDATE,
+				CHGER_ID    	= #userId#
+	      WHERE  MENU_ID        = #menuId#
+	]]>
+	</update>
+
+
+
+
+
+          <!-- 공급업체 정보 조회 -->
+    <select id="retrieveSupplyInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+  <![CDATA[
+		SELECT A.SUPP_COMP_DIV_CD
+				, (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SUPP_COMP_DIV_CD' AND COMN_CD_ID=A.SUPP_COMP_DIV_CD) AS SUPP_COMP_DIV_CD_NM
+				, ( SELECT PONM FROM PICMT0060 WHERE EDPSCD = A.PO_ECODE AND USEYN='Y' and DSCDPOYN = 'N'  and rownum = 1   )  AS POSTNAME
+				, (SELECT POSHORTNM FROM PICMT0060 WHERE REGIPOCD=(SELECT  HRNKORREGIPOCD FROM PICMT0060 WHERE EDPSCD = A.PO_ECODE AND USEYN='Y' and DSCDPOYN = 'N' and rownum = 1 )  AND USEYN='Y'  ) AS POSTOFFICE
+				, A.PO_ECODE
+				, A.BCNC_NM
+				, A.SUPP_COMP_ID
+				, A.PRSDT_NM
+				, A.COMPREG_NO
+				, A.CNTRAC_REQ_YMD
+				, A.ENTRPS
+				, A.INDUTY
+				, A.TELNO
+				, A.FAXNO
+				, A.ZIPCD
+				, (A.ADDR1 || ' (' || A.ADDR2 || ')') AS ADDR1
+				, A.PRSDT_MOBILE_NO
+				, A.CNTRAC_STRT_YY
+				, A.CNTRAC_DSUSE_YMD
+				, A.CNTRAC_STOP_STRT_YMD
+				, A.CNTRAC_STOP_END_YMD
+				, (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='BANK_CD' AND COMN_CD_ID=A.ADJ_BANK_CD) AS ADJ_BANK_CD_NM
+				, A.ADJ_ACC_NO
+				, A.CNTRAC_STOP_REASN
+				, A.REGER_ID
+				, A.REG_DATE
+				, A.CHGER_ID
+				, A.CHG_DATE
+		FROM CO_SUPP_COMP_MAST A
+		WHERE A.SUPP_COMP_ID = #suppCompId#
+  ]]>
+    </select>
+
+
+
+<!-- 공급업체 영업중지현황 조회 -->
+	<sql id="co_amam_sql">
+		SELECT A.MAMIDX,
+		       A.TITLE,
+		       A.SUPP_COMP_ID,
+		       P.PAVLN_DIV_CD,
+		       (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='PAVLN_DIV_CD' AND COMN_CD_ID=P.PAVLN_DIV_CD) AS PAVLN_DIV_NM,
+		       S.BCNC_NM,
+		       A.CREATEDATE,
+		       A.BIR_GUBUN,
+		       (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='CF_BIR_GUBUN' AND COMN_CD_ID=A.BIR_GUBUN) BIR_GUBUN_NM,
+		       A.NOTE,
+		       A.REASON,
+		       A.MEA_NOTE,
+		       A.MEA_S_DATE,
+		       A.MEA_E_DATE,
+		       (TO_CHAR(A.MEA_S_DATE,'YYYY-MM-DD')||'~'||TO_CHAR(A.MEA_E_DATE,'YYYY-MM-DD')) MEA_DATE,
+		       A.REG_DATE,
+		       A.CHG_DATE,
+		       A.REGER_ID,
+		       A.CHGER_ID
+		  FROM CO_AMAM A, CO_SUPP_COMP_MAST S,CO_PAVLN_MGT P
+		  WHERE A.SUPP_COMP_ID= S.SUPP_COMP_ID AND S.SUPP_COMP_ID = P.SUPP_COMP_ID(+)
+	            <!-- 매장구분 -->
+				<isNotEmpty property="pavlnDivCd">
+					AND P.PAVLN_DIV_CD = #pavlnDivCd#
+				</isNotEmpty>
+				<isNotEmpty property="suppCompId">
+					AND A.SUPP_COMP_ID = #suppCompId#
+				</isNotEmpty>
+				<!-- 구분 -->
+				<isNotEmpty property="cfBirGubunCd">
+					AND A.BIR_GUBUN = #cfBirGubunCd#
+				</isNotEmpty>
+
+				<!-- 검색구분 -->
+				<isNotEmpty property="searchTxt">
+					<isEqual property="searchType" compareValue="01">
+						AND S.BCNC_NM LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+					<isEqual property="searchType" compareValue="02">
+						AND A.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%'
+					</isEqual>
+				</isNotEmpty>
+	</sql>
+
+<!-- 공급업체 영업중지현황 조회 -->
+	<select id="selectCoAmamList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY A.MAMIDX DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="co_amam_sql" />
+						)
+					) A
+				) A
+	<isNotEmpty property="firstIndex">
+		WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+	</isNotEmpty>
+	</select>
+
+<!-- 공급업체 영업중지현황 조회 카운트 -->
+	<select id="selectCoAmamListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="co_amam_sql" />)
+	</select>
+
+<!-- 공급업체 영업중지상세 조회 -->
+	<select id="selectCoAmamDetail" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		  FROM (<include refid="co_amam_sql" />)
+		 WHERE MAMIDX = #mamidx#
+	</select>
+
+<!-- 공급업체 영업중지현황 등록 -->
+	<insert id="insertCoAmam" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO CO_AMAM (
+				 MAMIDX
+				,TITLE
+				,SUPP_COMP_ID
+				,BIR_GUBUN
+				,CREATEDATE
+				,NOTE
+				,REASON
+				,MEA_NOTE
+				,MEA_S_DATE
+				,MEA_E_DATE
+				,REG_DATE
+				,CHG_DATE
+				,REGER_ID
+				,CHGER_ID
+				 )
+			VALUES (
+				(SELECT NVL(MAX(MAMIDX)+1, 1) FROM CO_AMAM)      ,
+				#title#    ,
+				#suppCompId#    ,
+				#birGubun#        ,
+				#createdate#   ,
+				#note#       ,
+				#reason#   ,
+				#meaNote#         ,
+				#meaSDate#         ,
+				#meaEDate#         ,
+				sysdate         ,
+				sysdate         ,
+				#loginId#        ,
+				#loginId#
+          )
+            ]]>
+	</insert>
+
+	<!-- 공급업체 영업중지현황 정보수정 -->
+	<update id="updateCoAmam" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE CO_AMAM
+	      SET   TITLE         = #title#,
+				SUPP_COMP_ID      = #suppCompId#,
+				BIR_GUBUN      = #birGubun#,
+				CREATEDATE      = #createdate#,
+				NOTE    = #note#,
+				REASON		= #reason#,
+				MEA_NOTE       = #meaNote#,
+				MEA_S_DATE          = #meaSDate#,
+				MEA_E_DATE          = #meaEDate#,
+				CHG_DATE        = SYSDATE,
+				CHGER_ID    	= #loginId#
+	      WHERE  MAMIDX   = #mamidx#
+	]]>
+	</update>
+
+
+
+		<!-- 공급업체 영업중지현황 정보 삭제 -->
+	<update id="deleteCoAmam" parameterClass="java.util.HashMap">
+	DELETE
+	  FROM CO_AMAM
+	 WHERE MAMIDX   = #mamidx#
+	</update>
+
+
+
+	<!-- 공급업체승인 리스트 조회 -->
+	<select id="selectSupplyApproveList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			SELECT *
+			FROM(
+				SELECT ROW_NUMBER () OVER (ORDER BY A.REG_DATE DESC NULLS LAST) ONUM
+						, A.SUPP_COMP_DIV_CD
+						, M.PAVLN_DIV_CD
+						, (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='PAVLN_DIV_CD' AND COMN_CD_ID=M.PAVLN_DIV_CD) AS PAVLN_DIV_CD_NM
+						, (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SUPP_COMP_DIV_CD' AND COMN_CD_ID=A.SUPP_COMP_DIV_CD) AS SUPP_COMP_DIV_CD_NM
+						, (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='RCO_CD' AND COMN_CD_ID= (   SELECT  RCOCD  FROM PICMT0060 where  EDPSCD = A.PO_ECODE AND USEYN = 'Y' AND DSCDPOYN = 'N' and rownum = 1)) AS RCONM
+						, ( SELECT PONM FROM PICMT0060 WHERE EDPSCD = A.PO_ECODE AND USEYN='Y' and DSCDPOYN = 'N'  and rownum = 1   )  AS POSTNAME
+						, (SELECT  PONM  FROM PICMT0060 WHERE  REGIPOCD = (   SELECT  MPOREGIPOCD  FROM PICMT0060 WHERE  EDPSCD = A.PO_ECODE AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1)  AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1  ) AS POSTOFFICE
+						, A.PO_ECODE
+						, A.BCNC_NM
+						, A.SUPP_COMP_ID
+						, A.PRSDT_NM
+						, A.COMPREG_NO
+						, A.CNTRAC_REQ_YMD
+						, A.ENTRPS
+						, A.INDUTY
+						, A.TELNO
+						, A.FAXNO
+						, A.ADDR1
+						, A.PRSDT_MOBILE_NO
+						, A.CNTRAC_DSUSE_YMD
+						, A.CNTRAC_STOP_END_YMD
+						, M.SUPP_COMP_STUS_CD
+						, (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SUPP_COMP_STUS_CD' AND COMN_CD_ID=M.SUPP_COMP_STUS_CD) AS SUPP_COMP_STUS_NM
+						, A.CNTRAC_STOP_REASN
+						, A.REGER_ID
+						, A.REG_DATE
+						, A.CHGER_ID
+						, A.CHG_DATE
+						,ENTRPS || '/' ||INDUTY AS ENTRPS_INDUTY
+				FROM	CO_SUPP_COMP_MAST A
+						, CO_PAVLN_MGT M
+				WHERE	A.SUPP_COMP_ID = M.SUPP_COMP_ID(+)
+			<!-- 계약상태 -->
+			<isNotEmpty property="cntracStusCd">
+				AND M.SUPP_COMP_STUS_CD = #cntracStusCd#
+			</isNotEmpty>
+			<!-- 전시구분 -->
+			<isNotEmpty property="searchPavlnDivCd">
+				AND M.PAVLN_DIV_CD = #searchPavlnDivCd#
+			</isNotEmpty>
+			<!-- 공급업체유형 -->
+			<isNotEmpty property="suppCompDivCd">
+				AND A.SUPP_COMP_DIV_CD  = #suppCompDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="postname">
+					AND A.SUPPO_RGIST_POCD IN (
+											SELECT REGIPOCD
+											FROM PICMT0060
+											WHERE RCOCD = #postname#
+											AND USEYN='Y'
+												<isNotEmpty property="postoffice">
+													AND MPOREGIPOCD = #postoffice#
+												</isNotEmpty>
+											)
+				</isNotEmpty>
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="01">
+					AND A.BCNC_NM LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="02">
+					AND A.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="03">
+					AND A.COMPREG_NO LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+			</isNotEmpty>
+			)T1
+		WHERE 1=1
+		<isNotNull property="firstIndex">
+			<isNotNull property="lastIndex">
+				AND T1.ONUM BETWEEN #firstIndex# AND #lastIndex#
+			</isNotNull>
+		</isNotNull>
+	</select>
+
+	<!-- 공급업체승인 리스트 카운트 -->
+	<select id="selectSupplyApproveListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT DISTINCT COUNT(*) OVER() TOTCNT
+		FROM	CO_SUPP_COMP_MAST A
+				, CO_PAVLN_MGT M
+		WHERE	A.SUPP_COMP_ID = M.SUPP_COMP_ID(+)
+			<!-- 계약상태 -->
+			<isNotEmpty property="cntracStusCd">
+				AND M.SUPP_COMP_STUS_CD = #cntracStusCd#
+			</isNotEmpty>
+			<!-- 공급업체유형 -->
+			<isNotEmpty property="suppCompDivCd">
+				AND A.SUPP_COMP_DIV_CD  = #suppCompDivCd#
+			</isNotEmpty>
+			<!-- 전시구분 -->
+			<isNotEmpty property="searchPavlnDivCd">
+				AND M.PAVLN_DIV_CD = #searchPavlnDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="postname">
+				AND A.SUPPO_RGIST_POCD IN (
+										SELECT REGIPOCD
+										FROM PICMT0060
+										WHERE RCOCD = #postname#
+										AND USEYN='Y'
+											<isNotEmpty property="postoffice">
+												AND MPOREGIPOCD = #postoffice#
+											</isNotEmpty>
+										)
+			</isNotEmpty>
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="01">
+					AND A.BCNC_NM LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="02">
+					AND A.SUPP_COMP_ID LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="03">
+					AND A.COMPREG_NO LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+			</isNotEmpty>
+	</select>
+	<!-- 공급업체 거래 상태 변경 -->
+	<update id="updateSuppCompStusCd" parameterClass="java.util.HashMap">
+		UPDATE	CO_PAVLN_MGT
+		SET 	SUPP_COMP_STUS_CD = #suppCompStusCd#
+				,CHG_DATE = SYSDATE
+				,CHGER_ID = #loginId#
+		WHERE	SUPP_COMP_ID = #suppCompId#
+		AND 	PAVLN_DIV_CD = #pavlnDivCd#
+	</update>
+
+	<!-- 공급업체 계약서 리스트 조회 -->
+	<select id="selectSrmboSuppCompContractList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT *
+	FROM (
+			SELECT		ROW_NUMBER() OVER (ORDER BY SCD.CONTRAC_ID DESC) AS RNUM
+						,SCD.SUPP_COMP_ID
+						,(SELECT BCNC_NM FROM  CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = SCD.SUPP_COMP_ID)AS BCNC_NM
+						,SCD.CONTRAC_ID
+						,(SELECT CONTRACT_NM FROM SC_CONTRACT_MST WHERE CONTRAC_ID = SCD.CONTRAC_ID)AS CONTRAC_NM
+						,(SELECT CNTR_YEAR FROM SC_CONTRACT_MST WHERE CONTRAC_ID = SCD.CONTRAC_ID)AS CNTR_YEAR
+						,NVL((SELECT NVL(COUNT(SUBDOC_ID),0) FROM SC_CONT_MST_DOC WHERE CONTRAC_ID = SCD.CONTRAC_ID GROUP BY CONTRAC_ID),0) AS NEED
+						,NVL((    SELECT    NVL(COUNT(CHECKYN),0) CHECKY
+						        FROM    SC_CONT_DTL_DOC
+						        WHERE    SUPP_COMP_ID = SCD.SUPP_COMP_ID
+						        AND CHECKYN = 'Y'
+						        AND CONTRAC_ID = SCD.CONTRAC_ID
+						        GROUP BY SUPP_COMP_ID ),0) AS CHECKY
+						,SCD.CONFIRM
+						,SCD.CONTRACTOR
+						,TO_CHAR(SCD.DATE1,'YYYY-MM-DD') AS DATE1
+			FROM	SC_CONTRACT_DTL SCD, SC_CONTRACT_MST SCM
+			WHERE	SCD.CONTRAC_ID = SCM.CONTRAC_ID
+			AND 	SCD.SUPP_COMP_ID = #suppCompId#
+			AND 	SCM.PAVLN_DIV_CD = #pavlnDivCd#
+		)
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<!-- 공급업체 계약서 CNT 조회 -->
+	<select id="selectSrmboSuppCompContractListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(*) CNT
+		FROM	SC_CONTRACT_DTL SCD, SC_CONTRACT_MST SCM
+		WHERE	SCD.CONTRAC_ID = SCM.CONTRAC_ID
+		AND 	SCD.SUPP_COMP_ID = #suppCompId#
+		AND 	SCM.PAVLN_DIV_CD = #pavlnDivCd#
+	</select>
+
+		<!-- 전시관별 수수료 리스트 카운트 -->
+	<select id="selectsrmboPavlnfeeMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT  COUNT(*)
+		FROM	CO_PAVLN_FEE A, CO_PAVLN_MAST B, CO_SUPP_COMP_MAST C
+		WHERE	1=1
+		AND		A.PAVLN_ID = B.PAVLN_ID (+)
+		AND		A.SUPP_COMP_ID = C.SUPP_COMP_ID(+)
+		<isNotEqual property="searchIndex" compareValue="all">
+			<isNotEmpty property="searchIndex">
+			AND A.PAVLN_ID = #searchIndex#
+			</isNotEmpty>
+		</isNotEqual>
+		<isNotEmpty property="search_supp_comp_id" prepend="AND">
+			A.SUPP_COMP_ID = #search_supp_comp_id#
+		</isNotEmpty>
+		<isNotEmpty property="searchToDt">
+		<isNotEmpty property="searchFromDt">
+			AND A.REG_DATE BETWEEN #searchFromDt# AND #searchToDt#
+		</isNotEmpty>
+		</isNotEmpty>
+	</select>
+
+		<!-- 전시관별 수수료 리스트 조회 -->
+	<select id="selectsrmboPavlnfeeMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	D.*
+		FROM	(
+			SELECT  ROW_NUMBER() OVER(ORDER BY A.PAVLN_ID ASC,A.FEE_SEQ ASC,A.SUPP_COMP_ID ASC) RNUM
+					,B.PAVLN_NM  				/*전시관 명*/
+					,A.PAVLN_ID					/*전시관 ID*/
+					,A.SUPP_COMP_ID				/*공급업체명*/
+					,C.BCNC_NM					/*공급업체명*/
+					,A.FEE_SEQ					/*수수료 일련번호*/
+					,A.INDPRC_FEE_APPLY_YN		/*가격대별 수수료 적용 여부*/
+					,A.BASIC_FEE_APPLY_YN		/*기본 수수료 적용 여부*/
+					,A.PO_HQ_DSTB_YN			/*우체국 본부 분배 여부*/
+					,A.POSA_DSTB_YN				/*진흥원 분배 여부*/
+					,A.ETC1_DSTB_YN				/*기타1 분배 여부*/
+					,A.ETC2_DSTB_YN				/*기타2 분배 여부*/
+					,A.REG_FEE_USE_YN			/*등록 수수료 사용 여부*/
+					,TO_CHAR(A.REG_DATE,'YYYY-MM-DD') AS REG_DATE	/*등록 일시*/
+					,TO_CHAR(A.CHG_DATE,'YYYY-MM-DD') AS CHG_DATE	/*수정 일시*/
+					,A.REGER_ID					/*등록자 아이디*/
+					,A.CHGER_ID					/*수정자 아이디*/
+			FROM	CO_PAVLN_FEE A, CO_PAVLN_MAST B, CO_SUPP_COMP_MAST C
+			WHERE	1=1
+			AND		A.PAVLN_ID = B.PAVLN_ID (+)
+			AND		A.SUPP_COMP_ID = C.SUPP_COMP_ID(+)
+			<isNotEqual property="searchIndex" compareValue="all">
+				<isNotEmpty property="searchIndex">
+			AND A.PAVLN_ID = #searchIndex#
+				</isNotEmpty>
+			</isNotEqual>
+			<isNotEmpty property="search_supp_comp_id" prepend="AND">
+				A.SUPP_COMP_ID = #search_supp_comp_id#
+			</isNotEmpty>
+			<isNotEmpty property="searchToDt">
+			<isNotEmpty property="searchFromDt">
+				AND A.REG_DATE BETWEEN #searchFromDt# AND #searchToDt#
+			</isNotEmpty>
+			</isNotEmpty>
+		)D
+		<isNotEmpty property="firstIndex">
+			WHERE D.RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+		ORDER BY D.RNUM
+	</select>
+
+		<!-- 선택된 전시관별 수수료 상세정보 -->
+	<select id="selectsrmboPavlnfeeInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT  A.PAVLN_ID					/*전시관 ID*/
+				,B.PAVLN_NM					/*전시관 명*/
+				,A.SUPP_COMP_ID				/*공급업체 ID*/
+				,C.BCNC_NM					/*공급업체 명*/
+				,A.FEE_SEQ					/*수수료 일련번호*/
+				,A.INDPRC_FEE_APPLY_YN		/*05_가격대별 수수료 적용 여부*/
+				,A.BASIC_FEE_APPLY_YN		/*06_기본 수수료 적용 여부*/
+				,A.BASIC_FEE_APPLY_UNIT_CD	/*06_기본 수수료 적용 단위 코드*/
+				,A.BASIC_FEE				/*06_기본 수수료*/
+				,A.PO_HQ_DSTB_YN			/*07_우체국 본부 분배 여부*/
+				,A.PO_HQ_DSTB_RATE			/*07_우체국 본부 분배 율*/
+				,A.POSA_DSTB_YN				/*08_진흥원 분배 여부*/
+				,A.POSA_DSTB_RATE			/*08_진흥원 분배 율*/
+				,A.ETC1_DSTB_YN				/*09_기타 분배 여부*/
+				,A.ETC1_DSTB_OR_NM			/*09_기타 분배 기관 명*/
+				,A.ETC1_DSTB_RATE			/*09_기타 분배 율*/
+				,A.ETC2_DSTB_YN				/*09_기타 분배 여부*/
+				,A.ETC2_DSTB_OR_NM			/*09_기타 분배 기관 명*/
+				,A.ETC2_DSTB_RATE			/*09_기타 분배 율*/
+				,A.REG_FEE_USE_YN			/*10_등록 수수료 사용 여부*/
+				,A.REG_DATE					/*등록 일시*/
+				,A.CHG_DATE					/*수정 일시*/
+				,A.REGER_ID					/*등록자 아이디*/
+				,A.CHGER_ID					/*수정자 아이디*/
+		FROM	CO_PAVLN_FEE A, CO_PAVLN_MAST B, CO_SUPP_COMP_MAST C
+		WHERE	A.PAVLN_ID = B.PAVLN_ID (+)
+		AND		A.SUPP_COMP_ID(+) = C.SUPP_COMP_ID
+		<isNotEmpty property="pavlnId" prepend="AND">
+			A.PAVLN_ID = #pavlnId#
+		</isNotEmpty>
+		<isNotEmpty property="feeSeq" prepend="AND">
+			A.FEE_SEQ = #feeSeq#
+		</isNotEmpty>
+		<isNotEmpty property="suppCompId" prepend="AND">
+			A.SUPP_COMP_ID = #suppCompId#
+		</isNotEmpty>
+	</select>
+	<!-- 전시관 마스터 목록 -->
+	<select id="selectPavlnMastList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT  PAVLN_ID
+			,PAVLN_DIV_CD
+			,PAVLN_NM
+	FROM	CO_PAVLN_MAST
+	WHERE	USE_YN = 'Y'
+	AND		HRNK_PAVLN_ID IS NULL
+	ORDER BY PAVLN_ID
+	</select>
+	<!-- 가격대별 수수료 정보 -->
+	<select id="selectsrmboIndprcFeeList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	PAVLN_ID			/*전시관 ID*/
+				,FEE_SEQ			/*수수료 일련번호*/
+				,INDPRC_FEE_SEQ		/*가격대 수수료 일련번호*/
+				,PRC_STRT_AMT		/*가격 시작 금액*/
+				,PRC_END_AMT		/*가격 종료 금액*/
+				,FEE_RATE			/*수수료 율*/
+				,APPLY_STRT_DATE	/*적용 시작 일시*/
+				,APPLY_END_DATE		/*적용 종료 일시*/
+		FROM	CO_PAVLN_INDPRC_FEE
+		WHERE	PAVLN_ID = #pavlnId#
+		AND		FEE_SEQ = #feeSeq#
+		AND		SUPP_COMP_ID = #suppCompId#
+		ORDER BY INDPRC_FEE_SEQ
+	</select>
+	<!-- 등록 수수료 정보 -->
+	<select id="selectsrmboRegFeeList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	PAVLN_ID			/*전시관 ID*/
+				,FEE_SEQ			/*수수료 일련번호*/
+				,REG_FEE_SEQ		/*등록 수수료 일련번호*/
+				,FUNCNM				/*기능명*/
+				,FEE_DIV_CD			/*수수료 구분 코드*/
+				,FEE				/*수수료*/
+				,REG_SEQ_LIMIT		/*등록 횟수 제한*/
+				,YEARFLD_YN			/*연장 여부*/
+		FROM	CO_PAVLN_REG_FEE
+		WHERE	PAVLN_ID = #pavlnId#
+		AND		FEE_SEQ = #feeSeq#
+		AND		SUPP_COMP_ID = #suppCompId#
+		ORDER BY REG_FEE_SEQ
+	</select>
+	<!-- 전시관별 수수료 수정 -->
+	<update id="modifyPavlnfeeInfo" parameterClass="java.util.HashMap">
+		UPDATE CO_PAVLN_FEE SET
+			CHG_DATE                 = SYSDATE   /*수정 일시*/
+			,INDPRC_FEE_APPLY_YN      =#rdoPrcfeeYn#   /*05_가격대별 수수료 적용 여부*/
+			,BASIC_FEE_APPLY_YN       =#rdoBasicfeeYn#   /*06_기본 수수료 적용 여부*/
+			<isEqual property="rdoBasicfeeYn" compareValue="Y">
+			,BASIC_FEE_APPLY_UNIT_CD  =#rdoBasicfeeUnit#   /*06_기본 수수료 적용 단위 코드*/
+			,BASIC_FEE                =#basicfeeVal#   /*06_기본 수수료*/
+			</isEqual>
+			,PO_HQ_DSTB_YN            =#rdoPohqdstbYn#   /*07_우체국 본부 분배 여부*/
+			<isEqual property="rdoPohqdstbYn" compareValue="Y">
+			,PO_HQ_DSTB_RATE          =#poHqDstbRateVal#   /*07_우체국 본부 분배 율*/
+			</isEqual>
+			,POSA_DSTB_YN             =#rdoPosadstbYn#   /*08_진흥원 분배 여부*/
+			<isEqual property="rdoPosadstbYn" compareValue="Y">
+			,POSA_DSTB_RATE           =#posaDstbRateVal#   /*08_진흥원 분배 율*/
+			</isEqual>
+			,ETC1_DSTB_YN             =#rdoEtc1dstbYn#   /*09_기타 분배 여부*/
+			<isEqual property="rdoEtc1dstbYn" compareValue="Y">
+			,ETC1_DSTB_OR_NM          =#Etc1dstbOrNmVal#   /*09_기타 분배 기관 명*/
+			,ETC1_DSTB_RATE           =#Etc1dstbRateVal#   /*09_기타 분배 율*/
+			</isEqual>
+			,ETC2_DSTB_YN             =#rdoEtc2dstbYn#   /*09_기타 분배 여부*/
+			<isEqual property="rdoEtc2dstbYn" compareValue="Y">
+			,ETC2_DSTB_OR_NM          =#Etc2dstbOrNmVal#   /*09_기타 분배 기관 명*/
+			,ETC2_DSTB_RATE           =#Etc2dstbRateVal#   /*09_기타 분배 율*/
+			</isEqual>
+			,REG_FEE_USE_YN           =#rdoRegfeeUseYn#   /*10_등록 수수료 사용 여부*/
+			,CHGER_ID                 =#loginId# /*수정자 아이디*/
+		<dynamic prepend="WHERE">
+		    <isNotEmpty property="pavlnId" prepend="AND">
+		     	PAVLN_ID = #pavlnId#
+		    </isNotEmpty>
+			<isNotEmpty property="suppCompId" prepend="AND">
+		    	SUPP_COMP_ID = #suppCompId#
+		    </isNotEmpty>
+		    <isNotEmpty property="feeSeq" prepend="AND">
+		    	FEE_SEQ = #feeSeq#
+		    </isNotEmpty>
+	    </dynamic>
+	</update>
+	<!-- 가격대별 수수료 초기화 -->
+	<delete id="deleteIndprcfeeInfo" parameterClass="java.util.HashMap">
+	DELETE
+	FROM	CO_PAVLN_INDPRC_FEE
+	WHERE	PAVLN_ID = #pavlnId#
+	AND		FEE_SEQ = #feeSeq#
+	AND		SUPP_COMP_ID = #suppCompId#
+	</delete>
+	<!-- 가격대별 수수료 등록 -->
+	<insert id="registIndprcfeeInfo" parameterClass="java.util.HashMap">
+	INSERT INTO CO_PAVLN_INDPRC_FEE
+	(
+		PAVLN_ID
+		,FEE_SEQ
+		,INDPRC_FEE_SEQ
+		,SUPP_COMP_ID
+		,PRC_STRT_AMT
+		,PRC_END_AMT
+		,FEE_RATE
+		,APPLY_STRT_DATE
+		,APPLY_END_DATE
+	)
+	VALUES
+	(
+		#pavlnId#
+		,#feeSeq#
+		,#indprcFeeSeq# 	/*가격대 수수료 일련번호*/
+		,#suppCompId#		/*공급업체ID*/
+		,#prcStrtAmt# 		/*가격 시작 금액*/
+		,#prcEndAmt# 		/*가격 종료 금액*/
+		,#feeRate# 			/*수수료 율*/
+		,#applyStrtDate# 	/*적용 시작 일시*/
+		,#applyEndDate# 	/*적용 종료 일시*/
+	)
+	</insert>
+
+	<!-- 등록수수료 초기화 -->
+	<delete id="deleteRegfeeInfo" parameterClass="java.util.HashMap">
+	DELETE
+	FROM	CO_PAVLN_REG_FEE
+	WHERE	PAVLN_ID = #pavlnId#
+	AND		FEE_SEQ = #feeSeq#
+	AND		SUPP_COMP_ID = #suppCompId#
+	</delete>
+	<!-- 등록수수료 등록 -->
+	<insert id="registRegfeeInfo" parameterClass="java.util.HashMap">
+	INSERT INTO CO_PAVLN_REG_FEE
+	(
+		PAVLN_ID
+		,FEE_SEQ
+		,REG_FEE_SEQ
+		,SUPP_COMP_ID
+		,FUNCNM
+		,FEE_DIV_CD
+		,FEE
+		,REG_SEQ_LIMIT
+		,YEARFLD_YN
+	)
+	VALUES
+	(
+		#pavlnId#						/*전시관 ID*/
+		,#feeSeq#						/*수수료 일련번호*/
+		,#regFeeSeq#					/*등록 수수료 일련번호*/
+		,#suppCompId#					/*공급업체ID*/
+		,#regFuncNm#					/*기능명 */
+		,#regFeeDivCd#					/*수수료 구분 코드*/
+		,#regFee#						/*수수료*/
+		,#regSeqLimit#					/*등록 횟수 제한*/
+		,#yearfldYn#					/*연장 여부*/
+	)
+	</insert>
+	<select id="selectPavlnFeeSeq" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT NVL(MAX(FEE_SEQ),0)+1
+		FROM CO_PAVLN_FEE
+		WHERE SUPP_COMP_ID=#suppCompId#
+		AND PAVLN_ID = #pavlnId#
+	</select>
+	<!-- 수수료 등록 -->
+	<insert id="registPavlnfeeInfo" parameterClass="java.util.HashMap">
+	INSERT INTO CO_PAVLN_FEE
+			(
+			 SUPP_COMP_ID								/*공급업체ID*/
+			,PAVLN_ID                                   /*전시관 ID*/
+			,FEE_SEQ                                    /*수수료 일련번호*/
+			,INDPRC_FEE_APPLY_YN                        /*05_가격대별 수수료 적용 여부*/
+			,BASIC_FEE_APPLY_YN                         /*06_기본 수수료 적용 여부*/
+			<isEqual property="rdoBasicfeeYn" compareValue="Y">
+			,BASIC_FEE_APPLY_UNIT_CD                    /*06_기본 수수료 적용 단위 코드*/
+			,BASIC_FEE                                  /*06_기본 수수료*/
+			</isEqual>
+			,PO_HQ_DSTB_YN                              /*07_우체국 본부 분배 여부*/
+			<isEqual property="rdoPohqdstbYn" compareValue="Y">
+			,PO_HQ_DSTB_RATE                            /*07_우체국 본부 분배 율*/
+			</isEqual>
+			,POSA_DSTB_YN                               /*08_진흥원 분배 여부*/
+			<isEqual property="rdoPosadstbYn" compareValue="Y">
+			,POSA_DSTB_RATE                             /*08_진흥원 분배 율*/
+			</isEqual>
+			,ETC1_DSTB_YN                                /*09_기타 분배 여부*/
+			<isEqual property="rdoEtc1dstbYn" compareValue="Y">
+			,ETC1_DSTB_OR_NM                             /*09_기타 분배 기관 명*/
+			,ETC1_DSTB_RATE                              /*09_기타 분배 율*/
+			</isEqual>
+			,ETC2_DSTB_YN                                /*09_기타 분배 여부*/
+			<isEqual property="rdoEtc2dstbYn" compareValue="Y">
+			,ETC2_DSTB_OR_NM                             /*09_기타 분배 기관 명*/
+			,ETC2_DSTB_RATE                              /*09_기타 분배 율*/
+			</isEqual>
+			,REG_FEE_USE_YN                             /*10_등록 수수료 사용 여부*/
+			,REG_DATE                                   /*등록 일시*/
+			,REGER_ID                                   /*등록자 아이디*/
+			)
+	VALUES
+			(
+				<!-- TODO: 공급업체/전시관 pk임-->
+			 <isEqual property="rdoTypeCmpPvl" compareValue="comp">
+			 </isEqual>
+			 <isEqual property="rdoTypeCmpPvl" compareValue="pvl">
+			 </isEqual>
+			 #suppCompId#								/*공급업체ID*/
+			,#pavlnId#								/*전시관 ID*/
+			,#feeSeq#		/*수수료 일련번호*/
+			,<isNotEmpty property="rdoPrcfeeYn">#rdoPrcfeeYn#</isNotEmpty>		/*05_가격대별 수수료 적용 여부*/
+			<isEmpty property="rdoPrcfeeYn">'N'</isEmpty>
+			,<isNotEmpty property="rdoBasicfeeYn">#rdoBasicfeeYn#</isNotEmpty>	/*06_기본 수수료 적용 여부*/
+			<isEmpty property="rdoBasicfeeYn">'N'</isEmpty>
+
+			<isEqual property="rdoBasicfeeYn" compareValue="Y">
+			,#rdoBasicfeeUnit#                      	/*06_기본 수수료 적용 단위 코드*/
+			,#basicfeeVal#                      		/*06_기본 수수료*/
+			</isEqual>
+			,<isNotEmpty property="rdoPohqdstbYn">#rdoPohqdstbYn#</isNotEmpty>	/*07_우체국 본부 분배 여부*/
+			<isEmpty property="rdoPohqdstbYn">'N'</isEmpty>
+
+			<isEqual property="rdoPohqdstbYn" compareValue="Y">
+			,#poHqDstbRateVal#                      	/*07_우체국 본부 분배 율*/
+			</isEqual>
+			,<isNotEmpty property="rdoPosadstbYn">#rdoPosadstbYn#</isNotEmpty>	/*08_진흥원 분배 여부*/
+			<isEmpty property="rdoPosadstbYn">'N'</isEmpty>
+
+			<isEqual property="rdoPosadstbYn" compareValue="Y">
+			,#posaDstbRateVal#                      	/*08_진흥원 분배 율*/
+			</isEqual>
+			,<isNotEmpty property="rdoEtc1dstbYn">#rdoEtc1dstbYn#</isNotEmpty>	/*09_기타 분배 여부*/
+			<isEmpty property="rdoEtc1dstbYn">'N'</isEmpty>
+
+			<isEqual property="rdoEtc1dstbYn" compareValue="Y">
+			,#Etc1dstbOrNmVal#							/*09_기타 분배 기관 명*/
+			,#Etc1dstbRateVal#							/*09_기타 분배 율*/
+			</isEqual>
+			,<isNotEmpty property="rdoEtc2dstbYn">#rdoEtc2dstbYn#</isNotEmpty>	/*09_기타 분배 여부*/
+			<isEmpty property="rdoEtc2dstbYn">'N'</isEmpty>
+			<isEqual property="rdoEtc2dstbYn" compareValue="Y">
+			,#Etc2dstbOrNmVal#							/*09_기타 분배 기관 명*/
+			,#Etc2dstbRateVal#							/*09_기타 분배 율*/
+			</isEqual>
+			,<isNotEmpty property="rdoRegfeeUseYn">#rdoRegfeeUseYn#</isNotEmpty> /*10_등록 수수료 사용 여부*/
+			<isEmpty property="rdoRegfeeUseYn">'N'</isEmpty>
+			,SYSDATE								/*등록 일시*/
+			,#loginId#								/*등록자 아이디*/
+			)
+	</insert>
+	<sql id="selectSupplyComp">
+		SELECT
+			   /*+ ORDERED USE_NL(A B M SUPP_COMP REGIPO)INDEX(A CO_SUPP_COMP_MAST_PK) INDEX(M CO_PAVLN_MGT_IX01) */DISTINCT(A.SUPP_COMP_ID), /** 공급업체ID**/
+			      A.BCNC_NM, /**거래처명**/
+			      (SELECT  SUBSTR(XMLAGG(XMLELEMENT(A, ','||COMN_CD_ID  )).EXTRACT('//text()').GETSTRINGVAL(),2)
+			    FROM  CM_COMN_CD
+			    WHERE  CD_GRP_ID='PAVLN_DIV_CD'
+			          AND     COMN_CD_ID IN
+			            (SELECT DISTINCT PAVLN_DIV_CD FROM CO_PAVLN_MGT WHERE SUPP_COMP_ID = A.SUPP_COMP_ID)
+			         ) PAVLN_DIV_CD ,/** 매장구분**/
+			      (SELECT  SUBSTR(XMLAGG(XMLELEMENT(A, ','||COMN_CD_NM  )).EXTRACT('//text()').GETSTRINGVAL(),2)
+			    FROM  CM_COMN_CD
+			    WHERE  CD_GRP_ID='PAVLN_DIV_CD'
+			          AND     COMN_CD_ID IN
+			            (SELECT DISTINCT PAVLN_DIV_CD FROM CO_PAVLN_MGT WHERE SUPP_COMP_ID = A.SUPP_COMP_ID)
+			         ) PAVLN_NM ,/** 매장구분**/
+			   ( SELECT SUBSTR(XMLAGG(XMLELEMENT(A, ','||COMN_CD_NM  )).EXTRACT('//text()').GETSTRINGVAL(),2)
+			    FROM CM_COMN_CD
+			    WHERE CD_GRP_ID='SUPP_COMP_STUS_CD'
+			    AND  COMN_CD_ID IN
+			      (SELECT DISTINCT SUPP_COMP_STUS_CD FROM CO_PAVLN_MGT WHERE SUPP_COMP_ID = A.SUPP_COMP_ID)
+			   ) SUPP_COMP_STUS_NM ,/**공급 업체 상태 코드**/
+			      A.SUPPO_RGIST_POCD,/**공급국 등기용 국기호**/
+			      B.PONM ,/** 공급우체국**/
+			      A.PRSDT_NM ,/**대표자명**/
+			      A.SUPP_COMP_DIV_CD,/**공급업체분류코드**/
+			      SUPP_COMP.COMN_CD_NM AS SUPP_COMP_DIV_NM, /**공급업체분류코드**/
+			      A.COMPREG_NO, /**사업자등록번호**/
+			      A.AFTPMN_TREAT_APPR_NO, /**후납 처리 승인 번호**/
+			      TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD HH24:MI') AS CHG_DATE, /**변경일자**/
+			      B.HRNKORREGIPOCD, /**청코드**/
+			      REGIPO.POSHORTNM /**청명**/
+			  FROM CO_SUPP_COMP_MAST A,  PICMT0060 B , CO_PAVLN_MGT M,
+			  (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_DIV_CD') SUPP_COMP,
+			  (SELECT POSHORTNM,REGIPOCD,RCOCD
+			          FROM (
+			              SELECT POSHORTNM ,A.REGIPOCD,RCOCD
+			              FROM (
+			                      SELECT REGIPOCD, MAX(POCHGSEQ) POCHGSEQ
+			                      FROM PICMT0060
+			                      WHERE HRNKORREGIPOCD = '89994' AND USEYN='Y'
+			                      GROUP BY REGIPOCD
+			              ) A
+			              , PICMT0060 B
+			               WHERE (A.REGIPOCD = B.REGIPOCD
+			                      AND A.POCHGSEQ = B.POCHGSEQ
+			                      AND RCOCD != '00')
+			          UNION
+			          SELECT POSHORTNM ,REGIPOCD,RCOCD
+			              FROM PICMT0060
+			              WHERE REGIPOCD = '89994' AND USEYN='Y')
+			           ORDER BY RCOCD ) REGIPO
+			  WHERE A.SUPPO_RGIST_POCD = B.REGIPOCD(+)
+			  AND A.SUPP_COMP_ID = M.SUPP_COMP_ID
+			  AND B.HRNKORREGIPOCD = REGIPO.REGIPOCD(+)
+			  AND A.SUPP_COMP_DIV_CD = SUPP_COMP.COMN_CD_ID(+)
+			  AND B.USEYN ='Y'
+		<!--매장구분-->
+		 <isNotEmpty property="search_pavln_id" prepend="AND">
+		 	A.SUPP_COMP_ID IN (SELECT SUPP_COMP_ID FROM CO_PAVLN_MGT WHERE PAVLN_DIV_CD = #search_pavln_id# )
+		 </isNotEmpty>
+		 	<!--공급업체상태  -->
+		 <isNotEmpty property="search_supp_comp_stus" prepend="AND">
+		 	M.SUPP_COMP_STUS_CD = #search_supp_comp_stus#
+		 </isNotEmpty>
+		 <isNotEmpty property="search_index" >
+		 	<!--업체명  -->
+		 	<isEqual property="search_index" compareValue ="01" prepend="AND" >
+		 	A.BCNC_NM LIKE '%'|| #search_Text# || '%'
+		 	</isEqual>
+		 	<!--대표자명  -->
+		 	<isEqual property="search_index" compareValue ="02" prepend="AND" >
+		 	A.PRSDT_NM LIKE '%'|| #search_Text# || '%'
+		 	</isEqual>
+		 	<!--사업자번호  -->
+		 	<isEqual property="search_index" compareValue ="03" prepend="AND" >
+		 	A.COMPREG_NO LIKE '%'|| #search_Text# || '%'
+		 	</isEqual>
+		 </isNotEmpty>
+		  	<!--공급업체분류  -->
+		 <isNotEmpty property="search_supp_comp_div" prepend="AND">
+		 	A.SUPP_COMP_DIV_CD = #search_supp_comp_div#
+		 </isNotEmpty>
+		   	<!--청구분  -->
+		 <isNotEmpty property="search_postOfficeId" prepend="AND">
+		 	A.HRNKORREGIPOCD = #search_postOfficeId#
+		 </isNotEmpty>
+		 <!--기간조회  -->
+		 <isNotEmpty property="search_StartDate" prepend="AND">
+				<![CDATA[	TO_CHAR(A.REG_DATE,'YYYY-MM-DD') >= #search_StartDate# ]]>
+		 </isNotEmpty>
+		 <isNotEmpty property="search_EndDate" prepend="AND">
+				<![CDATA[	TO_CHAR(A.CHG_DATE,'YYYY-MM-DD') <= #search_EndDate# ]]>
+		 </isNotEmpty>
+	</sql>
+
+	<select id="selectSupplyCompList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY BCNC_NM ASC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectSupplyComp" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectSupplyCompListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectSupplyComp" />)
+	</select>
+	<select id="selectBizLoginYearStats" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-12),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "A" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-11),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "B" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-10),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "C" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-9),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "D" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-8),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "E" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-7),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "F" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-6),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "G" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-5),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "H" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-4),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "I" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-3),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "J" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-2),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "K" ,
+			   MAX(CASE WHEN TO_CHAR(ADD_MONTHS(SYSDATE,-1),'YYYYMM') =  DAY_DT THEN NVL(CNT,0) ELSE 0 END) "L"
+			FROM
+	<![CDATA[(SELECT
+			        TO_CHAR(START_DT+LEVEL,'YYYYMM') DAY_DT
+			     FROM
+			      (
+			          SELECT
+			          TO_DATE(TO_CHAR(ADD_MONTHS(SYSDATE,-12),'YYYYMM'),'YYYYMM')  START_DT,
+			          TO_DATE(TO_CHAR(ADD_MONTHS(SYSDATE,-1),'YYYYMM'),'YYYYMM')  END_DT
+			         FROM
+			         DUAL
+			     )
+			  CONNECT BY LEVEL <= END_DT - START_DT
+			  GROUP BY  TO_CHAR(START_DT+LEVEL,'YYYYMM')
+			) ]]> AA,
+			(
+			    SELECT
+			        A.SUPP_COMP_ID,
+			        TO_CHAR(LOGIN_DATE,'YYYYMM') MM,
+			        NVL(COUNT(*),0) CNT
+			    FROM
+			        CO_SUPP_COMP_MAST A,
+			        MB_SUPP_COMP_MEM_MAST B, MB_SUPP_COMP_LOGIN C
+			    WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+			     AND B.SUPP_COMP_ACCESS_NAME = C.SUPP_COMP_ACCESS_NAME(+)
+			     AND A.SUPP_COMP_ID = #supp_comp_id#
+			    GROUP BY A.SUPP_COMP_ID, TO_CHAR(LOGIN_DATE,'YYYYMM')
+			) BB
+			WHERE 1=1
+			AND AA.DAY_DT = MM(+)
+	</select>
+	<select id="selectBizLoginYearStatsBar" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+		  DAY_DT AS LABELS,
+		  NVL(CNT,0) CNT
+		FROM
+<![CDATA[(SELECT
+		        TO_CHAR(START_DT+LEVEL,'YYYYMM') DAY_DT
+		     FROM
+		      (
+		          SELECT
+		          TO_DATE(TO_CHAR(ADD_MONTHS(SYSDATE,-12),'YYYYMM'),'YYYYMM')  START_DT,
+		          TO_DATE(TO_CHAR(ADD_MONTHS(SYSDATE,-1),'YYYYMM'),'YYYYMM')  END_DT
+		         FROM
+		         DUAL
+		     )
+		  CONNECT BY LEVEL <= END_DT - START_DT
+		  GROUP BY  TO_CHAR(START_DT+LEVEL,'YYYYMM')
+		) ]]> AA,
+		(
+		    SELECT
+		        A.SUPP_COMP_ID,
+		        TO_CHAR(LOGIN_DATE,'YYYYMM') MM,
+		        NVL(COUNT(*),0) CNT
+		    FROM
+		        CO_SUPP_COMP_MAST A,
+		        MB_SUPP_COMP_MEM_MAST B, MB_SUPP_COMP_LOGIN C
+		    WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+		     AND B.SUPP_COMP_ACCESS_NAME = C.SUPP_COMP_ACCESS_NAME(+)
+		     AND A.SUPP_COMP_ID = #supp_comp_id#
+		    GROUP BY A.SUPP_COMP_ID, TO_CHAR(LOGIN_DATE,'YYYYMM')
+		) BB
+		WHERE 1=1
+		AND AA.DAY_DT = MM(+)
+		ORDER BY DAY_DT ASC
+	</select>
+	<sql id="selectBizLoginYear">
+		SELECT
+	        A.SUPP_COMP_ID,
+	        A.BCNC_NM,
+	        B.SUPP_COMP_ACCESS_NAME AS LOGIN_ID,
+	        B.ADMINNM AS NAME,
+	        TO_CHAR(LOGIN_DATE,'YYYY-MM-DD HH24:MI:SS') LOGIN_DATE,
+	        (	SELECT	SUBSTR(XMLAGG(XMLELEMENT(A, ','||COMN_CD_NM  )).EXTRACT('//text()').GETSTRINGVAL(),2)
+				FROM	CM_COMN_CD
+				WHERE	CD_GRP_ID='SUPP_COMP_STUS_CD'
+				AND 	COMN_CD_ID IN
+						(SELECT DISTINCT SUPP_COMP_STUS_CD FROM CO_PAVLN_MGT WHERE SUPP_COMP_ID = A.SUPP_COMP_ID)
+			) SUPP_COMP_STUS_NM /*공급 업체 상태 코드*/
+		FROM
+			CO_SUPP_COMP_MAST A,
+			MB_SUPP_COMP_MEM_MAST B, MB_SUPP_COMP_LOGIN C
+		WHERE A.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+		AND B.SUPP_COMP_ACCESS_NAME = C.SUPP_COMP_ACCESS_NAME(+)
+		AND LOGIN_DATE BETWEEN   ADD_MONTHS(TO_DATE(TO_CHAR(SYSDATE,'YYYYMM'),'YYYYMM' ),-12)  AND LAST_DAY(ADD_MONTHS(TO_DATE(TO_CHAR(SYSDATE,'YYYYMM'),'YYYYMM'),-1))+.99999
+		AND A.SUPP_COMP_ID = #supp_comp_id#
+	</sql>
+	<select id="selectBizLoginYearList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+
+						ROW_NUMBER () OVER (ORDER BY LOGIN_DATE DESC) RNUM
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectBizLoginYear" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectBizLoginYearListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectBizLoginYear"/>)
+	</select>
+	<!-- 공급업체관리 리스트 조회 -->
+	<select id="selectSrmboChgRsnList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM (
+				SELECT	ROW_NUMBER () OVER (ORDER BY SUPP_COMP_CHG_DATE DESC) RNUM
+						,CHG_RSN
+						,TO_CHAR(SUPP_COMP_CHG_DATE,'YYYY-MM-DD') AS CHG_DATE
+						,CHGER_ID
+				FROM CO_SUPP_COMP_HISTOR
+				WHERE SUPP_COMP_ID = #suppCompId#
+				ORDER BY SUPP_COMP_CHG_DATE DESC
+			)
+		<isNotEmpty property="firstIndex">
+			<isNotEmpty property="lastIndex">
+		WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+			</isNotEmpty>
+		</isNotEmpty>
+	</select>
+	<select id="selectSrmboChgRsnListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT	COUNT(*)
+		FROM	CO_SUPP_COMP_HISTOR
+		WHERE	SUPP_COMP_ID = #suppCompId#
+		AND 	CHG_RSN IS NOT NULL
+		ORDER BY SUPP_COMP_CHG_DATE DESC
+	</select>
+</sqlMap>
+

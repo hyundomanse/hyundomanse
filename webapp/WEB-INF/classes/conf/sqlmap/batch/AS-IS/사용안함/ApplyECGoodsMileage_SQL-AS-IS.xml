@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.ApplyECGoodsMileage">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt
+	  		FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				MAX(rate02)*100 as rate02, 
+				MAX(rate03)*100 as rate03, 
+				MAX(rate04)*100 as rate04, 
+				MAX(rate05)*100 as rate05, 
+				MAX(rate06)*100 as rate06, 
+				MAX(rate07)*100 as rate07, 
+				MAX(rate08)*100 as rate08, 
+	      		MAX(rate09)*100 as rate09, 
+	      		MAX(rate10)*100 as rate10, 
+	      		MAX(rate11)*100 as rate11, 
+	      		MAX(rate12)*100 as rate12
+          FROM credit_rate	
+          WHERE to_char(sysdate,'yyyymmdd') between start_date and end_date
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT MAX(rate00) as bktnRate 
+			FROM credit_rate where gbn='1' 
+			AND start_date <= to_char(sysdate,'yyyymmdd') 
+			AND end_date >= to_char(sysdate,'yyyymmdd')
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE  ST_GOODS_MASTER 
+			SET  POINT   = DECODE(DECODE(SUBSTR(GOODS_CODE,0,2),'EG',1,SIGN(GOODS_FEE-5)), 1, TRUNC((GOODS_FEE - #bktnRate#*100) * 0.02, 2), 0)
+			WHERE  SHOP_ID = '8' 
+			AND  INST_FLAG = 'N'
+			AND  DELETE_DATE = '99999999'
+			AND CATEGORY_CODE NOT LIKE '619%'
+		]]>	 
+	</update>
+	
+	<update id="update_ST_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER 
+	    	SET POINT = DECODE(DECODE(SUBSTR(GOODS_CODE,0,2),'EG',1,SIGN(GOODS_FEE-5)), 1, TRUNC((GOODS_FEE - 1.3 - DECODE (INST_MONTH, 2, #rate02#,
+														    3, #rate03#,
+														    4, #rate04#,
+														    5, #rate05#,
+														    6, #rate06#,
+														    7, #rate07#,
+														    8, #rate08#,
+														    9, #rate09#,
+										           10, #rate10#,
+										           11, #rate11#,
+										           12, #rate12#,
+										            0))*0.02, 2), 0)
+	    	WHERE  SHOP_ID = '8' 
+		 	AND  INST_FLAG = 'Y'
+	    	AND  DELETE_DATE = '99999999'
+		    AND CATEGORY_CODE NOT LIKE '619%'
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE  GOODS_MASTER 
+	    	SET  POINT   = DECODE(DECODE(SUBSTR(GOODS_CODE,0,2),'EG',1,SIGN(GOODS_FEE-5)), 1, TRUNC((GOODS_FEE - #bktnRate#*100) * 0.02, 2), 0)
+	    	WHERE  SHOP_ID = '8' 
+		    AND  INST_FLAG = 'N'
+	    	AND  DELETE_DATE = '99999999'
+		    AND CATEGORY_CODE NOT LIKE '619%'
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER 
+	    	SET  POINT = DECODE(DECODE(SUBSTR(GOODS_CODE,0,2),'EG',1,SIGN(GOODS_FEE-5)), 1, TRUNC((GOODS_FEE - 1.3 - DECODE (INST_MONTH, 2, #rate02#,
+													    3, #rate03#,
+													    4, #rate04#,
+													    5, #rate05#,
+													    6, #rate06#,
+													    7, #rate07#,
+													    8, #rate08#,
+													    9, #rate09#,
+									           10, #rate10#,
+									           11, #rate11#,
+									           12, #rate12#,
+									            0))*0.02, 2), 0 )
+	    	WHERE SHOP_ID = '8' 
+		  	AND INST_FLAG     = 'Y'
+	    	AND DELETE_DATE = '99999999'
+		    AND CATEGORY_CODE NOT LIKE '619%'
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE  GOODS_MASTER 
+	    	   SET  POINT = 0
+	    	 WHERE  CATEGORY_CODE IN ('614080101','614090101','140607','170101')
+	    	   AND  DELETE_DATE = '99999999'
+		]]>	 
+	</update>
+	
+	<update id="update_ST_GOODS_MASTER_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE  ST_GOODS_MASTER 
+	    	   SET  POINT = 0
+	    	 WHERE  CATEGORY_CODE IN ('614080101','614090101','140607','170101')
+	    	   AND  DELETE_DATE = '99999999'
+		]]>	 
+	</update>
+		
+</sqlMap>

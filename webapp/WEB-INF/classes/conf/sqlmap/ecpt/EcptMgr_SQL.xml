@@ -1,0 +1,940 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Ecpt">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 우체국 조회 팝업 검색 -->
+	<select id="PostNameSearch" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT  ONUM,
+				EDPSCD ,
+				REGIPOCD,
+				PONM
+		FROM
+				(SELECT
+						<isEmpty property="sidx">
+							ROW_NUMBER() OVER(ORDER BY REGIPOCD DESC, POCHGSEQ DESC) AS ONUM,
+						</isEmpty>
+							EDPSCD ,
+							REGIPOCD,
+							PONM
+				FROM 		PICMT0060
+				WHERE		USEYN = 'Y'
+				AND			DSCDPOYN = 'N'
+				<isEqual property="searchIndex" compareValue="ALL" prepend="AND">
+					(EDPSCD	LIKE '%'||#searchWord#||'%' OR REGIPOCD LIKE '%'||#searchWord#||'%' OR PONM LIKE '%'||#searchWord#||'%')
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="01" prepend="AND">
+					EDPSCD	LIKE '%'|| #searchWord# || '%'
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="02" prepend="AND">
+					REGIPOCD	LIKE '%'|| #searchWord# || '%'
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="03" prepend="AND">
+					PONM	LIKE '%'|| #searchWord# || '%'
+				</isEqual>
+				)T1
+		WHERE 1=1
+			<isNotNull property="firstIndex">
+				<isNotNull property="lastIndex">
+					AND T1.ONUM BETWEEN #firstIndex# AND #lastIndex#
+				</isNotNull>
+			</isNotNull>
+	</select>
+	<!-- 우체국 조회 팝업 검색 카운트 -->
+	<select id="PostNameSearchTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM(
+				SELECT  EDPSCD,
+				REGIPOCD,
+				PONM
+		FROM  	PICMT0060
+				WHERE	USEYN = 'Y'
+				AND		DSCDPOYN = 'N'
+				<isEqual property="searchIndex" compareValue="ALL" prepend="AND">
+					(EDPSCD	LIKE '%'||#searchWord#||'%' OR REGIPOCD LIKE '%'||#searchWord#||'%' OR PONM LIKE '%'||#searchWord#||'%')
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="01" prepend="AND">
+					EDPSCD	LIKE '%'|| #searchWord# || '%'
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="02" prepend="AND">
+					REGIPOCD	LIKE '%'|| #searchWord# || '%'
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="03" prepend="AND">
+					PONM	LIKE '%'|| #searchWord# || '%'
+				</isEqual>
+			)
+	</select>
+	<!-- 꽃배달예외지역 조회-->
+	<select id="selectflwrdelivAreaList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	F.*
+		FROM (
+				SELECT		ROW_NUMBER() OVER(ORDER BY A.ZIPCD DESC,A.ZIPCD_SEQ DESC) AS ONUM
+							,A.ZIPCD
+							,A.NODELIVAREAYN
+							,DECODE(A.NODELIVAREAYN,'Y','불가','N','대체','D','삭제') AS NODELIVAREAYNCD
+							,A.SUPPPOREGIPOCD
+							,T.PONM
+							,TO_CHAR(TO_DATE(D.APPLY_STRT_DATE),'YYYY-MM-DD') AS STRTDATE
+							,TO_CHAR(TO_DATE(D.APPLY_END_DATE),'YYYY-MM-DD') AS ENDDATE
+							,T.POADDR
+							,T.PONM AS DELIVPONM
+							,T.DELIVREGIPOCD
+							<![CDATA[
+							,CASE WHEN D.APPLY_STRT_DATE >= TO_CHAR(SYSDATE,'YYYYMMDD') OR D.APPLY_END_DATE <= TO_CHAR(SYSDATE,'YYYYMMDD') THEN 'N'
+							ELSE 'Y'
+							END AS USING
+							]]>
+							<![CDATA[
+							,CASE WHEN D.APPLY_STRT_DATE >= TO_CHAR(SYSDATE,'YYYYMMDD') OR D.APPLY_END_DATE <= TO_CHAR(SYSDATE,'YYYYMMDD') THEN '사용안함'
+							ELSE '사용'
+							END AS USINGNM
+							]]>
+				FROM	PBSET0210 A
+						,CM_FLWR_DELIV_MGMT_HISTORY D
+						,( SELECT	<isEqual property="zipcdSel" compareValue="1">
+									DISTINCT A.ZIP_CL AS ZIPCD
+									</isEqual>
+									<isEqual property="zipcdSel" compareValue="2">
+									DISTINCT A.AREA_CD AS ZIPCD
+									</isEqual>
+									, A.SI_NM||' '||A.SGG_NM||' '||RD_NM||' '||BD_MA_SN AS POADDR
+									, B.DELIVREGIPOCD AS DELIVREGIPOCD
+									, C.PONM
+							FROM PICMT0880 A ,PICMT0884 B ,PICMT0060 C
+							WHERE A.AREA_CD = B.AREA_CD
+							AND B.DELIVREGIPOCD = C.REGIPOCD
+							AND B.USEYN = 'Y'
+							AND C.USEYN = 'Y'
+							<isNotEmpty property="postNum1">
+								<isEqual property="zipcdSel" compareValue="1">
+									AND A.ZIP_CL LIKE #postNum1#||'%'
+								</isEqual>
+								<isEqual property="zipcdSel" compareValue="2">
+									AND A.AREA_CD LIKE #postNum1#||'%'
+								</isEqual>
+							</isNotEmpty>
+							)T
+				WHERE A.ZIPCD = D.ZIPCD
+				AND A.ZIPCD_SEQ = D.ZIPCD_SEQ
+				AND A.ZIPCD = T.ZIPCD
+				<isNotEmpty property="lastIndex">
+					<![CDATA[
+						AND ROWNUM <= #lastIndex#
+					]]>
+				</isNotEmpty>
+				ORDER BY ONUM
+			)F
+			<isNotEmpty property="firstIndex">
+				<![CDATA[
+					WHERE F.ONUM >= #firstIndex#
+				]]>
+			</isNotEmpty>
+	</select>
+
+		<!-- 꽃배달예외지역 카운트-->
+	<select id="selectflwrdelivAreaListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(1)
+		FROM(
+			SELECT	A.ZIPCD
+					,A.NODELIVAREAYN
+					,A.SUPPPOREGIPOCD
+					,D.APPLY_STRT_DATE
+					,D.APPLY_END_DATE
+					,T.POADDR
+					,T.DELIVREGIPOCD
+					,T.PONM
+				<![CDATA[
+					,CASE WHEN D.APPLY_STRT_DATE >= TO_CHAR(SYSDATE,'YYYYMMDD') OR D.APPLY_END_DATE <= TO_CHAR(SYSDATE,'YYYYMMDD') THEN 'N'
+				]]>
+					ELSE 'Y'
+					END AS USING
+			FROM	PBSET0210 A
+					,CM_FLWR_DELIV_MGMT_HISTORY D
+					,( SELECT	<isEqual property="zipcdSel" compareValue="1">
+								DISTINCT A.ZIP_CL AS ZIPCD
+								</isEqual>
+								<isEqual property="zipcdSel" compareValue="2">
+								DISTINCT A.AREA_CD AS ZIPCD
+								</isEqual>
+								, A.SI_NM||' '||A.SGG_NM||' '||RD_NM||' '||BD_MA_SN AS POADDR
+								, B.DELIVREGIPOCD AS DELIVREGIPOCD
+								, C.PONM
+						FROM PICMT0880 A ,PICMT0884 B ,PICMT0060 C
+						WHERE	A.AREA_CD = B.AREA_CD
+						AND 	B.DELIVREGIPOCD = C.REGIPOCD
+						AND 	B.USEYN = 'Y'
+						AND 	C.USEYN = 'Y'
+						<isNotEmpty property="postNum1">
+							<isEqual property="zipcdSel" compareValue="1">
+								AND A.ZIP_CL LIKE #postNum1#||'%'
+							</isEqual>
+							<isEqual property="zipcdSel" compareValue="2">
+								AND A.AREA_CD LIKE #postNum1#||'%'
+							</isEqual>
+						</isNotEmpty>
+						)T
+			WHERE A.ZIPCD = D.ZIPCD
+			AND A.ZIPCD_SEQ = D.ZIPCD_SEQ
+			AND A.ZIPCD = T.ZIPCD
+			)
+	</select>
+		<!-- 꽃배달예외지역 수정1 // 대체1 , 불가1--><!-- TODO:계정정보추가 -->
+	<update id="updateflwrdelivAreaList_1" parameterClass="java.util.HashMap">
+		INSERT INTO CM_FLWR_DELIV_MGMT_HISTORY
+				(	ZIPCD,
+					ZIPCD_SEQ,
+					SUPP_PO_REGIPOCD,
+					NO_DELIV_AREA_YN,
+					CREATE_DATE,
+					CREATE_PRSN_ID,
+					APPLY_STRT_DATE,
+					APPLY_END_DATE,
+					USE_YN
+				)
+		VALUES(
+					#zipcd#
+					,NVL ((SELECT MAX (TO_NUMBER (ZIPCD_SEQ)) + 1
+							FROM CM_FLWR_DELIV_MGMT_HISTORY
+							WHERE ZIPCD = #zipcd#), 1)
+					,<isEqual property="nodelivareayn" compareValue="Y">''</isEqual>
+					<isEqual property="nodelivareayn" compareValue="N">#regipocd#</isEqual>
+					<isEqual property="nodelivareayn" compareValue="D">#regipocd#</isEqual>
+					,#nodelivareayn#
+					,SYSDATE
+					,#loginId#
+					,REPLACE(#strtdate#,'-','')
+					,REPLACE(#enddate#,'-','')
+					,'Y'
+				)
+</update>
+		<!-- 꽃배달예외지역 수정2 // 대체2, 불가2, 삭제2-->
+	<update id="updateflwrdelivAreaList_2" parameterClass="java.util.HashMap">
+		UPDATE CM_FLWR_DELIV_MGMT_HISTORY A
+		SET USE_YN = 'N'
+		,CREATE_PRSN_ID = #loginId#
+		WHERE A.ZIPCD = <isNotNull property="zipcd">#zipcd#</isNotNull>
+		<isNotEqual property="postsel" compareValue="D">
+		AND A.ZIPCD_SEQ != (SELECT MAX (TO_NUMBER (ZIPCD_SEQ))
+                         	FROM CM_FLWR_DELIV_MGMT_HISTORY B
+                        	WHERE B.ZIPCD = A.ZIPCD)
+        </isNotEqual>
+</update>
+		<!-- 꽃배달예외지역 수정3 // 대체3, 불가3, 삭제1-->
+	<delete id="updateflwrdelivAreaList_3" parameterClass="java.util.HashMap">
+		DELETE FROM  PBSET0210
+		WHERE ZIPCD = 	<isNotNull property="zipcd">#zipcd#</isNotNull>
+	</delete>
+		<!-- 꽃배달예외지역 수정4 // 불가4 & 대체4-->
+	<update id="updateflwrdelivAreaList_4" parameterClass="java.util.HashMap">
+INSERT INTO PBSET0210
+			(	ZIPCD
+				,SUPPPOREGIPOCD
+				,NODELIVAREAYN
+				,LASTCHGDATE
+				,LASTCHGPRSNID
+				,ZIPCD_SEQ
+			)
+		VALUES
+			(   <isNotNull property="zipcd">#zipcd#</isNotNull>
+				,<isEqual property="nodelivareayn" compareValue="Y">''</isEqual>
+				<isEqual property="nodelivareayn" compareValue="N">#regipocd#</isEqual>
+				<isEqual property="nodelivareayn" compareValue="D">#regipocd#</isEqual>
+				,#nodelivareayn#
+				,SYSDATE
+				,#loginId#
+				,(SELECT NVL(MAX(TO_NUMBER (ZIPCD_SEQ)),1)
+				  FROM CM_FLWR_DELIV_MGMT_HISTORY
+				  WHERE ZIPCD = <isNotNull property="zipcd">#zipcd#</isNotNull>
+				  )
+			)
+</update>
+		<!-- 꽃배달예외지역 수정5 // 삭제2 & 대체3-->
+	<update id="updateflwrdelivAreaList_5" parameterClass="java.util.HashMap">
+		UPDATE CM_FLWR_DELIV_MGMT_HISTORY
+		SET USE_YN = 'N'
+			,CREATE_PRSN_ID = #loginId#
+		WHERE ZIPCD = <isNotNull property="zipcd"> #zipcd# </isNotNull>
+	</update>
+		<!-- 꽃배달예외지역 신규등록 -->
+	<insert  id="insertflwrdelivAreaList" parameterClass="java.util.HashMap">
+	INSERT INTO CM_FLWR_DELIV_MGMT_HISTORY
+         ( ZIPCD
+          ,ZIPCD_SEQ
+          ,SUPP_PO_REGIPOCD
+          ,NO_DELIV_AREA_YN
+          ,CREATE_DATE
+          ,CREATE_PRSN_ID
+          ,APPLY_STRT_DATE
+          ,APPLY_END_DATE
+          ,USE_YN)
+             VALUES
+         ( #zipcd#
+          ,nvl((select max(to_number(ZIPCD_SEQ))+1 from CM_FLWR_DELIV_MGMT_HISTORY where ZIPCD=#zipcd#),1)
+          ,#regipocd#
+          ,#nodelivareayn#
+          ,sysdate
+          ,#loginId#
+       	  ,REPLACE(#strtdate#,'-','')
+    	  ,REPLACE(#enddate#,'-','')
+          ,'Y' )
+	</insert>
+		<!--꽃배달예외지역 일괄적용 리스트 조회-->
+	<select id="selectflwrdelivPoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT  ONUM
+			,ZIPCD
+			,ZIPCD1
+			,ADDR
+			,SUPPPOREGIPOCD
+			,PONM
+	FROM (
+			SELECT  ROW_NUMBER() OVER(ORDER BY SUPPPOREGIPOCD ASC) AS ONUM
+					,ZIPCD
+					,CASE WHEN LENGTH(ZIPCD) = 5 THEN ZIPCD
+						WHEN LENGTH(ZIPCD) = 6 THEN SUBSTR(ZIPCD ,1,3) || '-' || SUBSTR(ZIPCD,4)
+						ELSE ZIPCD END AS ZIPCD1
+					,ADDR
+					,SUPPPOREGIPOCD
+					,DECODE(SUPPYN,'N','',
+					   'Y',(SELECT PONM||'(예외지역)' FROM PICMT0060 WHERE REGIPOCD = Z.SUPPPOREGIPOCD AND USEYN = 'Y'),
+					   'X',(SELECT PONM FROM PICMT0060 WHERE REGIPOCD = Z.SUPPPOREGIPOCD AND USEYN = 'Y')) PONM
+			FROM (
+					SELECT DISTINCT A.ZIPCD
+							,'' ADDR
+							,NVL(DECODE(NVL((SELECT DECODE(C.NODELIVAREAYN,'N',C.SUPPPOREGIPOCD, 'Y', '배달불가지역')
+											FROM PBSET0210 C WHERE C.ZIPCD=A.ZIPCD), 'X' ),'X'
+											 ,(SELECT D.SUPPPOREGIPOCD FROM PBSET0170 D WHERE D.DELIVPOREGIPOCD = A.DELIVREGIPOCD ),
+											     (SELECT DECODE(C.NODELIVAREAYN,'N',C.SUPPPOREGIPOCD, 'Y', '배달불가지역')
+											      FROM PBSET0210 C WHERE C.ZIPCD=A.ZIPCD)),'공급국 미지정') SUPPPOREGIPOCD
+											             ,DECODE(NVL((SELECT DECODE(C.NODELIVAREAYN,'N','Y', 'Y', 'N')
+											                          FROM PBSET0210 C
+											                          WHERE C.ZIPCD=A.ZIPCD), 'X' ),'X','X', 'Y', 'Y', 'N', 'N')SUPPYN
+					FROM V_POSTALCODE A, PICMT0060 B
+					WHERE A.DELIVREGIPOCD = B.REGIPOCD
+					AND   B.USEYN = 'Y'
+					AND   A.USEYN = 'Y'
+					<isNotNull property="regipocd">
+					AND   A.DELIVREGIPOCD = #regipocd#
+					</isNotNull>
+					)Z
+			ORDER BY ZIPCD, SUPPPOREGIPOCD
+		)
+    WHERE 1=1
+    <isNotNull property="firstIndex">
+        <isNotNull property="lastIndex">
+        AND ONUM BETWEEN #firstIndex# AND #lastIndex#
+        </isNotNull>
+    </isNotNull>
+	</select>
+	<!-- 꽃배달예외지역 일괄적용 리스트 카운트  -->
+	<select id="selectflwrdelivPoListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(ZIPCD)
+	FROM(
+			SELECT DISTINCT ZIPCD
+					   ,CASE WHEN LENGTH(ZIPCD) = 5 THEN ZIPCD
+				            WHEN LENGTH(ZIPCD) = 6 THEN SUBSTR(ZIPCD ,1,3) || '-' || SUBSTR(ZIPCD,4)
+				            ELSE ZIPCD END AS ZIPCD1
+				       ,ADDR
+				       ,SUPPPOREGIPOCD
+			       	   ,DECODE(SUPPYN,'N','',
+			              'Y',(SELECT PONM||'(예외지역)' FROM PICMT0060 WHERE REGIPOCD = Z.SUPPPOREGIPOCD AND USEYN = 'Y'),
+			              'X',(SELECT PONM FROM PICMT0060 WHERE REGIPOCD = Z.SUPPPOREGIPOCD AND USEYN = 'Y')) PONM
+					FROM (
+						SELECT DISTINCT A.ZIPCD
+							   ,'' ADDR
+							   ,NVL(DECODE(NVL((SELECT DECODE(C.NODELIVAREAYN,'N',C.SUPPPOREGIPOCD, 'Y', '배달불가지역')
+								  			    FROM PBSET0210 C WHERE C.ZIPCD=A.ZIPCD), 'X' ),'X'
+												 ,(SELECT D.SUPPPOREGIPOCD FROM PBSET0170 D WHERE D.DELIVPOREGIPOCD = A.DELIVREGIPOCD ),
+													 (SELECT DECODE(C.NODELIVAREAYN,'N',C.SUPPPOREGIPOCD, 'Y', '배달불가지역')
+													  FROM PBSET0210 C WHERE C.ZIPCD=A.ZIPCD)),'공급국 미지정') SUPPPOREGIPOCD
+															 ,DECODE(NVL((SELECT DECODE(C.NODELIVAREAYN,'N','Y', 'Y', 'N')
+											  							  FROM PBSET0210 C
+											  							  WHERE C.ZIPCD=A.ZIPCD), 'X' ),'X','X', 'Y', 'Y', 'N', 'N')SUPPYN
+		    FROM V_POSTALCODE A, PICMT0060 B
+			WHERE A.DELIVREGIPOCD = B.REGIPOCD
+			AND   B.USEYN = 'Y'
+			AND   A.USEYN = 'Y'
+			<isNotNull property="regipocd">
+				<isNotEqual property="regipocd" compareValue="">
+			AND   A.DELIVREGIPOCD = #regipocd#
+				</isNotEqual>
+			</isNotNull>
+			)Z
+	)
+	</select>
+
+	<!-- 꽃배달 공급국 조회 -->
+	<select id="selectflwrdelivpostList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM(
+				SELECT
+						ROW_NUMBER() OVER(ORDER BY DELIVPOREGIPOCD) ONUM,
+						DELIVPOREGIPOCD,
+						DELIVREGIPONM,
+						DELIVPOADDR,
+						SUPPPOREGIPOCD,
+						SUPPPOREGIPONM,
+						SUPPPOADDR,
+						SAVESTUS
+				FROM (
+						SELECT
+								C.DELIVPOREGIPOCD  DELIVPOREGIPOCD,
+								D.PONM DELIVREGIPONM,
+								D.POADDR DELIVPOADDR,
+								C.SUPPPOREGIPOCD SUPPPOREGIPOCD,
+								(SELECT
+								    E.PONM
+								FROM PICMT0060 E
+								WHERE E.REGIPOCD=C.SUPPPOREGIPOCD
+								        AND E.USEYN='Y' AND E.DSCDPOYN = 'N'
+								        ) SUPPPOREGIPONM,
+								(SELECT
+								    F.POADDR
+								FROM PICMT0060 F
+								WHERE F.REGIPOCD=C.SUPPPOREGIPOCD
+								    AND F.USEYN='Y' AND F.DSCDPOYN  = 'N') SUPPPOADDR ,
+								C.SAVESTUS SAVESTUS
+						FROM
+								(SELECT
+								     B.DELIVPOREGIPOCD,
+								     A.SUPPPOREGIPOCD,
+								     DECODE(A.DELIVPOREGIPOCD,NULL,'I','U') SAVESTUS
+								 FROM PBSET0170 A,
+								     (SELECT
+								         DISTINCT DELIVREGIPOCD DELIVPOREGIPOCD
+								     FROM V_POSTALCODE
+								     WHERE USEYN='Y') B
+								 WHERE A.DELIVPOREGIPOCD(+) = B.DELIVPOREGIPOCD) C ,
+								 PICMT0060 D
+						WHERE C.DELIVPOREGIPOCD=D.REGIPOCD
+						    AND D.USEYN ='Y'
+						    AND D.DSCDPOYN = 'N'
+				    )
+				WHERE 1=1
+				<isNotNull property="ponm">
+				AND DELIVREGIPONM LIKE '%'||#ponm#||'%'
+				</isNotNull>
+				<isEqual property="postsel" compareValue="02">
+						AND SUPPPOREGIPOCD LIKE '%'|| #regipocd# ||'%'
+				</isEqual>
+				<isEqual property="registChk" compareValue="true">
+				AND SUPPPOREGIPOCD IS NULL
+				</isEqual>
+		        ORDER BY DELIVPOREGIPOCD
+		        )
+    <isNotNull property="firstIndex">
+        <isNotNull property="lastIndex">
+        WHERE ONUM BETWEEN #firstIndex# AND #lastIndex#
+        </isNotNull>
+    </isNotNull>
+	</select>
+		<!-- 꽃배달 공급국 카운트 -->
+	<select id="selectflwrdelivpostListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT count (*)
+		FROM (
+				SELECT
+						C.DELIVPOREGIPOCD  DELIVPOREGIPOCD,
+						D.PONM DELIVREGIPONM,
+						D.POADDR DELIVPOADDR,
+						C.SUPPPOREGIPOCD SUPPPOREGIPOCD,
+						(	SELECT 	E.PONM
+							FROM	PICMT0060 E
+							WHERE	E.REGIPOCD=C.SUPPPOREGIPOCD
+							AND 	E.USEYN='Y' AND E.DSCDPOYN = 'N'
+						)SUPPPOREGIPONM,
+						(SELECT	F.POADDR
+						FROM PICMT0060 F
+						WHERE F.REGIPOCD=C.SUPPPOREGIPOCD
+						    AND F.USEYN='Y' AND F.DSCDPOYN = 'N') SUPPPOADDR,
+						C.SAVESTUS SAVESTUS
+				FROM
+						(SELECT 	B.DELIVPOREGIPOCD,
+									A.SUPPPOREGIPOCD,
+									DECODE(A.DELIVPOREGIPOCD,NULL,'I','U') SAVESTUS
+						FROM	PBSET0170 A,
+								(SELECT		DISTINCT DELIVREGIPOCD DELIVPOREGIPOCD
+								FROM		V_POSTALCODE
+								WHERE		USEYN='Y') B
+						WHERE A.DELIVPOREGIPOCD(+) = B.DELIVPOREGIPOCD) C ,
+						PICMT0060 D
+				WHERE	C.DELIVPOREGIPOCD=D.REGIPOCD
+				AND		D.USEYN ='Y'
+				AND		D.DSCDPOYN = 'N'
+				)
+		WHERE 1=1
+				<isNotNull property="ponm">
+				AND DELIVREGIPONM LIKE '%'||#ponm#||'%'
+				</isNotNull>
+				<isEqual property="postsel" compareValue="02">
+						AND SUPPPOREGIPOCD LIKE '%'|| #regipocd# ||'%'
+				</isEqual>
+				<isEqual property="registChk" compareValue="true">
+				AND SUPPPOREGIPOCD IS NULL
+				</isEqual>
+	</select>
+
+	  <!-- 상세정보 금칙어 조회 -->
+	<select id="selectbanwordList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	*
+		FROM(
+			SELECT	ROW_NUMBER() OVER(ORDER BY SEQ DESC) RNUM
+					,SEQ
+					,PHBWRD
+					,TO_CHAR(REG_DATE,'YYYY-MM-DD')AS REG_DATE
+					,TO_CHAR(CHG_DATE,'YYYY-MM-DD')AS CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+			FROM GD_GOODS_PHBWRD
+			<isNotNull property="searchWord" prepend="WHERE">
+				PHBWRD LIKE '%'|| #searchWord# || '%'
+			</isNotNull>
+			ORDER BY SEQ DESC
+			)
+		<isNotNull property="firstIndex">
+			<isNotNull property="lastIndex" prepend="WHERE">
+		RNUM BETWEEN #firstIndex# AND #lastIndex#
+			</isNotNull>
+		</isNotNull>
+	</select>
+		<!-- 상세정보 금칙어 카운트 -->
+	<select id="selectbanwordListTotCnt" parameterClass ="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM GD_GOODS_PHBWRD
+		<isNotNull property="searchWord" prepend="WHERE">
+			PHBWRD LIKE '%'|| #searchWord# || '%'
+		</isNotNull>
+	</select>
+	<!-- 상세정보 금칙어 상세정보 -->
+	<select id="selectBanwordInfo" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	SEQ
+				,PHBWRD
+				,TO_CHAR(REG_DATE,'YYYY-MM-DD HH24:MI')AS REG_DATE
+				,TO_CHAR(CHG_DATE,'YYYY-MM-DD HH24:MI')AS CHG_DATE
+				,REGER_ID
+				,CHGER_ID
+		FROM GD_GOODS_PHBWRD
+		WHERE SEQ = #seq#
+	</select>
+	<!-- 상세정보 금칙어 신규등록 -->
+	<insert  id="insertbanwordList" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_PHBWRD
+				(	SEQ
+					,PHBWRD
+					,REG_DATE
+					,CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+				)
+		 VALUES (	(SELECT NVL(MAX(SEQ),0)+1 FROM GD_GOODS_PHBWRD)
+	  				,#phbwrd#
+	  				,SYSDATE
+	  				,SYSDATE
+	  				,#loginId#
+	  				,#loginId#
+	  			)
+	</insert>
+		<!-- 상세정보 금칙어 수정 -->
+	<update id="updatebanwordList" parameterClass="java.util.HashMap">
+		UPDATE GD_GOODS_PHBWRD
+		SET PHBWRD = #phbwrd#
+			,CHG_DATE = SYSDATE
+			,CHGER_ID = #loginId#
+		WHERE SEQ = #seq#
+	</update>
+	<!-- 상세정보 금칙어 삭제 -->
+	<delete id="deletebanwordList" parameterClass="java.util.HashMap">
+		DELETE GD_GOODS_PHBWRD
+	 	WHERE SEQ = #seq#
+	</delete>
+	<!-- 국가별 접수중지 조회 -->
+	<select id="selectnationstopList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM (
+				SELECT ROW_NUMBER() OVER(ORDER BY NATION_NM_KO DESC) AS RNUM
+						,NATION_CD
+						,NATION_NM_KO
+						,NATION_NM_US
+						,AREA_DIV
+						,EMS_AREA
+						,SP_AREA
+						,USE_YN
+						,DECODE(USE_YN,'Y','사용','중지') AS STAT
+						,TO_CHAR(CHG_DATE,'YYYY-MM-DD') AS CHG_DATE
+						,CHGER_ID
+				FROM CM_OVSEA_SEND_NATION_CD
+				<![CDATA[
+				WHERE NATION_CD <> '1'
+				]]>
+				<isNotNull property="searchWord">
+					<isEqual property="searchSel" compareValue="00">
+		              AND (NATION_CD LIKE '%'|| #searchWord# ||'%' OR NATION_NM_KO LIKE '%'|| #searchWord# ||'%')
+	               </isEqual>
+	               <isEqual property="searchSel" compareValue="01">
+		              AND NATION_CD LIKE '%'|| #searchWord# ||'%'
+	               </isEqual>
+	               <isEqual property="searchSel" compareValue="02">
+		              AND NATION_NM_KO LIKE '%'|| #searchWord# ||'%'
+	               </isEqual>
+           		 </isNotNull>
+			)
+		WHERE 1=1
+		    <isNotNull property="firstIndex">
+		        <isNotNull property="lastIndex">
+		        AND RNUM BETWEEN #firstIndex# AND #lastIndex#
+		        </isNotNull>
+		    </isNotNull>
+	</select>
+		<!-- 국가별 접수중지 카운트 -->
+	<select id="selectnationstopListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+			SELECT COUNT(*)
+			FROM CM_OVSEA_SEND_NATION_CD
+			<![CDATA[
+			WHERE NATION_CD <> '1'
+			]]>
+			<isNotNull property="searchWord">
+			   <isEqual property="searchSel" compareValue="00">
+	              AND (NATION_CD LIKE '%'|| #searchWord# ||'%' OR NATION_NM_KO LIKE '%'|| #searchWord# ||'%')
+               </isEqual>
+               <isEqual property="searchSel" compareValue="01">
+	              AND NATION_CD LIKE '%'|| #searchWord# ||'%'
+               </isEqual>
+               <isEqual property="searchSel" compareValue="02">
+	              AND NATION_NM_KO LIKE '%'|| #searchWord# ||'%'
+               </isEqual>
+          	</isNotNull>
+	</select>
+
+		<!-- 국가별 접수중지 수정 -->
+	<update id="updatenationstopList" parameterClass="java.util.HashMap">
+UPDATE CM_OVSEA_SEND_NATION_CD
+		SET  USE_YN   = #useYn#,
+		     CHGER_ID = #loginId#,
+		     CHG_DATE = TO_CHAR(SYSDATE,'YYYYMMDD')
+		WHERE NATION_CD = #nationCd#
+</update>
+
+	<sql id="goods_list">
+	SELECT	ROW_NUMBER() OVER(ORDER BY A.GOODS_CD) AS RNUM
+						, A.GOODS_CD
+						, A.GOODS_NM
+						, A.UNIT
+						, SELL_TYP_CD.COMN_CD_NM AS SELL_TYP_NM 		/*판매유형*/
+						, GOODS_STUS_CD.COMN_CD_NM AS GOODS_STUS_NM 	/*상품판매상태 */
+						, APPR_PROC_CD.COMN_CD_NM AS APPR_PROC_NM 		/*승인상태*/
+						, ERNC_GOODS_PRDLST_CD.COMN_CD_NM AS ERNC_GOODS_PRDLST_NM 			/*공정위 품목군*/
+						, TAXT_DIV_CD.COMN_CD_NM AS TAXT_DIV_NM 							/*과세구분*/
+						, TO_CHAR(TO_DATE(A.STRT_SUPP_YMD), 'YYYY-MM-DD') AS STRT_SUPP_YMD 	/*최초 공급 일자*/
+						, SUPP_DSCNTC_STUS_CD.COMN_CD_NM AS SUPP_DSCNTC_STUS_CD 			/*공급 중단 상태*/
+						, GOODS_CHG_REASN_CD.COMN_CD_NM AS GOODS_CHG_REASN_NM				/*변경사유*/
+	FROM	GD_MGT_GOODS_MAST A
+			, GD_GOODS_SEND B
+			, GD_MGT_GOODS_SEND_NATION C
+			, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SELL_TYP_CD') SELL_TYP_CD
+			, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODS_STUS_CD') GOODS_STUS_CD
+			, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'APPR_PROC_CD') APPR_PROC_CD
+			, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ERNC_GOODS_PRDLST_CD') ERNC_GOODS_PRDLST_CD
+			, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'TAXT_DIV_CD') TAXT_DIV_CD
+			, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_DSCNTC_STUS_CD') SUPP_DSCNTC_STUS_CD
+			, (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODS_CHG_REASN_CD') GOODS_CHG_REASN_CD
+	WHERE	C.GOODS_CD = B.GOODS_CD
+	AND		C.GOODS_CD = A.GOODS_CD
+	AND		B.SEND_PSSB_AREA_CD = '02' /*해외배송 가능*/
+	AND		A.GOODS_STUS_CD = GOODS_STUS_CD.COMN_CD_ID(+)
+	AND		A.SELL_TYP_CD = SELL_TYP_CD.COMN_CD_ID(+)
+	AND		A.GOODS_STUS_CD = GOODS_STUS_CD.COMN_CD_ID(+)
+	AND		A.APPR_PROC_CD = APPR_PROC_CD.COMN_CD_ID(+)
+	AND		A.ERNC_GOODS_PRDLST_CD = ERNC_GOODS_PRDLST_CD.COMN_CD_ID(+)
+	AND		A.TAXT_DIV_CD = TAXT_DIV_CD.COMN_CD_ID(+)
+	AND		A.SUPP_DSCNTC_STUS_CD = SUPP_DSCNTC_STUS_CD.COMN_CD_ID(+)
+	AND		A.GOODS_CHG_REASN_CD = GOODS_CHG_REASN_CD.COMN_CD_ID(+)
+	<isNotEmpty property="search_ctgry_cd" prepend="AND">
+	A.GOODS_CD IN (SELECT DISTINCT GOODS_CD
+					FROM GD_MGT_GOODS_CTGRY
+					WHERE CTGRY_CD IN ( SELECT A.CTGRY_CD FROM GD_CTGRY_MAST A, GD_CTGRY_PAVLN_MAPP B
+										 WHERE A.CTGRY_CD = B.CTGRY_CD
+										   AND A.USE_YN = 'Y'
+										   AND B.PAVLN_DIV_CD = #str_div#
+										START WITH A.CTGRY_CD = #search_ctgry_cd#
+										CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD )
+					)
+		</isNotEmpty>
+		<isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="goods_cd">
+					A.GOODS_CD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					A.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(A.GOODS_CD LIKE '%'||#search_text#||'%' OR A.GOODS_NM LIKE '%'||#search_text#||'%')
+			</isEmpty>
+		</isNotEmpty>
+		<isNotEmpty property="search_supp_comp_id" prepend="AND">
+			A.SUPP_COMP_ID = #search_supp_comp_id#
+		</isNotEmpty>
+		<isNotEmpty property="search_sell_typ_cd" prepend="AND">
+			A.SELL_TYP_CD = #search_sell_typ_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_appr_proc_cd" prepend="AND">
+			A.APPR_PROC_CD = #search_appr_proc_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_goods_stus_cd" prepend="AND">
+			A.GOODS_STUS_CD = #search_goods_stus_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+				TO_CHAR(A.CHG_DATE, 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#
+		</isNotEmpty>
+		<isNotEmpty property="goods_cd" prepend="AND">
+				A.GOODS_CD = #goods_cd#
+		</isNotEmpty>
+	</sql>
+
+		<!-- 해외상품별 접수중지 조회 -->
+	<select id="selectnationstopgoodsList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM (
+				<include refid="goods_list" />
+			)
+		WHERE 1=1
+			<isNotNull property="firstIndex">
+				<isNotNull property="lastIndex" prepend ="AND">
+				RNUM BETWEEN #firstIndex# AND #lastIndex#
+				</isNotNull>
+			</isNotNull>
+	</select>
+		<!-- 해외상품별 접수중지 카운트 -->
+	<select id="selectnationstopgoodsListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT	COUNT(*)
+		FROM (
+				<include refid="goods_list"/>
+			)
+	</select>
+
+	<sql id="nationStopGoodsPop_list">
+		SELECT	ROW_NUMBER() OVER(ORDER BY SORT_ORDER ASC) RNUM
+				,NATION_CD.COMN_CD_NM AS NATION_CD_NM
+				,B.NATION_CD
+				,B.EMS_SEND_AMT
+				,B.PRCL_SEND_AMT
+				,B.CHG_DATE
+				,B.CHGER_ID
+				,B.USE_YN
+				,DECODE(B.USE_YN,'Y','배송','N','배송불가') AS USE_YN_NM
+		FROM	GD_MGT_GOODS_MAST A
+				,GD_MGT_GOODS_SEND_NATION B
+				,(SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'NATION_CD')NATION_CD
+		WHERE	A.GOODS_CD(+) = B.GOODS_CD
+		AND		A.GOODS_CD = #goodsCd#
+		AND		NATION_CD.COMN_CD_ID(+)=B.NATION_CD
+	</sql>
+			<!-- 해외상품별 접수중지 팝업 조회 -->
+	<select id="selectnationstopPopList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM (
+				<include refid="nationStopGoodsPop_list" />
+			)
+		WHERE 1=1
+			<isNotNull property="firstIndex">
+				<isNotNull property="lastIndex" prepend ="AND">
+				RNUM BETWEEN #firstIndex# AND #lastIndex#
+				</isNotNull>
+			</isNotNull>
+	</select>
+		<!-- 해외상품별 접수중지 팝업 카운트 -->
+	<select id="selectnationstopPopListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT	COUNT(*)
+		FROM (
+				<include refid="nationStopGoodsPop_list"/>
+			)
+	</select>
+
+		<!-- 해외상품별 접수중지 수정 -->
+	<update id="updatenationstopgoodsList" parameterClass="java.util.HashMap">
+		UPDATE GD_MGT_GOODS_SEND_NATION
+		SET USE_YN = #useYn#
+			,CHGER_ID = #loginId#
+			,CHG_DATE = SYSDATE
+		WHERE GOODS_CD	= #goodsCd#
+		AND   NATION_CD	= #nationCd#
+	</update>
+
+		<!-- 해외국가 조회 -->
+	<select id="selectnationList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT COMN_CD_ID,COMN_CD_NM
+		FROM CM_COMN_CD
+		WHERE CD_GRP_ID = 'NATION_CD'
+		ORDER BY COMN_CD_NM ASC
+	</select>
+
+		<!-- 국제요금 조회 -->
+	<select id="selectintrnationalchrgList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM (
+				SELECT 	ROW_NUMBER() OVER(ORDER BY EMS_ID) ONUM
+						,EMS_ID 		AS	emsid
+						,TITLE			AS	title
+						,START_DATE		AS	startdate
+						,TRANS_DATE		AS	transdate
+						,DEL_DATE		AS	deldate
+				FROM ST_OVERSEA_EMS_MASTER
+				ORDER BY EMS_ID DESC
+		)
+		WHERE 1=1
+		    <isNotNull property="firstIndex">
+		        <isNotNull property="lastIndex">
+		        AND ONUM BETWEEN #firstIndex# AND #lastIndex#
+		        </isNotNull>
+		    </isNotNull>
+	</select>
+		<!-- 국제요금 카운트 -->
+	<select id="selectintrnationalchrgListTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM (
+				SELECT 	ROW_NUMBER() OVER(ORDER BY EMS_ID) ONUM
+						,EMS_ID 		AS	emsid
+						,TITLE			AS	title
+						,START_DATE		AS	startdate
+						,TRANS_DATE		AS	transdate
+						,DEL_DATE		AS	deldate
+				FROM ST_OVERSEA_EMS_MASTER
+				ORDER BY EMS_ID DESC
+		)
+	</select>
+		<!-- 국제요금 상세조회 팝업 -->
+	<select id="selectintrnationalchrgListPopup" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM(
+			SELECT  distinct A.GOODS_CODE
+					,ROW_NUMBER() OVER(ORDER BY GOODS_CODE) ONUM
+			        ,C.ETC
+			        ,B.LOCALE
+			        ,to_char(B.EMS_FEE,'999,999,990')   EMSFEE
+					,to_char(B.MICRO_FEE,'999,999,990') MICROFEE
+			FROM    ST_OVERSEA_EMS_GOODS A,
+			        ST_OVERSEA_GOODS B,
+			        NATION_CODE C
+			WHERE   B.LOCALE       = C.CODE
+			AND     decode(a.locale,'A1','1','A2','2','A3','3', a.locale) = decode(a.locale,'A1','1','A2','2','A3','3', b.locale)
+			<isNotNull property="emsid">
+			AND     A.EMS_ID       = #emsid#
+			</isNotNull>
+			<isEqual property="stateSel" compareValue="KO">
+			AND     A.GOODS_IDN_KO = B.GOODS_IDN
+			</isEqual>
+			<isEqual property="stateSel" compareValue="JP">
+			AND     A.GOODS_IDN_JP = B.GOODS_IDN
+			</isEqual>
+			<isEqual property="stateSel" compareValue="US">
+			AND     A.GOODS_IDN_US = B.GOODS_IDN
+			</isEqual>
+			ORDER BY A.GOODS_CODE,C.ETC
+		)
+	<isNotNull property="firstIndex">
+	<isNotNull property="lastIndex">
+		WHERE ONUM BETWEEN #firstIndex# AND #lastIndex#
+	</isNotNull>
+	</isNotNull>
+	</select>
+		<!-- 국제요금 카운트 -->
+	<select id="selectintrnationalchrgListPopupTotCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM(
+		SELECT  distinct A.GOODS_CODE
+		        ,C.ETC
+		        ,B.LOCALE
+		        ,to_char(B.EMS_FEE,'999,999,990')   EMSFEE
+				,to_char(B.MICRO_FEE,'999,999,990') MICROFEE
+		FROM    ST_OVERSEA_EMS_GOODS A,
+		        ST_OVERSEA_GOODS B,
+		        NATION_CODE C
+		WHERE   B.LOCALE       = C.CODE
+		AND     decode(a.locale,'A1','1','A2','2','A3','3', a.locale) = decode(a.locale,'A1','1','A2','2','A3','3', b.locale)
+		<isNotNull property="emsid">
+		AND     A.EMS_ID       = #emsid#
+		</isNotNull>
+		<isEqual property="stateSel" compareValue="KO">
+		AND     A.GOODS_IDN_KO = B.GOODS_IDN
+		</isEqual>
+		<isEqual property="stateSel" compareValue="JP">
+		AND     A.GOODS_IDN_JP = B.GOODS_IDN
+		</isEqual>
+		<isEqual property="stateSel" compareValue="US">
+		AND     A.GOODS_IDN_US = B.GOODS_IDN
+		</isEqual>
+		)
+	</select>
+		<!-- 국제요금 반영버튼1 -->
+	<delete id="updateintrnationalchrgList1" parameterClass="java.util.HashMap">
+		DELETE OVERSEA_GOODS A
+		WHERE  A.GOODS_IDN IN(
+							SELECT B.GOODS_IDN_KO
+							FROM ST_OVERSEA_EMS_GOODS B
+							WHERE B.EMS_ID = #emsid#
+							<isEqual property="stateSel" compareValue="KO">
+							AND NVL(B.GOODS_IDN_KO,0) > 0
+							</isEqual>
+							<isEqual property="stateSel" compareValue="JP">
+							AND NVL(B.GOODS_IDN_JP,0) > 0
+							</isEqual>
+							<isEqual property="stateSel" compareValue="US">
+							AND NVL(B.GOODS_IDN_US,0) > 0
+							</isEqual>
+							 )
+	</delete>
+		<!-- 국제요금 반영버튼2 -->
+	<insert id="updateintrnationalchrgList2" parameterClass="java.util.HashMap">
+		INSERT INTO OVERSEA_GOODS
+	 				(
+	 					LOCALE
+	 					,GOODS_IDN
+	 					,EMS_FEE
+	 					,MICRO_FEE
+	 					,CREATE_DATE
+	 					,LASTCHANGE
+	 					,ACCESS_NAME
+	 					,TRANS_TYPE
+	 					,IS_DELETE
+	 				)
+				SELECT
+						LOCALE
+						,GOODS_IDN
+						,EMS_FEE
+						,MICRO_FEE
+						,CREATE_DATE
+						,LASTCHANGE
+						,ACCESS_NAME
+						,TRANS_TYPE
+						,IS_DELETE
+				FROM  	ST_OVERSEA_GOODS A
+				WHERE	A.GOODS_IDN IN (
+										SELECT B.GOODS_IDN_KO
+										FROM ST_OVERSEA_EMS_GOODS B
+										WHERE B.EMS_ID = #emsid#
+										<isEqual property="stateSel" compareValue="KO">
+										AND NVL(B.GOODS_IDN_KO,0) > 0
+										</isEqual>
+										<isEqual property="stateSel" compareValue="JP">
+										AND NVL(B.GOODS_IDN_JP,0) > 0
+										</isEqual>
+										<isEqual property="stateSel" compareValue="US">
+										AND NVL(B.GOODS_IDN_US,0) > 0
+										</isEqual>
+										)
+	</insert>
+	<!-- 국제요금 반영버튼3 -->
+	<update id="updateintrnationalchrgList3" parameterClass="java.util.HashMap">
+		UPDATE ST_OVERSEA_EMS_MASTER
+		SET DEL_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MI')
+		WHERE EMS_ID = #emsid#
+	</update>
+	<!-- 국제요금 삭제버튼 -->
+	<update id="deleteintrnationalchrgList" parameterClass="java.util.HashMap">
+		Update ST_OVERSEA_EMS_MASTER
+		SET DEL_DATE = TO_CHAR(SYSDATE,'yyyymmddhh24mi')
+		WHERE EMS_ID = #emsid#
+	</update>
+
+
+</sqlMap>

@@ -1,0 +1,1928 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Adj">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+			SELECT * 
+			  FROM (
+					SELECT A.*
+					     , ROWNUM  AS RNUM
+					  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<!-- 정산관리 최종정산상태 조회 -->
+	<select id="selectAdjMgrStatusList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT A.ADJ_STATUS
+				, COMN_CD_NM AS NAME
+				/*, B.CD_VAL3 AS NAME */
+				, DECODE(A.USEYN, 'Y', '처리완료', 'N', '미처리') USEYN
+				, TO_CHAR(A.WORK_DATE,'yyyy-mm-dd hh24:mi') WORK_DATE
+			FROM ST_ADJ_STATUS A
+				, CM_COMN_CD B
+			WHERE B.CD_GRP_ID = 'TRANSF_STUS_CD'
+				AND A.ADJ_STATUS = B.COMN_CD_ID
+				AND A.ADJ_DATE = #adjDate#
+		ORDER BY A.WORK_DATE DESC
+	</select>		
+	
+	<!-- 정산관리 정산상태 조회 리스트 카운트 -->
+	<select id="selectAdjMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(A.ADJ_DATE)
+		    FROM ST_ADJ_STATUS A
+		            , CM_COMN_CD B
+		    WHERE 1=1 
+				AND B.CD_GRP_ID = 'TRANSF_STUS_CD'
+				AND A.ADJ_STATUS = B.COMN_CD_ID
+				<isNotEmpty property="adjDate">	
+				AND A.ADJ_DATE = #adjDate#
+				</isNotEmpty>						
+	</select>		
+	
+	<!-- 정산관리 리스트 -->
+	<select id="selectAdjMgrStatusHistoryList" parameterClass="java.util.HashMap" resultClass="commMap">
+         SELECT ONUM
+                , ADJ_DATE
+                , ADJ_STATUS                
+                , ADJ_DATE_SEQ            
+                , NAME
+                , NVL(NOTE, ' ') NOTE
+                , USEYN
+                , WORK_DATE
+			FROM 
+                (
+				SELECT
+                    ROW_NUMBER() OVER(ORDER BY T1.WORK_DATE ASC) AS ONUM    
+                    /* , ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM */
+                    , T1.ADJ_DATE
+                    , T1.ADJ_STATUS
+                    , T1.ADJ_DATE_SEQ
+                    , T1.NAME
+                    , T1.NOTE
+                    , T1.USEYN
+                    , T1.WORK_DATE
+					FROM
+                        (
+                        SELECT /* ROW_NUMBER() OVER(ORDER BY ADJ_DATE_SEQ DESC, WORK_DATE ASC) AS TNUM */
+                                    A.ADJ_DATE
+                                    , A.ADJ_STATUS
+                                    , A.ADJ_DATE_SEQ
+                                    , B.COMN_CD_NM AS NAME
+                                    , A.NOTE
+                                    , A.USEYN
+                                    , TO_CHAR(A.WORK_DATE,'yyyy-mm-dd hh24:mi') WORK_DATE
+							FROM ST_ADJ_STATUS_HISTORY A
+								, CM_COMN_CD B
+                            WHERE B.CD_GRP_ID = 'TRANSF_STUS_CD'   
+								AND A.ADJ_STATUS = B.COMN_CD_ID                                                                                        
+						) T1
+					WHERE 1=1
+						<isNotEmpty property="adjDate">	
+						AND T1.ADJ_DATE = #adjDate#
+						</isNotEmpty>	                                                                                                   
+				) T2
+			WHERE 1=1
+				AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+			ORDER BY WORK_DATE  					
+	</select>		
+	
+	
+	<!-- 정산관리 결제수단별 예상입금금액 조회 리스트 카운트 -->
+	<select id="selectAdjForeCastDepositListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+             SELECT COUNT(1) AS CNT
+                FROM
+                (
+                    SELECT 1
+		           , PAYMETHOD_ADJ_TRGT_YMD
+		           , Z.COMN_CD_NM AS PAYMETHOD_NM
+		           , V.COMN_CD_NM AS PG_DIV_NM
+		           , NVL(Y.BUY_COMP_NM, '.') AS BUY_COMP_NM
+		           , X.BUY_COMP_CD
+		           , MEMBER_NO 
+		           , PG_DIV_CD
+		           , DEPOT_STUS_CD
+			       , SETL_AMT
+			       , CANCEL_AMT
+			       , RECEV_AMT
+			       , (RECEV_AMT - FEE_AMT) AS PURCHASE_AMT
+			       , RETRNGD_AMT
+			       , SETL_CNT
+			       , CANCEL_CNT
+			       , RECEV_CNT
+			       , FEE_AMT
+			       , CARD_FEE
+                   , CHECK_FEE
+                   , DOM_FEE1
+                   , DOM_FEE2
+		           , ROW_NUMBER() OVER(ORDER BY PAYMETHOD_ADJ_TRGT_YMD ASC) AS TNUM
+		        FROM
+		        (
+		         
+		            SELECT PAYMETHOD_ADJ_TRGT_YMD
+			             , PAYMETHOD
+			             , BUY_COMP_CD
+			             , MEMBER_NO
+			             , A.PG_DIV_CD
+			             , COMPLETE_DATE
+			             , DEPOT_STUS_CD
+			             , SETL_AMT
+			             , CANCEL_AMT
+			             , RECEV_AMT
+			             , RETRNGD_AMT
+			             , SETL_CNT
+			             , CANCEL_CNT
+			             , RECEV_CNT
+			             , FEE_AMT
+			             , NVL(B.CARD_FEE,0) CARD_FEE
+                         , NVL(B.CHECK_FEE,0) CHECK_FEE
+                         , NVL(C.DOM_FEE1,0) DOM_FEE1
+                         , NVL(C.DOM_FEE2,0) DOM_FEE2
+		            FROM ST_PAYMETHOD_ADJ_COMPARE A
+		            , OD_CARDFEES B
+		            ,( SELECT A.COMN_CD_ID,B.* 
+                           FROM CM_COMN_CD A, OD_SETL_MEAN_FEE B WHERE A.CD_GRP_ID ='ADJ_SETL_TGT_CD' AND A.CD_VAL1 = B.SETL_MEAN_CD AND USE_YN ='Y' ) C
+		            WHERE 1=1
+		            AND A.MEMBER_NO = B.JOIN_NO(+)
+		            AND DECODE(A.PAYMETHOD,'C1','03','01') = B.SITE_DIV_CD(+)
+                    AND A.PAYMETHOD = C.COMN_CD_ID(+)
+                    AND DECODE(A.PAYMETHOD,'O',A.PG_DIV_CD,'O2',A.PG_DIV_CD,'01') = DECODE(C.SETL_MEAN_CD,'01',C.PG_DIV_CD,'01')
+		            AND A.COMPLETE_DATE BETWEEN  B.START_DATE || '000000'  AND B.END_DATE  || '235959'	
+		            AND A.COMPLETE_DATE BETWEEN  C.REFLCT_STRT_YMD || '000000'  AND C.REFLCT_END_YMD  || '235959'
+		            <isNotEmpty property="search_strt_ymd">	
+						<isNotEmpty property="search_end_ymd">
+						AND A.COMPLETE_DATE BETWEEN #search_strt_ymd#  AND #search_end_ymd#
+						</isNotEmpty>
+					</isNotEmpty>	
+					<isNotEmpty property="paymethod">
+						AND A.PAYMETHOD = #paymethod#
+					</isNotEmpty>
+					<isNotEmpty property="pavlnDivCd">
+						AND A.PAVLN_DIV_CD = #pavlnDivCd#
+					</isNotEmpty>
+		                AND DEPOT_STUS_CD IN ('000', '001', '002') /* 001 미입금, 002:입금완료, 000: */
+		          ) X
+		            , ST_BUY_COMP_INFO Y
+		            , CM_COMN_CD Z
+		            , (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PG_DIV_CD' AND USE_YN ='Y')  V
+		        WHERE 1=1
+		            AND X.PAYMETHOD = Z.COMN_CD_ID
+		            AND X.PG_DIV_CD = V.COMN_CD_ID(+)
+		          AND Z.CD_GRP_ID = 'ADJ_SETL_TGT_CD'
+		          AND X.BUY_COMP_CD  = Y.BUY_COMP_CD(+) 
+		       )WHERE 1=1
+	            <isNotEmpty property="firstIndex" >
+	            	 <isNotEmpty property="lastIndex" >
+	            	 	AND T1.TNUM BETWEEN #firstIndex# AND #lastIndex# 
+	            	 </isNotEmpty>
+	            </isNotEmpty>	             					
+	</select>			
+	<sql id="selectAdjForeCastDeposit">
+			SELECT T1.TNUM AS ONUM
+		            , SUBSTR(T1.PAYMETHOD_ADJ_TRGT_YMD,1,4) || '-' || SUBSTR(T1.PAYMETHOD_ADJ_TRGT_YMD,5,2) || '-' || SUBSTR(T1.PAYMETHOD_ADJ_TRGT_YMD,7,2) AS PAYMETHOD_ADJ_TRGT_YMD
+		            , T1.PAYMETHOD_NM
+		            , T1.PAYMETHOD
+		            , NVL(T1.PG_DIV_NM,T1.BUY_COMP_NM) PG_DIV_NM
+		            , T1.BUY_COMP_NM
+		            , T1.BUY_COMP_CD
+		            , T1.MEMBER_NO
+		            , T1.SETL_AMT
+		            , T1.CANCEL_AMT
+		            , T1.RECEV_AMT
+		            , (T1.RECEV_AMT - T1.FEE_AMT) AS PURCHASE_AMT
+		            , T1.RETRNGD_AMT
+		            , T1.SETL_CNT
+		            , T1.CANCEL_CNT
+		            , T1.RECEV_CNT
+		            , FEE_AMT
+		            , CARD_FEE
+                    , CHECK_FEE
+                    , DOM_FEE1
+                    , DOM_FEE2
+		    FROM
+		        (
+		        SELECT 1
+		           , PAYMETHOD_ADJ_TRGT_YMD
+		           , Z.COMN_CD_NM AS PAYMETHOD_NM
+		           , PAYMETHOD
+		           , V.COMN_CD_NM AS PG_DIV_NM
+		           , NVL(Y.BUY_COMP_NM, '.') AS BUY_COMP_NM
+		           , X.BUY_COMP_CD
+		           , MEMBER_NO 
+		           , PG_DIV_CD
+		           , DEPOT_STUS_CD
+			       , NVL(SETL_AMT,0) SETL_AMT
+			       , NVL(CANCEL_AMT,0) CANCEL_AMT
+			       , NVL(RECEV_AMT,0) RECEV_AMT
+			       , NVL(RETRNGD_AMT,0) RETRNGD_AMT
+			       , NVL(SETL_CNT,0) SETL_CNT
+			       , NVL(CANCEL_CNT,0) CANCEL_CNT
+			       , NVL(RECEV_CNT,0) RECEV_CNT
+			       , NVL(FEE_AMT,0) FEE_AMT
+			       , CARD_FEE
+                   , CHECK_FEE
+                   , DOM_FEE1
+                   , DOM_FEE2
+		           , ROW_NUMBER() OVER(ORDER BY PAYMETHOD_ADJ_TRGT_YMD ASC) AS TNUM
+		        FROM
+		        (
+		         
+		            SELECT PAYMETHOD_ADJ_TRGT_YMD
+			             , PAYMETHOD
+			             , BUY_COMP_CD
+			             , MEMBER_NO
+			             , A.PG_DIV_CD
+			             , COMPLETE_DATE
+			             , DEPOT_STUS_CD
+			             , SETL_AMT
+			             , CANCEL_AMT
+			             , RECEV_AMT
+			             , RETRNGD_AMT
+			             , SETL_CNT
+			             , CANCEL_CNT
+			             , RECEV_CNT
+			             , FEE_AMT
+			             , NVL(B.CARD_FEE,0) CARD_FEE
+                         , NVL(B.CHECK_FEE,0) CHECK_FEE
+                         , NVL(C.DOM_FEE1,0) DOM_FEE1
+                         , NVL(C.DOM_FEE2,0) DOM_FEE2
+		            FROM ST_PAYMETHOD_ADJ_COMPARE A ,
+		            OD_CARDFEES B,
+                    ( SELECT A.COMN_CD_ID,B.* 
+                           FROM CM_COMN_CD A, OD_SETL_MEAN_FEE B WHERE A.CD_GRP_ID ='ADJ_SETL_TGT_CD' AND A.CD_VAL1 = B.SETL_MEAN_CD AND USE_YN ='Y' ) C
+		            WHERE 1=1
+		            AND A.MEMBER_NO = B.JOIN_NO(+)
+		            AND DECODE(A.PAYMETHOD,'C1','03','01') = B.SITE_DIV_CD(+)
+                    AND A.PAYMETHOD = C.COMN_CD_ID(+)
+                    AND DECODE(A.PAYMETHOD,'O',A.PG_DIV_CD,'O2',A.PG_DIV_CD,'01') = DECODE(C.SETL_MEAN_CD,'01',C.PG_DIV_CD,'01')
+		            AND A.COMPLETE_DATE BETWEEN  B.START_DATE || '000000'  AND B.END_DATE  || '235959'	
+		            AND A.COMPLETE_DATE BETWEEN  C.REFLCT_STRT_YMD || '000000'  AND C.REFLCT_END_YMD  || '235959'
+		            <isNotEmpty property="search_strt_ymd">	
+						<isNotEmpty property="search_end_ymd">	
+						AND A.COMPLETE_DATE BETWEEN #search_strt_ymd#  AND #search_end_ymd# 
+						</isNotEmpty>
+					</isNotEmpty>	
+					<isNotEmpty property="paymethod">
+						AND A.PAYMETHOD = #paymethod#
+					</isNotEmpty>
+					<isNotEmpty property="pavlnDivCd">
+						AND A.PAVLN_DIV_CD = #pavlnDivCd#
+					</isNotEmpty>
+		                AND DEPOT_STUS_CD IN ('000', '001', '002') /* 001 미입금, 002:입금완료, 000: */
+		            ) X
+		            , ST_BUY_COMP_INFO Y
+		            , CM_COMN_CD Z
+		            , (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PG_DIV_CD' AND USE_YN ='Y')  V
+		        WHERE 1=1
+		            AND X.PAYMETHOD = Z.COMN_CD_ID
+		            AND X.PG_DIV_CD = V.COMN_CD_ID(+)
+		          AND Z.CD_GRP_ID = 'ADJ_SETL_TGT_CD'
+		          AND X.BUY_COMP_CD  = Y.BUY_COMP_CD(+)
+		          ORDER BY PAYMETHOD,PAYMETHOD_ADJ_TRGT_YMD DESC,BUY_COMP_CD   
+		        ) T1          
+		        WHERE 1=1
+	</sql>
+	<select id="selectAdjForeCastDepositListExcel" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		 <include refid="selectAdjForeCastDeposit"/>
+	</select>
+	<!-- 정산관리 결제수단별 예상입금금액 조회 리스트 -->
+	<select id="selectAdjForeCastDepositList" parameterClass="java.util.HashMap" resultClass="commMap">
+		  <include refid="selectAdjForeCastDeposit"/>
+		            <isNotEmpty property="firstIndex" >
+		            	 <isNotEmpty property="lastIndex" >
+		            	 	AND T1.TNUM BETWEEN #firstIndex# AND #lastIndex# 
+		            	 </isNotEmpty>
+		            </isNotEmpty>	
+	</select>
+	<sql id="selectAdjForeCastDepositSum">
+		SELECT 
+		              SUM(T1.SETL_AMT) SUM_SETL_AMT
+		            , SUM(T1.CANCEL_AMT) SUM_CANCEL_AMT
+		            , SUM(T1.RECEV_AMT) SUM_RECEV_AMT
+		            , SUM(T1.RETRNGD_AMT) SUM_RETRNGD_AMT
+		            , SUM(T1.SETL_CNT) SUM_SETL_CNT
+		            , SUM(T1.CANCEL_CNT) SUM_CANCEL_CNT
+		            , SUM(T1.RECEV_CNT) SUM_RECEV_CNT
+		            , SUM(T1.RECEV_AMT) - SUM(T1.FEE_AMT) AS SUM_PURCHASE_AMT
+		            , SUM(FEE_AMT) SUM_FEE_AMT
+		    FROM
+		        (
+		        SELECT 1
+		           , PAYMETHOD_ADJ_TRGT_YMD
+		           , Z.COMN_CD_NM AS PAYMETHOD_NM
+		           , V.COMN_CD_NM AS PG_DIV_NM
+		           , NVL(Y.BUY_COMP_NM, '.') AS BUY_COMP_NM
+		           , X.BUY_COMP_CD
+		           , MEMBER_NO 
+		           , PG_DIV_CD
+		           , DEPOT_STUS_CD
+			       , NVL(SETL_AMT,0) SETL_AMT
+			       , NVL(CANCEL_AMT,0) CANCEL_AMT
+			       , NVL(RECEV_AMT,0) RECEV_AMT
+			       , NVL(RETRNGD_AMT,0) RETRNGD_AMT
+			       , NVL(SETL_CNT,0) SETL_CNT
+			       , NVL(CANCEL_CNT,0) CANCEL_CNT
+			       , NVL(RECEV_CNT,0) RECEV_CNT
+			       , NVL(FEE_AMT,0) FEE_AMT
+		           , ROW_NUMBER() OVER(ORDER BY PAYMETHOD_ADJ_TRGT_YMD ASC) AS TNUM
+		        FROM
+		        (
+		         
+		            SELECT PAYMETHOD_ADJ_TRGT_YMD
+			             , PAYMETHOD
+			             , BUY_COMP_CD
+			             , MEMBER_NO
+			             , A.PG_DIV_CD
+			             , COMPLETE_DATE
+			             , DEPOT_STUS_CD
+			             , SETL_AMT
+			             , CANCEL_AMT
+			             , RECEV_AMT
+			             , RETRNGD_AMT
+			             , SETL_CNT
+			             , CANCEL_CNT
+			             , RECEV_CNT
+			             , FEE_AMT
+		            FROM ST_PAYMETHOD_ADJ_COMPARE A,
+                    OD_CARDFEES B,
+                    ( SELECT A.COMN_CD_ID,B.* 
+                           FROM CM_COMN_CD A, OD_SETL_MEAN_FEE B WHERE A.CD_GRP_ID ='ADJ_SETL_TGT_CD' AND A.CD_VAL1 = B.SETL_MEAN_CD AND USE_YN ='Y' ) C
+		            WHERE 1=1
+		            AND A.MEMBER_NO = B.JOIN_NO(+)
+                    AND DECODE(A.PAYMETHOD,'C1','03','01') = B.SITE_DIV_CD(+)
+                    AND A.PAYMETHOD = C.COMN_CD_ID(+)
+                    AND DECODE(A.PAYMETHOD,'O',A.PG_DIV_CD,'O2',A.PG_DIV_CD,'01') = DECODE(C.SETL_MEAN_CD,'01',C.PG_DIV_CD,'01')
+                    AND A.COMPLETE_DATE BETWEEN  B.START_DATE || '000000'  AND B.END_DATE  || '235959'
+                    AND A.COMPLETE_DATE BETWEEN  C.REFLCT_STRT_YMD || '000000'  AND C.REFLCT_END_YMD  || '235959'
+		            <isNotEmpty property="search_strt_ymd">	
+						<isNotEmpty property="search_end_ymd">	
+						AND A.COMPLETE_DATE BETWEEN #search_strt_ymd#  AND #search_end_ymd# 
+						</isNotEmpty>
+					</isNotEmpty>	
+					<isNotEmpty property="paymethod">
+						AND A.PAYMETHOD = #paymethod#
+					</isNotEmpty>
+					<isNotEmpty property="pavlnDivCd">
+						AND A.PAVLN_DIV_CD = #pavlnDivCd#
+					</isNotEmpty>
+		                AND DEPOT_STUS_CD IN ('000', '001', '002') /* 001 미입금, 002:입금완료, 000: */
+		        ) X
+		            , ST_BUY_COMP_INFO Y
+		            , CM_COMN_CD Z
+		            , (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PG_DIV_CD' AND USE_YN ='Y')  V
+		        WHERE 1=1
+		            AND X.PAYMETHOD = Z.COMN_CD_ID
+		            AND X.PG_DIV_CD = V.COMN_CD_ID(+)
+		          AND Z.CD_GRP_ID = 'ADJ_SETL_TGT_CD'
+		          AND X.BUY_COMP_CD  = Y.BUY_COMP_CD(+)   
+		        ) T1
+	</sql>		
+	<!-- 정산관리 결제수단별 예상입금금액 조회 리스트 -->
+	<select id="selectAdjForeCastDepositSummary" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="selectAdjForeCastDepositSum"/>
+	</select>	
+	<select id="selectAdjForeCastDepositSummaryExcel" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<include refid="selectAdjForeCastDepositSum"/>
+	</select>
+	
+	<!-- 정산관리 결제수단별 예상입금금액 조회 B2B 리스트 카운트 -->
+	<select id="selectAdjForeCastDepositListB2BTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+               SELECT COUNT(1) AS CNT
+                FROM
+                (
+                    SELECT 1
+		           , PAYMETHOD_ADJ_TRGT_YMD
+		           , Z.COMN_CD_NM AS PAYMETHOD_NM
+		           , PAYMETHOD
+		           , V.COMN_CD_NM AS PG_DIV_NM
+		           , NVL(Y.BUY_COMP_NM, '.') AS BUY_COMP_NM
+		           , X.BUY_COMP_CD
+		           , MEMBER_NO 
+		           , PG_DIV_CD
+		           , DEPOT_STUS_CD
+			       , SETL_AMT
+			       , CANCEL_AMT
+			       , RECEV_AMT
+			       , RECEV_AMT - FEE_AMT AS PURCHASE_AMT
+			       , RETRNGD_AMT
+			       , SETL_CNT
+			       , CANCEL_CNT
+			       , RECEV_CNT
+			       , FEE_AMT
+			       , CARD_FEE
+                   , CHECK_FEE
+                   , DOM_FEE1
+                   , DOM_FEE2
+		           , ROW_NUMBER() OVER(ORDER BY PAYMETHOD_ADJ_TRGT_YMD ASC) AS TNUM
+		        FROM
+		        (
+		         
+		            SELECT PAYMETHOD_ADJ_TRGT_YMD
+			             , PAYMETHOD
+			             , BUY_COMP_CD
+			             , MEMBER_NO
+			             , A.PG_DIV_CD
+			             , COMPLETE_DATE
+			             , DEPOT_STUS_CD
+			             , SETL_AMT
+			             , CANCEL_AMT
+			             , RECEV_AMT
+			             , RETRNGD_AMT
+			             , SETL_CNT
+			             , CANCEL_CNT
+			             , RECEV_CNT
+			             , FEE_AMT
+			             , NVL(B.CARD_FEE,0) CARD_FEE
+                         , NVL(B.CHECK_FEE,0) CHECK_FEE
+                         , NVL(C.DOM_FEE1,0) DOM_FEE1
+                         , NVL(C.DOM_FEE2,0) DOM_FEE2
+		            FROM ST_PAYMETHOD_ADJ_COMPARE_B2B A,
+                    OD_CARDFEES B,
+                    ( SELECT A.COMN_CD_ID,B.* 
+                           FROM CM_COMN_CD A, OD_SETL_MEAN_FEE B WHERE A.CD_GRP_ID ='ADJ_SETL_TGT_CD' AND A.CD_VAL1 = B.SETL_MEAN_CD AND USE_YN ='Y' ) C
+		            WHERE 1=1
+		            AND A.MEMBER_NO = B.JOIN_NO(+)
+                    AND DECODE(A.PAYMETHOD,'C1','03','01') = B.SITE_DIV_CD(+)
+                    AND A.PAYMETHOD = C.COMN_CD_ID(+)
+                    AND DECODE(A.PAYMETHOD,'O',A.PG_DIV_CD,'O2',A.PG_DIV_CD,'01') = DECODE(C.SETL_MEAN_CD,'01',C.PG_DIV_CD,'01')
+                    AND A.COMPLETE_DATE BETWEEN  B.START_DATE || '000000'  AND B.END_DATE  || '235959'
+                    AND A.COMPLETE_DATE BETWEEN  C.REFLCT_STRT_YMD || '000000'  AND C.REFLCT_END_YMD  || '235959'
+		            <isNotEmpty property="search_strt_ymd">	
+						<isNotEmpty property="search_end_ymd">	
+						AND A.COMPLETE_DATE BETWEEN #search_strt_ymd#  AND #search_end_ymd# 
+						</isNotEmpty>
+					</isNotEmpty>	
+					<isNotEmpty property="paymethod">
+						AND A.PAYMETHOD = #paymethod#
+					</isNotEmpty>
+					<isNotEmpty property="pavlnDivCd">
+						AND A.PAVLN_DIV_CD = #pavlnDivCd#
+					</isNotEmpty>
+		                AND DEPOT_STUS_CD IN ('000', '001', '002') /* 001 미입금, 002:입금완료, 000: */
+		          
+		        ) X
+		            , ST_BUY_COMP_INFO Y
+		            , CM_COMN_CD Z
+		            , (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PG_DIV_CD' AND USE_YN ='Y')  V
+		        WHERE 1=1
+		            AND X.PAYMETHOD = Z.COMN_CD_ID
+		            AND X.PG_DIV_CD = V.COMN_CD_ID(+)
+		          AND Z.CD_GRP_ID = 'ADJ_SETL_TGT_CD'
+		          AND X.BUY_COMP_CD  = Y.BUY_COMP_CD(+) 
+		       )WHERE 1=1
+	            <isNotEmpty property="firstIndex" >
+	            	 <isNotEmpty property="lastIndex" >
+	            	 	AND T1.TNUM BETWEEN #firstIndex# AND #lastIndex# 
+	            	 </isNotEmpty>
+	            </isNotEmpty>	                      					
+	</select>			
+	
+	<sql id="selectAdjForeCastDepositB2B">
+		SELECT T1.TNUM AS ONUM
+		            , SUBSTR(T1.PAYMETHOD_ADJ_TRGT_YMD,1,4) || '-' || SUBSTR(T1.PAYMETHOD_ADJ_TRGT_YMD,5,2) || '-' || SUBSTR(T1.PAYMETHOD_ADJ_TRGT_YMD,7,2) AS PAYMETHOD_ADJ_TRGT_YMD
+		            , T1.PAYMETHOD_NM
+		            , T1.PAYMETHOD
+		            , NVL(T1.PG_DIV_NM,T1.BUY_COMP_NM) PG_DIV_NM
+		            , T1.BUY_COMP_NM
+		            , T1.BUY_COMP_CD
+		            , T1.MEMBER_NO
+		            , T1.SETL_AMT
+		            , T1.CANCEL_AMT
+		            , T1.RECEV_AMT
+		            , T1.RECEV_AMT - T1.FEE_AMT AS PURCHASE_AMT
+		            , T1.RETRNGD_AMT
+		            , T1.SETL_CNT
+		            , T1.CANCEL_CNT
+		            , T1.RECEV_CNT
+		            , FEE_AMT
+		    FROM
+		        (
+		        SELECT 1
+		           , PAYMETHOD_ADJ_TRGT_YMD
+		           , Z.COMN_CD_NM AS PAYMETHOD_NM
+		           , PAYMETHOD
+		           , V.COMN_CD_NM AS PG_DIV_NM
+		           , NVL(Y.BUY_COMP_NM, '.') AS BUY_COMP_NM
+		           , X.BUY_COMP_CD
+		           , MEMBER_NO 
+		           , PG_DIV_CD
+		           , DEPOT_STUS_CD
+			       , NVL(SETL_AMT,0) SETL_AMT
+			       , NVL(CANCEL_AMT,0) CANCEL_AMT
+			       , NVL(RECEV_AMT,0) RECEV_AMT
+			       , NVL(RETRNGD_AMT,0) RETRNGD_AMT
+			       , NVL(SETL_CNT,0) SETL_CNT
+			       , NVL(CANCEL_CNT,0) CANCEL_CNT
+			       , NVL(RECEV_CNT,0) RECEV_CNT
+			       , NVL(FEE_AMT,0) FEE_AMT
+			       , CARD_FEE
+                   , CHECK_FEE
+                   , DOM_FEE1
+                   , DOM_FEE2
+		           , ROW_NUMBER() OVER(ORDER BY PAYMETHOD_ADJ_TRGT_YMD ASC) AS TNUM
+		        FROM
+		        (
+		         
+		            SELECT PAYMETHOD_ADJ_TRGT_YMD
+			             , PAYMETHOD
+			             , BUY_COMP_CD
+			             , MEMBER_NO
+			             , A.PG_DIV_CD
+			             , COMPLETE_DATE
+			             , DEPOT_STUS_CD
+			             , SETL_AMT
+			             , CANCEL_AMT
+			             , RECEV_AMT
+			             , RETRNGD_AMT
+			             , SETL_CNT
+			             , CANCEL_CNT
+			             , RECEV_CNT
+			             , FEE_AMT
+			             , NVL(B.CARD_FEE,0) CARD_FEE
+                         , NVL(B.CHECK_FEE,0) CHECK_FEE
+                         , NVL(C.DOM_FEE1,0) DOM_FEE1
+                         , NVL(C.DOM_FEE2,0) DOM_FEE2
+		            FROM ST_PAYMETHOD_ADJ_COMPARE_B2B A  FROM ST_PAYMETHOD_ADJ_COMPARE A ,
+                    OD_CARDFEES B,
+                    ( SELECT A.COMN_CD_ID,B.* 
+                       FROM CM_COMN_CD A, OD_SETL_MEAN_FEE B WHERE A.CD_GRP_ID ='ADJ_SETL_TGT_CD' AND A.CD_VAL1 = B.SETL_MEAN_CD AND USE_YN ='Y' ) C
+		            WHERE 1=1
+		            AND A.MEMBER_NO = B.JOIN_NO(+)
+                    AND DECODE(A.PAYMETHOD,'C1','03','01') = B.SITE_DIV_CD(+)
+                    AND A.PAYMETHOD = C.COMN_CD_ID(+)
+                    AND DECODE(A.PAYMETHOD,'O',A.PG_DIV_CD,'O2',A.PG_DIV_CD,'01') = DECODE(C.SETL_MEAN_CD,'01',C.PG_DIV_CD,'01')
+                    AND A.COMPLETE_DATE BETWEEN  B.START_DATE || '000000'  AND B.END_DATE  || '235959'
+                    AND A.COMPLETE_DATE BETWEEN  C.REFLCT_STRT_YMD || '000000'  AND C.REFLCT_END_YMD  || '235959'
+		            <isNotEmpty property="search_strt_ymd">	
+						<isNotEmpty property="search_end_ymd">	
+						AND A.COMPLETE_DATE BETWEEN #search_strt_ymd#  AND #search_end_ymd# 
+						</isNotEmpty>
+					</isNotEmpty>	
+					<isNotEmpty property="paymethod">
+						AND A.PAYMETHOD = #paymethod#
+					</isNotEmpty>
+					<isNotEmpty property="pavlnDivCd">
+						AND A.PAVLN_DIV_CD = #pavlnDivCd#
+					</isNotEmpty>
+		                AND DEPOT_STUS_CD IN ('000', '001', '002') /* 001 미입금, 002:입금완료, 000: */
+		         	ORDER BY PAYMETHOD,PAYMETHOD_ADJ_TRGT_YMD DESC,BUY_COMP_CD
+		        ) X
+		            , ST_BUY_COMP_INFO Y
+		            , CM_COMN_CD Z
+		            , (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PG_DIV_CD')  V
+		        WHERE 1=1
+		            AND X.PAYMETHOD = Z.COMN_CD_ID
+		            AND X.PG_DIV_CD = V.COMN_CD_ID(+)
+		          AND Z.CD_GRP_ID = 'ADJ_SETL_TGT_CD'
+		          AND X.BUY_COMP_CD  = Y.BUY_COMP_CD(+)   
+		        ) T1          
+		        WHERE 1=1
+	</sql>
+	<!-- 정산관리 결제수단별 예상입금금액 B2B 조회 리스트 -->
+	<select id="selectAdjForeCastDepositB2BList" parameterClass="java.util.HashMap" resultClass="commMap">
+				<include refid="selectAdjForeCastDepositB2B"/>
+		            <isNotEmpty property="firstIndex" >
+		            	 <isNotEmpty property="lastIndex" >
+		            	 	AND T1.TNUM BETWEEN #firstIndex# AND #lastIndex# 
+		            	 </isNotEmpty>
+		            </isNotEmpty>	 					
+	</select>
+	<select id="selectAdjForeCastDepositB2BListExcel" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">>
+			    <include refid="selectAdjForeCastDepositB2B"/>
+	</select>	
+	
+	<sql id="selectAdjForeCastDepositB2BSum">
+		SELECT 
+		              SUM(T1.SETL_AMT) SUM_SETL_AMT
+		            , SUM(T1.CANCEL_AMT) SUM_CANCEL_AMT
+		            , SUM(T1.RECEV_AMT) SUM_RECEV_AMT
+		            , SUM(T1.RETRNGD_AMT) SUM_RETRNGD_AMT
+		            , SUM(T1.SETL_CNT) SUM_SETL_CNT
+		            , SUM(T1.CANCEL_CNT) SUM_CANCEL_CNT
+		            , SUM(T1.RECEV_CNT) SUM_RECEV_CNT
+		            , SUM(RECEV_AMT) - SUM(FEE_AMT) AS SUM_PURCHASE_AMT
+		            , SUM(FEE_AMT) SUM_FEE_AMT
+		    FROM
+		        (
+		        SELECT 1
+		           , PAYMETHOD_ADJ_TRGT_YMD
+		           , Z.COMN_CD_NM AS PAYMETHOD_NM
+		           , V.COMN_CD_NM AS PG_DIV_NM
+		           , NVL(Y.BUY_COMP_NM, '.') AS BUY_COMP_NM
+		           , X.BUY_COMP_CD
+		           , MEMBER_NO 
+		           , PG_DIV_CD
+		           , DEPOT_STUS_CD
+			       , NVL(SETL_AMT,0) SETL_AMT
+			       , NVL(CANCEL_AMT,0) CANCEL_AMT
+			       , NVL(RECEV_AMT,0) RECEV_AMT
+			       , NVL(RETRNGD_AMT,0) RETRNGD_AMT
+			       , NVL(SETL_CNT,0) SETL_CNT
+			       , NVL(CANCEL_CNT,0) CANCEL_CNT
+			       , NVL(RECEV_CNT,0) RECEV_CNT
+			       , NVL(FEE_AMT,0) FEE_AMT
+			       , CARD_FEE
+                   , CHECK_FEE
+                   , DOM_FEE1
+                   , DOM_FEE2
+		           , ROW_NUMBER() OVER(ORDER BY PAYMETHOD_ADJ_TRGT_YMD ASC) AS TNUM
+		        FROM
+		        (
+		         
+		            SELECT PAYMETHOD_ADJ_TRGT_YMD
+			             , PAYMETHOD
+			             , BUY_COMP_CD
+			             , MEMBER_NO
+			             , A.PG_DIV_CD
+			             , COMPLETE_DATE
+			             , DEPOT_STUS_CD
+			             , SETL_AMT
+			             , CANCEL_AMT
+			             , RECEV_AMT
+			             , RETRNGD_AMT
+			             , SETL_CNT
+			             , CANCEL_CNT
+			             , RECEV_CNT
+			             , FEE_AMT
+			             , NVL(B.CARD_FEE,0) CARD_FEE
+                         , NVL(B.CHECK_FEE,0) CHECK_FEE
+                         , NVL(C.DOM_FEE1,0) DOM_FEE1
+                         , NVL(C.DOM_FEE2,0) DOM_FEE2
+		            FROM ST_PAYMETHOD_ADJ_COMPARE_B2B A,
+                    OD_CARDFEES B,
+                    ( SELECT A.COMN_CD_ID,B.* 
+                       FROM CM_COMN_CD A, OD_SETL_MEAN_FEE B WHERE A.CD_GRP_ID ='ADJ_SETL_TGT_CD' AND A.CD_VAL1 = B.SETL_MEAN_CD AND USE_YN ='Y' ) C
+		            WHERE 1=1
+		            AND A.MEMBER_NO = B.JOIN_NO(+)
+                    AND DECODE(A.PAYMETHOD,'C1','03','01') = B.SITE_DIV_CD(+)
+                    AND A.PAYMETHOD = C.COMN_CD_ID(+)
+                    AND DECODE(A.PAYMETHOD,'O',A.PG_DIV_CD,'O2',A.PG_DIV_CD,'01') = DECODE(C.SETL_MEAN_CD,'01',C.PG_DIV_CD,'01')
+                    AND A.COMPLETE_DATE BETWEEN  B.START_DATE || '000000'  AND B.END_DATE  || '235959'
+		            <isNotEmpty property="search_strt_ymd">	
+						<isNotEmpty property="search_end_ymd">	
+						AND A.COMPLETE_DATE BETWEEN #search_strt_ymd#  AND #search_end_ymd# 
+						</isNotEmpty>
+					</isNotEmpty>	
+					<isNotEmpty property="paymethod">
+						AND A.PAYMETHOD = #paymethod#
+					</isNotEmpty>
+					<isNotEmpty property="pavlnDivCd">
+						AND A.PAVLN_DIV_CD = #pavlnDivCd#
+					</isNotEmpty>
+		                AND DEPOT_STUS_CD IN ('000', '001', '002') /* 001 미입금, 002:입금완료, 000: */
+		        ) X
+		            , ST_BUY_COMP_INFO Y
+		            , CM_COMN_CD Z
+		            , (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PG_DIV_CD')  V
+		        WHERE 1=1
+		            AND X.PAYMETHOD = Z.COMN_CD_ID
+		            AND X.PG_DIV_CD = V.COMN_CD_ID(+)
+		          AND Z.CD_GRP_ID = 'ADJ_SETL_TGT_CD'
+		          AND X.BUY_COMP_CD  = Y.BUY_COMP_CD(+)   
+		        ) T1
+	</sql>	
+	<!-- 정산관리 결제수단별 예상입금금액 B2B 조회 리스트 -->
+	<select id="selectAdjForeCastDepositB2BSummary" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="selectAdjForeCastDepositB2BSum"/>
+	</select>
+	<select id="selectAdjForeCastDepositB2BSummaryExcel"  parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<include refid="selectAdjForeCastDepositB2BSum"/>
+	</select>			
+	<!-- 정산관리 환불/과납금 관리 기간 검색조건 -->
+	<sql id="refundExcessSearchOrderCondition">
+	                <!--  기간 검색 -->
+					<isNotEmpty property="search_strt_ymd">    
+					    <isNotEmpty property="search_end_ymd">
+					       <isEqual property="searchDateDiv" compareValue="apprDate"> 
+							AND ODM.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd# || '000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#search_end_ymd# || '235959', 'YYYYMMDDHH24MISS')
+						   </isEqual>
+						   <isEqual property="searchDateDiv" compareValue="orderDate"> 
+							AND ODM.ORDER_DATE BETWEEN TO_DATE(#search_strt_ymd# || '000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#search_end_ymd# || '235959', 'YYYYMMDDHH24MISS')
+						   </isEqual>
+						</isNotEmpty>
+					</isNotEmpty>   
+					<isNotEmpty property="search_setl_mean_cd"> 
+	                AND ODM.SETL_MEAN_CD = #search_setl_mean_cd# /* 결제수단 */
+	                </isNotEmpty>	
+	                <isNotEmpty property="search_access_type">
+						<isEqual property="search_access_type" compareValue="access_name">
+						AND ODM.ACCESS_NAME = #search_access_value#  /* 주문자ID */
+						</isEqual>
+						<isEqual property="search_access_type" compareValue="name">
+						AND ODM.ORDRR_NM = #search_access_value#  /* 주문자명 */
+						</isEqual>
+						<isEqual property="search_access_type" compareValue="orderId">
+						AND ODM.ORDER_ID = #search_access_value#  /* 주문ID */
+						</isEqual>
+					</isNotEmpty>
+					<!--  기간 검색 end -->		
+	</sql>	
+	<!-- 정산관리 환불/과납금 관리 검색조건 END -->
+		
+	<!-- 정산관리 환불/과납금 관리 검색조건 -->
+	<sql id="refundExcessSearchOnlineCondition">
+	                <isNotEmpty property="search_strt_ymd">    
+					    <isNotEmpty property="search_end_ymd">
+					    <isEqual property="searchDateDiv" compareValue="settleDate"> 
+							AND OOE.SETTLE_DATE BETWEEN #search_strt_ymd# || '000000' AND #search_end_ymd# || '235959'
+						</isEqual>  
+				    	</isNotEmpty>
+					</isNotEmpty>
+	                <isNotEmpty property="search_order_dtail_stus_cd"> /* 리스트구분 */
+						<!-- modify 2016.06.15<isEqual property="search_order_dtail_stus_cd" compareValue="C08">	 -->
+						<isEqual property="search_order_dtail_stus_cd" compareValue="C08">
+	                	AND OOE.MODIFY_STATE =#search_order_dtail_stus_cd# /* C08:반품환불요청, C10:반품환불확인 */
+	                	</isEqual>
+						<isEqual property="search_order_dtail_stus_cd" compareValue="C10">
+	                	AND OOE.MODIFY_STATE =#search_order_dtail_stus_cd# /* C08:반품환불요청, C10:반품환불확인 */
+	                	</isEqual>	
+						<isEqual property="search_order_dtail_stus_cd" compareValue="C00">	
+						AND OOE.MODIFY_STATE(+) IN ('A04','A05')
+	                	</isEqual> 
+	                	<isEqual property="search_order_dtail_stus_cd" compareValue="C09">
+	                	AND OOE.MODIFY_STATE =#search_order_dtail_stus_cd# /* C09:반품환불대기 */
+	                	</isEqual> 	
+						<isEqual property="search_order_dtail_stus_cd" compareValue="O08">
+	                	AND OOE.MODIFY_STATE = #search_order_dtail_stus_cd#	/*우체국취소 요청건 - 클레임처리중인것만 */
+	                	</isEqual>		
+	                </isNotEmpty>
+					<isNotEmpty property="bank_cd">	                	
+	                	AND OOE.FINANCE_NAME IN (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE COMN_CD_ID = #bank_cd# AND CD_GRP_ID ='BANK_CD' ) 
+	                </isNotEmpty>
+					<isNotEmpty property="searchPavln">
+						AND OOE.STR_DIV_CD  = #searchPavln#
+					</isNotEmpty>   
+					<isEqual property="search_access_type" compareValue="returnName">
+						AND OOE.DEPOSITOR = #search_access_value#  /* 환불자명 */
+					</isEqual>        	                
+	</sql>
+	
+	<!-- 정산관리 환불/과납금 관리 리스트 카운트 -->
+	<select id="selectAdjRefundExcessListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+			FROM
+				(	
+               SELECT
+                           ROW_NUMBER() OVER(ORDER BY A.ORDER_DATE DESC,A.EXPRICE_ID DESC)    AS RNUM,
+                           A.ORDER_ID,
+                           A.EXPRICE_ID,
+                           A.ORDER_DATE,
+                           ORDRR_NM, 
+                           SETL_MEAN_CD,
+                           DC_APPLY_PRC,
+                           PNT_USE_AMT,
+                           PREMI_CUST_PNT_SETL_AMT,
+                           CPN_DC_AMT,
+                           OKCASH_USE_AMT,
+                           WALLET_SETL_AMT,
+                           SETL_APPR_AMT,  
+                           RFD_BANK_CD,
+                           CLAIM_REQ_NO,
+                           METH_CD,
+                           DTAIL_STUS_NM,
+                           FINANCE_NAME,
+                           DEPOSITOR,
+                           ACCOUNT_NO,
+                           PRE_REF_PRICE,
+                           REF_PRICE,
+                           REASON_CODE,
+                           MODIFY_STATE,
+                           REMIT_STUS_CD,
+                           REMIT_STUS.COMN_CD_NM  REMIT_STUS_NM   
+                      FROM  
+                       (  SELECT /*+ LEADING(ODM) USE_NL(OOE) INDEX(OOE OD_ONLINE_EX_PRICE_IX01) */
+                           ODM.*,
+                           (SELECT CASE WHEN LENGTH(REFUND_BANKCD) = 3 THEN SUBSTR(REFUND_BANKCD,2,3)
+                              ELSE REFUND_BANKCD END FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND ROWNUM =1) RFD_BANK_CD,   
+                 			OOE.EXPRICE_ID,
+                  <![CDATA[(SELECT DISTINCT CLAIM_REQ_NO FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')  CLAIM_REQ_NO, /*클레임번호*/
+                           (SELECT DISTINCT RETRNGD_REFUND_METH_CD FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')]]> METH_CD, /*클레임주문정산상태구분*/ 
+                           CASE WHEN OOE.MODIFY_STATE ='A04' THEN '과납예정' 
+                                WHEN OOE.MODIFY_STATE ='A05' THEN '과납완료'
+                                WHEN OOE.MODIFY_STATE ='C08' THEN '환불요청'
+                                WHEN OOE.MODIFY_STATE ='C10' THEN '환불완료'
+                                ELSE '' END DTAIL_STUS_NM
+                           , NVL(OOE.FINANCE_NAME, ' ') AS FINANCE_NAME     /*은행명*/     
+                           , NVL(OOE.DEPOSITOR, ' ') AS DEPOSITOR /*예금주 */
+                           , NVL(OOE.ACCOUNT_SEED_NO, ' ') AS ACCOUNT_NO /*계좌번호(암호화 해제 요망 ACCOUNT_SEED_NO ) */
+                           , NVL(OOE.PRE_REF_PRICE, 0)  AS PRE_REF_PRICE /*환불예정액 */
+                           , NVL(OOE.REF_PRICE, 0)  AS REF_PRICE         /*환불액 */
+                           , NVL( F_GET_COMN_CD_NM('REASON_CODE', OOE.REASON_CODE), ' ') AS REASON_CODE /*환불 사유 */  
+                           , OOE.MODIFY_STATE			/*환불과납 주문상태코드 */
+                           , OOE.REMIT_STUS_CD 
+                           FROM
+                           (SELECT  /*+ LEADING(ODM) USE_NL(OOI) */
+                             ODM.ORDER_ID, /*주문ID*/
+                             MAX(TO_CHAR(ODM.ORDER_DATE, 'YYYY/MM/DD HH24:MI:SS')) AS ORDER_DATE, /*주문일자*/
+                             MAX(ODM.ORDRR_NM) ORDRR_NM,       /*고객명*/
+                             MAX(SETL_MEAN.COMN_CD_NM) SETL_MEAN_CD /*결제수단*/ , 
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0))) DC_APPLY_PRC, /*주문금액*/
+                             SUM(OOI.PNT_USE_AMT)  AS PNT_USE_AMT,/*사용마일리지*/
+                             SUM(OOI.PREMI_CUST_PNT_SETL_AMT) AS PREMI_CUST_PNT_SETL_AMT,/*사용우수고객마일리지*/
+                             SUM(OOI.CPN_DC_AMT) CPN_DC_AMT, /*할인쿠폰사용액*/
+                             SUM(OOI.OKCASH_USE_AMT) OKCASH_USE_AMT, /*사용OK캐쉬백마일리지*/
+                             SUM(OOI.WALLET_SETL_AMT) WALLET_SETL_AMT, /*사용전자지갑금액*/
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0)) - (OOI.PREMI_CUST_PNT_SETL_AMT + NVL(OOI.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (OOI.PNT_USE_AMT + NVL(OOI.PNT_REFUND_SETL_AMT, 0)) - OOI.CPN_DC_AMT - NVL(OOI.OKCASH_USE_AMT,0) - NVL(OOI.WALLET_SETL_AMT,0)) SETL_APPR_AMT /*결제금액*/
+                             FROM
+                                OD_ORDER_MAST ODM,
+                                OD_ORDER_ITM OOI,
+                                (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SETL_MEAN_CD') SETL_MEAN
+                             WHERE ODM.ORDER_ID  =  OOI.ORDER_ID
+                             AND ODM.SETL_MEAN_CD = SETL_MEAN.COMN_CD_ID(+)  
+                             AND   EXISTS (SELECT /*+ NL_SJ PUSH_SUBQ */ 1            
+							              FROM   OD_ONLINE_EX_PRICE X                
+							              WHERE  X.ORDER_ID = ODM.ORDER_ID)	
+                             <include refid="refundExcessSearchOrderCondition"/> /* 환불/과납금 검색조건 */
+                             GROUP BY ODM.ORDER_ID 
+                           ) ODM ,
+                             OD_ONLINE_EX_PRICE OOE
+                            WHERE 1=1
+			                <isEqual property="search_order_dtail_stus_cd" compareValue="C00">	          
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID(+) 
+			                    AND ODM.SETL_APPR_TOT_AMT > 0 
+			                </isEqual>
+			                <isNotEqual property="search_order_dtail_stus_cd" compareValue="C00">
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID
+			                </isNotEqual>
+			                
+			                <include refid="refundExcessSearchOnlineCondition"/>      
+                        ) A,  
+                       (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='REMIT_STUS_CD') REMIT_STUS
+                   WHERE 1=1
+			        AND A.REMIT_STUS_CD = REMIT_STUS.COMN_CD_ID(+)
+				)           		                        
+	</select>	
+	<!-- 정산관리 환불/과납금 관리 리스트 카운트 END -->	
+	<!-- 정산관리 환불/과납금 관리 리스트 Excel -->
+	<select id="selectAdjRefundExcessListExcel" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		
+                       SELECT
+                           ROW_NUMBER() OVER(ORDER BY A.ORDER_DATE DESC,A.EXPRICE_ID DESC)    AS RNUM,
+                            A.ORDER_ID,
+                           A.EXPRICE_ID,
+                           A.ORDER_DATE,
+                           ORDRR_NM, 
+                           SETL_MEAN_CD,
+                           DC_APPLY_PRC,
+                           PNT_USE_AMT,
+                           PREMI_CUST_PNT_SETL_AMT,
+                           CPN_DC_AMT,
+                           OKCASH_USE_AMT,
+                           WALLET_SETL_AMT,
+                           SETL_APPR_AMT,  
+                           RFD_BANK_CD,
+                           CLAIM_REQ_NO,
+                           METH_CD,
+                           DTAIL_STUS_NM,
+                           FINANCE_NAME,
+                           DEPOSITOR,
+                           ACCOUNT_NO,
+                           PRE_REF_PRICE,
+                           REF_PRICE,
+                           REASON_CODE,
+                           MODIFY_STATE,
+                           REMIT_STUS_CD,
+                           REMIT_STUS.COMN_CD_NM  REMIT_STUS_NM   
+                      FROM   
+                        (  SELECT /*+ LEADING(ODM) USE_NL(OOE) INDEX(OOE OD_ONLINE_EX_PRICE_IX01) */
+                           ODM.*,
+                           (SELECT CASE WHEN LENGTH(REFUND_BANKCD) = 3 THEN SUBSTR(REFUND_BANKCD,2,3)
+                              ELSE REFUND_BANKCD END FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND ROWNUM =1) RFD_BANK_CD,                          
+                 			OOE.EXPRICE_ID,
+                  <![CDATA[(SELECT DISTINCT CLAIM_REQ_NO FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')  CLAIM_REQ_NO, /*클레임번호*/
+                           (SELECT DISTINCT RETRNGD_REFUND_METH_CD FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')]]> METH_CD, /*클레임주문정산상태구분*/ 
+                           CASE WHEN OOE.MODIFY_STATE ='A04' THEN '과납예정' 
+                                WHEN OOE.MODIFY_STATE ='A05' THEN '과납완료'
+                                WHEN OOE.MODIFY_STATE ='C08' THEN '환불요청'
+                                WHEN OOE.MODIFY_STATE ='C10' THEN '환불완료'
+                                ELSE '' END DTAIL_STUS_NM
+                           , NVL(OOE.FINANCE_NAME, ' ') AS FINANCE_NAME     /*은행명*/     
+                           , NVL(OOE.DEPOSITOR, ' ') AS DEPOSITOR /*예금주 */
+                           , NVL(OOE.ACCOUNT_SEED_NO, ' ') AS ACCOUNT_NO /*계좌번호(암호화 해제 요망 ACCOUNT_SEED_NO ) */
+                           , NVL(OOE.PRE_REF_PRICE, 0)  AS PRE_REF_PRICE /*환불예정액 */
+                           , NVL(OOE.REF_PRICE, 0)  AS REF_PRICE         /*환불액 */
+                           , NVL( F_GET_COMN_CD_NM('REASON_CODE', OOE.REASON_CODE), ' ') AS REASON_CODE /*환불 사유 */  
+                           , OOE.MODIFY_STATE			/*환불과납 주문상태코드 */
+                           , OOE.REMIT_STUS_CD  
+                           FROM
+                           (SELECT  /*+ LEADING(ODM) USE_NL(OOI) */
+                             ODM.ORDER_ID, /*주문ID*/
+                             MAX(TO_CHAR(ODM.ORDER_DATE, 'YYYY/MM/DD HH24:MI:SS')) AS ORDER_DATE, /*주문일자*/
+                             MAX(ODM.ORDRR_NM) ORDRR_NM,       /*고객명*/
+                             MAX(SETL_MEAN.COMN_CD_NM) SETL_MEAN_CD /*결제수단*/ , 
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0))) DC_APPLY_PRC, /*주문금액*/
+                             SUM(OOI.PNT_USE_AMT)  AS PNT_USE_AMT,/*사용마일리지*/
+                             SUM(OOI.PREMI_CUST_PNT_SETL_AMT) AS PREMI_CUST_PNT_SETL_AMT,/*사용우수고객마일리지*/
+                             SUM(OOI.CPN_DC_AMT) CPN_DC_AMT, /*할인쿠폰사용액*/
+                             SUM(OOI.OKCASH_USE_AMT) OKCASH_USE_AMT, /*사용OK캐쉬백마일리지*/
+                             SUM(OOI.WALLET_SETL_AMT) WALLET_SETL_AMT, /*사용전자지갑금액*/
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0)) - (OOI.PREMI_CUST_PNT_SETL_AMT + NVL(OOI.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (OOI.PNT_USE_AMT + NVL(OOI.PNT_REFUND_SETL_AMT, 0)) - OOI.CPN_DC_AMT - NVL(OOI.OKCASH_USE_AMT,0) - NVL(OOI.WALLET_SETL_AMT,0)) SETL_APPR_AMT /*결제금액*/
+                             FROM
+                                OD_ORDER_MAST ODM,
+                                OD_ORDER_ITM OOI,
+                                (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SETL_MEAN_CD') SETL_MEAN
+                             WHERE ODM.ORDER_ID  =  OOI.ORDER_ID
+                             AND ODM.SETL_MEAN_CD = SETL_MEAN.COMN_CD_ID(+)  
+                             AND   EXISTS (SELECT /*+ NL_SJ PUSH_SUBQ */ 1            
+							              FROM   OD_ONLINE_EX_PRICE X                
+							              WHERE  X.ORDER_ID = ODM.ORDER_ID) 
+                             <include refid="refundExcessSearchOrderCondition"/> /* 환불/과납금 검색조건 */
+                             GROUP BY ODM.ORDER_ID 
+                           ) ODM ,
+                             OD_ONLINE_EX_PRICE OOE
+                            WHERE 1=1
+			                <isEqual property="search_order_dtail_stus_cd" compareValue="C00">	          
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID(+) 
+			                    AND ODM.SETL_APPR_TOT_AMT > 0 
+			                </isEqual>
+			                <isNotEqual property="search_order_dtail_stus_cd" compareValue="C00">
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID
+			                </isNotEqual>
+			                <include refid="refundExcessSearchOnlineCondition"/>          
+                        ) A,  
+                       (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='REMIT_STUS_CD') REMIT_STUS
+                   WHERE 1=1
+			        AND A.REMIT_STUS_CD = REMIT_STUS.COMN_CD_ID(+)
+	</select>	
+	<!-- 정산관리 환불/과납금 관리 리스트 -->
+	<select id="selectAdjRefundExcessList" parameterClass="java.util.HashMap" resultClass="commMap">
+			SELECT A.*
+			  FROM (
+    			  SELECT
+                           ROW_NUMBER() OVER(ORDER BY A.ORDER_DATE DESC,A.EXPRICE_ID DESC)    AS RNUM,
+                           A.ORDER_ID,
+                           A.EXPRICE_ID,
+                           A.ORDER_DATE,
+                           ORDRR_NM, 
+                           SETL_MEAN_CD,
+                           DC_APPLY_PRC,
+                           PNT_USE_AMT,
+                           PREMI_CUST_PNT_SETL_AMT,
+                           CPN_DC_AMT,
+                           OKCASH_USE_AMT,
+                           WALLET_SETL_AMT,
+                           SETL_APPR_AMT, 
+                           RFD_BANK_CD,
+                           CLAIM_REQ_NO,
+                           METH_CD, 
+                           DTAIL_STUS_NM,
+                           FINANCE_NAME,
+                           DEPOSITOR,
+                           ACCOUNT_NO,
+                           PRE_REF_PRICE,
+                           REF_PRICE,
+                           REASON_CODE,
+                           MODIFY_STATE,
+                           REMIT_STUS_CD,
+                           REMIT_STUS.COMN_CD_NM  REMIT_STUS_NM   
+                      FROM   
+                        (  SELECT /*+ LEADING(ODM) USE_NL(OOE) INDEX(OOE OD_ONLINE_EX_PRICE_IX01) */
+                           ODM.*,
+                          (SELECT CASE WHEN LENGTH(REFUND_BANKCD) = 3 THEN SUBSTR(REFUND_BANKCD,2,3)
+                              ELSE REFUND_BANKCD END FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND ROWNUM =1) RFD_BANK_CD,   
+                 			OOE.EXPRICE_ID,
+                  <![CDATA[(SELECT DISTINCT CLAIM_REQ_NO FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')  CLAIM_REQ_NO, /*클레임번호*/
+                           (SELECT DISTINCT RETRNGD_REFUND_METH_CD FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')]]> METH_CD, /*클레임주문정산상태구분*/ 
+                           CASE WHEN OOE.MODIFY_STATE ='A04' THEN '과납예정' 
+                                WHEN OOE.MODIFY_STATE ='A05' THEN '과납완료'
+                                WHEN OOE.MODIFY_STATE ='C08' THEN '환불요청'
+                                WHEN OOE.MODIFY_STATE ='C10' THEN '환불완료'
+                                ELSE '' END DTAIL_STUS_NM
+                           , NVL(OOE.FINANCE_NAME, ' ') AS FINANCE_NAME     /*은행명*/     
+                           , NVL(OOE.DEPOSITOR, ' ') AS DEPOSITOR /*예금주 */
+                           , NVL(OOE.ACCOUNT_SEED_NO, ' ') AS ACCOUNT_NO /*계좌번호(암호화 해제 요망 ACCOUNT_SEED_NO ) */
+                           , NVL(OOE.PRE_REF_PRICE, 0)  AS PRE_REF_PRICE /*환불예정액 */
+                           , NVL(OOE.REF_PRICE, 0)  AS REF_PRICE         /*환불액 */
+                           , NVL( F_GET_COMN_CD_NM('REASON_CODE', OOE.REASON_CODE), ' ') AS REASON_CODE /*환불 사유 */  
+                           , OOE.MODIFY_STATE			/*환불과납 주문상태코드 */
+                           , OOE.REMIT_STUS_CD 
+                           FROM
+                           (SELECT  /*+ LEADING(ODM) USE_NL(OOI) */
+                             ODM.ORDER_ID, /*주문ID*/
+                             MAX(TO_CHAR(ODM.ORDER_DATE, 'YYYY/MM/DD HH24:MI:SS')) AS ORDER_DATE, /*주문일자*/
+                             MAX(ODM.ORDRR_NM) ORDRR_NM,       /*고객명*/
+                             MAX(SETL_MEAN.COMN_CD_NM) SETL_MEAN_CD /*결제수단*/ , 
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0))) DC_APPLY_PRC, /*주문금액*/
+                             SUM(OOI.PNT_USE_AMT)  AS PNT_USE_AMT,/*사용마일리지*/
+                             SUM(OOI.PREMI_CUST_PNT_SETL_AMT) AS PREMI_CUST_PNT_SETL_AMT,/*사용우수고객마일리지*/
+                             SUM(OOI.CPN_DC_AMT) CPN_DC_AMT, /*할인쿠폰사용액*/
+                             SUM(OOI.OKCASH_USE_AMT) OKCASH_USE_AMT, /*사용OK캐쉬백마일리지*/
+                             SUM(OOI.WALLET_SETL_AMT) WALLET_SETL_AMT, /*사용전자지갑금액*/
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0)) - (OOI.PREMI_CUST_PNT_SETL_AMT + NVL(OOI.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (OOI.PNT_USE_AMT + NVL(OOI.PNT_REFUND_SETL_AMT, 0)) - OOI.CPN_DC_AMT - NVL(OOI.OKCASH_USE_AMT,0) - NVL(OOI.WALLET_SETL_AMT,0)) SETL_APPR_AMT /*결제금액*/
+                             FROM
+                                OD_ORDER_MAST ODM,
+                                OD_ORDER_ITM OOI,
+                                (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SETL_MEAN_CD') SETL_MEAN
+                             WHERE ODM.ORDER_ID  =  OOI.ORDER_ID
+                             AND ODM.SETL_MEAN_CD = SETL_MEAN.COMN_CD_ID(+)  
+                             AND   EXISTS (SELECT /*+ NL_SJ PUSH_SUBQ */ 1            
+							              FROM   OD_ONLINE_EX_PRICE X                
+							              WHERE  X.ORDER_ID = ODM.ORDER_ID) 
+                             <include refid="refundExcessSearchOrderCondition"/> /* 환불/과납금 검색조건 */
+                             GROUP BY ODM.ORDER_ID 
+                           ) ODM ,
+                             OD_ONLINE_EX_PRICE OOE
+                            WHERE 1=1
+			                <isEqual property="search_order_dtail_stus_cd" compareValue="C00">	          
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID(+) 
+			                    AND ODM.SETL_APPR_TOT_AMT > 0 
+			                </isEqual>
+			                <isNotEqual property="search_order_dtail_stus_cd" compareValue="C00">
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID
+			                </isNotEqual>
+			                
+			                <include refid="refundExcessSearchOnlineCondition"/>       
+                        ) A,  
+                       (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='REMIT_STUS_CD') REMIT_STUS
+                   WHERE 1=1
+			        AND A.REMIT_STUS_CD = REMIT_STUS.COMN_CD_ID(+)
+				)A <isNotEmpty property="firstIndex"> 
+		  WHERE RNUM BETWEEN    #firstIndex#  AND #lastIndex#
+		  </isNotEmpty>
+	</select>	
+	<select id="selectAdjRefundExcessSummary" parameterClass="java.util.HashMap" resultClass="commMap">
+			   SELECT
+			        NVL(SUM(DC_APPLY_PRC),0) SUM_DC_APPLY_PRC,
+			   		NVL(SUM(PNT_USE_AMT),0) SUM_PNT_USE_AMT,
+			   		NVL(SUM(PREMI_CUST_PNT_SETL_AMT),0) SUM_PREMI_CUST_PNT_SETL_AMT,
+			   		NVL(SUM(CPN_DC_AMT),0) SUM_CPN_DC_AMT,
+			   		NVL(SUM(OKCASH_USE_AMT),0) SUM_OKCASH_USE_AMT,
+			   		NVL(SUM(WALLET_SETL_AMT),0) SUM_WALLET_SETL_AMT,
+			   		NVL(SUM(SETL_APPR_AMT),0) SUM_SETL_APPR_AMT,			   		
+			   		NVL(SUM(PRE_REF_PRICE), 0)  AS SUM_PRE_REF_PRICE, /*환불예정액 */
+                    NVL(SUM(REF_PRICE), 0)  AS SUM_REF_PRICE         /*환불액 */
+			   FROM
+			   (SELECT /*+ LEADING(ODM) USE_NL(OOE) INDEX(OOE OD_ONLINE_EX_PRICE_IX01) */  ODM.*, 
+                          (SELECT CASE WHEN LENGTH(REFUND_BANKCD) = 3 THEN SUBSTR(REFUND_BANKCD,2,3)
+                              ELSE REFUND_BANKCD END FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND ROWNUM =1) RFD_BANK_CD,   
+                 			OOE.EXPRICE_ID,
+                  <![CDATA[(SELECT DISTINCT CLAIM_REQ_NO FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')  CLAIM_REQ_NO, /*클레임번호*/
+                           (SELECT DISTINCT RETRNGD_REFUND_METH_CD FROM  OD_RET_INTERFACE ORI WHERE ORI.ORDER_ID = OOE.ORDER_ID AND ORI.EXPRICE_ID = OOE.EXPRICE_ID AND CLAIM_DIV_CD = '001' AND TREAT_STUS_CD <> '004')]]> METH_CD, /*클레임주문정산상태구분*/ 
+                           CASE WHEN OOE.MODIFY_STATE ='A04' THEN '과납예정' 
+                                WHEN OOE.MODIFY_STATE ='A05' THEN '과납완료'
+                                WHEN OOE.MODIFY_STATE ='C08' THEN '환불요청'
+                                WHEN OOE.MODIFY_STATE ='C10' THEN '환불완료'
+                                ELSE '' END DTAIL_STUS_NM
+                           , NVL(OOE.FINANCE_NAME, ' ') AS FINANCE_NAME     /*은행명*/     
+                           , NVL(OOE.DEPOSITOR, ' ') AS DEPOSITOR /*예금주 */
+                           , NVL(OOE.ACCOUNT_SEED_NO, ' ') AS ACCOUNT_NO /*계좌번호(암호화 해제 요망 ACCOUNT_SEED_NO ) */
+                           , NVL(OOE.PRE_REF_PRICE, 0)  AS PRE_REF_PRICE /*환불예정액 */
+                           , NVL(OOE.REF_PRICE, 0)  AS REF_PRICE         /*환불액 */
+                           , NVL( F_GET_COMN_CD_NM('REASON_CODE', OOE.REASON_CODE), ' ') AS REASON_CODE /*환불 사유 */  
+                           , OOE.MODIFY_STATE			/*환불과납 주문상태코드 */
+                           , OOE.REMIT_STUS_CD 
+                           FROM
+                           (SELECT  /*+ LEADING(ODM) USE_NL(OOI) */
+                             ODM.ORDER_ID, /*주문ID*/
+                             MAX(TO_CHAR(ODM.ORDER_DATE, 'YYYY/MM/DD HH24:MI:SS')) AS ORDER_DATE, /*주문일자*/
+                             MAX(ODM.ORDRR_NM) ORDRR_NM,       /*고객명*/
+                             MAX(SETL_MEAN.COMN_CD_NM) SETL_MEAN_CD /*결제수단*/ , 
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0))) DC_APPLY_PRC, /*주문금액*/
+                             SUM(OOI.PNT_USE_AMT)  AS PNT_USE_AMT,/*사용마일리지*/
+                             SUM(OOI.PREMI_CUST_PNT_SETL_AMT) AS PREMI_CUST_PNT_SETL_AMT,/*사용우수고객마일리지*/
+                             SUM(OOI.CPN_DC_AMT) CPN_DC_AMT, /*할인쿠폰사용액*/
+                             SUM(OOI.OKCASH_USE_AMT) OKCASH_USE_AMT, /*사용OK캐쉬백마일리지*/
+                             SUM(OOI.WALLET_SETL_AMT) WALLET_SETL_AMT, /*사용전자지갑금액*/
+                             SUM((OOI.DC_APPLY_PRC + NVL(OOI.OPTN_GOODS_APPLY_PRC,0) + NVL(OOI.SEND_PRC,0)) - (OOI.PREMI_CUST_PNT_SETL_AMT + NVL(OOI.PREMI_CUST_PNT_REFUND_APRV_AMT, 0)) - (OOI.PNT_USE_AMT + NVL(OOI.PNT_REFUND_SETL_AMT, 0)) - OOI.CPN_DC_AMT - NVL(OOI.OKCASH_USE_AMT,0) - NVL(OOI.WALLET_SETL_AMT,0)) SETL_APPR_AMT /*결제금액*/
+                             FROM
+                                OD_ORDER_MAST ODM,
+                                OD_ORDER_ITM OOI,
+                                (SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='SETL_MEAN_CD') SETL_MEAN
+                             WHERE ODM.ORDER_ID  =  OOI.ORDER_ID
+                             AND ODM.SETL_MEAN_CD = SETL_MEAN.COMN_CD_ID(+)
+                             AND   EXISTS (SELECT /*+ NL_SJ PUSH_SUBQ */ 1            
+							              FROM   OD_ONLINE_EX_PRICE X                
+							              WHERE  X.ORDER_ID = ODM.ORDER_ID)   
+                             <include refid="refundExcessSearchOrderCondition"/> /* 환불/과납금 검색조건 */
+                             GROUP BY ODM.ORDER_ID 
+                           ) ODM ,
+                             OD_ONLINE_EX_PRICE OOE
+                            WHERE 1=1
+			                <isEqual property="search_order_dtail_stus_cd" compareValue="C00">	          
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID(+) 
+			                    AND ODM.SETL_APPR_TOT_AMT > 0 
+			                </isEqual>
+			                <isNotEqual property="search_order_dtail_stus_cd" compareValue="C00">
+			                    AND ODM.ORDER_ID = OOE.ORDER_ID
+			                </isNotEqual>
+			                
+			                <include refid="refundExcessSearchOnlineCondition"/>  
+				)
+	</select>
+	<!-- 정산관리 환불/과납금 관리 리스트 END -->
+	
+	<!-- 환불요청 -> 환불대기 업데이트 -->
+	
+	<update id="updateModifyStatusToWait" parameterClass="java.util.HashMap">	
+		UPDATE OD_ONLINE_EX_PRICE
+			SET MODIFY_STATE = #search_order_dtail_stus_cd#
+		WHERE ORDER_ID =#orderId#
+			AND EXPRICE_ID = #expriceId#
+	</update>
+	
+	<!-- 환불/과납금 환불확인 OD_ORDER_ITM 주문상태 업데이트 처리 -->
+	<update id="updateRefundStatusChg" parameterClass="java.util.HashMap">	
+			UPDATE OD_ORDER_ITM SET 
+				ORDER_DTAIL_STUS_CD = #order_dtail_stus_cd# 
+				, CHG_DATE = SYSDATE
+				, CHGER_ID = #chger_id#
+			WHERE 1=1
+				AND ORDER_ID = #orderId# 
+				AND ORDER_DTAIL_STUS_CD = 'C08'
+				<isNotEmpty property ="expriceId" >
+				AND ORDER_ITM_ID IN (
+					SELECT ORDER_ITM_ID
+					FROM
+					OD_RET_INTERFACE
+					WHERE ORDER_ID = #orderId#
+					AND EXPRICE_ID = #expriceId#
+				)
+				</isNotEmpty>
+	</update>						
+	<!-- 환불/과납금 환불확인 처리 -->
+	<!-- 환불/과납금 송금예정액 -> 송금액업데이트 -->
+	<update id="updateRefundAmtChg" parameterClass="java.util.HashMap">
+		UPDATE OD_ONLINE_EX_PRICE SET
+			REMIT_STUS_CD = #remitStusCd#
+			<isEqual property="order_dtail_stus_cd" compareValue="C10">
+			, REF_PRICE = PRE_REF_PRICE
+			, MODIFY_STATE = #order_dtail_stus_cd#
+			, REMIT_DATE = SYSDATE
+			, SETTLE_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+			</isEqual>
+			<isEqual property="order_dtail_stus_cd" compareValue="A05">
+			, MODIFY_STATE = #order_dtail_stus_cd#
+			, REMIT_DATE = SYSDATE
+			, SETTLE_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+			</isEqual>
+			WHERE ORDER_ID =#orderId#
+			AND EXPRICE_ID = #expriceId# 
+	</update>
+	<!-- 과납금 삭제 처리 -->	
+	<delete id="adjRefundExcessOverDoneCancel"  parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE FROM OD_ONLINE_EX_PRICE WHERE ORDER_ID =#orderId#
+			AND EXPRICE_ID = #expriceId# AND REMIT_STUS_CD <> 'A05'
+		   ]]>	
+	</delete>
+	
+	<!-- 환불 OD_RET_INTERFACE 이체상태업데이트 -->
+	<update id="updateRetInterface" parameterClass="java.util.HashMap">		
+   
+		UPDATE OD_RET_INTERFACE A 
+		SET    A.POSA_ACC_TRANSF_STUS_CD = '004'
+			 , A.POSA_ACC_TRANSF_TREAT_YMD = TO_CHAR(SYSDATE,'YYYYMMDD')
+			 , CHG_DATE = SYSDATE
+			 , CHGER_ID = #chger_id#
+		WHERE  A.POSA_ACC_TRANSF_STUS_CD IN ('001')
+		AND    A.ORDER_ID = #orderId#
+		<isNotEmpty property ="claimReqNo" >
+		AND    A.CLAIM_REQ_NO = #claimReqNo#
+		</isNotEmpty>
+		AND    A.EXPRICE_ID = #expriceId#
+    	 	
+ 	</update>
+ 	<!-- 과납 OD_RET_INTERFACE 이체 상태업데이트 -->
+ 	<update id="updateOverRetInterface" parameterClass="java.util.HashMap">		
+    <![CDATA[
+		UPDATE OD_RET_INTERFACE A 
+		SET    MODIFY_STATE = 'A05' 
+			 , CHG_DATE = SYSDATE
+			 , CHGER_ID = #chger_id#
+		WHERE  A.ORDER_ID = #orderId#
+		AND    A.EXPRICE_ID = #expriceId#
+    ]]>		 	
+ 	</update>	
+	
+	<!-- 주문 아이템 이력 등록 -->
+	<insert id="insertOrderItmHistory" parameterClass="java.util.HashMap">	
+		INSERT INTO OD_ORDER_ITM_HISTOR
+		(ORDER_ITM_ID, ORDER_ITM_CHG_DATE, ORIG_ORDER_ITM_ID, ORDER_ID, PAVLN_ID, PAVLN_DIV_CD, SUPP_COMP_ID, SUPP_COMP_NM, SUPPO_RGIST_POCD, SUPP_PO_NM, GOODS_CD, GOODS_NM, GOODS_OPTN_GRP_SEQ, GOODS_OPTN_SEQ, REQ_CNT, GOODS_RETRNGD_DATE, ORDER_DTAIL_STUS_CD, ORDER_TYP_CD, GOODS_CANCEL_YN, GOODS_CANCEL_DATE, CNSMR_PRC, STD_SELL_PRC, PUCHAS_PRC, DC_APPLY_PRC, OPTN_GOODS_APPLY_PRC, CPN_DC_AMT, PNT_USE_AMT, PNT_ACCML_PNT, PO_PNT_USE_AMT, OKCASH_USE_AMT, PREMI_CUST_PNT_SETL_AMT, REFUND_AMT, PNT_REFUND_SETL_AMT, PREMI_CUST_PNT_REFUND_APRV_AMT, SEND_PRC, PRCL_AMT, IMMPMN_PRCL_AMT, AFTPMN_PRCL_AMT, EMS_AMT, EMS_DC_AMT, EMS_DCRATE, EMS_DOLAR_AMT, WGHT, VOLM, KIND_DIV_CD, AIR_SEND_YN, FRN_EXP_DIV_CD, PRCLTAXIN, STD_DIV_CD, GOODS_DIV_NO, FLWR_DELIVPO_SIGN, BALTSHT_PRT_YN, FIX_RESRV_ORDER_GOODS_YN, CPN_USE_YN, EVENT_DC_GOODS_YN, EVENT_DIV_CD, EVENT_ID, GIFT_ORDER_YN, GIFT_CANCEL_YN, EVENT_GOODS_SEQ, EXTRA_GOODS_YN, EXTRA_GOODS_CNT, EXTRA_GOODS_SEQ, RGR_GOODS_YN, RGR_GOODS_SEQ, RGR_GOODS_PRC, CORPSPCSAL_GOODS_YN, CORPSPCSAL_GOODS_SEQ, PLNBEF_GOODS_YN, PLNBEF_ID, CRRGR_CARD_USE_YN, WISH_SEND_DATE, TDAY_EXP_YN, DOM_EXP_YN, OVSEA_SEND_GOODS_YN, DELIV_CERT_YN, FLWRDELIV_SMS_DONE_DATE, FLWRDELIV_DELAY_REASN_CD, SEND_MSG, SENDER_NM, SENDER_ZIPCD, SENDER_ADDR1, SENDER_ADDR2, SENDER_TELNO, SENDER_HTELNO, SENDER_EMAIL, SENDER_ADDR_DIV_CD, RECPTER_NM, RECPTER_HONOR_CD, RECPTER_ZIPCD, RECPTER_ADDR1, RECPTER_ADDR2, RECPTER_TELNO, RECPTER_HTELNO, RECPTER_EMAIL, RECPTER_ADDR_DIV_CD, SENDPO_RGIST_POCD, HS_CD, SEND_TYP_CD, SEND_NATION_CD, SEND_AREA_CD, REGI_NO, REPRSNT_REGI_NO, REGI_NO_CREATE_DIV_CD, SEND_CONF_DATE, SEND_STRT_DATE, SEND_DONE_DATE, ADJ_YN, REALRECPTER, INSTL_DUEDD, SMS_RECV_YN, MANY_ORDER_NO, BUND_SEND_YN, EPOST_MLG_ID, CANCEL_REQ_YMD, RETRNGD_YN, FLWRDELIV_DELAY_REASN, SENDER_VIRTL_NO, RECPTER_VIRTL_NO, TAXBIL_ADJ_YN, FLWRDELIV_SMS_RSLT, SUPPCOMP_SMS_TX_YN, SENDER_SMS_TX_YN, DEFICIT_YN , ADJ_CARD_REFUND_FEE, REG_DATE, CHG_DATE, REGER_ID, CHGER_ID, SUPP_NOTIC_DD_PER_SEQ, UPDATE_ITEM, UPDATE_CONT)
+		SELECT ORDER_ITM_ID, SYSDATE, ORIG_ORDER_ITM_ID, ORDER_ID, PAVLN_ID, PAVLN_DIV_CD, SUPP_COMP_ID, SUPP_COMP_NM, SUPPO_RGIST_POCD, SUPP_PO_NM, GOODS_CD, GOODS_NM, GOODS_OPTN_GRP_SEQ, GOODS_OPTN_SEQ, REQ_CNT, GOODS_RETRNGD_DATE, ORDER_DTAIL_STUS_CD, ORDER_TYP_CD, GOODS_CANCEL_YN, GOODS_CANCEL_DATE, CNSMR_PRC, STD_SELL_PRC, PUCHAS_PRC, DC_APPLY_PRC, OPTN_GOODS_APPLY_PRC, CPN_DC_AMT, PNT_USE_AMT, PNT_ACCML_PNT, PO_PNT_USE_AMT, OKCASH_USE_AMT, PREMI_CUST_PNT_SETL_AMT, REFUND_AMT, PNT_REFUND_SETL_AMT, PREMI_CUST_PNT_REFUND_APRV_AMT, SEND_PRC, PRCL_AMT, IMMPMN_PRCL_AMT, AFTPMN_PRCL_AMT, EMS_AMT, EMS_DC_AMT, EMS_DCRATE, EMS_DOLAR_AMT, WGHT, VOLM, KIND_DIV_CD, AIR_SEND_YN, FRN_EXP_DIV_CD, PRCLTAXIN, STD_DIV_CD, GOODS_DIV_NO, FLWR_DELIVPO_SIGN, BALTSHT_PRT_YN, FIX_RESRV_ORDER_GOODS_YN, CPN_USE_YN, EVENT_DC_GOODS_YN, EVENT_DIV_CD, EVENT_ID, GIFT_ORDER_YN, GIFT_CANCEL_YN, EVENT_GOODS_SEQ, EXTRA_GOODS_YN, EXTRA_GOODS_CNT, EXTRA_GOODS_SEQ, RGR_GOODS_YN, RGR_GOODS_SEQ, RGR_GOODS_PRC, CORPSPCSAL_GOODS_YN, CORPSPCSAL_GOODS_SEQ, PLNBEF_GOODS_YN, PLNBEF_ID, CRRGR_CARD_USE_YN, WISH_SEND_DATE, TDAY_EXP_YN, DOM_EXP_YN, OVSEA_SEND_GOODS_YN, DELIV_CERT_YN, FLWRDELIV_SMS_DONE_DATE, FLWRDELIV_DELAY_REASN_CD, SEND_MSG, SENDER_NM, SENDER_ZIPCD, SENDER_ADDR1, SENDER_ADDR2, SENDER_TELNO, SENDER_HTELNO, SENDER_EMAIL, SENDER_ADDR_DIV_CD, RECPTER_NM, RECPTER_HONOR_CD, RECPTER_ZIPCD, RECPTER_ADDR1, RECPTER_ADDR2, RECPTER_TELNO, RECPTER_HTELNO, RECPTER_EMAIL, RECPTER_ADDR_DIV_CD, SENDPO_RGIST_POCD, HS_CD, SEND_TYP_CD, SEND_NATION_CD, SEND_AREA_CD, REGI_NO, REPRSNT_REGI_NO, REGI_NO_CREATE_DIV_CD, SEND_CONF_DATE, SEND_STRT_DATE, SEND_DONE_DATE, ADJ_YN, REALRECPTER, INSTL_DUEDD, SMS_RECV_YN, MANY_ORDER_NO, BUND_SEND_YN, EPOST_MLG_ID, CANCEL_REQ_YMD, RETRNGD_YN, FLWRDELIV_DELAY_REASN, SENDER_VIRTL_NO, RECPTER_VIRTL_NO, TAXBIL_ADJ_YN, FLWRDELIV_SMS_RSLT, SUPPCOMP_SMS_TX_YN, SENDER_SMS_TX_YN, DEFICIT_YN, ADJ_CARD_REFUND_FEE, REG_DATE, CHG_DATE, REGER_ID, #chger_id#, SUPP_NOTIC_DD_PER_SEQ, #updateItem#, #updateCont#
+		  FROM OD_ORDER_ITM
+		 WHERE 1=1
+			<isNotEmpty property="order_itm_id" prepend="AND">
+			 	ORDER_ITM_ID IN
+				 <iterate property="order_itm_id" open="("  close=")" conjunction=",">
+					#order_itm_id[]#
+				</iterate>
+			</isNotEmpty>
+	</insert>	
+	
+	<!-- 과납금 확인처리 -->
+	<insert id="insertOnlineExPrice" parameterClass="java.util.HashMap">	
+		INSERT INTO OD_ONLINE_EX_PRICE 
+		        (
+		        ORDER_ID
+		        , EXPRICE_ID
+		        , ORDER_ITM_ID
+		        , PRE_REF_PRICE
+		        , PRE_SETTLE_DATE
+		        , REF_PRICE
+				, SETTLE_DATE
+		        , ACCOUNT_SEED_NO
+		        , FINANCE_NAME
+		        , DEPOSITOR
+		        , MODIFY_STATE
+		        , BANK_CD
+		        , REMIT_STUS_CD
+		        )   
+		SELECT #order_id# 
+	            , 
+	            (
+	            SELECT NVL(MAX(OOEP.EXPRICE_ID),0)+1 
+	                    FROM OD_ONLINE_EX_PRICE OOEP
+	                WHERE OOEP.ORDER_ID = #order_id#            
+	            )
+	            , #order_itm_id# 
+	            , #ref_price#
+	            , TO_CHAR(SYSDATE,'yyyymmddhh24')
+	            , #ref_price#
+	            , TO_CHAR(SYSDATE,'yyyymmddhh24')
+	            , #account_seed_no#
+	            , #finance_name#
+	            , #dipositor#
+	            , 'A04'
+	            , #bank_cd#
+	            ,'10'
+			FROM DUAL	            	
+	</insert>	
+	<!-- 과납금 확인처리 -->	
+	
+	<!-- 과납확인 취소 처리 -->
+	<update id="updateExcessCancel" parameterClass="java.util.HashMap">	
+			UPDATE OD_ONLINE_EX_PRICE SET 
+				MODIFY_STATE = #modify_state# /* A04-과납예정, A05-과납완료  */
+				, FINANCE_NAME = ''
+				, DEPOSITOR = ''
+				, ACCOUNT_SEED_NO = ''
+			WHERE 1=1				
+			<isNotEmpty property="order_itm_id" prepend="AND">
+			 	ORDER_ITM_ID IN			/* AS-IS ORDER_ID(PURCHASE_ID) 기준이나 TO-BE ORDER_ITM_ID 로 변경 */
+				 <iterate property="order_itm_id" open="("  close=")" conjunction=",">
+					#order_itm_id[]#
+				</iterate>
+			</isNotEmpty>
+	</update>			
+	<!-- 과납확인 취소 처리 -->		
+	
+	<!-- 주문/정산 우체국계좌이체 포인트 정산내역 검색조건 -->
+	<sql id="rmPostBankSearchTermCondition">
+	                <!--  기간 검색 -->
+					<isNotEmpty property="search_strt_ymd">    
+					    <isNotEmpty property="search_end_ymd">    					
+							<!-- 정산일자 -->	
+							AND FROM_DATE BETWEEN #search_strt_ymd#  AND #search_end_ymd#   
+							<!-- 정산일자 end -->
+				    	</isNotEmpty>
+					</isNotEmpty>
+					<!--  기간 검색 end -->		
+	</sql>	
+	<!-- 정산관리 환불/과납금 관리 검색조건 END -->
+		
+	<!-- 주문/정산 우체국계좌이체 포인트 정산내역 검색조건 -->
+	<sql id="rmPostBankSearchCondition">
+				<include refid="rmPostBankSearchTermCondition"/> /* 환불/과납금 기간 검색 */	
+		            <isNotEmpty property="search_service_div_cd" prepend="AND">
+		            	DECODE(GBN,'04','04','01','01','03') = #search_service_div_cd#
+		            </isNotEmpty>            	                
+	</sql>		
+	
+	<!-- 주문/정산 우체국계좌이체 포인트 정산내역(정산내역) 카운트 -->
+	<select id="selectRmPostBankListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+			FROM ST_BANK_POST_STAT
+				WHERE 1=1 	
+	           		<include refid="rmPostBankSearchCondition"/> /* 포인트 정산내역 검색조건 */      					                        
+	</select>	
+	<!-- 주문/정산 우체국계좌이체 포인트 정산내역 리스트 카운트 END -->	
+	
+	<!-- 주문/정산 우체국계좌이체 포인트 정산내역(정산내역) 리스트 -->
+	<select id="selectRmPostBankList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT AA.GBN
+				, AA.FROM_DATE
+				, AA.FEE_AMOUNT
+				, AA.ACCU_POINT
+				, AA.USE_POINT
+				, AA.GIVE_POINT
+				, AA.POST_AMOUNT
+				, NVL(BB.SUM_FEE_AMOUNT, 0) AS SUM_FEE_AMOUNT
+				, NVL(BB.SUM_ACCU_POINT, 0) AS SUM_ACCU_POINT
+				, NVL(BB.SUM_USE_POINT, 0) AS SUM_USE_POINT
+				, NVL(BB.SUM_GIVE_POINT, 0) AS SUM_GIVE_POINT
+				, NVL(BB.SUM_POST_AMOUNT, 0) AS SUM_POST_AMOUNT                                    
+		FROM
+			(                  		
+			SELECT DECODE(GBN,'02', '생활마트','03','쇼핑', '04','동대문B2B', '05', '전통시장','쇼핑') GBN
+					, SUBSTR(FROM_DATE,1,4) || '.' || SUBSTR(FROM_DATE,5,2) || '.' || SUBSTR(FROM_DATE,7,2) FROM_DATE
+					, NVL(SUM(FEE_AMOUNT),0)  FEE_AMOUNT				/* 결제수수료 */
+					, NVL(SUM(ACCU_POINT),0)  ACCU_POINT				/* 발급 포인트 */				
+					, NVL(SUM(USE_POINT),0) USE_POINT					/* 구매사용 포인트 */				
+					, NVL(SUM(GIVE_POINT),0) GIVE_POINT					/* 기부포인트 */
+					, NVL(SUM(USE_POINT),0) + NVL(SUM(GIVE_POINT),0) AS POST_AMOUNT	/* 진흥원지급대금 */
+					, ROW_NUMBER() OVER(ORDER BY GBN, FROM_DATE) AS TNUM
+				FROM ST_BANK_POST_STAT
+					WHERE 1=1
+	           		<include refid="rmPostBankSearchCondition"/> /* 포인트 정산내역 검색조건 */      
+				GROUP BY GBN, FROM_DATE 
+				ORDER BY GBN, FROM_DATE
+			) AA
+            , 
+            (
+            SELECT SUM(FEE_AMOUNT) AS SUM_FEE_AMOUNT
+					, SUM(ACCU_POINT) AS SUM_ACCU_POINT
+					, SUM(USE_POINT) AS SUM_USE_POINT
+					, SUM(GIVE_POINT) AS SUM_GIVE_POINT
+					, SUM(POST_AMOUNT) AS SUM_POST_AMOUNT
+				FROM
+ 					(
+					SELECT NVL(SUM(FEE_AMOUNT),0)  FEE_AMOUNT
+							, NVL(SUM(ACCU_POINT),0)  ACCU_POINT
+							, NVL(SUM(USE_POINT),0) USE_POINT
+							, NVL(SUM(GIVE_POINT),0)  GIVE_POINT
+							, NVL(SUM(USE_POINT),0) + NVL(SUM(GIVE_POINT),0) AS POST_AMOUNT
+						FROM ST_BANK_POST_STAT
+					WHERE 1=1
+	           		<include refid="rmPostBankSearchCondition"/> /* 포인트 정산내역 검색조건 */    
+        			GROUP BY GBN, FROM_DATE   					
+ 					)
+            ) BB
+            WHERE 1=1			        
+		<include refid="pagingFooter"/>						 		
+	</select>	
+	<!-- 주문/정산 우체국계좌이체 포인트 정산내역 리스트 END -->
+	<!-- 포인트 정산내역(상세) START -->
+	<sql id="rmPostBankSearchDetailSql">
+	 SELECT
+		AA.*,
+		NVL(DECODE(ORDER_ID,'월 기부포인트', (CASE WHEN GIVE_POINT > 0 THEN  GIVE_POINT-SUM_PRE_GIVE_USE_POINT ELSE GIVE_POINT END),GIVE_POINT + GIVE_POINT1),0) I_GIVE_POINT,
+		NVL(GIVE_POINT -  (GIVE_USE_SHOP_POINT + REF_POINT),0) AS NO_MEM_GIVE_POINT,
+		NVL(USE_POINT - (ORDER_CANCEL_POST + ORDER_CANCEL_ESCROW ),0) AS I_USE_POINT,
+	    NVL((USE_POINT - (ORDER_CANCEL_POST + ORDER_CANCEL_ESCROW )) + DECODE(ORDER_ID,'월 기부포인트', (CASE WHEN GIVE_POINT > 0 THEN  GIVE_POINT-SUM_PRE_GIVE_USE_POINT ELSE GIVE_POINT END),GIVE_POINT + GIVE_POINT1),0) AS I_JUNG_POINT
+	FROM(
+					SELECT  '월 기부포인트' ORDER_ID,
+				          '쇼핑'  gbn, 
+				          ' '  access_name,
+				          ' '  name,
+				          0  BANK_RATE,
+				          0  ACCU_POINT,
+				          0 COR_POINT,
+                          0 ORDER_CANCEL_POST ,   
+                          0 ORDER_CANCEL_PRE_POST , 
+                          0 ORDER_CANCEL_ESCROW, 
+                          0 USE_POINT,
+				          NVL(SUM(DECODE(CBIZ_CODE , null,0,DECODE(TYPE_CD,'U1',   DECODE(NVL(POST_USE_POINT,0) , 0,  NVL(USE_POINT,0) * 10  + NVL(COR_POINT,0) ,0)   ,0))),0) GIVE_POINT,
+				          0 GIVE_POINT1,
+				          NVL(SUM(GIVE_USE_SHOP_POINT),0) GIVE_USE_SHOP_POINT,
+				          NVL(SUM(REF_POINT),0) REF_POINT 
+				       FROM MB_MEM_ACCMLAMT_HISTOR A
+				       WHERE 1=1
+			       <isNotEmpty property="search_strt_ymd" prepend="AND">
+					<![CDATA[   A.JUNG_DATE >= #search_strt_ymd#  ]]>
+							</isNotEmpty>
+							<isNotEmpty property="search_end_ymd" prepend="AND">
+					<![CDATA[   A.JUNG_DATE <= #search_end_ymd#   ]]>
+					</isNotEmpty>
+					<isNotEmpty property="search_service_div_cd" prepend="AND">
+			         			DECODE(A.JOBGBN,'04','04','01','01','03') = #search_service_div_cd#
+			        </isNotEmpty>
+					         AND A.POST_GBN = 'P'
+					         AND NVL(A.JOBGBN,'03') = '03'           
+			       UNION ALL
+				        SELECT  '월 기부포인트' ORDER_ID,
+				          MAX(DECODE(A.JOBGBN,'02',DECODE(ESCROW_GBN,'TM','[전통시장]','[생활마트]'),'[쇼핑]')) gbn, 
+				          ' '  access_name,
+				          ' '  name,
+				          0  BANK_RATE,
+				          0  ACCU_POINT,
+				          0 COR_POINT,
+				          0 ORDER_CANCEL_POST ,   
+				          0 ORDER_CANCEL_PRE_POST , 
+				          0 ORDER_CANCEL_ESCROW, 
+				          0 USE_POINT,
+				          NVL(SUM(DECODE(CBIZ_CODE , null,0,DECODE(TYPE_CD,'U1',   DECODE(NVL(POST_USE_POINT,0) , 0,  NVL(USE_POINT,0) * 10   + NVL(COR_POINT,0) ,0)   ,0))),0) GIVE_POINT,
+				          0 GIVE_POINT1,
+				          NVL(SUM(GIVE_USE_POINT),0) * 10 GIVE_USE_SHOP_POINT,
+				          NVL(SUM(REF_POINT),0) REF_POINT 
+				       FROM MB_MEM_ACCMLAMT_HISTOR A
+				       WHERE 1=1
+			       <isNotEmpty property="search_strt_ymd" prepend="AND">
+			<![CDATA[   A.JUNG_DATE >= #search_strt_ymd#  ]]>
+					</isNotEmpty>
+					<isNotEmpty property="search_end_ymd" prepend="AND">
+			<![CDATA[   A.JUNG_DATE <= #search_end_ymd#  ]]>
+					</isNotEmpty>
+					<isNotEmpty property="search_service_div_cd" prepend="AND">
+			         	DECODE(A.JOBGBN,'04','04','03') = #search_service_div_cd#
+			        </isNotEmpty>
+			          AND A.POST_GBN = 'P'
+			          AND NVL(A.JOBGBN,'03') = '02'
+			     UNION ALL
+			     SELECT   A.ORDER_ID ,
+			     		  MAX(DECODE(A.JOBGBN,'04','[동대문B2B]','02',DECODE(ESCROW_GBN,'TM','[전통시장]','[생활마트]'),'[쇼핑]')) gbn,
+			              MAX(DECODE(A.ACCESS_NAME,' ','비회원',A.ACCESS_NAME)) access_name,
+			              MAX(B.NAME) name,
+			              NVL(SUM(DECODE(A.TYPE_CD,'A1',NVL(A.ACCU_POINT,0) + NVL(A.COR_POINT,0) ,0)),0)  BANK_RATE,
+			              NVL(SUM(DECODE(A.TYPE_CD,'A1',NVL(A.ACCU_POINT,0) ,0)),0) ACCU_POINT,
+			              NVL(SUM(DECODE(A.TYPE_CD,'A1',NVL(A.COR_POINT,0),0)),0) COR_POINT,
+			                  ( SELECT /*+ index(E OD_ORDER_ITM_IX01) */
+	                                    nvl(SUM(nvl(E.PO_PNT_USE_AMT,0)),0)
+	                             FROM OD_ORDER_ITM E
+	                             WHERE   E.ORDER_ID = A.ORDER_ID
+	                             AND     E.GOODS_CANCEL_YN ='Y'
+	                             AND     E.DC_APPLY_PRC > 0
+	                             AND     NVL(A.JOBGBN,'03') = '03'
+	                             )  ORDER_CANCEL_POST ,       
+			                   (  
+			                   SELECT /*+ ordered use_nl(EE DD FF) index(EE OD_ORDER_ITM_IX01) */
+                                   nvl(SUM(nvl(FF.FEE_AMT,0)),0)
+	                            FROM OD_ORDER_ITM EE, OD_ORDER_MAST DD, OD_ORDER_FEE FF
+	                            WHERE DD.ORDER_ID = EE.ORDER_ID
+	                              AND EE.ORDER_ITM_ID = FF.ORDER_ITM_ID
+	                              AND EE.ORDER_ID = A.ORDER_ID  
+	                              /* AND EE.ORDER_DTAIL_STUS_CD IN ('O05', 'O07' )  AS-IS 09   카드취소요청  10   승인취소확인 */
+	                              AND EE.GOODS_CANCEL_YN ='Y'	                              
+	                              AND NVL(A.JOBGBN,'03') = '03'
+	                              AND EE.DC_APPLY_PRC > 0
+			                    )    ORDER_CANCEL_PRE_POST ,                            
+			                    (  
+			                     SELECT /*+ index(EEE OD_ORDER_ITM_IX01) */
+                                        NVL(SUM(NVL(EEE.PO_PNT_USE_AMT,0)),0)  
+                                 FROM OD_ORDER_ITM EEE
+                                 WHERE EEE.ORDER_ID= A.ORDER_ID                                
+                                 AND  EEE.GOODS_CANCEL_YN ='Y'
+                                 AND  NVL(A.JOBGBN,'03') = '02'
+                                 AND  NVL(EEE.PO_PNT_USE_AMT,0) > 0
+			                    )    ORDER_CANCEL_ESCROW ,                            
+			              NVL(SUM(DECODE(A.TYPE_CD,'U1',NVL(A.POST_USE_POINT,0) * 10 ,0)),0)  USE_POINT,
+			              0 GIVE_POINT,
+			              0 GIVE_POINT1,
+			              0 GIVE_USE_SHOP_POINT,
+			              0 REF_POINT
+			       FROM MB_MEM_ACCMLAMT_HISTOR A, MEMINFO B
+			       WHERE A.ACCESS_NAME = B.ACCESS_NAME(+)
+			       <isNotEmpty property="search_strt_ymd" prepend="AND">
+			<![CDATA[   A.JUNG_DATE >= #search_strt_ymd#  ]]>
+					</isNotEmpty>
+					<isNotEmpty property="search_end_ymd" prepend="AND">
+			<![CDATA[   A.JUNG_DATE <= #search_end_ymd#   ]]>
+					</isNotEmpty>
+					<isNotEmpty property="search_service_div_cd" prepend="AND">
+			         	DECODE(A.JOBGBN,'04','04','01','01','03') = #search_service_div_cd#
+			        </isNotEmpty>
+			            AND A.POST_GBN = 'P'
+			  <![CDATA[ AND NVL(A.JOBGBN,'03') <> '01' ]]>
+			            AND A.ORDER_ID IS NOT NULL
+			       GROUP BY A.ORDER_ID,A.JOBGBN
+			     UNION ALL
+			        SELECT  '기부사용포인트' ORDER_ID,
+			          MAX(DECODE(A.JOBGBN,'04','[동대문B2B]','02',DECODE(ESCROW_GBN,'TM','[전통시장]','[생활마트]'),'[쇼핑]')) gbn, 
+			          A.ACCESS_NAME,
+			          MAX(B.NAME) name,
+			          0  BANK_RATE,
+			          0  ACCU_POINT,
+			          0  COR_POINT,
+			          0  ORDER_CANCEL_POST ,   
+			          0  ORDER_CANCEL_PRE_POST ,                          
+			          0  ORDER_CANCEL_ESCROW ,                            
+			          0  USE_POINT,
+			          0  GIVE_POINT,
+			          NVL(SUM(DECODE(TYPE_CD,'U1',NVL(POST_USE_POINT,0) * 10 ,0)),0) GIVE_POINT1,
+			          0 GIVE_USE_SHOP_POINT,
+			          0 REF_POINT
+			       FROM MB_MEM_ACCMLAMT_HISTOR A, MEMINFO B
+			       WHERE A.ACCESS_NAME = B.ACCESS_NAME
+			<isNotEmpty property="search_strt_ymd" prepend="AND">
+			<![CDATA[   A.JUNG_DATE >= #search_strt_ymd# ]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_end_ymd" prepend="AND">
+			<![CDATA[   A.JUNG_DATE <= #search_end_ymd#  ]]>
+					</isNotEmpty>
+			<isNotEmpty property="search_service_div_cd" prepend="AND">
+			         	DECODE(A.JOBGBN,'04','04','01','01','03') = #search_service_div_cd#
+			</isNotEmpty>
+			         AND A.POST_GBN = 'P'
+			<![CDATA[AND NVL(A.JOBGBN,'03') <> '01']]>
+			         AND  A.CASE_CONT ='기부' AND NVL(A.POST_USE_POINT,0) > 0
+			       GROUP BY A.ACCESS_NAME
+		) AA,(
+				   	 SELECT NVL(SUM(CASE WHEN ORDER_ID = '기부사용포인트' THEN GIVE_POINT1 ELSE 0 END),0) SUM_PRE_GIVE_USE_POINT
+		                 FROM(   
+		                        SELECT  '기부사용포인트' ORDER_ID,
+								          MAX(DECODE(A.JOBGBN,'04','[동대문B2B]','02',DECODE(ESCROW_GBN,'TM','[전통시장]','[생활마트]'),'[쇼핑]')) gbn,  
+								          A.ACCESS_NAME,
+								          MAX(B.NAME) name,
+								          0  BANK_RATE,
+								          0  ACCU_POINT,
+								          0  COR_POINT,
+								          0  ORDER_CANCEL_POST ,   
+								          0  ORDER_CANCEL_PRE_POST ,                          
+								          0  ORDER_CANCEL_ESCROW ,                            
+								          0  USE_POINT,
+								          0  GIVE_POINT,
+								          NVL(SUM(DECODE(TYPE_CD,'U1',NVL(POST_USE_POINT,0) * 10 ,0)),0) GIVE_POINT1,
+								          0 GIVE_USE_SHOP_POINT,
+								          0 REF_POINT
+								       FROM MB_MEM_ACCMLAMT_HISTOR A, MEMINFO B
+								       WHERE A.ACCESS_NAME = B.ACCESS_NAME
+								<isNotEmpty property="search_strt_ymd" prepend="AND">
+								<![CDATA[   A.JUNG_DATE >= #search_strt_ymd# ]]>
+								</isNotEmpty>
+								<isNotEmpty property="search_end_ymd" prepend="AND">
+								<![CDATA[   A.JUNG_DATE <= #search_end_ymd#  ]]>
+								</isNotEmpty>
+								<isNotEmpty property="search_service_div_cd" prepend="AND">
+								         	DECODE(A.JOBGBN,'04','04','01','01','03') = #search_service_div_cd#
+								 </isNotEmpty>
+								         AND A.POST_GBN = 'P'
+								<![CDATA[AND NVL(A.JOBGBN,'03') <> '01']]>
+								         AND  A.CASE_CONT ='기부' AND NVL(A.POST_USE_POINT,0) > 0
+								       GROUP BY A.ACCESS_NAME
+						)
+         )BB
+         WHERE 1=1
+	</sql>
+	<sql id="rmPostBankSearchDetail">
+	SELECT 
+	TT.*,
+	YY.*
+	FROM
+	 (
+	 	<include refid="rmPostBankSearchDetailSql"/>
+	 ) TT,
+	  (
+	    SELECT
+	      SUM(BANK_RATE) SUM_BANK_RATE
+         ,SUM(ACCU_POINT) SUM_ACCU_POINT
+         ,SUM(COR_POINT) SUM_COR_POINT
+         ,SUM(ORDER_CANCEL_POST) SUM_ORDER_CANCEL_POST
+         ,SUM(ORDER_CANCEL_PRE_POST) SUM_ORDER_CANCEL_PRE_POST
+         ,SUM(ORDER_CANCEL_ESCROW) SUM_ORDER_CANCEL_ESCROW
+         ,SUM(USE_POINT) SUM_USE_POINT
+         ,SUM(GIVE_POINT) SUM_GIVE_POINT
+         ,SUM(GIVE_POINT1) SUM_GIVE_POINT1
+         ,SUM(GIVE_USE_SHOP_POINT) SUM_GIVE_USE_SHOP_POINT
+         ,SUM(REF_POINT) SUM_REF_POINT
+         ,SUM(I_GIVE_POINT) SUM_I_GIVE_POINT
+		 ,SUM(NO_MEM_GIVE_POINT) SUM_NO_MEM_GIVE_POINT
+		 ,SUM(I_USE_POINT) AS SUM_I_USE_POINT
+	     ,SUM(I_JUNG_POINT) AS SUM_I_JUNG_POINT
+	    FROM
+	    (
+	    <include refid="rmPostBankSearchDetailSql"/>
+	    )
+	  )YY
+	  WHERE 1=1
+	</sql>
+	
+	
+	<select id="selectRmPostBankDetailListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		      SELECT COUNT(*) AS CNT
+		  FROM (	<include refid="rmPostBankSearchDetail"/> )
+		        					                        
+	</select>
+	<select id="selectRmPostBankDetailList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			<include refid="rmPostBankSearchDetail"/>
+		<include refid="pagingFooter"/>						 		
+	</select>
+	<!-- 마일리지 우체국계좌이체 정산내역 -->
+	<sql id="selectRmPostAccountTransferData" >
+ 			SELECT 
+                 A.*,
+                 FEE_AMOUNT_NOMEM + FEE_AMOUNT_CANCEL + FEE_AMOUNT_POINT_COR AS GIVE_AMOUNT
+	                FROM (
+	                       SELECT 
+	                           A.ORDER_ID ORDER_ID ,
+	                           MAX(NVL(C.BILLTO_NAME,'.')) NAME,
+	                           MAX(DECODE(A.ACCESS_NAME,'NONMEMBER','비회원',A.ACCESS_NAME)) ACCESS_NAME,
+	                           NVL(SUM(C.PRICE),0) AMOUNT,
+	                           NVL(SUM(FEE_AMT),0) FEE_AMOUNT,
+	                           NVL(SUM(C.PRICE) - SUM(A.FEE_AMT),0) AS FEE_POINT,
+	                           NVL(SUM(C.PRICE) -  SUM(A.FEE_AMT),0) POST_FEE_AMOUNT,
+	      <![CDATA[            (CASE WHEN MAX(A.ACCESS_NAME) <> 'NONMEMBER' THEN SUM(FEE_AMOUNT_POINT) ELSE 0 END) FEE_AMOUNT_POINT, ]]>
+	                           MAX(FEE_AMOUNT_POINT_COR) FEE_AMOUNT_POINT_COR,
+	                           (CASE WHEN MAX(A.ACCESS_NAME) = 'NONMEMBER' THEN SUM(FEE_AMOUNT_POINT) ELSE 0 END) FEE_AMOUNT_NOMEM,
+	                            0 AS FEE_AMOUNT_CANCEL /*우체국계좌이체는 부분취소 없음*/
+	                        FROM OD_BANKTOWN C
+	                           ,(SELECT FF.ACCESS_NAME,FF.ORDER_ID, NVL(SUM(FEE_AMT),0) FEE_AMT, 
+	                                    NVL(SUM(FEE.FEE_AMT -  FLOOR(FEE.FEE_AMT /10) * 10 ),0) FEE_AMOUNT_POINT_COR,
+	                                    NVL(SUM(FLOOR(FEE.FEE_AMT /10) * 10 ),0) FEE_AMOUNT_POINT
+	                                 FROM OD_ORDER_MAST FF, OD_ORDER_ITM AA, OD_ORDER_FEE FEE
+	                                     WHERE FF.ORDER_ID = AA.ORDER_ID
+	                                     AND  AA.ORDER_ITM_ID = FEE.ORDER_ITM_ID
+	                                     AND  FF.PO_FNC_YN ='P'
+	                                     AND  FF.SETL_AMT > 0
+	                                     <isNotEmpty property="search_member_gbn" >
+	                                     	<isEqual property="search_member_gbn" compareValue="01" prepend="AND">
+	                                     	 <![CDATA[ 	FF.ACCESS_NAME <> 'NONMEMBER' ]]>
+	                                     	</isEqual>
+	                                     	<isEqual property="search_member_gbn" compareValue="02" prepend="AND">
+	                                     	 <![CDATA[ 	FF.ACCESS_NAME = 'NONMEMBER' ]]>
+	                                     	</isEqual>
+	                                     </isNotEmpty>
+	                                     <isNotEmpty property="search_service_div_cd" prepend="AND">
+								         	DECODE(FF.SITE_DIV_CD,'05','04','03') = #search_service_div_cd#
+								 		</isNotEmpty>
+	                                     GROUP BY FF.ACCESS_NAME ,FF.ORDER_ID) A
+	                      WHERE A.ORDER_ID = C.ORDER_ID 
+	                      AND  C.AUTH_TIME  BETWEEN  #search_strt_ymd# || '000000' AND #search_end_ymd# || '235959'
+	                      AND  C.RESULT ='1'
+	                      AND  NOT EXISTS (SELECT 1 FROM OD_BANKTOWN ODB WHERE ODB.ORDER_ID = C.ORDER_ID AND ODB.SETL_SEQ = C.SETL_SEQ AND RESULT = '9' AND <![CDATA[ ROWNUM < 2 ]]>) /* RESULT 9 : 결제 취소, 8 : 매입후 결제취소 */
+	                   GROUP BY A.ORDER_ID
+	                   ) A
+<!-- 	 /* UNION ALL 정산후 결제 취소 -->
+<!-- 	                  SELECT  -->
+<!-- 	                   A.*, -->
+<!-- 	                  (FEE_AMOUNT_NOMEM + FEE_AMOUNT_CANCEL + FEE_AMOUNT_POINT_COR ) * -1 AS GIVE_AMOUNT -->
+<!-- 	               FROM ( -->
+<!-- 	                       SELECT  -->
+<!-- 	                           A.ORDER_ID ORDER_ID , -->
+<!-- 	                           MAX(NVL(C.BILLTO_NAME,'.')) NAME, -->
+<!-- 	                           MAX(DECODE(A.ACCESS_NAME,'NONMEMBER','비회원',A.ACCESS_NAME)) ACCESS_NAME, -->
+<!-- 	                           NVL(SUM(C.PRICE),0) * -1 AMOUNT, -->
+<!-- 	                           NVL(SUM(FEE_AMT),0) * -1  FEE_AMOUNT, -->
+<!-- 	                           NVL(SUM(C.PRICE) - SUM(A.FEE_AMT),0) * -1 AS FEE_POINT, -->
+<!-- 	                           NVL(SUM(C.PRICE) -  SUM(A.FEE_AMT),0) * -1 POST_FEE_AMOUNT, -->
+<!-- 	                 (CASE WHEN MAX(A.ACCESS_NAME) <> 'NONMEMBER' THEN SUM(FEE_AMOUNT_POINT) * -1 ELSE 0 END) FEE_AMOUNT_POINT,  -->
+<!-- 	                           MAX(FEE_AMOUNT_POINT_COR) FEE_AMOUNT_POINT_COR, -->
+<!-- 	                           (CASE WHEN MAX(A.ACCESS_NAME) = 'NONMEMBER' THEN SUM(FEE_AMOUNT_POINT) * -1 ELSE 0 END) FEE_AMOUNT_NOMEM, -->
+<!-- 	                            0 AS FEE_AMOUNT_CANCEL  -->
+<!-- 	                        FROM OD_BANKTOWN C -->
+<!-- 	                           ,(SELECT FF.ACCESS_NAME,FF.ORDER_ID, NVL(SUM(FEE_AMT),0) FEE_AMT,  -->
+<!-- 	                                    NVL(SUM(FEE.FEE_AMT -  FLOOR(FEE.FEE_AMT /10) * 10 ),0) FEE_AMOUNT_POINT_COR, -->
+<!-- 	                                    NVL(SUM(FLOOR(FEE.FEE_AMT /10) * 10 ),0) FEE_AMOUNT_POINT -->
+<!-- 	                                 FROM OD_ORDER_MAST FF, OD_ORDER_ITM AA, OD_ORDER_FEE FEE -->
+<!-- 	                                     WHERE FF.ORDER_ID = AA.ORDER_ID -->
+<!-- 	                                     AND  AA.ORDER_ITM_ID = FEE.ORDER_ITM_ID -->
+<!-- 	                                     AND  NVL(FF.PO_FNC_YN,'N') ='P' -->
+<!-- 	                                     AND  FF.SETL_AMT > 0 -->
+<!-- 	                                     <isNotEmpty property="search_member_gbn" > -->
+<!-- 	                                     	<isEqual property="search_member_gbn" compareValue="01" prepend="AND"> -->
+<!-- 	                                     	  	FF.ACCESS_NAME <> 'NONMEMBER'  -->
+<!-- 	                                     	</isEqual> -->
+<!-- 	                                     	<isEqual property="search_member_gbn" compareValue="02" prepend="AND"> -->
+<!-- 	                                     	 	FF.ACCESS_NAME = 'NONMEMBER'  -->
+<!-- 	                                     	</isEqual> -->
+<!-- 	                                     </isNotEmpty> -->
+<!-- 	                                     GROUP BY FF.ACCESS_NAME ,FF.ORDER_ID) A -->
+<!-- 	                      WHERE A.ORDER_ID = C.ORDER_ID  -->
+<!-- 	                      AND  C.AUTH_TIME  BETWEEN  #search_strt_ymd# || '000000' AND #search_end_ymd# || '235959' -->
+<!-- 	                      AND  RESULT ='8'  -->
+<!-- 	                   GROUP BY A.ORDER_ID -->
+<!-- 	                   ) A   */ -->
+	 WHERE 1=1 
+	</sql>
+	<select id="selectRmPostAccountTransferDataListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		      SELECT COUNT(*) AS CNT
+		  FROM (	<include refid="selectRmPostAccountTransferData"/> )
+		        					                        
+	</select>
+	<select id="selectRmPostAccountTransferDataList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			<include refid="selectRmPostAccountTransferData"/>
+		<include refid="pagingFooter"/>						 		
+	</select>
+	<select id="selectRmPostAccountTransferDataSummary"  parameterClass="java.util.HashMap"  resultClass="commMap">
+		 SELECT            
+                 SUM(AMOUNT) SUM_AMOUNT,
+                 SUM(FEE_AMOUNT) SUM_FEE_AMOUNT,
+                 SUM(FEE_POINT) SUM_FEE_POINT,
+                 SUM(POST_FEE_AMOUNT) SUM_POST_FEE_AMOUNT,
+                 SUM(FEE_AMOUNT_POINT) SUM_FEE_AMOUNT_POINT,
+                 SUM(FEE_AMOUNT_POINT_COR) SUM_FEE_AMOUNT_POINT_COR,
+                 SUM(FEE_AMOUNT_NOMEM) SUM_FEE_AMOUNT_NOMEM,
+                 SUM(FEE_AMOUNT_CANCEL) SUM_FEE_AMOUNT_CANCEL,
+                 SUM(GIVE_AMOUNT) AS SUM_GIVE_AMOUNT
+             FROM
+             (     
+	           <include refid="selectRmPostAccountTransferData"/>
+	         )
+	</select>
+	<!-- 우체국계좌이체 정산내역 END -->
+	<sql id="selectPostAccountTransfer">
+		   SELECT
+			   AA.*,
+			   BB.*
+			   FROM
+			   (SELECT
+			        ODM.ORDER_ID,
+			        ODI.ORDER_ITM_ID,
+			        TO_CHAR(ODM.APPR_DATE,'YYYY-MM-DD HH24:MI') SETL_APPR_DATE, /*결제승인일시*/
+			        GDM.GOODS_CD,
+			        GDM.GOODS_NM, /*상품명*/
+			        COSUP.SUPP_COMP_ID, /*공급업체ID*/
+			        COSUP.BCNC_NM SUPP_COMP_NM, /*공급업체명*/
+			        ODI.ORDER_DTAIL_STUS_CD, /*진행상태*/
+			        ORDER_DTAIL_STUS.COMN_CD_NM AS ORDER_DTAIL_STUS_NM, /*진행상태*/
+			        ODI.PAVLN_DIV_CD , /*매장구분*/
+			        PAVLN_DIV.COMN_CD_NM AS PAVLN_DIV_NM, /*매장구분*/
+			        SUPP_COMP_DIV.COMN_CD_NM AS SUPP_COMP_DIV_NM, /*공급 업체 분류*/        
+			        NVL(ODM.TOT_DC_APPLY_PRC,0) TOT_DC_APPLY_PRC, /*주문금액*/
+			        NVL(ODM.TOT_CPN_DC_AMT,0) TOT_CPN_DC_AMT, /*총 쿠폰 할인 금액*/
+			        NVL(ODM.PO_PNT_USE_AMT,0) PNT_USE_AMT, /*우체국 포인트 사용금액*/
+			        NVL(ODM.SETL_AMT,0) SETL_AMT, /*결제금액*/
+			        NVL(ODF.FEE_AMT,0) FEE_AMT, /*수수료 금액*/
+			        NVL(ODM.SETL_AMT - ODF.FEE_AMT,0) AB,  /*진흥원지급금액(A-B)*/
+			        (CASE WHEN   GOODS_CANCEL_YN ='Y' THEN 0 ELSE NVL(ODM.PNT_ACCML_PNT,0) END) PNT_ACCML_PNT, /*적립(예정)포인트*//*ESCROW 취소 'SCR1','SSB8','SFB8','SAB8','SFB2','SAB1','SAB2','SFB1'*/
+			        (CASE WHEN   GOODS_CANCEL_YN ='Y' THEN 0 ELSE NVL(ODF.FEE_AMT - ODM.PNT_ACCML_PNT,0) END )AS GIBU_POINT /*기부(예정)포인트*//*ESCROW 취소 'SCR1','SSB8','SFB8','SAB8','SFB2','SAB1','SAB2','SFB1'*/       
+			   FROM
+			   OD_ORDER_MAST ODM, OD_ORDER_ITM ODI , OD_ORDER_FEE ODF 
+			   , GD_GOODS_MAST GDM, CO_SUPP_COMP_MAST COSUP, MEMINFO MEM
+			   , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV
+			   , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_DTAIL_STUS_CD') ORDER_DTAIL_STUS
+			   , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_DIV_CD') SUPP_COMP_DIV
+			   WHERE ODM.ORDER_ID = ODI.ORDER_ID
+			   AND ODI.ORDER_ITM_ID = ODF.ORDER_ITM_ID			   
+			   AND ODI.SUPP_COMP_ID = COSUP.SUPP_COMP_ID
+			   AND ODI.GOODS_CD = GDM.GOODS_CD
+			   AND ODM.ACCESS_NAME = MEM.ACCESS_NAME(+)
+			   AND ODI.PAVLN_DIV_CD = PAVLN_DIV.COMN_CD_ID(+)
+			   AND ODI.ORDER_DTAIL_STUS_CD = ORDER_DTAIL_STUS.COMN_CD_ID(+)
+			   AND COSUP.SUPP_COMP_DIV_CD = SUPP_COMP_DIV.COMN_CD_ID(+)
+			   AND NVL(ODM.PO_FNC_YN,'N') = 'P' 
+			   AND ODM.APPR_DATE IS NOT NULL 
+               AND ODM.SETL_MEAN_CD ='05'  /*AS - IS 계좌이체(SAC1) -> TO-BE 즉시이체 (우체국계좌이체)*/
+			   AND ODM.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd# || '00000','YYYYMMDDHH24MISS') 
+				                       AND TO_DATE(#search_end_ymd# ,'YYYY-MM-DD')+.99999 
+			   <isNotEmpty property="search_service_div_cd" prepend="AND">
+			   	   ODI.PAVLN_DIV_CD = #search_pavln_cd#
+			   </isNotEmpty>
+			   <isNotEmpty property="search_order_dtail_stus_cd" prepend="AND">
+			   	   ODI.ORDER_DTAIL_STUS_CD = #search_order_dtail_stus_cd#
+			   </isNotEmpty>
+			   <isNotEmpty property="search_supp_comp_div_cd" prepend="AND">
+			   	    COSUP.SUPP_COMP_DIV_CD = #search_supp_comp_div_cd#
+			   </isNotEmpty>
+			   <isNotEmpty property="search_index" >
+			   		<isEqual property="search_index" compareValue="01" prepend="AND">
+			   			ODM.ACCESS_NAME LIKE '%' ||  #search_Text# || '%'
+			   		</isEqual>
+			   		<isEqual property="search_index" compareValue="02" prepend="AND">
+			   			MEM.NAME LIKE '%' ||  #search_Text# || '%'
+			   		</isEqual>
+			   		<isEqual property="search_index" compareValue="03" prepend="AND">
+			   			COSUP.SUPP_COMP_ID LIKE '%' ||  #search_Text# || '%'
+			   		</isEqual>
+			   		<isEqual property="search_index" compareValue="04" prepend="AND">
+			   			ODI.GOODS_CD = #search_Text#
+			   		</isEqual>
+			   		<isEqual property="search_index" compareValue="05" prepend="AND">
+			   			ODM.ORDER_ID = #search_Text#
+			   		</isEqual>
+			   		<isEqual property="search_index" compareValue="06" prepend="AND">
+			   			ODI.REGI_NO = #search_Text#
+			   		</isEqual>
+			   		<isEqual property="search_index" compareValue="07" prepend="AND">
+			   			ODI.SENDER_NM LIKE '%' ||  #search_Text# || '%'
+			   		</isEqual>
+			   </isNotEmpty>
+			   ) AA ,
+			   (
+			   
+			        SELECT
+			            NVL(SUM(TOT_DC_APPLY_PRC),0) SUM_TOT_DC_APPLY_PRC, /*주문금액*/
+			            NVL(SUM(TOT_CPN_DC_AMT),0) SUM_TOT_CPN_DC_AMT, /*총 쿠폰 할인 금액*/
+			            NVL(SUM(PO_PNT_USE_AMT),0) SUM_PNT_USE_AMT, /*포인트 사용금액*/
+			            NVL(SUM(SETL_AMT),0) SUM_SETL_AMT, /*결제금액*/
+			            NVL(SUM(FEE_AMT),0) SUM_FEE_AMT, /*수수료 금액*/
+			            NVL(SUM(AB),0) SUM_AB,  /*진흥원지급금액(A-B)*/
+			            NVL(SUM(PNT_ACCML_PNT),0) SUM_PNT_ACCML_PNT , /*적립(예정)포인트*/
+			            NVL(SUM(GIBU_POINT),0) SUM_GIBU_POINT /*기부(예정)포인트*/
+			           FROM     
+			            (         SELECT
+			                                ODM.ORDER_ID,
+			                                ODI.ORDER_ITM_ID,
+			                                TO_CHAR(ODM.APPR_DATE,'YYYY-MM-DD HH24:MI') SETL_APPR_DATE, /*결제승인일시*/
+			                                GDM.GOODS_CD,
+			                                GDM.GOODS_NM, /*상품명*/
+			                                COSUP.SUPP_COMP_ID, /*공급업체ID*/
+			                                COSUP.BCNC_NM SUPP_COMP_NM, /*공급업체명*/
+			                                ODI.ORDER_DTAIL_STUS_CD, /*진행상태*/
+			                                ORDER_DTAIL_STUS.COMN_CD_NM AS ORDER_DTAIL_STUS_NM, /*진행상태*/
+			                                ODI.PAVLN_DIV_CD , /*매장구분*/
+			                                PAVLN_DIV.COMN_CD_NM AS PAVLN_DIV_NM, /*매장구분*/
+			                                SUPP_COMP_DIV.COMN_CD_NM AS SUPP_COMP_DIV_NM, /*공급 업체 분류*/        
+			                                ODM.TOT_DC_APPLY_PRC, /*주문금액*/
+			                                ODM.TOT_CPN_DC_AMT, /*총 쿠폰 할인 금액*/
+			                                ODM.PO_PNT_USE_AMT, /* 우체국포인트 사용금액*/
+			                                ODM.SETL_AMT, /*결제금액*/
+			                                ODF.FEE_AMT, /*수수료 금액*/
+			                                ODM.SETL_AMT - ODF.FEE_AMT AB,  /*진흥원지급금액(A-B)*/
+			                                (CASE WHEN   GOODS_CANCEL_YN ='Y' THEN 0 ELSE ODM.PNT_ACCML_PNT END) PNT_ACCML_PNT, /*적립(예정)포인트*/ /*ESCROW 취소 'SCR1','SSB8','SFB8','SAB8','SFB2','SAB1','SAB2','SFB1'*/
+			                                (CASE WHEN   GOODS_CANCEL_YN ='Y' THEN 0 ELSE ODF.FEE_AMT - ODM.PNT_ACCML_PNT END )AS GIBU_POINT /*기부(예정)포인트*//*ESCROW 취소 'SCR1','SSB8','SFB8','SAB8','SFB2','SAB1','SAB2','SFB1'*/        
+			                           FROM
+			                           OD_ORDER_MAST ODM, OD_ORDER_ITM ODI , OD_ORDER_FEE ODF 
+									   , GD_GOODS_MAST GDM, CO_SUPP_COMP_MAST COSUP, MEMINFO MEM
+			                           , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV
+			                           , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_DTAIL_STUS_CD') ORDER_DTAIL_STUS
+			                           , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SUPP_COMP_DIV_CD') SUPP_COMP_DIV
+			                           WHERE ODM.ORDER_ID = ODI.ORDER_ID
+			                           AND ODI.ORDER_ITM_ID = ODF.ORDER_ITM_ID			                           
+			                           AND ODI.SUPP_COMP_ID = COSUP.SUPP_COMP_ID
+			                           AND ODI.GOODS_CD = GDM.GOODS_CD
+			                           AND ODM.ACCESS_NAME = MEM.ACCESS_NAME(+)
+			                           AND ODI.PAVLN_DIV_CD = PAVLN_DIV.COMN_CD_ID(+)
+			                           AND ODI.ORDER_DTAIL_STUS_CD = ORDER_DTAIL_STUS.COMN_CD_ID(+)
+			                           AND COSUP.SUPP_COMP_DIV_CD = SUPP_COMP_DIV.COMN_CD_ID(+)
+			                           AND NVL(ODM.PO_FNC_YN,'N') = 'P'
+			                           AND ODM.APPR_DATE IS NOT NULL 
+			                           AND ODM.SETL_MEAN_CD ='05'  /*AS - IS 계좌이체(SAC1) -> TO-BE 즉시이체 (우체국계좌이체)*/
+									   AND ODM.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd# || '00000','YYYYMMDDHH24MISS') 
+										                       AND TO_DATE(#search_end_ymd# ,'YYYY-MM-DD')+.99999 
+			                           <isNotEmpty property="search_pavln_cd" prepend="AND">
+									   	   ODI.PAVLN_DIV_CD = #search_pavln_cd#
+									   </isNotEmpty>
+									   <isNotEmpty property="search_order_dtail_stus_cd" prepend="AND">
+									   	   ODI.ORDER_DTAIL_STUS_CD = #search_order_dtail_stus_cd#
+									   </isNotEmpty>
+									   <isNotEmpty property="search_supp_comp_div_cd" prepend="AND">
+									   	    COSUP.SUPP_COMP_DIV_CD = #search_supp_comp_div_cd#
+									   </isNotEmpty>
+									   <isNotEmpty property="search_index" >
+									   		<isEqual property="search_index" compareValue="01" prepend="AND">
+									   			ODM.ACCESS_NAME LIKE '%' ||  #search_Text# || '%'
+									   		</isEqual>
+									   		<isEqual property="search_index" compareValue="02" prepend="AND">
+									   			MEM.NAME LIKE '%' ||  #search_Text# || '%'
+									   		</isEqual>
+									   		<isEqual property="search_index" compareValue="03" prepend="AND">
+									   			COSUP.SUPP_COMP_ID LIKE '%' ||  #search_Text# || '%'
+									   		</isEqual>
+									   		<isEqual property="search_index" compareValue="04" prepend="AND">
+									   			ODI.GOODS_CD = #search_Text#
+									   		</isEqual>
+									   		<isEqual property="search_index" compareValue="05" prepend="AND">
+									   			ODM.ORDER_ID = #search_Text#
+									   		</isEqual>
+									   		<isEqual property="search_index" compareValue="06" prepend="AND">
+									   			ODI.REGI_NO = #search_Text#
+									   		</isEqual>
+									   		<isEqual property="search_index" compareValue="07" prepend="AND">
+									   			ODI.SENDER_NM LIKE '%' ||  #search_Text# || '%'
+									   		</isEqual>
+									     </isNotEmpty>
+			                        ) 
+			               )BB
+			    WHERE 1=1 
+	</sql>
+	<select id="selectPostAccountTransferListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		      SELECT COUNT(*) AS CNT
+		  FROM (	<include refid="selectPostAccountTransfer"/> )
+		        					                        
+	</select>
+	<select id="selectPostAccountTransferList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			<include refid="selectPostAccountTransfer"/>
+		<include refid="pagingFooter"/>						 		
+	</select>
+	<sql id="selectAdjRefundStat">
+		SELECT  <isEqual property="divStatType" compareValue="day">
+				 SUBSTR(SETTLE_DATE,1,8)  SETTLE_DATE
+				</isEqual>
+				<isEqual property="divStatType" compareValue="month">
+				 SUBSTR(SETTLE_DATE,1,6)  SETTLE_DATE
+				</isEqual>
+				<isEqual property="divStatType" compareValue="year">
+				 SUBSTR(SETTLE_DATE,1,4)  SETTLE_DATE
+				</isEqual>,
+		         SUM(REF_PRICE) REF_PRICE
+		 FROM OD_ONLINE_EX_PRICE 
+		 WHERE MODIFY_STATE ='C10'
+		 AND SETTLE_DATE BETWEEN #search_strt_ymd# || '000000' AND #search_end_ymd# || '235959' 
+		 <isNotEmpty property="searchPavln">
+		 AND STR_DIV_CD = #searchPavln#
+		 </isNotEmpty>
+		 GROUP BY<isEqual property="divStatType" compareValue="day">
+				 SUBSTR(SETTLE_DATE,1,8)  
+				</isEqual>
+				<isEqual property="divStatType" compareValue="month">
+				 SUBSTR(SETTLE_DATE,1,6)  
+				</isEqual>
+				<isEqual property="divStatType" compareValue="year">
+				 SUBSTR(SETTLE_DATE,1,4)  
+				</isEqual>             
+		                
+	</sql>
+	<select id="adjRefundStatListCnt" parameterClass="java.util.HashMap" resultClass="int">
+			  SELECT COUNT(*) AS CNT
+		  FROM (	<include refid="selectAdjRefundStat"/> )
+	</select>
+	<select id="adjRefundStatList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			<include refid="selectAdjRefundStat"/>
+		<include refid="pagingFooter"/>						 		
+	</select>
+</sqlMap>

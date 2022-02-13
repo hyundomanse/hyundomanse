@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.EpostMemStat">
+
+	<sql id="selectEpostMemStatListQry">
+		SELECT  
+			A.CHUNG_CODE
+			, A.PCODE PCODE
+			, (SELECT PONM FROM PICMT0060 MP WHERE MP.REGIPOCD = A.MPOREGIPOCD AND MP.USEYN = 'Y') AS SERVER_NAME
+			, A.NAME
+			, A.ECODE
+			, NVL( A.MEM_CNT , 0 ) MEM_CNT
+			, NVL( A.TOT_CNT , 0 ) TOT_CNT
+			, NVL( B.QUANTITY, 0 ) QUANTITY
+			, NVL( B.AMOUNT  , 0 ) AMOUNT
+			, ROW_NUMBER() OVER(ORDER BY A.CHUNG_CODE, A.MPOREGIPOCD,  A.PCODE) AS RNUM  
+			FROM  
+				(
+					SELECT 
+						B.RCOCD AS CHUNG_CODE
+						, B.REGIPOCD PCODE
+						, B.PONM NAME
+						, B.REGIPOCD ECODE
+						, B.MPOREGIPOCD
+						, SUM( DECODE( GREATEST(nvl( A.CREATE_DATE,'00000000' ), #searchStrtYmd# ),nvl( A.CREATE_DATE,'00000000' ),
+								DECODE( LEAST( A.CREATE_DATE, #searchEndYmd#||'999999' ), A.CREATE_DATE,
+									DECODE( GREATEST(nvl( A.DELETE_DATE,'00000000' ), #searchStrtYmd# ),
+										nvl( A.DELETE_DATE,'00000000' )
+									, DECODE( LEAST( A.DELETE_DATE, #searchEndYmd#||'999999' ),A.DELETE_DATE, 0, 1 ),1)
+								, 0 ),0 )) MEM_CNT
+						, SUM( DECODE( A.POSTOFFICE, NULL, 0,
+								DECODE( GREATEST(nvl( A.DELETE_DATE,'00000000' ), #searchStrtYmd# ),
+									nvl( A.DELETE_DATE,'00000000' ),
+										DECODE( LEAST( A.DELETE_DATE, #searchEndYmd#||'999999' ),A.DELETE_DATE, 0, 1 ),1))) TOT_CNT
+						FROM PICMT0060 B
+							, MEMINFO A
+					WHERE B.REGIPOCD = A.RECOMMRCODE
+							AND B.USEYN = 'Y'
+							<isNotEmpty property="chung_code">
+							AND B.RCOCD  = #chung_code#		/* 청구분 */
+							</isNotEmpty>
+							<isNotEmpty property="server_ecode">
+							AND B.MPOREGIPOCD = #server_ecode#	/* 감독국 구분 */
+							</isNotEmpty>
+							<isNotEmpty property="memGbn">
+							AND B.PODIVCD = '06'        /*  조회구분 취급국 제외 */
+							</isNotEmpty>							
+				<![CDATA[	AND A.CREATE_DATE <= #searchEndYmd#||'999999']]> 
+							AND A.MEMBER_TYPE != '0'
+					GROUP BY B.RCOCD, B.MPOREGIPOCD, B.PONM, B.REGIPOCD
+				) A
+				,
+				(
+					SELECT  /* 인덱스 들어감 */
+							OOM.ORDRR_RECOM_PO_CD AS M_PCODE       /* 주문자 추천우체국 코드 */
+							, SUM( OOI.REQ_CNT ) AS QUANTITY
+							, SUM( OOM.TOT_DC_APPLY_PRC ) AS AMOUNT
+						FROM OD_ORDER_MAST OOM
+         					, OD_ORDER_ITM OOI
+					WHERE OOM.ORDER_ID(+) = OOI.ORDER_ID
+					<isNotEmpty property="searchStrtYmd">
+						<isNotEmpty property="searchEndYmd">
+							AND OOM.ORDER_DATE BETWEEN TO_DATE(#searchStrtYmd#||'000000','YYYYMMDDHH24MISS') AND TO_DATE(#searchEndYmd#||'235959','YYYYMMDDHH24MISS')
+						</isNotEmpty>
+					</isNotEmpty>
+							AND OOM.ORDER_STUS_CD IN ('O02', 'O04', 'D02', 'D03')        /* 주문상태코드 */
+							AND OOI.GOODS_CANCEL_YN = 'N'
+							AND OOM.ORDER_ID IS NOT NULL
+							AND OOM.ORDRR_RECOM_PO_CD IS NOT NULL
+					<isNotEmpty property="search_pavln_id">                   
+						<isEqual property="search_pavln_id" compareValue="01">
+							AND OOI.PAVLN_DIV_CD IN ('01')  /* 매장구분 01 특산품, 04 꽃배달 검색조건 */ 
+						</isEqual>
+						<isEqual property="search_pavln_id" compareValue="04">
+							AND OOI.PAVLN_DIV_CD IN ('04')  /* 매장구분 01 특산품, 04 꽃배달 검색조건 */ 
+						</isEqual>
+						<isEqual property="search_pavln_id" compareValue="0104">
+							AND OOI.PAVLN_DIV_CD IN ('01', '04')  /* 매장구분 01 특산품, 04 꽃배달 검색조건 */ 
+						</isEqual>														
+					</isNotEmpty>
+							AND OOI.DC_APPLY_PRC > 0
+							AND OOI.GOODS_CD IS NOT NULL
+					GROUP BY OOM.ORDRR_RECOM_PO_CD
+				) B
+        WHERE A.PCODE = B.M_PCODE(+)
+					<isNotEmpty property="quantityGbn">
+							AND (A.MEM_CNT > 0 OR B.QUANTITY > 0)        /*  실적구분 무실적 제외 */
+					</isNotEmpty>		        
+        ORDER BY A.CHUNG_CODE, A.MPOREGIPOCD,  A.PCODE	
+	</sql>
+
+	<!-- 우체국별 회원 리포트  -->
+	<select id="selectEpostMemStatList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		
+		<include refid="selectEpostMemStatListQry"/> /* 우체국별 회원 리포트 */	
+	</select>
+	
+	<!-- 청구분, 감독국 콤보 make -->
+	<select id="selectMporegipoCdList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT REGIPOCD AS VALUE
+		     , PONM AS NAME 
+		  FROM PICMT0060
+	     WHERE USEYN = 'Y'
+	       AND PODIVCD = '06'
+	       AND RCOCD = #rcocd#
+	    ORDER BY REGIPOCD
+	</select>	
+	
+	<!-- 회원리포트 total -->
+	<select id="selectEpostMemStatTotal" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT NVL(SUM(MEM_CNT), 0) AS SUM_MEM_CNT
+				, NVL(SUM(TOT_CNT), 0) AS SUM_TOT_CNT
+				, NVL(SUM(QUANTITY), 0) AS SUM_QUANTITY
+				, NVL(SUM(AMOUNT), 0) AS SUM_AMOUNT
+				, COUNT(*) AS TOTAL_RECORD
+			FROM
+		        (
+				<include refid="selectEpostMemStatListQry"/> /* 우체국별 회원 리포트 */		        
+		        )
+	</select>	
+
+</sqlMap>

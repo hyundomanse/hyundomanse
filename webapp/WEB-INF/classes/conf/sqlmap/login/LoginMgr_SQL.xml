@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Login">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 로그인 ID 검색 -->
+	<select id="selectAdminIdChk" parameterClass="java.util.HashMap" resultClass="commMap">
+		/* selectAdminIdChk */
+		SELECT ADMIN_ID
+			 , ADMIN_NM
+			 , ADMIN_PASSWD
+			 , ADMIN_DIV_CD
+			 , NVL(PASSWD_LOCK_YN, 'N') AS PASSWD_LOCK_YN
+			 , TO_CHAR(LAST_LOGIN_DATE,'YYYY-MM-DD') AS LAST_LOGIN_DATE
+			 , ADMIN_STUS_CD
+			 , '0' AS PASSWD_CTNU_FAIL_CNT
+		  FROM CM_ADMIN_MAST
+		 WHERE ADMIN_ID = #loginId#
+	</select>
+
+	<!-- 비밀번호 검증 및 성공시 기본정보 가져오기 -->
+	<select id="selectAdminLoginInfoChk" parameterClass="java.util.HashMap" resultClass="commMap">
+		/* selectAdminLoginInfoChk */
+		SELECT ADMIN_ID
+			 , ADMIN_NM
+			 , ADMIN_PASSWD
+			 , ADMIN_DIV_CD
+			 , NVL(PASSWD_LOCK_YN, 'N') AS PASSWD_LOCK_YN
+			 , TO_CHAR(LAST_LOGIN_DATE,'YYYY-MM-DD') AS LAST_LOGIN_DATE
+			 , ADMIN_STUS_CD
+			 , '0' AS PASSWD_CTNU_FAIL_CNT
+		  FROM CM_ADMIN_MAST
+		 WHERE ADMIN_ID = #loginId#
+		   AND ADMIN_PASSWD = #loginPw#
+	</select>
+
+
+
+	<!-- 로그인 ID 검색 -->
+	<select id="selectLoginIdCheck" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT SUPP_COMP_ID, SUPP_COMP_ACCESS_NAME, (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = A.SUPP_COMP_ID ) SUPP_COMP_NM
+		     , NVL(PASSWD_CTNU_FAIL_CNT,0) AS PASSWD_CTNU_FAIL_CNT
+		     , NVL(MAIN_ID_YN, 'N') AS MAIN_ID_YN
+		  FROM MB_SUPP_COMP_MEM_MAST A
+		 WHERE SUPP_COMP_ACCESS_NAME =  #loginId#
+	</select>
+
+	<!-- 비밀번호 검증 및 성공시 기본정보 가져오기 -->
+	<select id="selectLoginIdPwCheck" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT ADMINNM,PASSWD_LOCK_YN
+		      , nvl(PASSWD_CTNU_FAIL_CNT,0) AS PASSWD_CTNU_FAIL_CNT
+			  , TO_CHAR(LAST_PASSWD_CHG_DATE,'YYYY-MM-DD') AS LAST_PASSWD_CHG_DATE
+		      , TO_CHAR(LAST_LOGIN_DATE,'YYYY-MM-DD') AS LAST_LOGIN_DATE,ADMIN_DIV_CD
+		      , ADMIN_STUS_CD
+			  , NVL(MAIN_ID_YN, 'N') AS MAIN_ID_YN
+			  , SUPP_COMP_ID
+		  FROM MB_SUPP_COMP_MEM_MAST
+		 WHERE SUPP_COMP_ACCESS_NAME =  #loginId#
+		   AND PASSWD = #loginPw#
+	</select>
+
+	<!-- 비밀번호 오류횟수 증가 -->
+	<update id="updatePwCntAdd" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE MB_SUPP_COMP_MEM_MAST
+		   SET PASSWD_CTNU_FAIL_CNT = NVL(PASSWD_CTNU_FAIL_CNT,0)+1
+		 WHERE SUPP_COMP_ACCESS_NAME =  #loginId#
+    ]]>
+  	</update>
+  <!-- 비밀번호 오류 초기화 -->
+	<update id="updatePwCntClear" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE MB_SUPP_COMP_MEM_MAST
+		   SET PASSWD_CTNU_FAIL_CNT = 0 , LAST_LOGIN_DATE = TO_CHAR(SYSDATE,'YYYY-MM-DD')
+		 WHERE SUPP_COMP_ACCESS_NAME =  #loginId#
+    ]]>
+  </update>
+
+  <!-- 공급업체 동일 ID(대표ID 설정여부) 카운트-->
+	<select id="selectMemberIdListCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	<![CDATA[
+		SELECT COUNT(1) AS CNT
+		  FROM MB_SUPP_COMP_MEM_MAST T1
+		       ,CO_SUPP_COMP_MAST T2
+		 WHERE T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+		   AND T2.COMPREG_NO =  #compregNo#              /* 사업자등록번호 */
+		   AND T2.BCNC_NM = #bcncNm#                     /* 거래처 명 */
+    ]]>
+    <isNotEmpty property="mainIdYnChk">
+    <![CDATA[
+		   AND T1.MAIN_ID_YN = #mainIdYnChk#             /* 대표ID 설정상태 */
+	]]>
+	</isNotEmpty>
+	</select>
+
+  <!-- 법인/사업체명 + 사업자등록번호로 ID 정보 조회 -->
+  <select id="selectMemberIdList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	<![CDATA[
+		SELECT T1.SUPP_COMP_ACCESS_NAME   					/* 공급업체 회원ID (로그인시 사용)  */
+		     , T1.SUPP_COMP_ID            					/* 공급업체ID(FK) */
+		     , T1.ADMINNM                 					/* 이름 */
+		     , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+		  FROM MB_SUPP_COMP_MEM_MAST T1      				/* MB 공급업체 마스터 */
+		       ,CO_SUPP_COMP_MAST T2          				/* CO 공급업체 마스터 */
+		 WHERE T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+		   AND T2.COMPREG_NO =  #compregNo#                 /* 사업자등록번호 */
+		   AND T2.BCNC_NM = #bcncNm#                        /* 거래처 명 */
+	]]>
+	</select>
+
+  <!-- 대표 ID 선택 -->
+	<update id="updateMainIdCh" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE MB_SUPP_COMP_MEM_MAST
+		   SET MAIN_ID_YN = 'Y'
+		 WHERE SUPP_COMP_ACCESS_NAME = #suppCompAccessName#
+    ]]>
+  	</update>
+
+  <!-- 대표 ID 선택 비밀번호 변경 -->
+	<update id="updateMainIdPw" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE MB_SUPP_COMP_MEM_MAST
+		   SET PASSWD = #loginPw#
+		     , MAIN_ID_YN = 'Y'                             /* 대표 ID 유무도 같이 변경시킴 */
+		 WHERE SUPP_COMP_ACCESS_NAME = #suppCompAccessName#
+    ]]>
+  	</update>
+
+  <!-- 대표 ID 선택 제외한 나머지 ID 'N' 변경 -->
+	<update id="updateMainIdPwN" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE MB_SUPP_COMP_MEM_MAST
+		   SET MAIN_ID_YN = 'N'
+		 WHERE SUPP_COMP_ID = (SELECT SUPP_COMP_ID FROM MB_SUPP_COMP_MEM_MAST  WHERE  SUPP_COMP_ACCESS_NAME = #suppCompAccessName#)
+		   AND  SUPP_COMP_ACCESS_NAME not in (#suppCompAccessName#)
+    ]]>
+  	</update>
+
+  <!-- 대표ID 로그인 정보 검색 -->
+	<select id="selectMainMemberInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT T1.SUPP_COMP_ACCESS_NAME   					/* 공급업체 회원ID (로그인시 사용)  */
+		     , T1.SUPP_COMP_ID            					/* 공급업체ID(FK) */
+		     , T1.ADMINNM                 					/* 이름 */
+		     , T2.BCNC_NM                                   /* 공급업체명 */
+		  FROM MB_SUPP_COMP_MEM_MAST T1      				/* MB 공급업체 마스터 */
+		       ,CO_SUPP_COMP_MAST T2          				/* CO 공급업체 마스터 */
+		 WHERE T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+		   AND T1.SUPP_COMP_ACCESS_NAME =  #suppCompAccessName#
+	</select>
+
+
+
+  <!-- 공급업체 로그인 정보테이블 키조회-->
+	<select id="selectSuppCompLoginSeq" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+		SELECT SEQ_SUPP_COMP_LOGIN.NEXTVAL AS LOGIN_INFO_SEQ FROM DUAL
+	]]>
+	</select>
+
+  <!-- 공급업체 로그인 히스토리 저장 -->
+	<insert id="insertMemberLoginInfo" parameterClass="java.util.HashMap">
+	<![CDATA[
+		INSERT INTO MB_SUPP_COMP_LOGIN
+		 	(
+		 	   SUPP_COMP_ACCESS_NAME
+		     , LOGIN_SEQ
+		     , LOGIN_DATE
+		     , CON_IP_ADDR
+		     , CON_CHNL_DIV_CD
+		     , CON_TYP_CD
+		     , CON_SUCC_YN
+		     , REG_DATE
+		    )
+		   VALUES
+		    (
+		       #loginId#                           /* 로그인 시도 ID */
+		     , TO_NUMBER(#loginInfoSeq#)           /* 로그인순번 */
+		     , SYSDATE                             /* 로그인 일시 */
+		     , #conIpAddr#                         /* 접속IP ADDR */
+		     , #conChnlDivCd#                      /* 접속채널구분코드 */
+		     , #conTypCd#                          /* 접속유형코드 */
+		     , #conSuccYn#                         /* 접속성공 유무 */
+		     , SYSDATE                             /* 등록일시 */
+		    )
+    ]]>
+  	</insert>
+	<!-- 관리자 정보 조회 -->
+	<select id="selectAdminDetailInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	ADMIN_ID
+				,ADMIN_NM
+				,TELNO
+				,MOBILENO
+				,EMAIL_ADDR
+				,DEPTNM
+		FROM	CM_ADMIN_MAST
+		WHERE	ADMIN_ID = #loginId#
+		AND 	ADMIN_PASSWD = #loginPw#
+	</select>
+
+</sqlMap>

@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchInVoiceReq">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') AS startdt,
+		           TO_CHAR(sysdate-3,'yyyymmdd') AS sReqStart,
+		           TO_CHAR(sysdate,'yyyymmdd') || '999999' AS sReqEnd,
+		           TO_CHAR(sysdate-1,'yyyymmdd') AS sCancelDate
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					access_name AS sAGNMSTID,
+					regnum AS sAGNREGNUM,
+					cmpname AS sAGNCMPNAME,
+					owner AS sAGNOWNER,
+					biztype AS sAGNBIZTYPE,
+					bizkind AS sAGNBIZKIND,
+					address AS sAGNADDRESS,
+					reg_name AS sAGNUSRNAME,
+					reg_email AS sAGNEMAIL,
+					reg_tel AS sAGNTEL
+			FROM X_INVOICE_INFO
+						where access_name = 'csf'
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				  '1' AS iOnLineFlag,
+				  a.purchase_id AS sPurchase_id,
+				  max(b.access_name) AS sAccess_Name,
+				  max(b.regnum) AS sRegNum,
+				  max(substr(reg_date,1,12)) AS sRegReqDate
+			FROM txorder a, x_invoice_req b
+			where a.purchase_id = b.purchase_id
+			  and a.cancel_date like #sCancelDate# || '%' 
+			  and a.cancel_state = 'Y'
+			group by a.purchase_id 
+			union all
+			select '2',a.purchase_id,max(b.access_name),max(b.regnum),max(substr(reg_date,1,12))
+			from EAI.X_INVOICE_ORDER a, x_invoice_req b
+			where a.purchase_id = b.purchase_id
+			  and a.cancel_date like #sCancelDate# || '%'
+			group by a.purchase_id
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) AS invoice_cnt 
+			FROM X_INVOICE_TBL
+			WHERE attr02 = #sPurchaseid#
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					access_name AS sRCVMSTID,
+					regnum AS sDEMREGNUM,
+					cmpname AS sDEMCMPNAME,
+					owner AS sDEMOWNER,
+					biztype AS sDEMBIZTYPE,
+					bizkind AS sDEMBIZKIND,
+					address AS sDEMADDRESS,
+					reg_name AS sRCVUSRNAME,
+					reg_email AS sRCVEMAIL,
+					reg_tel AS sRCVTEL
+			FROM X_INVOICE_INFO
+			WHERE access_name = #sAccessName#
+			  AND regnum      = #sRegNum#
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) AS item_cnt
+				FROM (
+					select /*+use_nl( a b c d) index( a IDX_TXORDER_05) */ 
+				       a.purchase_id,
+				       d.biz_code,
+				       c.TAXGBN,
+				       max(c.goods_code)    goods_code,
+				       max(a.shop_id)       shop_id,
+				       max(a.access_name)   access_name,
+				       max(c.goods_name)    goods_name,
+				       ' '		            unit,
+				       max(d.REGISTER_NO)   register_no,
+				       max(d.biz_name)      biz_name,
+				       max(d.BOSS_NAME)     boss_name,
+				       max(d.BUSINESS_COND) business_cond,
+				       max(d.BUSINESS_CATE) business_cate,
+				       max(d.ADDRESS_1 || d.ADDRESS_2) address,
+					   max(d.telephone)     telephone,
+					   max(d.email)         email,
+				       max(a.amount)  * -1  goods_amt,
+				       count(a.txorder_id)  goods_cnt,
+				       max(substr(complete_date,1,8)) com_date,
+				       sum(a.amount)  * -1 amt,
+				       sum(a.amount - a.amount* 0.1)  * -1 supply,
+					   sum(a.amount* 0.1) * -1 tax,
+					   sum(decode(c.TAXGBN,'Y',(a.amount - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) )) - round(( ( a.amount - (nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0)) )/ 1.1),0), 0)) * -1 vat,
+					   SUM(a.amount - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) )) * -1 amount ,
+					   sum(decode(c.TAXGBN,'Y',(nvl(a.oversea_amount,0) - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) )) - round(( ( nvl(a.oversea_amount,0) - (nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0)) )/ 1.1),0), 0)) * -1 vat1,
+					   SUM(a.amount - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) )) * -1 amount1  
+					from txorder a , txorder_item b , goods_master c , biz_master d 
+					where a.txorder_id  = b.txorder_id
+					  and a.biz_code    = d.biz_code
+					  and b.goods_idn   = c.goods_idn 
+					  and a.purchase_id = #sPurchaseid#
+					  and a.status not in ('1','9')
+					  and a.cancel_state = 'Y'
+					  and a.cancel_date > #sRegReqDate#
+					  and c.goods_idn > 0
+					  and d.language   = 'KO'
+					group by a.purchase_id,d.biz_code,c.TAXGBN
+				)
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select /*+use_nl( a b c d) index( a IDX_TXORDER_05) */ 
+			       a.purchase_id as sPurchase_id,
+			       d.biz_code as sBiz_Code,
+			       c.TAXGBN as sTAXGBN,
+			       max(c.goods_code)    as sGoods_Code,
+			       max(a.shop_id)       as sShop_Id,
+			       max(a.access_name)   as sAccess_Name,
+			       substrb(max(c.goods_name),1,60) as sGoods_Name,
+			       ' '                  as sUnit,
+			       max(d.REGISTER_NO)   as sRegister_No,
+			       substrb(max(d.biz_name),1,60)  as sBiz_Name,
+			       substrb(max(d.BOSS_NAME),1,60) as sBoss_Name,
+			       substrb(max(d.BUSINESS_COND),1,60) as sBusiness_Cond,
+			       substrb(max(d.BUSINESS_CATE),1,60) as sBusiness_cate,
+			       substrb(max(d.ADDRESS_1 || ' ' || d.ADDRESS_2),1,100) as sAddress,
+				   substrb(max(d.telephone),1,20) as sTelephone,
+				   substrb(max(d.email),1,100)    as sEmail,
+			       max(a.amount)    * -1 as iGoodsAmt,
+			       count(a.txorder_id)  as iGoodsCnt,
+			       max(substr(complete_date,1,8)) as sComDate,
+			       sum(a.amount) * -1 as iAmt,
+			       sum(a.amount - a.amount* 0.1) * -1 as iSupply,
+				   sum(a.amount* 0.1) * -1 as iTax,
+				   sum(decode(c.TAXGBN,'Y',(a.amount - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) )) - round(( ( a.amount - (nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0)) )/ 1.1),0), 0)) * -1 as iVat,
+				   SUM(a.amount - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) ))  * -1 as iAmount ,
+				   sum(decode(c.TAXGBN,'Y',(nvl(a.oversea_amount,0) - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) )) - round(( ( nvl(a.oversea_amount,0) - (nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0)) )/ 1.1),0), 0)) * -1 as iVat1,
+				   SUM(a.amount - (nvl(a.RM_AMOUNT,0) + nvl(a.RM_PEF_AMOUNT,0) + nvl(a.SP_AMOUNT,0) + nvl(a.SP_PEF_AMOUNT,0) + nvl(a.COUPON_AMOUNT,0) + nvl(a.AMOUNT_OKCASH,0) )) * -1 as iAmount1  
+			from txorder a , txorder_item b , goods_master c , biz_master d 
+			where a.txorder_id  = b.txorder_id
+			  and a.biz_code    = d.biz_code
+			  and b.goods_idn   = c.goods_idn 
+			  and a.purchase_id = #sPurchaseid#
+			  and a.status not in ('1','9')
+			  and a.cancel_date > #sRegReqDate#
+			  and a.cancel_state = 'Y'
+			  and c.goods_idn > 0
+			  and d.language   = 'KO'
+			group by a.purchase_id,d.biz_code,c.goods_code
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_07" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as item_cnt
+			FROM (
+				select /*+use_nl( a b ) */ 
+					a.PURCHASE_ID        purchase_id,
+					a.BIZ_CODE           biz_code,
+					a.TAXGBN             taxgbn,
+					' '                  goods_code,
+					'1'                  shop_id,
+					max(a.access_name)   access_name,
+					nvl(max(a.ITEM),' ') goods_name,
+					' '                  unit,
+			        max(b.REGISTER_NO)   register_no,
+			        max(b.biz_name)      biz_name,
+			        max(b.BOSS_NAME)     boss_name,
+			        max(b.BUSINESS_COND) business_cond,
+			        max(b.BUSINESS_CATE) business_cate,
+			        max(b.ADDRESS_1 || b.ADDRESS_2) address,
+				    nvl(max(b.telephone),' ') telephone,
+				    nvl(max(b.email),' ') email,
+					max(a.ITEMPRC)       goods_amt,
+					sum(a.ITEMQTY)       goods_cnt,
+					nvl(max(a.ITEMDATE),' ') com_date,
+					sum(a.ITEMAMT)       amt,
+					sum(a.ITEMAMT)       supply,
+					sum(a.ITEMSTAX)      tax,
+					sum(a.ITEMSTAX)      vat,
+					sum(a.SUMAMT)        amount,
+					sum(a.ITEMSTAX)      vat1,
+					sum(a.SUMAMT)        amount1
+				from eai.X_INVOICE_order a , biz_master b 
+				where a.biz_code    = b.biz_code
+				  and a.purchase_id = #sPurchaseid#
+				  and a.cancel_date like #sCancelDate# || '%'
+				  and b.language    = 'KO'
+			    group by a.PURCHASE_ID,a.BIZ_CODE,a.TAXGBN  
+			)
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_08" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select /*+use_nl( a b ) */ 
+					a.PURCHASE_ID        as sPurchase_id,
+					a.BIZ_CODE           as sBiz_Code,
+					a.TAXGBN             as sTAXGBN,
+					' '                  as sGoods_Code,
+					'1'                  as sShop_Id,
+					max(a.access_name)   as sAccess_Name,
+					substrb(nvl(max(a.ITEM),' '),1,60) as sGoods_Name,
+					' '                  as sUnit,
+			        max(b.REGISTER_NO)   as sRegister_No,
+			        substrb(max(b.biz_name),1,60)  as sBiz_Name,
+			        substrb(max(b.BOSS_NAME),1,60) as sBoss_Name,
+			        substrb(max(b.BUSINESS_COND),1,60) as sBusiness_Cond,
+			        substrb(max(b.BUSINESS_CATE),1,60) as sBusiness_cate,
+			        substrb(max(b.ADDRESS_1 || ' ' || b.ADDRESS_2),1,60) as sAddress,
+				    substrb(nvl(max(b.telephone),' '),1,20) as sTelephone,
+				    substrb(nvl(max(b.email),' '),1,100) as sEmail,
+					max(a.ITEMPRC)       as iGoodsAmt,
+					sum(a.ITEMQTY)       as iGoodsCnt,
+					nvl(max(a.ITEMDATE),' ') as sComDate,
+					sum(a.ITEMAMT)       as iAmt,
+					sum(a.ITEMAMT)       as iSupply,
+					sum(a.ITEMSTAX)      as iTax,
+					sum(a.ITEMSTAX)      as iVat,
+					sum(a.SUMAMT)        as iAmount,
+					sum(a.ITEMSTAX)      as iVat1,
+					sum(a.SUMAMT)        as iAmount1
+			from eai.X_INVOICE_order a , biz_master b 
+			where a.biz_code    = b.biz_code
+			  and a.purchase_id = #sPurchaseid#
+			  and a.cancel_date like #sCancelDate# || '%'
+			  and b.language    = 'KO'
+		    group by a.PURCHASE_ID,a.BIZ_CODE,a.TAXGBN
+		]]>	 
+	</select>
+	
+	<insert id="insert_X_INVOICE_TBL_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO X_INVOICE_TBL(
+									  INVDATE,
+									  INVSEQ,
+									  INVTYPE0,
+									  INVTYPE1,
+									  INVTYPE2,
+									  INVTYPE3,
+									  INVTYPE4,
+									  SNDMSTID,
+									  SNDUSRNAME,
+									  SNDEMAIL,
+									  SNDTEL,
+									  ISPOSTING,
+									  RCVMSTID,
+									  RCVUSRNAME,
+									  RCVEMAIL,
+									  RCVTEL,
+									  AGNMSTID,
+									  AGNUSRNAME,
+									  AGNEMAIL,
+									  AGNTEL,
+									  PROCFLAG,
+									  PROCDATE,
+									  BPROCFLAG,
+									  BPROCDATE,
+									  INVHASH,
+									  SUPREGNUM,
+									  SUPCMPNAME,
+									  SUPOWNER,
+									  SUPBIZTYPE,
+									  SUPBIZKIND,
+									  SUPADDRESS,
+									  DEMREGNUM,
+									  DEMCMPNAME,
+									  DEMOWNER,
+									  DEMBIZTYPE,
+									  DEMBIZKIND,
+									  DEMADDRESS,
+									  AGNREGNUM,
+									  AGNCMPNAME,
+									  AGNOWNER,
+									  AGNBIZTYPE,
+									  AGNBIZKIND,
+									  AGNADDRESS,
+									  ITEM1,
+									  ITEMDATE1,
+									  ITEMAMT1,
+									  ITEMSTAX1,
+									  ITEMMEMO1,
+									  PUBDATE,
+									  AMTBLANK,
+									  SUPTOTAMT,
+									  SURTAX,
+									  SUMAMT,
+									  CASHAMT,
+									  CHECKAMT,
+									  BILLAMT,
+									  CREDITAMT,
+									  DEALTYPE,
+									  BOOKNUM1,
+									  BOOKNUM2,
+									  BOOKNUM3,
+									  REMARK,
+									  ATTR01,
+									  ATTR02,
+									  ATTR03
+									) 
+			VALUES (
+					to_char(sysdate,'yyyymmdd'),
+					trim(to_char(INV_SEQ.NEXTVAL,'00000000')),
+					#sINVTYPE0#,
+					#sINVTYPE1#,
+					#sINVTYPE2#,
+					#sINVTYPE3#,
+					#sINVTYPE4#,
+					#sSNDMSTID#,
+					#sSNDUSRNAME#,
+					#sSNDEMAIL#,
+					#sSNDTEL#,
+					#sISPOSTING#,
+					#sRCVMSTID#,
+					#sRCVUSRNAME#,
+					#sRCVEMAIL#,
+					#sRCVTEL#,
+					#sAGNMSTID#,
+					#sAGNUSRNAME#,
+					#sAGNEMAIL#,
+					#sAGNTEL#,
+					#sPROCFLAG#,
+					to_char(sysdate,'yyyymmddhh24miss'),
+					#sBPROCFLAG#,
+					#sBPROCDATE#,
+					#sINVHASH#,
+					replace(#sSUPREGNUM#,'-',''),
+					#sSUPCMPNAME#,
+					#sSUPOWNER#,
+					#sSUPBIZTYPE#,
+					#sSUPBIZKIND#,
+					#sSUPADDRESS#,
+					replace(#sDEMREGNUM#,'-',''),
+					#sDEMCMPNAME#,
+					#sDEMOWNER#,
+					#sDEMBIZTYPE#,
+					#sDEMBIZKIND#,
+					#sDEMADDRESS#,
+					replace(#sAGNREGNUM#,'-',''),
+					#sAGNCMPNAME#,
+					#sAGNOWNER#,
+					#sAGNBIZTYPE#,
+					#sAGNBIZKIND#,
+					#sAGNADDRESS#,
+					#sITEM1#,
+					#sITEMDATE1#,
+					#iITEMAMT1#,
+					#iITEMSTAX1#,
+					#sITEMMEMO1#,
+					to_char(sysdate,'yyyymmdd'),
+					11-length(#iAMTBLANK#),
+					#iSUPTOTAMT#,
+					#iSURTAX#,
+					#iSUMAMT#,
+					#iCASHAMT#,
+					#iCHECKAMT#,
+					#iBILLAMT#,
+					#iCREDITAMT#,
+					#sDEALTYPE#,
+					#sBOOKNUM1#,
+					#sBOOKNUM2#,
+					#sBOOKNUM3#,
+					#sREMARK#,
+					'2',
+					#sPurchaseid#,
+					#sAccessName#
+				)
+		]]>	 
+	</insert>
+	
+	
+</sqlMap>

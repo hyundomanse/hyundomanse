@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchOrderMail">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt, TO_CHAR(sysdate, 'YYMMDD') as todate 
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ use_nl(a b) index( a IDX_TXORDER_01)*/ 
+                   a.ORDER_ID as gPurchaseId,
+                   max(decode(D.PAVLN_DIV_CD,'07','07',D.PAVLN_DIV_CD)) as gShopId,
+                   max(A.SETL_MEAN_CD) as gPayMethod
+            FROM OD_ORDER_MAST a , orderinfo b, OD_ORDER_SETL C, OD_ORDER_ITM D
+            Where a.ORDER_ID = b.purchase_id
+            AND A.ORDER_ID = C.ORDER_ID(+)
+            AND A.ORDER_ID = D.ORDER_ID(+)
+            AND a.order_id = #gPurchaseId#
+            Group by a.ORDER_ID
+            UNION ALL
+            SELECT /*+ index( b ORDERINFO_IX01)*/ 
+                   a.ORDER_ID ,max(decode(D.PAVLN_DIV_CD,'07','07',D.PAVLN_DIV_CD)),max(A.SETL_MEAN_CD)
+            FROM OD_ORDER_MAST a, orderinfo b , OD_ORDER_SETL C, OD_ORDER_ITM D
+            Where b.purchase_id = a.ORDER_ID
+            AND A.ORDER_ID = C.ORDER_ID(+)
+            AND A.ORDER_ID = D.ORDER_ID(+)
+            AND a.order_id = #gPurchaseId#
+            Group by a.ORDER_ID
+		]]>	 
+	</select>
+	
+	<select id="ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as iMailCnt 
+			FROM ORDERINFO
+			WHERE PURCHASE_ID = #gPurchaseId#
+			  and MailSendGbn in ('1','2')
+		]]>	 
+	</select>
+	
+	<update id="updateOrderInfo" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ORDERINFO
+			   SET MailSendGbn = '2',MailSendDate = to_char(sysdate,'yyyymmddhh24miss')
+			 WHERE PURCHASE_ID   = #gPurchaseId#
+		]]>	 
+	</update>
+	
+	<select id="Send_Mail_Call_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*)  as iOrderReserveCnt 
+			FROM OD_FIX_RESRV_ORDER
+			WHERE ORDER_ID =  #gPurchaseId#
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select case when length(max(A.ORDER_ID)) = 19 then 
+                       substr(max(A.ORDER_ID), 1, 1) || '-' || substr(max(A.ORDER_ID), 2, 6) || '-' || substr(max(A.ORDER_ID), 8, 5) || '-' || substr(max(A.ORDER_ID), 13, 7)
+                   else 
+                       max(A.ORDER_ID)
+                   end as sfmtPurchaseId,
+                   max(substr(D.REG_DATE,1,4) || '.' || substr(D.REG_DATE,5,2) || '.' || substr(D.REG_DATE,7,2) ) as sOrderDate,
+                   max(substr(D.REG_DATE,1,4) || '년' || substr(D.REG_DATE,5,2) || '월' || substr(D.REG_DATE,7,2) || '일 ' || substr(D.REG_DATE,9,2) || '시' || substr(D.REG_DATE,11,2) || '분') as sOrderDateTime,
+                   max(D.REGER_ID) as sAccess_name,
+                   max(A.SETL_MEAN_CD) as gPayMethod,
+                   sum((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))) as i_amt,
+                   sum(nvl(B.SEND_PRC,0)) as i_invoice_amt,
+                   sum(nvl(B.OPTN_GOODS_APPLY_PRC,0)) as i_option_amt,
+                   sum(nvl(B.PNT_USE_AMT,0) + nvl(B.PNT_REFUND_SETL_AMT,0)) as i_rm_amt,
+                   sum(nvl(B.CPN_DC_AMT,0)) as i_cp_amt, 
+                   sum(nvl(B.PREMI_CUST_PNT_SETL_AMT,0) + nvl(A.PREMI_CUST_PNT_REFUND_APRV_AMT,0)) as i_sp_amt,
+                   sum(nvl(B.PNT_ACCML_PNT,0)) * 10 as i_rm_point
+            From OD_ORDER_MAST A, OD_ORDER_ITM B, OD_ORDER_SETL C, OD_SEND_MSG D
+            WHERE A.ORDER_ID = #gPurchaseId#
+            AND A.ORDER_ID = B.ORDER_ID(+)
+            AND A.ORDER_ID = B.ORDER_ID(+)
+            AND B.ORDER_ITM_ID = D.ORDER_ITM_ID(+)
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as iChkSPMem
+			FROM MB_SP_MASTER
+			WHERE ACCESS_NAME =#sAccessname#
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as item_cnt
+            FROM (
+                SELECT *
+                FROM OD_ORDER_MAST a , OD_ORDER_ITM b
+                WHERE a.ORDER_ID = B.ORDER_ID
+                  and a.ORDER_ID = #gPurchaseId#
+            )
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as item_cnt
+			FROM (
+				SELECT *
+				FROM OD_ORDER_MAST a , OD_ORDER_ITM b
+				WHERE a.ORDER_ID = b.ORDER_ID(+)
+			    and a.ORDER_ID = #gPurchaseId#
+			)
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+                decode(count(distinct B.SENDER_NM) , 1 ,substrb(max(B.SENDER_NM),1,200),substrb(max(B.SENDER_NM) || ' 외 ' || to_char(count(distinct B.SENDER_NM) - 1 ) || ' 명',1,200)) as shipto_name,
+                '.' as shipto_zipcode,
+                '.' as shipto_addr1,
+                '.' as shipto_addr2,
+                B.GOODS_CD as GOODS_CD,
+                TO_CHAR(max(nvl((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0) - nvl(B.OPTN_GOODS_APPLY_PRC,0)  - NVL(B.SEND_PRC,0) ),'99,999,990') as sprice,
+                max(nvl((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0)- nvl(B.OPTN_GOODS_APPLY_PRC,0) - NVL(B.SEND_PRC,0) ) as price,
+                sum(nvl(B.REQ_CNT,0)) as quantity,
+                to_char(max(nvl((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0) - nvl(B.OPTN_GOODS_APPLY_PRC,0) - NVL(B.SEND_PRC,0)) * sum(nvl(B.REQ_CNT,0)),'999,999,990') as stotprice,
+                B.PAVLN_DIV_CD as shop_id,
+                B.WISH_SEND_DATE as cf__pra_dely,
+                B.OPTN_CNT1 as option_desc,
+                SUM(NVL(B.SEND_PRC,0)) as invoice_amt,
+                to_char(SUM(NVL(B.SEND_PRC,0)),'999,999,990') as str_invoice_amt,
+                MAX(NVL(B.OPTN_GOODS_APPLY_PRC,0)) as option_amt,
+                to_char(MAX(NVL(B.OPTN_GOODS_APPLY_PRC,0)),'S999,999,990') as str_option_amt,
+                to_char(SUM(NVL((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0)),'999,999,990') as str_totprice
+            FROM OD_ORDER_MAST a , OD_ORDER_ITM b
+            WHERE a.ORDER_ID = b.ORDER_ID(+)
+              and a.ORDER_ID = #gPurchaseId#
+            group by B.GOODS_CD,                 
+                   B.PAVLN_DIV_CD,
+                   B.WISH_SEND_DATE,
+                   B.OPTN_CNT1
+              ORDER BY B.PAVLN_DIV_CD, B.OPTN_CNT1
+		]]>	 
+	</select>
+			
+	<select id="Send_Mail_Call_07" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+                B.SENDER_NM as shipto_name,
+                B.SENDER_ZIPCD as shipto_zipcode,
+                B.SENDER_ADDR1 as shipto_addr1,
+                B.SENDER_ADDR2 as shipto_addr2,
+                b.goods_CD as goods_code,
+                TO_CHAR(max(nvl((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0) - nvl(B.OPTN_GOODS_APPLY_PRC,0)  - NVL(B.SEND_PRC,0) ),'99,999,990') as sprice,
+                max(nvl((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0)- nvl(B.OPTN_GOODS_APPLY_PRC,0) - NVL(B.SEND_PRC,0) ) as price,
+                sum(nvl(B.REQ_CNT,0)) as quantity,
+                to_char(max(nvl((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0) - nvl(B.OPTN_GOODS_APPLY_PRC,0) - NVL(B.SEND_PRC,0)) * sum(nvl(B.REQ_CNT,0)),'999,999,990') as stotprice,
+                B.PAVLN_DIV_CD as shop_id,
+                B.WISH_SEND_DATE as cf__pra_dely,
+                b.OPTN_CNT1 as option_desc,
+                SUM(NVL(B.SEND_PRC,0)) as invoice_amt,
+                to_char(SUM(NVL(B.SEND_PRC,0)),'999,999,990') as str_invoice_amt,
+                MAX(NVL(B.OPTN_GOODS_APPLY_PRC,0)) as option_amt,
+                to_char(MAX(NVL(B.OPTN_GOODS_APPLY_PRC,0)),'S999,999,990') as str_option_amt,
+                to_char(SUM(NVL((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)),0)),'999,999,990') as str_totprice
+            FROM OD_ORDER_MAST a , OD_ORDER_ITM b
+            WHERE a.ORDER_ID = b.ORDER_ID(+)
+              and a.ORDER_ID = #gPurchaseId#
+            group by B.SENDER_NM,
+                   B.SENDER_ZIPCD,
+                   B.SENDER_ADDR1,
+                   B.SENDER_ADDR2,
+                   B.GOODS_CD,                 
+                   B.PAVLN_DIV_CD,
+                   B.WISH_SEND_DATE,
+                   B.OPTN_CNT1
+              ORDER BY B.SENDER_NM, B.SENDER_ADDR1, B.SENDER_ADDR2, B.PAVLN_DIV_CD, b.OPTN_CNT1
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_08" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT MAX(TERMINAL_ID) as sTerminal_Id,MAX(CARD_INSTALLMENT) as sPayMonth
+            FROM OD_CREDIT_CARD_SETL_INFO
+            WHERE ORDER_ID = #gPurchaseId#
+		]]>	 
+	</select>	
+	
+	<select id="Send_Mail_Call_09" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				'finance' as sFinance_name,
+				'account' as sAccount_no
+            FROM dual
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_10" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(NVL(#iRmAmt#, 0),'99,999,990') as sRmPayAmt,
+			       TO_CHAR(NVL(#iRmAmt#, 0),'99,999,990') as sRmPayAmtWon,
+			       TO_CHAR(NVL(#iAmt# - #iRmAmt# - #iCpAmt# - #iSpAmt# * 1, 0),'99,999,990') as sRealAmount,
+			       TO_CHAR(NVL(#iRmPoint#, 0),'99,999,990') as sTotRmPoint
+			  FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_11" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(NVL(#iCpAmt#, 0),'99,999,990') as sCpAmtSum
+			  FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_Call_12" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(NVL(#iSpAmt#, 0),'99,999,990') as sSpPayAmt,
+			       TO_CHAR(NVL(#iSpAmt# * 1, 0),'99,999,990') as sSpPayAmtWon
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select max(to_char(b.WISH_SEND_DATE, 'yyyy-mm-dd')) as sOrderDate,
+                   max(B.SENDER_NM) as sAccess_name,
+                   sum((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))) as i_amt,
+                   sum(nvl(B.PNT_USE_AMT,0) + nvl(B.PNT_REFUND_SETL_AMT,0)) as i_rm_amt,
+                   sum(nvl(B.CPN_DC_AMT,0)) as i_cp_amt, 
+                   sum(nvl(B.PREMI_CUST_PNT_SETL_AMT,0) + nvl(A.PREMI_CUST_PNT_REFUND_APRV_AMT,0)) as i_sp_amt,
+                   sum(nvl(A.PNT_ACCML_PNT,0)) * 10  as i_rm_point
+            From OD_ORDER_MAST A, OD_ORDER_ITM B
+            WHERE A.ORDER_ID = #gPurchaseId#
+            AND A.ORDER_ID = B.ORDER_ID(+)
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as iChkSPMem
+            FROM MB_SP_MASTER
+            WHERE ACCESS_NAME =#sAccessname#
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+		            SHIPTO_NAME, 
+		            SHIPTO_ZIPCODE, 
+		            SHIPTO_ADDR1, 
+		            SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3 as shipto_addr2, 
+		            DECODE(GOODS_IDN, 0, '[경조문구] '||MESSAGE, GOODS_NAME) as goods_name, 
+		            GOODS_IDN, 
+		            GOODS_CODE,
+		            TO_CHAR(MAX(PRICE),'99,999,990') as sprice,
+		            MAX(PRICE) as price,
+		            SUM(QUANTITY) as quantity,
+		            TO_CHAR((MAX(PRICE) * SUM(QUANTITY)),'99,999,990') as stotprice,
+		            SHOP_ID, 
+		            WISH_DATE as cf__pra_dely, 
+		            OPTION_DESC, 
+		            max(NVL( decode(goods_idn,0,0,RM_POINT * 10 ), 0)) as rm_point,
+		            to_char(max(NVL( decode(goods_idn,0,0,RM_POINT * 10 ), 0)),'999,999,990') as str_rm_point,
+		            0 as invoice_amt,
+		            '' as str_invoice_amt,
+		            0 as option_amt,
+		            '0' as str_option_amt,
+		            '0' as str_totprice
+		FROM ORDERINFO
+		WHERE PURCHASE_ID = #gPurchaseId#
+		GROUP BY SHIPTO_NAME, SHIPTO_ZIPCODE, SHIPTO_ADDR1, SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3, DECODE(GOODS_IDN, 0, '[경조문구] '||MESSAGE, GOODS_NAME), GOODS_IDN, GOODS_CODE, SHOP_ID, WISH_DATE, OPTION_DESC, RM_POINT
+		ORDER BY SHIPTO_NAME, SHIPTO_ADDR1, SHIPTO_ADDR2, SHOP_ID, GOODS_IDN desc, OPTION_DESC
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as item_cnt
+			FROM (
+				SELECT SHIPTO_NAME, SHIPTO_ZIPCODE, SHIPTO_ADDR1, SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3 , DECODE(GOODS_IDN, 0, '[경조문구] '||MESSAGE, GOODS_NAME), GOODS_IDN, GOODS_CODE,
+					   TO_CHAR(MAX(PRICE),'99,999,990'),
+					   MAX(PRICE), SUM(QUANTITY),
+				       TO_CHAR((MAX(PRICE) * SUM(QUANTITY)),'99,999,990'),
+				       SHOP_ID, WISH_DATE, OPTION_DESC, 
+				       max(NVL( decode(goods_idn,0,0,RM_POINT ), 0)),
+					   to_char(max(NVL( decode(goods_idn,0,0,RM_POINT ), 0)),'999,999,990')
+				FROM ORDERINFO
+				WHERE PURCHASE_ID = #gPurchaseId#
+				GROUP BY SHIPTO_NAME, SHIPTO_ZIPCODE, SHIPTO_ADDR1, SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3, DECODE(GOODS_IDN, 0, '[경조문구] '||MESSAGE, GOODS_NAME), GOODS_IDN, GOODS_CODE, SHOP_ID, WISH_DATE, OPTION_DESC, RM_POINT
+			)
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_04_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				'finance' as sFinance_name,
+				'account' as sAccount_no
+            FROM dual
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(NVL(#iRmAmt#, 0),'99,999,990') as sRmPayAmt,
+			       TO_CHAR(NVL(#iRmAmt#, 0),'99,999,990') as sRmPayAmtWon,
+			       TO_CHAR(NVL(#iAmt# - #iRmAmt# - #iCpAmt# - #iSpAmt# * 1, 0),'99,999,990') as sRealAmount,
+			       TO_CHAR(NVL(#iRmPoint#, 0),'99,999,990') as sTotRmPoint
+			  FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(NVL(#iCpAmt#, 0),'99,999,990') as sCpAmtSum
+  			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_KO_Call_07" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(NVL(#iSpAmt#, 0),'99,999,990') as sSpPayAmt,
+			       TO_CHAR(NVL(#iSpAmt# * 1, 0),'99,999,990') as sSpPayAmtWon
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_US_Call_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select max(TO_CHAR(sysdate, 'YYYY-MM-DD')) as sOrderDate,
+		       SUM(PRICE * QUANTITY) as iAmt
+			From ORDERINFO
+			WHERE purchase_id = #gPurchaseId#
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_US_Call_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+		            SHIPTO_NAME, 
+		            SHIPTO_ZIPCODE, 
+		            SHIPTO_ADDR1, 
+		            SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3 as shipto_addr2, 
+		            DECODE(GOODS_IDN, 0, '[전하는말] '||MESSAGE, GOODS_NAME) as goods_name, 
+		            GOODS_IDN,
+		            TO_CHAR(MAX(PRICE),'99,999,990') as sprice,
+		            MAX(PRICE) as price, 
+		            SUM(QUANTITY) as quantity,
+		            TO_CHAR((MAX(PRICE) * SUM(QUANTITY)),'99,999,990')  as stotprice,
+		            SHOP_ID, 
+		            WISH_DATE as cf__pra_dely, 
+		            OPTION_DESC, 
+		            max(NVL( decode(goods_idn,0,0,RM_POINT), 0)) as rm_point,
+		            to_char(max(NVL( decode(goods_idn,0,0,RM_POINT), 0)),'999,999,990') as str_rm_point
+			FROM ORDERINFO
+			WHERE PURCHASE_ID =#gPurchaseId#
+			GROUP BY SHIPTO_NAME, SHIPTO_ZIPCODE, SHIPTO_ADDR1, SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3, DECODE(GOODS_IDN, 0, '[전하는말] '||MESSAGE, GOODS_NAME), GOODS_IDN, SHOP_ID, WISH_DATE, OPTION_DESC, RM_POINT
+			ORDER BY SHIPTO_NAME, SHIPTO_ADDR1, shipto_addr2 , SHOP_ID, GOODS_IDN desc, OPTION_DESC
+		]]>	 
+	</select>
+	
+	<select id="Send_Mail_US_Call_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as item_cnt
+			FROM (
+				SELECT SHIPTO_NAME, SHIPTO_ZIPCODE, SHIPTO_ADDR1, SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3 , DECODE(GOODS_IDN, 0, '[전하는말] '||MESSAGE, GOODS_NAME), GOODS_IDN,
+					   TO_CHAR(MAX(PRICE),'99,999,990'),
+					   MAX(PRICE), SUM(QUANTITY),
+				       TO_CHAR((MAX(PRICE) * SUM(QUANTITY)),'99,999,990'),
+				       SHOP_ID, WISH_DATE, OPTION_DESC, 
+				       max(NVL( decode(goods_idn,0,0,RM_POINT), 0)),
+					   to_char(max(NVL( decode(goods_idn,0,0,RM_POINT), 0)),'999,999,990')
+				FROM ORDERINFO
+				WHERE PURCHASE_ID = #gPurchaseId#
+				GROUP BY SHIPTO_NAME, SHIPTO_ZIPCODE, SHIPTO_ADDR1, SHIPTO_ADDR2 || ' ' || SHIPTO_ADDR3, DECODE(GOODS_IDN, 0, '[전하는말] '||MESSAGE, GOODS_NAME), GOODS_IDN, SHOP_ID, WISH_DATE, OPTION_DESC, RM_POINT
+			)
+		]]>	 
+	</select>
+	
+	<select id="Card_create_sum_data_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT sum((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))) as sum_amount,
+                    to_char(sum((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0)))) as str_sum_amt,
+                    to_char(sum((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))),'9,999,999,990') as str_sum_amount,
+                   ' ' as str_us_sum_amount,
+                   TO_CHAR(count(B.ORDER_ITM_ID), '9,999,999,990') as str_sum_quantity,
+                   max(B.SENDER_NM) as access_name,
+                   max(B.SENDER_NM) as billto_name,
+                   max(B.SENDER_ADDR1) as billto_addr1,
+                   max(B.SENDER_ADDR1) as billto_addr2,
+                   max(B.SENDER_ZIPCD) as billto_zipcode,
+                   nvl(max(B.SENDER_EMAIL),' ') as billto_email,
+                   max(B.SENDER_TELNO) as billto_telno,
+                   max(B.SENDER_HTELNO) as billto_mobile
+            FROM OD_ORDER_MAST A, OD_ORDER_ITM B
+            WHERE A.ORDER_ID = B.ORDER_ID(+)
+              and a.ORDER_ID = #gPurchaseId#
+              and B.GOODS_CANCEL_YN = 'N'
+		]]>	 
+	</select>
+	
+	<select id="Card_create_sum_data_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  max(BILLTO_EMAIL) AS BILLTO_EMAIL
+			from orderinfo
+			WHERE purchase_id =  #gPurchaseId#
+		]]>	 
+	</select>
+	
+	<select id="Card_create_sum_over_data_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  SUM(PRICE * QUANTITY) AS sum_amount,
+	                TO_CHAR(SUM(PRICE * QUANTITY)) AS str_sum_amt,
+	                TO_CHAR(SUM(PRICE * QUANTITY), '9,999,999,990') AS str_sum_amount,
+	                TO_CHAR(SUM(US_PRICE * QUANTITY),'99,999,990.00') AS str_us_sum_amount,
+	                TO_CHAR(SUM(DECODE(GOODS_IDN,0,0,QUANTITY)), '9,999,999,990') AS str_sum_quantity,
+	                   NVL(MAX(ACCESS_NAME),' ') AS access_name,
+	                MAX(BILLTO_NAME) AS billto_name,
+	                MAX(BILLTO_ADDR1) AS billto_addr1,
+	                MAX(BILLTO_ADDR2 || ' ' || BILLTO_ADDR3) AS billto_addr2,
+	                MAX(BILLTO_ZIPCODE) AS billto_zipcode,
+	                NVL(MAX(BILLTO_EMAIL),' ') AS billto_email,
+	                MAX(BILLTO_TELNO) AS billto_telno,
+	                MAX(BILLTO_MOBILE) AS billto_mobile
+	          FROM  ORDERINFO
+	         WHERE    PURCHASE_ID = #gPurchaseId#
+		]]>	 
+	</select>
+ 	
+</sqlMap>

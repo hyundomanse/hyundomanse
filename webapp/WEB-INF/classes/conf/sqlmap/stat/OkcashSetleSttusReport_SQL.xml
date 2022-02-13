@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.OkcashSetleSttusReport">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="retrieveOkCashBagSrchRptList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+				A.RNUM,
+				A.ORDER_ID,
+			    A.NAME,
+			    A.ACCESS_NAME,
+			    A.AMT11,
+			    A.SETL_MEAN_NM,
+			    A.ORDER_MDA_DIV_NM,
+			    A.AMT21,
+			    A.AMT22,
+			    A.AMT31,
+			    A.AMT32,
+			    A.AMT41,
+			    A.AMT42,
+			    A.AMT51,
+			    A.AMT52,
+			    A.AMT61,
+			    A.AMT62
+			FROM
+				(SELECT
+					ROWNUM RNUM,
+					A.ORDER_ID,
+				    A.NAME,
+				    A.ACCESS_NAME,
+				    A.AMT11,
+				    A.SETL_MEAN_NM,
+				    A.ORDER_MDA_DIV_NM,
+				    A.AMT21,
+				    A.AMT22,
+				    A.AMT31,
+				    A.AMT32,
+				    A.AMT41,
+				    A.AMT42,
+				    A.AMT51,
+				    A.AMT52,
+				    A.AMT61,
+				    A.AMT62
+				FROM
+					(SELECT 
+					    A.ORDER_ID,
+					    MAX(B.SENDER_NM) NAME,
+					    MAX(A.ACCESS_NAME) ACCESS_NAME,
+					    SUM(B.CNSMR_PRC) AMT11,
+					    (SELECT F_GET_COMN_CD_NM('SETL_MEAN_CD', C.SETL_MEAN_CD) FROM DUAL) SETL_MEAN_NM,
+					    (SELECT F_GET_COMN_CD_NM('ORDER_MDA_DIV_CD', A.ORDER_MDA_DIV_CD) FROM DUAL) ORDER_MDA_DIV_NM,
+					    SUM(DECODE(B.GOODS_CANCEL_YN,'N',B.CNSMR_PRC- (NVL(B.PNT_USE_AMT,0) + NVL(B.PNT_REFUND_SETL_AMT,0) + NVL(B.PREMI_CUST_PNT_SETL_AMT,0) + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT,0)  + NVL(B.CPN_DC_AMT,0) + NVL(A.OKCASH_USE_AMT,0) ),0))  AMT21,
+					    SUM(DECODE(B.GOODS_CANCEL_YN,'Y',B.CNSMR_PRC- (NVL(B.PNT_USE_AMT,0) + NVL(B.PNT_REFUND_SETL_AMT,0) + NVL(B.PREMI_CUST_PNT_SETL_AMT,0) + NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT,0)  + NVL(B.CPN_DC_AMT,0) + NVL(A.OKCASH_USE_AMT,0) ),0))  AMT22,
+					    SUM(DECODE(B.GOODS_CANCEL_YN,'N',NVL(B.CPN_DC_AMT,0),0))  AMT31,
+					    SUM(DECODE(B.GOODS_CANCEL_YN,'Y',NVL(B.CPN_DC_AMT,0),0))  AMT32,
+					    SUM(NVL(B.PNT_USE_AMT,0))     AMT41,
+					    SUM(NVL(B.PNT_REFUND_SETL_AMT,0)) AMT42,
+					    SUM(NVL(B.PREMI_CUST_PNT_SETL_AMT,0))     AMT51,
+					    SUM(NVL(B.PREMI_CUST_PNT_REFUND_APRV_AMT,0)) AMT52,
+					    SUM(DECODE(B.GOODS_CANCEL_YN,'N',NVL(B.OKCASH_USE_AMT,0),0))  AMT61,
+					    SUM(DECODE(B.GOODS_CANCEL_YN,'Y',NVL(B.OKCASH_USE_AMT,0),0))  AMT62
+					FROM OD_ORDER_MAST A, OD_ORDER_ITM B, OD_ORDER_SETL C
+					WHERE 1 = 1
+					AND A.ORDER_ID = B.ORDER_ID
+					AND A.ORDER_ID = C.ORDER_ID
+					AND A.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd#,'YYYYMMDD') AND TO_DATE(#search_end_ymd#||'235959','YYYYMMDDHH24MISS')
+					]]>
+					<isNotEqual property="paymethod" compareValue="">
+						<![CDATA[
+							AND C.SETL_MEAN_CD = #paymethod#
+						]]>	
+					</isNotEqual>
+					
+					<isNotEmpty property="searchOrderMdaDivCd">
+						<![CDATA[
+							AND A.ORDER_MDA_DIV_CD = #searchOrderMdaDivCd#
+						]]>	
+					</isNotEmpty>
+					
+					
+					<isNotEqual property="txWord" compareValue="">
+						<isEqual property="cbSearch" compareValue="">
+							<![CDATA[
+								AND (A.ACCESS_NAME LIKE '%'|| #txWord# ||'%' OR B.SENDER_NM LIKE '%'|| #txWord# ||'%' OR A.ORDER_ID LIKE '%'|| #txWord# ||'%')
+							]]>	
+						</isEqual>
+						<isEqual property="cbSearch" compareValue="ID">
+							<![CDATA[
+								AND A.ACCESS_NAME LIKE '%'|| #txWord# ||'%'
+							]]>	
+						</isEqual>
+						<isEqual property="cbSearch" compareValue="Name">
+							<![CDATA[
+								AND B.SENDER_NM LIKE '%'|| #txWord# ||'%'
+							]]>	
+						</isEqual>
+						<isEqual property="cbSearch" compareValue="PurchaseNumber">
+							<![CDATA[
+								AND A.ORDER_ID LIKE '%'|| #txWord# ||'%'
+							]]>	
+						</isEqual>
+					</isNotEqual>	
+					<![CDATA[
+					AND B.ORDER_STUS_CD != 'O01'
+					/*
+					AND EXISTS (
+									SELECT 
+										1 
+									FROM OD_ORDER_ITM 
+									WHERE ORDER_ID = A.ORDER_ID 
+									AND NVL(B.OKCASH_USE_AMT,0) <> 0
+								)
+					*/			
+					AND NVL(B.OKCASH_USE_AMT,0) <> 0
+					GROUP BY A.ORDER_ID, C.SETL_MEAN_CD, A.ORDER_MDA_DIV_CD
+					ORDER BY A.ORDER_ID, A.ORDER_MDA_DIV_CD) A
+				) A
+				
+	    ]]>
+	</select>
+	
+	
+	
+</sqlMap>

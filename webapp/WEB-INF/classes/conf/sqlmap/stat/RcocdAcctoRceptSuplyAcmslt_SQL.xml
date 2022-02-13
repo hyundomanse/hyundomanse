@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.RcocdAcctoRceptSuplyAcmslt">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectRcocdAcctoRceptSuplyAcmsltList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				DECODE(NVL(RCOCD, ' '), ' ','비추천',(SELECT F_GET_COMN_CD_NM('RCO_CD', RCOCD) FROM DUAL)) COMNCDSHORTNM,
+		        SUM(DECODE(GBN,'1',GOODSCNT,0)) SUP_GOODSCNT ,
+		        SUM(DECODE(GBN,'1',GOODSAMT,0)) SUP_GOODSAMT ,
+		        SUM(DECODE(GBN,'2',GOODSCNT,0)) REG_GOODSCNT ,
+		        SUM(DECODE(GBN,'2',GOODSAMT,0)) REG_GOODSAMT
+	        FROM (
+	                SELECT 
+	                	'1' GBN, 
+	                	RCOCD,
+	                	SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT) GOODSCNT,
+	                	SUM(A.SETL_AMT-A.RETURN_GD_AMT) GOODSAMT
+	        		FROM MP_POST_SHOP_SUPP_DAY A ,(SELECT  
+	        										DECODE(RCOCD, ' ', NULL, RCOCD) RCOCD, 
+	        										REGIPOCD
+					                            FROM    PICMT0060
+					                            WHERE   USEYN='Y') B
+			        WHERE A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+			        AND A.RECEV_STUS_CD = 'O02'
+			        AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+			        AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+			        AND A.SUPP_PO_REGI_PO_CD NOT IN ('89976','89958')
+		]]>
+			        <isNotEqual property="oRecevSysDivCd" compareValue="0">
+							AND A.RECEV_SYS_DIV_CD = #oRecevSysDivCd#
+					</isNotEqual>
+					
+			        <isNotEqual property="oRecevDivCd" compareValue="0">
+						AND DECODE(A.RECEV_DIV_CD,'001','01','011','01','015','01','008','01','019','01','020','01',
+											  	  '005','02','017','02','018','02',
+											  	  '002','04','012','04','016','04',
+											  	  '004','03','021','03','022','03','050','03','051','03','052','03',
+											  	  '014','05','031','05','032','05','060','05','061','05','062','05',
+											  	  '040','08','041','08','042','08',
+											  	  A.RECEV_DIV_CD) = #oRecevDivCd#
+					</isNotEqual>
+	    <![CDATA[    
+			        GROUP BY RCOCD
+			        UNION ALL
+			        SELECT  
+			        	'2' GBN, 
+			        	RCOCD,
+		                SUM(A.GOODS_CNT-A.RETURN_GD_CNT) GOODSCNT,
+		                SUM(A.SETL_AMT-A.RETURN_GD_AMT) GOODSAMT
+			        FROM MP_PBSDT0110 A ,(SELECT 
+			        						DECODE(RCOCD, ' ', NULL, RCOCD) RCOCD, 
+			        						REGIPOCD
+					                   FROM    PICMT0060
+					                   WHERE   USEYN='Y') B
+			        WHERE A.M_REGIPOCD = B.REGIPOCD(+)
+			        AND A.RECEV_STUS_CD = 'O02'
+			        AND A.SELL_CLOSE_YMD >= #search_strt_ymd#
+			        AND A.SELL_CLOSE_YMD <= #search_end_ymd#
+			        AND A.M_REGIPOCD <> '89976'
+			        AND A.RECEV_PO_REGIPOCD <> '89958'
+		]]>
+			        <isNotEqual property="oRecevSysDivCd" compareValue="0">
+						<isEqual property="oRecevSysDivCd" compareValue="01">
+							AND A.RECEV_PO_REGIPOCD = #pReceSysDivCd#
+							AND A.RECEV_DIV_CD NOT IN('011','012','015','016','017','018','019','020','021','022','031','032','041','042','051','052','061','062')
+						</isEqual>
+						<isEqual property="oRecevSysDivCd" compareValue="04">
+							AND A.RECEV_PO_REGIPOCD = #pReceSysDivCd#
+							AND A.RECEV_DIV_CD NOT IN('011','012','015','016','017','018','019','020','021','022','031','032','041','042','051','052','061','062')
+						</isEqual>
+						<isEqual property="oRecevSysDivCd" compareValue="03">
+							AND A.RECEV_PO_REGIPOCD = #pReceSysDivCd#
+							AND A.RECEV_DIV_CD IN('015','016','018','019','021','031','041','051','061')
+						</isEqual>
+						<isEqual property="oRecevSysDivCd" compareValue="06">
+							AND A.RECEV_PO_REGIPOCD = #pReceSysDivCd#
+							AND A.RECEV_DIV_CD IN('011','012','017','020','022','032','042','052','062')
+						</isEqual>
+						<isEqual property="oRecevSysDivCd" compareValue="05">
+							AND A.RECEV_PO_REGIPOCD NOT IN ('89903','85414')
+						</isEqual>
+					</isNotEqual>
+					
+					<isNotEqual property="oRecevDivCd" compareValue="0">
+						AND DECODE(A.RECEV_DIV_CD,'001','01','011','01','015','01','008','01','019','01','020','01',
+											  	  '005','02','017','02','018','02',
+											  	  '002','04','012','04','016','04',
+											  	  '004','03','021','03','022','03','050','03','051','03','052','03',
+											  	  '014','05','031','05','032','05','060','05','061','05','062','05',
+											  	  '040','08','041','08','042','08',
+											  	  A.RECEV_DIV_CD) = #oRecevDivCd#
+					</isNotEqual>
+	    <![CDATA[    
+	        		GROUP BY  RCOCD
+	        	)
+	        GROUP BY RCOCD
+	        ORDER BY RCOCD
+		]]>	 
+	</select>	
+			
+</sqlMap>

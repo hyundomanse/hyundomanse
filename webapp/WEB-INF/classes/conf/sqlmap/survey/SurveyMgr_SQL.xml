@@ -1,0 +1,1203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Survey">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+
+  <!-- 설문주제 리스트 -->
+   <select id="retrieveSurveyTitleList" parameterClass ="java.util.HashMap" resultClass="commMap">
+     SELECT T2.ONUM,
+    		T2.ONUM AS RNUM,
+            TITLE_NO,
+	        SURVEY_TYPE,
+	        TITLE,
+	        START_DATE,
+	        END_DATE,
+	        LOGIN_YN,
+	        PL_YN,
+	        DUPL_YN,
+	        POLL_CNT,
+	        STATUS,
+	        CHGER_ID,
+	        CHG_DATE,
+	        REG_DATE,
+	        CHECK_TERM,
+	        STATUS_TEXT,
+	        SURVEY_TYPE_TEXT
+        FROM(
+	        SELECT
+	        	<isEmpty property="sidx">
+		        	ROW_NUMBER() OVER(ORDER BY REG_DATE DESC) AS ONUM	,
+		        </isEmpty>
+
+		        <isNotEmpty property="sidx">
+		       		ROW_NUMBER() OVER(ORDER BY $sidx$
+		       		<isEqual property="sord" compareValue="desc">DESC</isEqual>
+		       		<isNotEqual property="sord" compareValue="desc">ASC</isNotEqual>
+		       		) AS ONUM,
+		        </isNotEmpty>
+		        	ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM    ,
+                    TITLE_NO,
+			        SURVEY_TYPE,
+			        TITLE,
+			        START_DATE,
+			        END_DATE,
+			        LOGIN_YN,
+			        PL_YN,
+			        DUPL_YN,
+			        POLL_CNT,
+			        STATUS,
+			        CHGER_ID,
+			        CHG_DATE,
+			        REG_DATE,
+			        CHECK_TERM,
+			        CASE WHEN STATUS = '1' THEN CASE WHEN CHECK_TERM = 'BEF' THEN '예약'
+			                                         WHEN CHECK_TERM = 'ING' THEN '진행'
+			                                         ELSE '종료' END
+			             WHEN STATUS = '2' THEN '중지' END AS STATUS_TEXT,
+						F_GET_COMN_CD_NM('SURVEY_TYPE',DECODE(SURVEY_TYPE,'PA','SV',SURVEY_TYPE,SURVEY_TYPE)) AS SURVEY_TYPE_TEXT
+	        FROM(
+		    SELECT <isEmpty property="sidx">
+			        	ROW_NUMBER() OVER(ORDER BY REG_DATE DESC) AS TNUM
+			        </isEmpty>
+
+			        <isNotEmpty property="sidx">
+			       		ROW_NUMBER() OVER(ORDER BY $sidx$
+			       		<isEqual property="sord" compareValue="desc">DESC</isEqual>
+			       		<isNotEqual property="sord" compareValue="desc">ASC</isNotEqual>
+			       		) AS TNUM
+			        </isNotEmpty>,
+			        TITLE_NO,
+			        SURVEY_TYPE,
+			        TITLE,
+			        START_DATE,
+			        END_DATE,
+			        LOGIN_YN,
+			        PL_YN,
+			        DUPL_YN,
+			        POLL_CNT,
+			        STATUS,
+			        CHGER_ID,
+			        CHG_DATE,
+			        REG_DATE,
+			        CHECK_TERM
+		    FROM
+		    (
+		        SELECT ''||TITLE_NO AS TITLE_NO,
+		               'MP' AS SURVEY_TYPE,
+		               TITLE,
+		               TO_CHAR(TO_DATE(START_DATE, 'YYYYMMDDHH24MISS'), 'YYYY.MM.DD') START_DATE,
+		               TO_CHAR(TO_DATE(END_DATE, 'YYYYMMDDHH24MISS'), 'YYYY.MM.DD') END_DATE,
+		               LOGIN_YN,
+		               PL_YN,
+		               DUPL_YN,
+		               POLL_CNT,
+		               STATUS,
+		               CHGER_ID,
+		               CHG_DATE,
+		               REG_DATE,
+		               CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD')  <![CDATA[<]]> SUBSTR(START_DATE, 1, 8)  THEN 'BEF' ELSE
+		               CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD') > SUBSTR(END_DATE, 1, 8) THEN 'AFT' ELSE  'ING' END END   CHECK_TERM
+		        FROM CM_MINI_SURVEY_TITLE
+		        WHERE 1 = 1
+		          AND #searchType# IN ('ALL', 'MP')
+		          <isNotEmpty property="searchState">
+		          	<isEqual property="searchState" compareValue="1">
+		          		AND TO_CHAR(SYSDATE, 'YYYYMMDD') <![CDATA[<]]> SUBSTR(start_date, 1, 8) AND status = '1'
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="2">
+		          		AND TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN SUBSTR(start_date, 1, 8) AND SUBSTR(end_date, 1, 8) AND status = '1'
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="3">
+		          		AND TO_CHAR(SYSDATE, 'YYYYMMDD') > SUBSTR(end_date, 1, 8) AND status = '1'
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="4">
+		          		AND status = '2'
+		          	</isEqual>
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTitle">
+					AND TITLE LIKE '%' || #searchTitle# || '%'
+				  </isNotEmpty>
+		        UNION ALL
+		        SELECT SURVEY_NO, SURVEY_TYPE, SURVEY_TITLE
+		              , TO_CHAR(SURVEY_START_DT, 'YYYY.MM.DD') AS START_DATE
+		              , TO_CHAR(SURVEY_END_DT, 'YYYY.MM.DD') AS END_DATE
+		              , DECODE(LOGIN_TYPE, 'MB', 'Y', 'N') AS LOGIN_YN
+		              , CASE WHEN (SELECT COUNT(1) FROM CM_SURVEY_QUESTION SQ WHERE SQ.SURVEY_NO = SC.SURVEY_NO) >= 1 THEN 'Y'
+		                     ELSE 'N'
+		                END AS PL_YN
+		              , DUP_RES_POS_YN
+		              , (SELECT COUNT(*) FROM CM_QUSTNR_RESPONSE SR WHERE SR.SURVEY_NO = SC.SURVEY_NO) AS POLL_CNT
+		              , DECODE(SURVEY_STATUS, 'ON', '1', '2') AS STATUS
+		              , CHGER_ID
+		              , CHG_DATE
+		              , REG_DATE
+		              , CASE WHEN SYSDATE <![CDATA[<]]> SURVEY_START_DT THEN 'BEF'
+		                     WHEN SYSDATE > SURVEY_END_DT THEN 'AFT'
+		                     ELSE 'ING'
+		                END AS CHECK_TERM
+		        FROM CM_SURVEY_CENSUS SC
+		        WHERE 1 = 1
+		          /*AND SURVEY_TYPE = 'SV'*/
+		          AND #searchType# IN ('ALL', 'SV','GE')
+		          <isNotEqual property="searchType" compareValue="ALL">
+		         	<isNotEqual property="searchType" compareValue="MP">
+		          	AND SURVEY_TYPE = #searchType#
+		          	</isNotEqual>
+		          </isNotEqual>
+		          <isNotEmpty property="searchState">
+		          	<isEqual property="searchState" compareValue="1">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE <![CDATA[<]]> SURVEY_START_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="2">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="3">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE > SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="4">
+		          		AND SURVEY_STATUS = 'ST'
+		          	</isEqual>
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTitle">
+					AND SURVEY_TITLE LIKE '%' || #searchTitle# || '%'
+				  </isNotEmpty>
+				  <isNotEmpty property="calStrtFinishPerMonth">
+					AND (#calStrtFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+					  OR  #calEndFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT)
+				  </isNotEmpty>
+				  )
+		    ) T
+
+	    ) T2
+	     WHERE 1=1
+        <isNotNull property="firstIndex">
+        	<isNotNull property="lastIndex">
+        		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+        	</isNotNull>
+        </isNotNull>
+        <isEmpty property="sidx">
+        	ORDER BY T2.RNUM DESC
+        </isEmpty>
+
+        <isNotEmpty property="sidx">
+       		ORDER BY       T2.$sidx$
+       		<isEqual property="sord" compareValue="desc">DESC</isEqual>
+       		<isNotEqual property="sord" compareValue="desc">ASC</isNotEqual>
+        </isNotEmpty>
+  </select>
+
+  <!-- 설문주제 리스트 20160311_남복현_정렬을 위한 임의 값 추가 -->
+   <select id="retrieveSurveyPartnerList" parameterClass ="java.util.HashMap" resultClass="commMap">
+     SELECT  T2.ONUM  ,
+             T2.ONUM AS RNUM,
+                SURVEY_NO,
+		        SURVEY_TYPE,
+		        SURVEY_TITLE,
+		        SURVEY_START_DT,
+		        SURVEY_END_DT,
+		        LOGIN_TYPE,
+		        PL_YN,
+		        DUP_RES_POS_YN,
+		        POLL_CNT,
+		        SURVEY_STATUS,
+		        CHGER_ID,
+		        CHG_DATE,
+		        REG_DATE,
+		        CHECK_TERM,
+		        CREATOR,
+		        RPLY_TARGET,
+		        STATUS_TEXT,
+		        SURVEY_TYPE_TEXT,
+		        (SELECT NAME FROM SC_TARGET WHERE TARGETIDX = T2.RPLY_TARGET) TARGET_NAME
+        FROM(
+	        SELECT
+	        	<isEmpty property="sidx">
+		        	ROW_NUMBER() OVER(ORDER BY REG_DATE DESC) AS ONUM	,
+		        </isEmpty>
+
+		        <isNotEmpty property="sidx">
+		       		ROW_NUMBER() OVER(ORDER BY $sidx$
+		       		<isEqual property="sord" compareValue="desc">DESC</isEqual>
+		       		<isNotEqual property="sord" compareValue="desc">ASC</isNotEqual>
+		       		) AS ONUM,
+		        </isNotEmpty>
+		        	ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM    ,
+                    SURVEY_NO,
+			        SURVEY_TYPE,
+			        SURVEY_TITLE,
+			        SURVEY_START_DT,
+			        SURVEY_END_DT,
+			        LOGIN_TYPE,
+			        PL_YN,
+			        DUP_RES_POS_YN,
+			        POLL_CNT,
+			        SURVEY_STATUS,
+			        CHGER_ID,
+			        CHG_DATE,
+			        REG_DATE,
+			        CHECK_TERM,
+			        CREATOR,
+			        RPLY_TARGET,
+			        CASE WHEN SURVEY_STATUS = 'ON' THEN CASE WHEN CHECK_TERM = 'BEF' THEN '예약'
+			                                         WHEN CHECK_TERM = 'ING' THEN '진행'
+			                                         ELSE '종료' END
+			             WHEN SURVEY_STATUS = 'ST' THEN '중지' END AS STATUS_TEXT,
+			        F_GET_COMN_CD_NM('SURVEY_TYPE',SURVEY_TYPE) AS SURVEY_TYPE_TEXT
+			        ,TARGET_NAME      /* 정렬을 위한 임의 값*/
+	        FROM(
+		    SELECT <isEmpty property="sidx">
+			        	ROW_NUMBER() OVER(ORDER BY REG_DATE DESC) AS TNUM
+			        </isEmpty>
+
+			        <isNotEmpty property="sidx">
+			       		ROW_NUMBER() OVER(ORDER BY $sidx$
+			       		<isEqual property="sord" compareValue="desc">DESC</isEqual>
+			       		<isNotEqual property="sord" compareValue="desc">ASC</isNotEqual>
+			       		) AS TNUM
+			        </isNotEmpty>,
+			        SURVEY_NO,
+			        SURVEY_TYPE,
+			        SURVEY_TITLE,
+			        SURVEY_START_DT,
+			        SURVEY_END_DT,
+			        LOGIN_TYPE,
+			        PL_YN,
+			        DUP_RES_POS_YN,
+			        POLL_CNT,
+			        SURVEY_STATUS,
+			        CHGER_ID,
+			        CHG_DATE,
+			        REG_DATE,
+			        CHECK_TERM,
+			        CREATOR,
+			        RPLY_TARGET,
+					TARGET_NAME   /* 정렬을 위한 임의 값 추가*/
+		    FROM
+		    (
+		        SELECT SURVEY_NO, SURVEY_TYPE, SURVEY_TITLE
+		              , TO_CHAR(SURVEY_START_DT, 'YYYY.MM.DD') AS SURVEY_START_DT
+		              , TO_CHAR(SURVEY_END_DT, 'YYYY.MM.DD') AS SURVEY_END_DT
+		              , LOGIN_TYPE
+		              , CASE WHEN (SELECT COUNT(1) FROM CM_SURVEY_QUESTION SQ WHERE SQ.SURVEY_NO = SC.SURVEY_NO) >= 1 THEN 'Y'
+		                     ELSE 'N'
+		                END AS PL_YN
+		              , DUP_RES_POS_YN
+		              , (SELECT COUNT(*) FROM CM_QUSTNR_RESPONSE SR WHERE SR.SURVEY_NO = SC.SURVEY_NO) AS POLL_CNT
+		              , SURVEY_STATUS
+		              , CHGER_ID
+		              , CHG_DATE
+		              , REG_DATE
+		              , CASE WHEN SYSDATE <![CDATA[<]]> SURVEY_START_DT THEN 'BEF'
+		                     WHEN SYSDATE > SURVEY_END_DT THEN 'AFT'
+		                     ELSE 'ING'
+		                END AS CHECK_TERM
+			          , CREATOR
+			          , RPLY_TARGET
+			          , RPLY_TARGET AS TARGET_NAME   /* 정렬을 위한 임의 값*/
+		        FROM CM_SURVEY_CENSUS SC
+		        WHERE 1 = 1
+		          AND SURVEY_TYPE = 'PA'
+		          <isNotEmpty property="searchState">
+		          	<isEqual property="searchState" compareValue="1">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE <![CDATA[<]]> SURVEY_START_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="2">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="3">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE > SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="4">
+		          		AND SURVEY_STATUS = 'ST'
+		          	</isEqual>
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTitle">
+					AND SURVEY_TITLE LIKE '%' || #searchTitle# || '%'
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTarget">
+					AND RPLY_TARGET = #searchTarget#
+				  </isNotEmpty>
+				  <isNotEmpty property="calStrtFinishPerMonth">
+					AND (#calStrtFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+					  OR  #calEndFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT)
+				  </isNotEmpty>
+				  )
+		    ) T
+
+	    ) T2
+	     WHERE 1=1
+        <isNotNull property="firstIndex">
+        	<isNotNull property="lastIndex">
+        		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+        	</isNotNull>
+        </isNotNull>
+        <isEmpty property="sidx">
+        	ORDER BY T2.RNUM DESC
+        </isEmpty>
+
+        <isNotEmpty property="sidx">
+        	<isEqual property="sidx" compareValue="target_name">
+        		ORDER BY $sidx$
+        	</isEqual>
+        	<isNotEqual property="sidx" compareValue="target_name">
+        		ORDER BY T2.$sidx$
+        	</isNotEqual>
+       		<isEqual property="sord" compareValue="desc">DESC</isEqual>
+       		<isNotEqual property="sord" compareValue="desc">ASC</isNotEqual>
+        </isNotEmpty>
+  </select>
+
+  <!-- 설문조사관리 리스트 카운트 -->
+	<select id="retrieveSurveyTitleListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT COUNT(*) AS TOTCNT
+           FROM
+		    (
+		        SELECT ''||TITLE_NO AS TITLE_NO,
+		               'MP' AS SURVEY_TYPE,
+		               TITLE,
+		               TO_CHAR(TO_DATE(START_DATE, 'YYYYMMDDHH24MISS'), 'YYYY.MM.DD') START_DATE,
+		               TO_CHAR(TO_DATE(END_DATE, 'YYYYMMDDHH24MISS'), 'YYYY.MM.DD') END_DATE,
+		               LOGIN_YN,
+		               PL_YN,
+		               DUPL_YN,
+		               POLL_CNT,
+		               STATUS,
+		               CHGER_ID,
+		               CHG_DATE,
+		               REG_DATE,
+		               CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD')  <![CDATA[<]]> SUBSTR(START_DATE, 1, 8)  THEN 'BEF' ELSE
+		               CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD') > SUBSTR(END_DATE, 1, 8) THEN 'AFT' ELSE  'ING' END END   CHECK_TERM
+		        FROM CM_MINI_SURVEY_TITLE
+		        WHERE 1 = 1
+		          AND #searchType# IN ('ALL', 'MP')
+		          <isNotEmpty property="searchState">
+		          	<isEqual property="searchState" compareValue="1">
+		          		AND TO_CHAR(SYSDATE, 'YYYYMMDD') <![CDATA[<]]> SUBSTR(start_date, 1, 8) AND status = '1'
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="2">
+		          		AND TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN SUBSTR(start_date, 1, 8) AND SUBSTR(end_date, 1, 8) AND status = '1'
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="3">
+		          		AND TO_CHAR(SYSDATE, 'YYYYMMDD') > SUBSTR(end_date, 1, 8) AND status = '1'
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="4">
+		          		AND status = '2'
+		          	</isEqual>
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTitle">
+					AND TITLE LIKE '%' || #searchTitle# || '%'
+				  </isNotEmpty>
+		        UNION ALL
+		        SELECT SURVEY_NO, SURVEY_TYPE, SURVEY_TITLE
+		              , TO_CHAR(SURVEY_START_DT, 'YYYY.MM.DD') AS START_DATE
+		              , TO_CHAR(SURVEY_END_DT, 'YYYY.MM.DD') AS END_DATE
+		              , DECODE(LOGIN_TYPE, 'MB', 'Y', 'N') AS LOGIN_YN
+		              , CASE WHEN (SELECT COUNT(1) FROM CM_SURVEY_QUESTION SQ WHERE SQ.SURVEY_NO = SC.SURVEY_NO) >= 1 THEN 'Y'
+		                     ELSE 'N'
+		                END AS PL_YN
+		              , DUP_RES_POS_YN
+		              , (SELECT COUNT(*) FROM CM_QUSTNR_RESPONSE SR WHERE SR.SURVEY_NO = SC.SURVEY_NO) AS POLL_CNT
+		              , DECODE(SURVEY_STATUS, 'ON', '1', '2') AS STATUS
+		              , CHGER_ID
+		              , CHG_DATE
+		              , REG_DATE
+		              , CASE WHEN SYSDATE <![CDATA[<]]> SURVEY_START_DT THEN 'BEF'
+		                     WHEN SYSDATE > SURVEY_END_DT THEN 'AFT'
+		                     ELSE 'ING'
+		                END AS CHECK_TERM
+		        FROM CM_SURVEY_CENSUS SC
+		        WHERE 1 = 1
+		          /*AND SURVEY_TYPE = 'SV'*/
+		          AND #searchType# IN ('ALL', 'MP')
+		          <isNotEqual property="searchType" compareValue="ALL">
+		         	<isNotEqual property="searchType" compareValue="MP">
+		          	AND SURVEY_TYPE = #searchType#
+		          	</isNotEqual>
+		          </isNotEqual>
+		          <isNotEmpty property="searchState">
+		          	<isEqual property="searchState" compareValue="1">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE <![CDATA[<]]> SURVEY_START_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="2">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="3">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE > SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="4">
+		          		AND SURVEY_STATUS = 'ST'
+		          	</isEqual>
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTitle">
+					AND SURVEY_TITLE LIKE '%' || #searchTitle# || '%'
+				  </isNotEmpty>
+				  <isNotEmpty property="calStrtFinishPerMonth">
+					AND (#calStrtFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+					  OR  #calEndFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT)
+				  </isNotEmpty>
+
+		    )
+	</select>
+
+	<!-- 설문조사관리 리스트 카운트 -->
+	<select id="retrieveSurveyPartnerListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT COUNT(*) AS TOTCNT
+           FROM
+		    (
+		        SELECT SURVEY_NO, SURVEY_TYPE, SURVEY_TITLE
+		              , TO_CHAR(SURVEY_START_DT, 'YYYY.MM.DD') AS SURVEY_START_DT
+		              , TO_CHAR(SURVEY_END_DT, 'YYYY.MM.DD') AS SURVEY_END_DT
+		              , LOGIN_TYPE
+		              , CASE WHEN (SELECT COUNT(1) FROM CM_SURVEY_QUESTION SQ WHERE SQ.SURVEY_NO = SC.SURVEY_NO) >= 1 THEN 'Y'
+		                     ELSE 'N'
+		                END AS PL_YN
+		              , DUP_RES_POS_YN
+		              , (SELECT COUNT(*) FROM CM_QUSTNR_RESPONSE SR WHERE SR.SURVEY_NO = SC.SURVEY_NO) AS POLL_CNT
+		              , SURVEY_STATUS
+		              , CHGER_ID
+		              , CHG_DATE
+		              , REG_DATE
+		              , CASE WHEN SYSDATE <![CDATA[<]]> SURVEY_START_DT THEN 'BEF'
+		                     WHEN SYSDATE > SURVEY_END_DT THEN 'AFT'
+		                     ELSE 'ING'
+		                END AS CHECK_TERM
+			          , CREATOR
+			          , RPLY_TARGET
+		        FROM CM_SURVEY_CENSUS SC
+		        WHERE 1 = 1
+		          AND SURVEY_TYPE = 'PA'
+		          <isNotEmpty property="searchState">
+		          	<isEqual property="searchState" compareValue="1">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE <![CDATA[<]]> SURVEY_START_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="2">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="3">
+		          		AND SURVEY_STATUS = 'ON' AND SYSDATE > SURVEY_END_DT
+		          	</isEqual>
+		          	<isEqual property="searchState" compareValue="4">
+		          		AND SURVEY_STATUS = 'ST'
+		          	</isEqual>
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTitle">
+					AND SURVEY_TITLE LIKE '%' || #searchTitle# || '%'
+				  </isNotEmpty>
+				  <isNotEmpty property="searchTarget">
+					AND RPLY_TARGET = #searchTarget#
+				  </isNotEmpty>
+				  <isNotEmpty property="calStrtFinishPerMonth">
+					AND (#calStrtFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT
+					  OR  #calEndFinishPerMonth# BETWEEN SURVEY_START_DT AND SURVEY_END_DT)
+				  </isNotEmpty>
+
+		    )
+	</select>
+
+    <!-- 설문 조회 -->
+    <select id="retrieveSurveyInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+  <![CDATA[
+        SELECT a.title_no,
+               a.title,
+               a.start_date,
+               a.end_date,
+               a.login_yn,
+               a.pl_yn,
+               a.dupl_yn,
+               a.poll_cnt,
+               a.status,
+               b.item_no,
+               b.item,
+               b.choice_cnt,
+               CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD') < SUBSTR(start_date, 1, 8)  THEN 'BEF' ELSE
+               CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD') > SUBSTR(end_date, 1, 8) THEN 'AFT' ELSE  'ING' END END    check_term
+        FROM CM_MINI_SURVEY_TITLE a, CM_MINI_SURVEY_ITEM b
+        WHERE a.title_no = b.title_no(+)
+        AND a.title_no = #titleNo#
+        ORDER BY b.item_no DESC
+  ]]>
+    </select>
+
+    <!-- 설문주제 저장 -->
+
+    <insert id="registerSurveyTitle" parameterClass="java.util.HashMap">
+    INSERT INTO CM_MINI_SURVEY_TITLE(
+                TITLE_NO               ,
+				TITLE                  ,
+				START_DATE             ,
+				END_DATE               ,
+				LOGIN_YN               ,
+				PL_YN                  ,
+				DUPL_YN                ,
+				POLL_CNT               ,
+				STATUS                 ,
+				CHGER_ID       ,
+				CHG_DATE       ,
+				REG_DATE ,
+				REGER_ID
+            ) VALUES (
+                SEQ_TITLE_NO.NEXTVAL,
+                #title#,
+                #startDate#,
+                #endDate#,
+                #loginYn#,
+                #plYn#,
+                #duplYn#,
+                0,
+                #status#,
+                #userId#,
+                SYSDATE,
+                SYSDATE,
+                #userId#
+            )
+   			<selectKey resultClass="int" keyProperty="new_seq" >
+				select SEQ_TITLE_NO.currval as new_seq from dual
+			</selectKey>
+	</insert>
+
+    <!-- 설문주제 수정 -->
+    <update id="modifySurveyTitle" parameterClass="java.util.HashMap">
+    UPDATE CM_MINI_SURVEY_TITLE SET TITLE = #title#,
+                            START_DATE = #startDate#,
+                            END_DATE = #endDate#,
+                            LOGIN_YN = #loginYn#,
+                            PL_YN = #plYn#,
+                            DUPL_YN = #duplYn#,
+                            STATUS = #status#,
+                            CHGER_ID = #userId#,
+                            CHG_DATE = SYSDATE
+    WHERE TITLE_NO = #titleNo#
+    </update>
+
+    <!-- 설문주제 상태 수정 -->
+    <update id="modifySurveyTitleState" parameterClass="java.util.HashMap">
+    UPDATE CM_MINI_SURVEY_TITLE
+                            STATUS = #status#,
+                            CHGER_ID = #userId#,
+                            CHG_DATE = SYSDATE
+    WHERE TITLE_NO = #titleNo#
+    </update>
+
+    <!-- 설문아이템 삭제 -->
+    <update id="deleteSurveyItem" parameterClass="java.util.HashMap">
+    DELETE FROM CM_MINI_SURVEY_ITEM WHERE TITLE_NO = #titleNo#
+    </update>
+
+    <!-- 설문아이템 저장 -->
+    <insert id="registerSurveyItem" parameterClass="java.util.HashMap">
+    INSERT INTO CM_MINI_SURVEY_ITEM VALUES(  SEQ_ITEM_NO.NEXTVAL,
+                                     #titleNo#,
+                                     #item#,
+                                     0,
+                                     SYSDATE,
+                                     SYSDATE,
+                                     #userId#,
+                                     #userId#)
+    </insert>
+
+    <!-- 설문주제 삭제 -->
+    <update id="deleteSurveyTitle" parameterClass="java.util.HashMap">
+    DELETE FROM CM_MINI_SURVEY_TITLE WHERE title_no = #titleNo#
+    </update>
+
+
+    <!-- 설문 조사 마스터 조회 20160419_이미지 파일 업로드로 인해 수정함_남복현-->
+
+    <select id="retrieveSurveyCensus" parameterClass="java.util.HashMap" resultClass="commMap">
+  	<![CDATA[
+        SELECT 1
+            , SURVEY_NO, SURVEY_TYPE
+            , SURVEY_TITLE, SURVEY_DESC, SURVEY_FORM_TYPE
+            , TO_CHAR(SURVEY_START_DT, 'YYYYMMDDHH24MISS') AS SURVEY_START_DT
+            , TO_CHAR(SURVEY_END_DT, 'YYYYMMDDHH24MISS') AS SURVEY_END_DT
+            , SURVEY_STATUS
+            , TITLE_IMAGE_PATH, MAIL_IMAGE_PATH
+            , LOGIN_TYPE, DUP_RES_POS_YN
+            , REG_DATE, CHG_DATE, REGER_ID, CHGER_ID
+            , CASE WHEN SYSDATE < SURVEY_START_DT THEN 'BEF'
+                   WHEN SYSDATE > SURVEY_END_DT THEN 'AFT'
+                   ELSE 'ING'
+              END AS CHECK_TERM
+            , (SELECT COUNT(1) FROM CM_QUSTNR_RESPONSE SR WHERE SR.SURVEY_NO = SC.SURVEY_NO) AS RES_CNT
+            , CREATOR
+            , RPLY_TARGET
+            , (SELECT NAME FROM SC_TARGET WHERE TARGETIDX = SC.RPLY_TARGET) TARGET_NAME
+            , ATTCHFILE_ID
+            , (SELECT ORIG_FILE_NM
+                 FROM CM_FILE_MGT F
+                WHERE F.ATTCHFILE_ID = SC.ATTCHFILE_ID
+                  AND FILE_SEQ = ( SELECT MAX(FILE_SEQ) AS FILE_SEQ
+                                     FROM CM_FILE_MGT F
+                                    WHERE F.ATTCHFILE_ID = SC.ATTCHFILE_ID)) AS FILE_NM
+            , (SELECT (FILE_STRE_PATH ||'/'|| STRE_FILE_NM) AS FILE_PATH
+                 FROM CM_FILE_MGT F
+                WHERE F.ATTCHFILE_ID = SC.ATTCHFILE_ID
+                  AND FILE_SEQ = ( SELECT MAX(FILE_SEQ) AS FILE_SEQ
+                                     FROM CM_FILE_MGT F
+                                    WHERE F.ATTCHFILE_ID = SC.ATTCHFILE_ID)) AS FILE_PATH
+        FROM CM_SURVEY_CENSUS SC
+        WHERE 1=1
+          AND SURVEY_NO = #surveyNo#
+ 	 ]]>
+    </select>
+
+    <!-- 설문 조사 문제 및 보기 조회 -->
+    <select id="retrieveSurveyQuestion" parameterClass="java.util.HashMap" resultClass="commMap">
+  	<![CDATA[
+		SELECT	T1.*
+				,DECODE(QUESTION_TYPE,'SL',TO_CHAR((T1.ANSWER_COUNT/ANSWER_TOT_COUNT*100),'FM990.99'),'0') AS ANSWER_PER
+		FROM (
+	        SELECT 1
+	             , (SELECT COUNT(ANSWAR_SELECT) FROM CM_SURVEY_RESPONSE_QUESTION WHERE QE.SURVEY_NO = SURVEY_NO(+) AND QE.SURVEY_QUESTION_NO = SURVEY_QUESTION_NO(+) AND QE.SURVEY_EXAM_NO = ANSWAR_SELECT(+) GROUP BY ANSWAR_SELECT ) AS ANSWER_COUNT
+	             , (SELECT COUNT(ANSWAR_SELECT) FROM CM_SURVEY_RESPONSE_QUESTION WHERE QE.SURVEY_NO = SURVEY_NO(+) AND QE.SURVEY_QUESTION_NO = SURVEY_QUESTION_NO(+) GROUP BY SURVEY_QUESTION_NO ) AS ANSWER_TOT_COUNT
+	             , Q.SURVEY_NO
+	             , Q.SURVEY_QUESTION_NO
+	             , QUESTION_TYPE
+	             , DONE_YN
+	             , MULTI_POS_YN
+	             , QUESTION_CONTENT
+	             , QUESTION_ADD_CONTENT
+	             , QUESTION_VR_NO
+	             , DIV_YN
+	             , QE.SURVEY_EXAM_NO
+	             , QE.EXAM_CONTENT
+	        FROM CM_SURVEY_QUESTION Q, CM_SURVEY_QUESTION_EXAM QE
+	        WHERE 1=1
+	          AND Q.SURVEY_NO = #surveyNo#
+	          AND Q.SURVEY_NO = QE.SURVEY_NO(+)
+	          AND Q.SURVEY_QUESTION_NO = QE.SURVEY_QUESTION_NO(+)
+	        ORDER BY SURVEY_NO, SURVEY_QUESTION_NO, QE.SURVEY_EXAM_NO
+	     )T1
+  	]]>
+    </select>
+
+
+    <!-- 설문 조사 번호 채번 -->
+    <select id="retrieveSurveyNo" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+  	<![CDATA[
+        SELECT 'SV_'||TO_CHAR(SYSDATE, 'YYYYMMDD')||'_'||TRIM(TO_CHAR(SEQ_SURVEY_NO.NEXTVAL,'0000')) AS SURVEY_NO FROM DUAL
+  	]]>
+    </select>
+
+
+    <!-- 설문 조사 마스터 등록 -->
+    <insert id="registerSurveyCensus" parameterClass="java.util.HashMap">
+  	<![CDATA[
+        INSERT INTO CM_SURVEY_CENSUS(
+        SURVEY_NO
+        , SURVEY_TYPE
+        , SURVEY_TITLE
+        , SURVEY_DESC
+        , SURVEY_FORM_TYPE
+        , SURVEY_START_DT
+        , SURVEY_END_DT
+        , SURVEY_STATUS
+        , TITLE_IMAGE_PATH
+        , MAIL_IMAGE_PATH
+        , LOGIN_TYPE
+        , DUP_RES_POS_YN
+        , REG_DATE
+        , CHG_DATE
+        , REGER_ID
+        , CHGER_ID
+        ]]>
+        <isNotEmpty property="creator">
+       	, CREATOR
+        </isNotEmpty>
+        <isNotEmpty property="rplyTarget">
+       	, RPLY_TARGET
+        </isNotEmpty>
+        <isNotEmpty property="attchfileId">
+       	, ATTCHFILE_ID
+        </isNotEmpty>
+        <![CDATA[
+        )
+        VALUES(
+        #surveyNo#
+        , #surveyType#
+        , #surveyTitle#
+        , #surveyDesc#
+        , #surveyFormType#
+        , TO_DATE(#surveyStartDt# || '000000', 'YYYYMMDDHH24MISS')
+        , TO_DATE(#surveyEndDt#   || '235959', 'YYYYMMDDHH24MISS')
+        , #surveyStatus#
+        , #titleImagePath#
+        , #mailImagePath#
+        , #loginType#
+        , #dupResPosYn#
+        , SYSDATE
+        , NULL
+        , #userId#
+        , NULL
+        ]]>
+        <isNotEmpty property="creator">
+       	, #creator#
+        </isNotEmpty>
+        <isNotEmpty property="rplyTarget">
+       	, #rplyTarget#
+        </isNotEmpty>
+        <isNotEmpty property="attchfileId">
+       	, #attchfileId#
+        </isNotEmpty>
+        <![CDATA[
+        )
+  	]]>
+    </insert>
+
+    <!-- 설문 조사 마스터 수정 -->
+    <update id="modifySurveyCensus" parameterClass="java.util.HashMap">
+  	<![CDATA[
+        UPDATE CM_SURVEY_CENSUS SET
+	        SURVEY_TYPE = #surveyType#
+	        , SURVEY_TITLE = #surveyTitle#
+	        , SURVEY_DESC = #surveyDesc#
+	        , SURVEY_FORM_TYPE = #surveyFormType#
+	        , SURVEY_START_DT = TO_DATE(#surveyStartDt#, 'YYYYMMDDHH24MISS')
+	        , SURVEY_END_DT = TO_DATE(#surveyEndDt#, 'YYYYMMDDHH24MISS')
+	        , SURVEY_STATUS = #surveyStatus#
+	        , TITLE_IMAGE_PATH = #titleImagePath#
+	        , MAIL_IMAGE_PATH = #mailImagePath#
+	        , LOGIN_TYPE = #loginType#
+	        , DUP_RES_POS_YN = #dupResPosYn#
+	        , CHG_DATE = SYSDATE
+	        , CHGER_ID = #userId#
+        ]]>
+        <isNotEmpty property="creator">
+       	, CREATOR = #creator#
+        </isNotEmpty>
+        <isNotEmpty property="rplyTarget">
+       	, RPLY_TARGET = #rplyTarget#
+        </isNotEmpty>
+        <isNotEmpty property="attchfileId">
+       	, ATTCHFILE_ID = #attchfileId#
+        </isNotEmpty>
+        <![CDATA[
+        WHERE SURVEY_NO = #surveyNo#
+  	]]>
+    </update>
+
+    <!-- 설문 조사 마스터 상태 수정 -->
+    <update id="modifySurveyCensusState" parameterClass="java.util.HashMap">
+  	<![CDATA[
+        UPDATE CM_SURVEY_CENSUS SET
+        SURVEY_STATUS = #surveyStatus#
+        , CHG_DATE = SYSDATE
+        , CHGER_ID = #userId#
+        WHERE SURVEY_NO = #surveyNo#
+  	]]>
+    </update>
+
+    <!-- 설문 조사 마스터 삭제 -->
+    <update id="deleteSurveyCensus" parameterClass="java.util.HashMap">
+  	<![CDATA[
+        DELETE CM_SURVEY_CENSUS WHERE SURVEY_NO = #surveyNo#
+  	]]>
+    </update>
+
+    <!-- 설문 조사 문제 삭제 -->
+    <update id="deleteSurveyQuestion" parameterClass="java.util.HashMap">
+  	<![CDATA[
+        DELETE CM_SURVEY_QUESTION WHERE SURVEY_NO = #surveyNo#
+  	]]>
+    </update>
+
+    <!-- 설문 조사 보기 삭제 -->
+    <update id="deleteSurveyQuestionExam" parameterClass="java.util.HashMap">
+ 	 <![CDATA[
+        DELETE CM_SURVEY_QUESTION_EXAM WHERE SURVEY_NO = #surveyNo#
+  	]]>
+    </update>
+
+    <!-- 설문 조사 문제 등록 -->
+    <insert id="registerSurveyQuestion" parameterClass="java.util.HashMap">
+  	<![CDATA[
+        INSERT INTO CM_SURVEY_QUESTION(
+          SURVEY_NO
+        , SURVEY_QUESTION_NO
+        , QUESTION_TYPE
+        , DONE_YN
+        , MULTI_POS_YN
+        , QUESTION_CONTENT
+        , QUESTION_ADD_CONTENT
+        , QUESTION_VR_NO
+        , DIV_YN
+        , REG_DATE
+        , CHG_DATE
+        , REGER_ID
+        , CHGER_ID
+        )
+        VALUES(
+          #surveyNo#
+        , #surveyQuestionNo#
+        , #questionType#
+        , #doneYn#
+        , #multiPosYn#
+        , #questionContent#
+        , #questionAddContent#
+        , (SELECT NVL(MAX(QUESTION_VR_NO), 0)+1 AS QUESTION_VR_NO FROM CM_SURVEY_QUESTION WHERE SURVEY_NO = #surveyNo#)
+        , #divYn#
+        , SYSDATE
+        , SYSDATE
+        , #userId#
+        , #userId#
+        )
+  	]]>
+    </insert>
+
+    <!-- 설문 조사 보기 등록 -->
+    <insert id="registerSurveyQuestionExam" parameterClass="java.util.HashMap">
+  	<![CDATA[
+        INSERT INTO CM_SURVEY_QUESTION_EXAM(
+          SURVEY_NO
+        , SURVEY_QUESTION_NO
+        , SURVEY_EXAM_NO
+        , EXAM_CONTENT
+        , ETC_DESC_POS_YN
+        , SURVEY_EXAM_VR_NO
+        , DIV_INCLUDE_START_NO
+        , DIV_INCLUDE_END_NO
+        , DIV_EXCLUDE_START_NO
+        , DIV_EXCLUDE_END_NO
+        , REG_DATE
+        , CHG_DATE
+        , REGER_ID
+        , CHGER_ID
+        )
+        VALUES(
+          #surveyNo#
+        , #surveyQuestionNo#
+        , #surveyExamNo#
+        , #examContent#
+        , #etcDescPosYn#
+        , (SELECT NVL(MAX(SURVEY_EXAM_VR_NO), 0)+1 AS QUESTION_VR_NO FROM CM_SURVEY_QUESTION_EXAM WHERE SURVEY_NO = #surveyNo# AND SURVEY_QUESTION_NO = #surveyQuestionNo#)
+        , #divIncludeStartNo#
+        , #divIncludeEndNo#
+        , #divExcludeStartNo#
+        , #divExcludeEndNo#
+        , SYSDATE
+        , SYSDATE
+        , #userId#
+        , #userId#
+        )
+  	]]>
+    </insert>
+
+
+    <!-- 설문 조사 결과 조회 -->
+    <select id="retrieveSurveyResult" parameterClass="java.util.HashMap" resultClass="commMap">
+ 	 <![CDATA[
+        SELECT 1
+             , SURVEY_NO, SURVEY_QUESTION_NO, QUESTION_TYPE, DONE_YN, MULTI_POS_YN
+             , QUESTION_CONTENT, QUESTION_ADD_CONTENT, QUESTION_VR_NO, DIV_YN
+             , SURVEY_EXAM_NO, EXAM_CONTENT
+             , MAX(SURVEY_EXAM_NO) OVER (PARTITION BY SURVEY_NO, SURVEY_QUESTION_NO) AS QUESTION_MAX_EXAM
+             , ANSWAR_SELECT_COUNT
+             , TO_NUMBER(TO_CHAR((ANSWAR_SELECT_COUNT / SUM(ANSWAR_SELECT_COUNT) OVER(PARTITION BY SURVEY_NO, SURVEY_QUESTION_NO)) * 100, '000')) AS ANSWAR_SELECT_PERCENT
+             , SUM(ANSWAR_SELECT_COUNT) OVER(PARTITION BY SURVEY_NO, SURVEY_QUESTION_NO) AS QUESTION_SUB_SUM
+        FROM
+        (
+            SELECT 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE, DONE_YN, MULTI_POS_YN
+               , QUESTION_CONTENT, QUESTION_ADD_CONTENT, QUESTION_VR_NO, DIV_YN
+               , QE.SURVEY_EXAM_NO, QE.EXAM_CONTENT
+               , SUM(DECODE(RQ.ANSWAR_SELECT, NULL, 0, 1)) AS ANSWAR_SELECT_COUNT
+            FROM CM_SURVEY_CENSUS C, CM_SURVEY_QUESTION Q, CM_SURVEY_QUESTION_EXAM QE, CM_SURVEY_RESPONSE_QUESTION RQ
+            WHERE 1=1
+              AND C.SURVEY_NO = #surveyNo#
+              AND C.SURVEY_NO = Q.SURVEY_NO
+              AND Q.SURVEY_NO = QE.SURVEY_NO(+)
+              AND Q.SURVEY_QUESTION_NO = QE.SURVEY_QUESTION_NO(+)
+              AND QE.SURVEY_NO = RQ.SURVEY_NO(+)
+              AND QE.SURVEY_QUESTION_NO = RQ.SURVEY_QUESTION_NO(+)
+              AND QE.SURVEY_EXAM_NO = RQ.ANSWAR_SELECT(+)
+              AND Q.QUESTION_TYPE = 'SL'
+            GROUP BY 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE, DONE_YN, MULTI_POS_YN
+               , QUESTION_CONTENT, QUESTION_ADD_CONTENT, QUESTION_VR_NO, DIV_YN
+               , QE.SURVEY_EXAM_NO, QE.EXAM_CONTENT
+            UNION ALL
+            SELECT 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE, DONE_YN, MULTI_POS_YN
+               , QUESTION_CONTENT, QUESTION_ADD_CONTENT, QUESTION_VR_NO, DIV_YN
+               , QE.SURVEY_EXAM_NO, QE.EXAM_CONTENT
+            /*   , SUM(DECODE(RQ.ANSWAR_SELECT, NULL, 0, 1)) AS ANSWAR_SELECT_COUNT */
+               , CASE WHEN ROW_NUMBER() OVER(PARTITION BY Q.SURVEY_QUESTION_NO ORDER BY QE.SURVEY_EXAM_NO) = 1 THEN SUM(DECODE(RQ.ANSWAR_SELECT, NULL, 0, 1))
+                      ELSE 0
+                 END AS ANSWAR_SELECT_COUNT
+            FROM CM_SURVEY_CENSUS C, CM_SURVEY_QUESTION Q, CM_SURVEY_QUESTION_EXAM QE, CM_SURVEY_RESPONSE_QUESTION RQ
+            WHERE 1=1
+              AND C.SURVEY_NO = #surveyNo#
+              AND C.SURVEY_NO = Q.SURVEY_NO
+              AND Q.SURVEY_NO = QE.SURVEY_NO(+)
+              AND Q.SURVEY_QUESTION_NO = QE.SURVEY_QUESTION_NO(+)
+              AND Q.SURVEY_NO = RQ.SURVEY_NO(+)
+              AND Q.SURVEY_QUESTION_NO = RQ.SURVEY_QUESTION_NO(+)
+              AND Q.QUESTION_TYPE = 'DS'
+            GROUP BY 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE, DONE_YN, MULTI_POS_YN
+               , QUESTION_CONTENT, QUESTION_ADD_CONTENT, QUESTION_VR_NO, DIV_YN
+               , QE.SURVEY_EXAM_NO, QE.EXAM_CONTENT
+        )
+        ORDER BY SURVEY_NO, SURVEY_QUESTION_NO, SURVEY_EXAM_NO
+  	]]>
+    </select>
+
+
+    <!-- 설문 조사 결과 엑셀 통계 -->
+     <select id="retrieveSurveyResultExcel" parameterClass="java.util.HashMap" resultClass="commMap">
+  	<![CDATA[
+        SELECT 1
+             , SURVEY_NO, SURVEY_QUESTION_NO, QUESTION_TYPE, QUESTION_CONTENT, MULTI_POS_YN, QUESTION_VR_NO
+             , SURVEY_EXAM_NO, EXAM_CONTENT
+             , ROW_NUMBER() OVER(PARTITION BY SURVEY_NO, SURVEY_QUESTION_NO, QUESTION_TYPE, QUESTION_CONTENT, MULTI_POS_YN, QUESTION_VR_NO ORDER BY SURVEY_EXAM_NO) AS EXAM_VR_NO
+        , SUM(DECODE(GBN, 'SEX', RES_CNT, 0)) AS RES_CNT, SUM(SEX_MALE) AS SEX_MALE, SUM(SEX_FEMALE) AS SEX_FEMALE, SUM(SEX_ETC) AS SEX_ETC
+        , SUM(AGE_00) AS AGE_00, SUM(AGE_10) AS AGE_10, SUM(AGE_20) AS AGE_20, SUM(AGE_30) AS AGE_30, SUM(AGE_40) AS AGE_40
+        , SUM(AGE_50) AS AGE_50, SUM(AGE_60) AS AGE_60, SUM(AGE_70) AS AGE_70, SUM(AGE_80) AS AGE_80, SUM(AGE_ETC) AS AGE_ETC
+        , SUM(REGION_01) AS REGION_01, SUM(REGION_02) AS REGION_02, SUM(REGION_03) AS REGION_03, SUM(REGION_04) AS REGION_04
+        , SUM(REGION_05) AS REGION_05, SUM(REGION_06) AS REGION_06, SUM(REGION_07) AS REGION_07, SUM(REGION_08) AS REGION_08
+        , SUM(REGION_09) AS REGION_09, SUM(REGION_10) AS REGION_10, SUM(REGION_11) AS REGION_11, SUM(REGION_12) AS REGION_12
+        , SUM(REGION_13) AS REGION_13, SUM(REGION_14) AS REGION_14, SUM(REGION_15) AS REGION_15, SUM(REGION_16) AS REGION_16, SUM(REGION_ETC) AS REGION_ETC
+        FROM
+        (
+          SELECT 1
+             , A.SURVEY_NO, A.SURVEY_QUESTION_NO, A.QUESTION_TYPE
+             , A.QUESTION_CONTENT, MULTI_POS_YN, QUESTION_VR_NO
+             , A.SURVEY_EXAM_NO, A.EXAM_CONTENT
+             , B.ANSWAR_SELECT
+             , B.GBN
+             , B.RES_CATE
+             , RES_CNT
+             , DECODE(B.GBN, 'SEX', DECODE(RES_CATE, 'M', RES_CNT, 0), 0) AS SEX_MALE
+             , DECODE(B.GBN, 'SEX', DECODE(RES_CATE, 'F', RES_CNT, 0), 0) AS SEX_FEMALE
+             , DECODE(B.GBN, 'SEX', DECODE(RES_CATE, 'S', RES_CNT, 'N', RES_CNT, 0), 0) AS SEX_ETC
+
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '00', RES_CNT, 0), 0) AS AGE_00
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '10', RES_CNT, 0), 0) AS AGE_10
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '20', RES_CNT, 0), 0) AS AGE_20
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '30', RES_CNT, 0), 0) AS AGE_30
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '40', RES_CNT, 0), 0) AS AGE_40
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '50', RES_CNT, 0), 0) AS AGE_50
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '60', RES_CNT, 0), 0) AS AGE_60
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '70', RES_CNT, 0), 0) AS AGE_70
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '80', RES_CNT, 0), 0) AS AGE_80
+             , DECODE(B.GBN, 'AGE', DECODE(RES_CATE, '99', RES_CNT, 0), 0) AS AGE_ETC
+
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '01', RES_CNT, 0), 0) AS REGION_01
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '02', RES_CNT, 0), 0) AS REGION_02
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '03', RES_CNT, 0), 0) AS REGION_03
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '04', RES_CNT, 0), 0) AS REGION_04
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '05', RES_CNT, 0), 0) AS REGION_05
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '06', RES_CNT, 0), 0) AS REGION_06
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '07', RES_CNT, 0), 0) AS REGION_07
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '08', RES_CNT, 0), 0) AS REGION_08
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '09', RES_CNT, 0), 0) AS REGION_09
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '10', RES_CNT, 0), 0) AS REGION_10
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '11', RES_CNT, 0), 0) AS REGION_11
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '12', RES_CNT, 0), 0) AS REGION_12
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '13', RES_CNT, 0), 0) AS REGION_13
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '14', RES_CNT, 0), 0) AS REGION_14
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '15', RES_CNT, 0), 0) AS REGION_15
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '16', RES_CNT, 0), 0) AS REGION_16
+             , DECODE(B.GBN, 'REGION', DECODE(RES_CATE, '99', RES_CNT, 0), 0) AS REGION_ETC
+        FROM
+        (
+            SELECT 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE
+               , QUESTION_CONTENT, Q.MULTI_POS_YN, Q.QUESTION_VR_NO
+               , QE.SURVEY_EXAM_NO, QE.EXAM_CONTENT
+            FROM CM_SURVEY_CENSUS C, CM_SURVEY_QUESTION Q, CM_SURVEY_QUESTION_EXAM QE
+            WHERE 1=1
+              AND C.SURVEY_NO = #surveyNo#
+              AND C.SURVEY_NO = Q.SURVEY_NO
+              AND Q.SURVEY_NO = QE.SURVEY_NO(+)
+              AND Q.SURVEY_QUESTION_NO = QE.SURVEY_QUESTION_NO(+)
+              AND Q.QUESTION_TYPE = 'SL'
+            GROUP BY 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE
+               , QUESTION_CONTENT, MULTI_POS_YN, Q.QUESTION_VR_NO
+               , QE.SURVEY_EXAM_NO, QE.EXAM_CONTENT
+            UNION ALL
+            SELECT 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE
+               , QUESTION_CONTENT, Q.MULTI_POS_YN, Q.QUESTION_VR_NO
+               , -1, QUESTION_CONTENT AS EXAM_CONTENT
+            FROM CM_SURVEY_CENSUS C, CM_SURVEY_QUESTION Q
+            WHERE 1=1
+              AND C.SURVEY_NO = #surveyNo#
+              AND C.SURVEY_NO = Q.SURVEY_NO
+              AND Q.QUESTION_TYPE = 'DS'
+            GROUP BY 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE
+               , QUESTION_CONTENT, MULTI_POS_YN, Q.QUESTION_VR_NO
+        )A,
+        (
+
+            SELECT 1
+               , 'SEX' AS GBN
+               , R.SURVEY_NO, SURVEY_QUESTION_NO
+               , RQ.ANSWAR_SELECT
+               , R.RES_SEX AS RES_CATE
+               , COUNT(*) AS RES_CNT
+            FROM CM_QUSTNR_RESPONSE R, CM_SURVEY_RESPONSE_QUESTION RQ
+            WHERE 1=1
+              AND R.SURVEY_NO = #surveyNo#
+              AND R.SURVEY_NO = RQ.SURVEY_NO
+              AND R.SURVEY_RES_NO = RQ.SURVEY_RES_NO
+              GROUP BY R.SURVEY_NO, SURVEY_QUESTION_NO, ANSWAR_SELECT, R.RES_SEX
+            UNION ALL
+            SELECT 1
+               , 'AGE' AS GBN
+               , R.SURVEY_NO, SURVEY_QUESTION_NO
+               , RQ.ANSWAR_SELECT
+               , R.RES_AGE AS RES_CATE
+               , COUNT(*) AS RES_CNT
+            FROM CM_QUSTNR_RESPONSE R, CM_SURVEY_RESPONSE_QUESTION RQ
+            WHERE 1=1
+              AND R.SURVEY_NO = #surveyNo#
+              AND R.SURVEY_NO = RQ.SURVEY_NO
+              AND R.SURVEY_RES_NO = RQ.SURVEY_RES_NO
+              GROUP BY R.SURVEY_NO, SURVEY_QUESTION_NO, ANSWAR_SELECT, R.RES_AGE
+            UNION ALL
+            SELECT 1
+               , 'REGION' AS GBN
+               , R.SURVEY_NO, SURVEY_QUESTION_NO
+               , RQ.ANSWAR_SELECT
+               , R.RES_REGION AS RES_CATE
+               , COUNT(*) AS RES_CNT
+            FROM CM_QUSTNR_RESPONSE R, CM_SURVEY_RESPONSE_QUESTION RQ
+            WHERE 1=1
+              AND R.SURVEY_NO = #surveyNo#
+              AND R.SURVEY_NO = RQ.SURVEY_NO
+              AND R.SURVEY_RES_NO = RQ.SURVEY_RES_NO
+              GROUP BY R.SURVEY_NO, SURVEY_QUESTION_NO, ANSWAR_SELECT, R.RES_REGION
+              ORDER BY SURVEY_QUESTION_NO
+        )B
+        WHERE A.SURVEY_NO = B.SURVEY_NO(+)
+          AND A.SURVEY_QUESTION_NO = B.SURVEY_QUESTION_NO(+)
+          AND A.SURVEY_EXAM_NO = B.ANSWAR_SELECT(+)
+        )
+        GROUP BY 1
+             , SURVEY_NO, SURVEY_QUESTION_NO, QUESTION_TYPE, QUESTION_CONTENT, MULTI_POS_YN, QUESTION_VR_NO
+             , SURVEY_EXAM_NO, EXAM_CONTENT
+        ORDER BY SURVEY_NO, SURVEY_QUESTION_NO, SURVEY_EXAM_NO
+ 	 ]]>
+    </select>
+
+
+    <!-- 설문 조사 결과 엑셀 상세조회 -->
+    <select id="retrieveSurveyResultExcelList" parameterClass="java.util.HashMap" resultClass="commMap">
+  	<![CDATA[
+    SELECT '1_TITLE' AS OD
+         , '' AS SURVEY_NO, '' AS SURVEY_RES_NO, '' AS ACCESS_NAME , '' AS  RES_SEX , '' AS  RES_AGE, '' AS RES_REGION
+         , MAX(DECODE(QUESTION_VR_NO, 1, QUESTION_CONTENT, '')) AS Q1
+         , MAX(DECODE(QUESTION_VR_NO, 2, QUESTION_CONTENT, '')) AS Q2
+         , MAX(DECODE(QUESTION_VR_NO, 3, QUESTION_CONTENT, '')) AS Q3
+         , MAX(DECODE(QUESTION_VR_NO, 4, QUESTION_CONTENT, '')) AS Q4
+         , MAX(DECODE(QUESTION_VR_NO, 5, QUESTION_CONTENT, '')) AS Q5
+         , MAX(DECODE(QUESTION_VR_NO, 6, QUESTION_CONTENT, '')) AS Q6
+         , MAX(DECODE(QUESTION_VR_NO, 7, QUESTION_CONTENT, '')) AS Q7
+         , MAX(DECODE(QUESTION_VR_NO, 8, QUESTION_CONTENT, '')) AS Q8
+         , MAX(DECODE(QUESTION_VR_NO, 9, QUESTION_CONTENT, '')) AS Q9
+         , MAX(DECODE(QUESTION_VR_NO, 10, QUESTION_CONTENT, '')) AS Q10
+         , MAX(DECODE(QUESTION_VR_NO, 11, QUESTION_CONTENT, '')) AS Q11
+         , MAX(DECODE(QUESTION_VR_NO, 12, QUESTION_CONTENT, '')) AS Q12
+         , MAX(DECODE(QUESTION_VR_NO, 13, QUESTION_CONTENT, '')) AS Q13
+         , MAX(DECODE(QUESTION_VR_NO, 14, QUESTION_CONTENT, '')) AS Q14
+         , MAX(DECODE(QUESTION_VR_NO, 15, QUESTION_CONTENT, '')) AS Q15
+         , MAX(DECODE(QUESTION_VR_NO, 16, QUESTION_CONTENT, '')) AS Q16
+         , MAX(DECODE(QUESTION_VR_NO, 17, QUESTION_CONTENT, '')) AS Q17
+         , MAX(DECODE(QUESTION_VR_NO, 18, QUESTION_CONTENT, '')) AS Q18
+         , MAX(DECODE(QUESTION_VR_NO, 19, QUESTION_CONTENT, '')) AS Q19
+         , MAX(DECODE(QUESTION_VR_NO, 20, QUESTION_CONTENT, '')) AS Q20
+    FROM
+    (
+            SELECT 1
+               , QUESTION_TYPE
+               , QUESTION_CONTENT, Q.MULTI_POS_YN, Q.QUESTION_VR_NO
+            FROM CM_SURVEY_QUESTION Q
+            WHERE 1=1
+              AND Q.SURVEY_NO = #surveyNo#
+    )
+    UNION ALL
+    SELECT '2_DATA' AS OD
+         , SURVEY_NO, SURVEY_RES_NO
+         , ACCESS_NAME
+         , DECODE(RES_SEX, 'M', '남성', 'F', '여성', '기타') AS RES_SEX
+         , DECODE(RES_AGE, '99', '기타', RES_AGE||'대') AS RES_AGE, RES_REGION
+         , MAX(DECODE(QUESTION_VR_NO, 1, V_ANSWAR, '')) AS Q1
+         , MAX(DECODE(QUESTION_VR_NO, 2, V_ANSWAR, '')) AS Q2
+         , MAX(DECODE(QUESTION_VR_NO, 3, V_ANSWAR, '')) AS Q3
+         , MAX(DECODE(QUESTION_VR_NO, 4, V_ANSWAR, '')) AS Q4
+         , MAX(DECODE(QUESTION_VR_NO, 5, V_ANSWAR, '')) AS Q5
+         , MAX(DECODE(QUESTION_VR_NO, 6, V_ANSWAR, '')) AS Q6
+         , MAX(DECODE(QUESTION_VR_NO, 7, V_ANSWAR, '')) AS Q7
+         , MAX(DECODE(QUESTION_VR_NO, 8, V_ANSWAR, '')) AS Q8
+         , MAX(DECODE(QUESTION_VR_NO, 9, V_ANSWAR, '')) AS Q9
+         , MAX(DECODE(QUESTION_VR_NO, 10, V_ANSWAR, '')) AS Q10
+         , MAX(DECODE(QUESTION_VR_NO, 11, V_ANSWAR, '')) AS Q11
+         , MAX(DECODE(QUESTION_VR_NO, 12, V_ANSWAR, '')) AS Q12
+         , MAX(DECODE(QUESTION_VR_NO, 13, V_ANSWAR, '')) AS Q13
+         , MAX(DECODE(QUESTION_VR_NO, 14, V_ANSWAR, '')) AS Q14
+         , MAX(DECODE(QUESTION_VR_NO, 15, V_ANSWAR, '')) AS Q15
+         , MAX(DECODE(QUESTION_VR_NO, 16, V_ANSWAR, '')) AS Q16
+         , MAX(DECODE(QUESTION_VR_NO, 17, V_ANSWAR, '')) AS Q17
+         , MAX(DECODE(QUESTION_VR_NO, 18, V_ANSWAR, '')) AS Q18
+         , MAX(DECODE(QUESTION_VR_NO, 19, V_ANSWAR, '')) AS Q19
+         , MAX(DECODE(QUESTION_VR_NO, 20, V_ANSWAR, '')) AS Q20
+    FROM
+    (
+      SELECT 1
+             , SURVEY_NO, SURVEY_RES_NO, SURVEY_QUESTION_NO
+             , QUESTION_TYPE, QUESTION_CONTENT, MULTI_POS_YN, QUESTION_VR_NO
+             , ACCESS_NAME, RES_SEX, RES_AGE, RES_REGION
+             , ANSWAR_DESC
+             , DECODE(QUESTION_TYPE, 'SL', SUBSTR(MAX(SYS_CONNECT_BY_PATH(SURVEY_EXAM_VR_NO, ',')), 2), ANSWAR_DESC) AS V_ANSWAR
+      FROM
+      (
+            SELECT 1
+               , Q.SURVEY_NO, Q.SURVEY_QUESTION_NO, QUESTION_TYPE
+               , QUESTION_CONTENT, Q.MULTI_POS_YN, Q.QUESTION_VR_NO
+               , QE.SURVEY_EXAM_NO, QE.SURVEY_EXAM_VR_NO, QE.EXAM_CONTENT
+               , R.SURVEY_RES_NO, R.ACCESS_NAME
+               , R.RES_SEX, R.RES_AGE, SCODE.NAME AS RES_REGION
+               , RQ.ANSWAR_SELECT, RQ.ANSWAR_DESC
+               , DECODE(Q.QUESTION_TYPE, 'SL', QE.EXAM_CONTENT, RQ.ANSWAR_DESC) AS V_ANSWAR
+               , ROW_NUMBER() OVER(PARTITION BY RQ.SURVEY_RES_NO, RQ.SURVEY_QUESTION_NO ORDER BY SURVEY_EXAM_VR_NO ) RN
+            FROM CM_SURVEY_CENSUS C, CM_SURVEY_QUESTION Q, CM_SURVEY_QUESTION_EXAM QE, CM_QUSTNR_RESPONSE R, CM_SURVEY_RESPONSE_QUESTION RQ, CM_COMN_CD SCODE
+            WHERE 1=1
+              AND C.SURVEY_NO = #surveyNo#
+              AND C.SURVEY_NO = Q.SURVEY_NO
+              AND Q.SURVEY_NO = QE.SURVEY_NO(+)
+              AND Q.SURVEY_QUESTION_NO = QE.SURVEY_QUESTION_NO(+)
+              AND C.SURVEY_NO = R.SURVEY_NO
+              AND R.SURVEY_NO = RQ.SURVEY_NO
+              AND R.SURVEY_RES_NO = RQ.SURVEY_RES_NO
+              AND Q.SURVEY_QUESTION_NO = RQ.SURVEY_QUESTION_NO
+              AND DECODE(Q.QUESTION_TYPE, 'SL', QE.SURVEY_EXAM_NO, -1) = RQ.ANSWAR_SELECT
+              AND R.RES_REGION = SCODE.CODE(+)
+              AND SCODE.CD_GRP_ID(+) = 'SYS_15'
+      )
+      GROUP BY 1
+             , SURVEY_NO, SURVEY_RES_NO, SURVEY_QUESTION_NO
+             , QUESTION_TYPE, QUESTION_CONTENT, MULTI_POS_YN, QUESTION_VR_NO
+             , ACCESS_NAME, RES_SEX, RES_AGE, RES_REGION
+             , ANSWAR_DESC
+      START WITH RN = 1
+      CONNECT BY PRIOR RN = RN - 1
+      AND PRIOR SURVEY_NO = SURVEY_NO
+      AND PRIOR SURVEY_RES_NO = SURVEY_RES_NO
+      AND PRIOR SURVEY_QUESTION_NO = SURVEY_QUESTION_NO
+    )
+    GROUP BY 1
+         , SURVEY_NO, SURVEY_RES_NO
+         , ACCESS_NAME
+         , RES_SEX
+         , RES_AGE
+         , RES_REGION
+    ORDER BY OD, SURVEY_NO, SURVEY_RES_NO
+  	]]>
+    </select>
+
+</sqlMap>

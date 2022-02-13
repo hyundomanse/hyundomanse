@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SendPostReprint">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 주문자, 받는분, 보내는분 -->
+	<sql id="sendPostReprintOrderMastInclude">
+		<!-- 주문자 -->
+		<isNotEmpty property="searchAccess">
+			<isEqual property="searchAccess" compareValue="accessName">
+		  AND OOM.ACCESS_NAME LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+			<isEqual property="searchAccess" compareValue="ordrrNm">
+		  AND OOM.ORDRR_NM LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+			<isEqual property="searchAccess" compareValue="ordrrHtelno">
+		  AND OOM.ORDRR_HTELNO LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+			<isEqual property="searchAccess" compareValue="ordrrTelno">
+		  AND OOM.ORDRR_TELNO LIKE '%'||#searchAccessText#||'%'
+			</isEqual>
+		</isNotEmpty>
+	</sql>
+	
+	<!-- Order Itm -->
+	<sql id="sendPostReprintOrderItmInclude">
+		<isNotEmpty property="codePavlnDiv">	<!-- 전시관 구분 -->
+			<isEmpty property="codePavlnDiv2">
+				<isEqual property="codePavlnDiv" compareValue="01">
+		  AND OOI.PAVLN_DIV_CD IN ('01','04','06','07','09','90','91','92','99')
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="02">
+		  AND OOI.PAVLN_DIV_CD = '02'
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="03">
+		  AND OOI.PAVLN_DIV_CD = '03'
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="05">
+		  AND OOI.PAVLN_DIV_CD = '05'
+				</isEqual>
+				<isEqual property="codePavlnDiv" compareValue="08">
+		  AND OOI.PAVLN_DIV_CD = '08'
+				</isEqual>
+			</isEmpty>
+			<isNotEmpty property="codePavlnDiv2">
+		  AND OOI.PAVLN_DIV_CD = #codePavlnDiv2#
+			</isNotEmpty>
+		</isNotEmpty>
+		
+		<!-- 공급업체ID -->
+		<isNotEmpty property="searchSuppCompId">
+		  AND OOI.SUPP_COMP_ID = #searchSuppCompId#
+		</isNotEmpty>
+		
+		<!-- 전통시장 및 쇼핑센터-->
+		<isNotEmpty property="searchPavlnId">
+		  AND OOI.PAVLN_ID IN <iterate property="pavlnIds" open="("  close=")" conjunction=","> #pavlnIds[]# </iterate>
+		</isNotEmpty>
+		
+		<!-- 공급국등기용국기호 -->
+		<isNotEmpty property="searchSuppoRgistPocd">
+		  AND OOI.SUPPO_RGIST_POCD IN <iterate property="suppoRgistPocds" open="("  close=")" conjunction=","> #suppoRgistPocds[]# </iterate>
+		</isNotEmpty>
+		
+		<!-- 조회조건 -->
+		<isNotEmpty property="searchType">
+			<isEqual property="searchType" compareValue="orderId">
+		  AND OOI.ORDER_ID LIKE #searchTypeText# || '%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="goodsCd">
+		  AND OOI.GOODS_CD LIKE #searchTypeText# || '%'
+			</isEqual>
+			<isEqual property="searchType" compareValue="regiNo">
+		  AND OOI.REGI_NO LIKE #searchTypeText# || '%'
+			</isEqual>
+		</isNotEmpty>
+		
+		<!-- 받는분 -->
+		<isNotEmpty property="searchRecpter">
+			<isEqual property="searchRecpter" compareValue="recpterNm">
+		  AND OOI.RECPTER_NM LIKE '%'||#searchRecpterText#||'%'
+			</isEqual>
+			<isEqual property="searchRecpter" compareValue="recpterHtelno">
+		  AND OOI.RECPTER_HTELNO LIKE '%'||#searchRecpterText#||'%'
+			</isEqual>
+			<isEqual property="searchRecpter" compareValue="recpterTelno">
+		  AND OOI.RECPTER_TELNO LIKE '%'||#searchRecpterText#||'%'
+			</isEqual>
+		</isNotEmpty>
+		
+		<!-- 보내는분 -->
+		<isNotEmpty property="searchSender">
+			<isEqual property="searchSender" compareValue="senderNm">
+		  AND OOI.SENDER_NM LIKE '%'||#searchSenderText#||'%'
+			</isEqual>
+			<isEqual property="searchSender" compareValue="senderHtelno">
+		  AND OOI.SENDER_HTELNO LIKE '%'||#searchSenderText#||'%'
+			</isEqual>
+			<isEqual property="searchSender" compareValue="senderTelno">
+		  AND OOI.SENDER_TELNO LIKE '%'||#searchSenderText#||'%'
+			</isEqual>
+		</isNotEmpty>
+	</sql>
+	
+	<!-- 조회기준일자 -->
+	<sql id="sendPostReprintOrderMastDateInclude">
+		<isEqual property="searchYmdType" compareValue="orderConfDate">
+			<isNotEmpty property="searchFromDt">
+		  AND OOI.SUPPO_RGIST_POCD IN (SELECT SUPPO_RGIST_POCD FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #searchSuppCompId#)
+		  AND OOI.ORDER_CONF_DATE BETWEEN TO_DATE(#searchFromDt#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959', 'YYYYMMDDHH24MISS')
+			</isNotEmpty>
+		</isEqual>
+		<isEqual property="searchYmdType" compareValue="setlApprDate">
+			<isNotEmpty property="searchFromDt">
+		  AND OOM.APPR_DATE BETWEEN TO_DATE(#searchFromDt#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959', 'YYYYMMDDHH24MISS')
+			</isNotEmpty>
+		</isEqual>
+		<isEqual property="searchYmdType" compareValue="sendDoneDate">
+			<isNotEmpty property="searchFromDt">
+		  AND OOM.ORDER_CONF_DATE BETWEEN TO_DATE(#searchFromDt#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDt#||'235959', 'YYYYMMDDHH24MISS')
+			</isNotEmpty>
+		</isEqual>
+	</sql>
+	
+	<!-- 배송관리_기표지 재출력 리스트 카운트-->
+	<select id="selectSendPostReprintListCount" parameterClass ="java.util.HashMap" resultClass="int">
+		/** SQL_ID : Bo.sendProc.selectSendPostReprintListCount **/
+		SELECT
+				SUM(COUNT)				AS CNT
+		  FROM 
+				(
+					SELECT 
+							  OOM.ORDER_ID
+							, OOI.GOODS_CD
+							, 1					AS COUNT
+					  FROM
+							  OD_ORDER_MAST OOM
+							, OD_ORDER_ITM OOI
+							, OD_ORDER_FEE OOF
+							, GD_GOODS_MAST GGM
+							, CO_SUPP_COMP_MAST CSCM
+					 WHERE    OOM.ORDER_ID      = OOI.ORDER_ID
+					<include refid="sendPostReprintOrderMastInclude" />
+					<include refid="sendPostReprintOrderMastDateInclude" />
+					   AND    OOI.ORDER_ITM_ID  = OOF.ORDER_ITM_ID(+)
+					   AND    OOI.GOODS_CD      = GGM.GOODS_CD
+					   AND    OOI.SUPP_COMP_ID  = CSCM.SUPP_COMP_ID
+					<include refid="sendPostReprintOrderItmInclude" />
+					/* AND    NVL(OOI.PRSNT_YN,        'N') = 'N'
+					   AND    NVL(OOI.EXTRA_GOODS_YN,  'N') = 'N' */
+					   AND    NVL(OOI.GOODS_CANCEL_YN, 'N') = 'N'
+					   AND    NVL(OOI.BALTSHT_PRT_YN,  'N') = #searchBaltshtPrtYn#
+					GROUP BY
+							  OOM.ORDER_ID, OOI.GOODS_CD
+				)
+	</select>
+	
+	<!-- 배송관리_기표지 재출력 리스트 -->
+	<select id="selectSendPostReprintList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : Bo.sendProc.selectSendPostReprintList **/
+		SELECT
+				*
+		  FROM
+				  (
+					SELECT
+							  ROWNUM AS RNUM
+							, T.*
+					  FROM
+							  (
+								SELECT
+										M.*
+								  FROM (
+										SELECT
+												  OOM.ORDER_ID																									/* 주문번호 */
+												, OOI.GOODS_CD																									/* 상품번호 */
+												, MAX(OOI.PAVLN_DIV_CD)																AS PAVLN_DIV_CD				/* 전시관 분류 코드 */
+												, MAX(F_GET_COMN_CD_NM('PAVLN_DIV_CD', OOI.PAVLN_DIV_CD))							AS PAVLN_DIV_NM				/* 전시관 분류 명 */
+												, MAX(OOI.GOODS_NM)																	AS GOODS_NM					/* 상품명 */
+												, MAX(F_GET_COMN_CD_NM('ORDER_STUS_CD', OOI.ORDER_STUS_CD))							AS ORDER_STUS_NM			/* 주문상태 */
+												, MAX(OOI.ORDER_STUS_CD)															AS ORDER_STUS_CD			/* 주문상태 상세 코드 */
+												, MAX(F_GET_COMN_CD_NM('ORDER_TYP_CD', OOI.ORDER_TYP_CD))							AS ORDER_TYP_CD				/* 주문유형	*/
+												, SUM(NVL(OOI.REQ_CNT,0))															AS REQ_CNT					/* 주문수량 */
+												, MAX(NVL(OOI.REPRSNT_REGI_NO, OOI.REGI_NO))										AS REGI_NO					/* 등기번호 */
+												, MAX(OOI.SMS_RECV_YN)																AS SMS_RECV_YN				/* SMS */
+												, MAX(F_GET_COMN_CD_NM('SEND_TYP_CD', OOI.SEND_TYP_CD))								AS SEND_TYP_NM				/* 배송타입코드 */
+												, ''																				AS SEND_PERIOD_NM			/* 발송주기 */
+												, MAX(TO_CHAR(OOM.ORDER_DATE, 'YYYY/MM/DD'))										AS ORDER_DATE				/* 주문일시 */
+												, MAX(TO_CHAR(OOI.SEND_STRT_DATE, 'YYYY/MM/DD'))									AS SEND_STRT_YMD			/* 발송 시작일 */
+												, MAX(TO_CHAR(OOI.SEND_DONE_DATE, 'YYYY/MM/DD'))									AS SEND_END_YMD				/* 발송 종료일 */
+												, MAX(TO_CHAR(NVL(OOI.WISH_SEND_DATE, OOM.APPR_DATE),'YYYY/MM/DD'))					AS WISH_SEND_DATE			/* 희망배송일시 */
+												, MAX(TO_CHAR(OOI.SEND_CONF_DATE, 'YYYY/MM/DD'))									AS FIX_RESRV_SEND_YMD		/* 실배송일시 */
+												, SUM(DECODE(OOI.GOODS_CANCEL_YN,'Y',0,1))											AS ORDER_CNT				/* 배송총건수 */
+												, MAX(OOI.OVSEA_SEND_GOODS_YN)														AS OVSEA_SEND_GOODS_YN		/* 해외배송여부 */
+												, MAX(OOI.AIR_SEND_YN)																AS AIR_SEND_YN				/* 항공 배송 여부 */
+												, MAX(F_GET_COMN_CD_NM('SEND_AREA_CD', OOI.SEND_AREA_CD))							AS SEND_AREA_NM				/* 배송지역코드 */
+												, MAX(OOI.SEND_MSG)																	AS SEND_MSG					/* 배송시 요청사항 */
+												, MAX(OOI.SUPP_COMP_ID)																AS SUPP_COMP_ID				/* 공급업체ID */
+												, MAX(OOI.SUPP_COMP_NM)																AS SUPP_COMP_NM				/* 공급업체명 */
+												, MAX(OOI.SUPP_PO_NM)																AS SUPP_PO_NM				/* 공급우체국명 */
+												, MAX(OOI.REPRSNT_REGI_NO)															AS REPRSNT_REGI_NO			/* 대표등기번호 */
+												, MAX(OOI.REGI_NO_CREATE_DIV_CD)													AS REGI_NO_CREATE_DIV_CD	/* 등기 번호 생성 구분 코드 */
+												, MAX(OOI.SUPPO_RGIST_POCD)															AS SUPPO_RGIST_POCD			/* 공급국등기호*/
+												, MAX(OOM.ACCESS_NAME)																AS ACCESS_NAME				/* 구매자 ID */
+												, MAX(OOM.ORDRR_NM) 																AS ORDRR_NM					/* 구매자 성명 */
+												, MAX(OOM.ORDRR_HTELNO)																AS ORDRR_HTELNO				/* 구매자 휴대폰 */
+												, MAX(OOM.SETL_MEAN_CD)																AS SETL_MEAN_CD				/* 결제수단코드 */
+												, MAX(OOI.SENDER_NM)																AS SENDER_NM				/* 발송인명 */
+												, MAX(OOI.SENDER_ZIPCD)																AS SENDER_ZIPCD             /* 발송주소 - 우편번호 */
+												, MAX(OOI.SENDER_ADDR1)																AS SENDER_ADDR1             /* 발송주소 - 상세1 */
+												, MAX(OOI.SENDER_ADDR2)																AS SENDER_ADDR2             /* 발송주소 - 상세2 */
+												, MAX(OOI.RECPTER_NM)																AS RECPTER_NM				/* 수취인명 */
+												, MAX(OOI.RECPTER_ZIPCD)															AS RECPTER_ZIPCD			/* 배송주소 - 우편번호 */
+												, MAX(OOI.RECPTER_ADDR1)															AS RECPTER_ADDR1			/* 배송주소 - 상세1 */
+												, MAX(OOI.RECPTER_ADDR2)															AS RECPTER_ADDR2			/* 배송주소 - 상세2 */
+												, MAX(NVL(OOI.BALTSHT_PRT_YN,'N'))													AS BALTSHT_PRT_YN			/* 기표지출력여부	*/
+												, SUM(NVL(OOI.EXTRA_GOODS_CNT, 0))													AS EXTRA_GOODS_CNT			/* 덤 상품 수량		*/
+												, MAX(F_GET_ORDER_ITM_GOODS_OPTN_NM(OOM.ORDER_ID, OOI.ORDER_ITM_ID, OOI.GOODS_CD))	AS OPT_NM					/* 옵션명 */
+												, SUM(DECODE(NVL(OOI.SEND_PRC, 0), 0, 0, OOI.SEND_PRC))								AS SEND_PRC					/* 배송비 */
+												, SUM(NVL(OOI.STD_SELL_PRC, 0))														AS STD_SELL_PRC				/* 상품 금액 */
+												, SUM(NVL(OOI.DC_APPLY_PRC, 0) + NVL(OOI.OPTN_GOODS_APPLY_PRC, 0) + NVL(OOI.SEND_PRC, 0))																				AS DC_APPLY_PRC		/* 주문금액 */
+												, SUM(NVL(OOM.TOT_CPN_DC_AMT, 0) + NVL(OOM.PNT_USE_AMT, 0) + NVL(OOM.PO_PNT_USE_AMT, 0) + NVL(OOM.PREMI_CUST_PNT_SETL_AMT, 0) + NVL(OOM.OKCASH_USE_AMT, 0))				AS TOT_DC_PRC		/* 할인금액 */
+												, SUM((SELECT NVL(DOS.SETL_APPR_AMT,0) FROM OD_ORDER_SETL DOS WHERE DOS.ORDER_ID = OOM.ORDER_ID AND DOS.SETL_SEQ = '1' AND DOS.USE_YN = 'Y' ))							AS SETL_APPR_AMT    /* 결제금액 */
+												, MAX(DECODE((SELECT OSM.SEND_MSG_CONT FROM OD_SEND_MSG OSM WHERE OSM.ORDER_ITM_ID = OOI.ORDER_ITM_ID AND OSM.USEYN='Y' AND OSM.SEND_MSG_TYP_CD='B'), NULL, 'N', 'Y'))		AS SEND_MSG_YN	/*약호여부			*/
+												, MAX(NVL2(CSCM.TELNO,F_DIV_TELNO(CSCM.TELNO,'F')||'-'||F_DIV_TELNO(CSCM.TELNO,'M')||'-' ||F_DIV_TELNO(CSCM.TELNO,'L'),''))									AS TELNO			/* 공급업체 전화번호 */
+												, MAX(NVL2(CSCM.FAXNO,F_DIV_TELNO(CSCM.FAXNO,'F')||'-'||F_DIV_TELNO(CSCM.FAXNO,'M')||'-' ||F_DIV_TELNO(CSCM.FAXNO,'L'),''))									AS FAXNO			/* 공급업체 팩스번호 */
+												, MAX(NVL2(OOI.SENDER_TELNO,F_DIV_TELNO(OOI.SENDER_TELNO,'F')||'-'||F_DIV_TELNO(OOI.SENDER_TELNO,'M')||'-' ||F_DIV_TELNO(OOI.SENDER_TELNO,'L'),''))			AS SENDER_TELNO		/* 보내는분 연락처1 */
+												, MAX(NVL2(OOI.SENDER_HTELNO,F_DIV_TELNO(OOI.SENDER_HTELNO,'F')||'-'||F_DIV_TELNO(OOI.SENDER_HTELNO,'M')||'-' ||F_DIV_TELNO(OOI.SENDER_HTELNO,'L'),''))		AS SENDER_HTELNO	/* 보내는분 연락처2 */
+												, MAX(NVL2(OOI.RECPTER_TELNO,F_DIV_TELNO(OOI.RECPTER_TELNO,'F')||'-'||F_DIV_TELNO(OOI.RECPTER_TELNO,'M')||'-' ||F_DIV_TELNO(OOI.RECPTER_TELNO,'L'),''))		AS RECPTER_TELNO	/* 받으시는분 연락처1 */
+												, MAX(NVL2(OOI.RECPTER_HTELNO,F_DIV_TELNO(OOI.RECPTER_HTELNO,'F')||'-'||F_DIV_TELNO(OOI.RECPTER_HTELNO,'M')||'-' ||F_DIV_TELNO(OOI.RECPTER_HTELNO,'L'),'')) AS RECPTER_HTELNO	/* 받으시는분 연락처2 */
+												, MAX((SELECT PAVLN_NM FROM CO_PAVLN_MAST WHERE PAVLN_ID = OOI.PAVLN_ID AND HRNK_PAVLN_ID = 'P05' ))	AS MARKET_NM
+												, MAX((SELECT PAVLN_NM FROM CO_PAVLN_MAST WHERE PAVLN_ID = OOI.PAVLN_ID AND HRNK_PAVLN_ID = 'P08' ))	AS SHOP_CENTER_NM
+												, COUNT(1)						AS BUNDLE_CNT
+										  FROM
+												  OD_ORDER_MAST OOM
+												, OD_ORDER_ITM OOI
+												, OD_ORDER_FEE OOF
+												, GD_GOODS_MAST GGM
+												, CO_SUPP_COMP_MAST CSCM
+										 WHERE    OOM.ORDER_ID      = OOI.ORDER_ID
+										<include refid="sendPostReprintOrderMastInclude" />
+										<include refid="sendPostReprintOrderMastDateInclude" />
+										   AND    OOI.ORDER_ITM_ID  = OOF.ORDER_ITM_ID(+)
+										   AND    OOI.GOODS_CD      = GGM.GOODS_CD
+										   AND    OOI.SUPP_COMP_ID  = CSCM.SUPP_COMP_ID
+										<include refid="sendPostReprintOrderItmInclude" />
+										/* AND    NVL(OOI.PRSNT_YN,        'N') = 'N'
+										   AND    NVL(OOI.EXTRA_GOODS_YN,  'N') = 'N' */
+										   AND    NVL(OOI.GOODS_CANCEL_YN, 'N') = 'N'
+										   AND    NVL(OOI.BALTSHT_PRT_YN,  'N') = #searchBaltshtPrtYn#
+										GROUP BY
+												  OOM.ORDER_ID, OOI.GOODS_CD
+								  ) M
+								ORDER BY
+								<isEqual property="searchYmdType" compareValue="orderDate">
+										  M.ORDER_DATE DESC,
+								</isEqual>
+								<isEqual property="searchYmdType" compareValue="sendDoneDate">
+										  M.ORDER_CONF_DATE DESC,
+								</isEqual>
+								<isEqual property="searchYmdType" compareValue="setlApprDate">
+										  M.APPR_DATE DESC,
+								</isEqual>
+										M.ORDER_ID
+							  ) T
+					 WHERE
+							  ROWNUM <![CDATA[<=]]> #lastIndex#
+				  )
+		 WHERE
+				  RNUM <![CDATA[ >= ]]> #firstIndex#
+	</select>
+	
+	<!-- 배송관리_기표지 재출력 금융영업일 -->
+	<select id="selectFinBizNextDate" resultClass="String">
+		/** SQL_ID : Bo.sendProc.selectFinBizNextDate **/
+		SELECT WORKCALEYMD AS NEXT_BIZ_DATE2
+		  FROM (
+			SELECT ROWNUM AS RN, WORKCALEYMD
+			  FROM (
+				SELECT WORKCALEYMD, HOLDAYYN 
+				  FROM PIEMT0160 A 
+				 WHERE A.RCOCD='00' 
+				   AND WORKCALEYMD BETWEEN TO_CHAR(SYSDATE, 'YYYYMMDD') AND TO_CHAR(SYSDATE+30, 'YYYYMMDD')
+				   AND A.HOLDAYYN='N'
+				 ORDER BY WORKCALEYMD
+				)
+			)
+		 WHERE RN = 3
+	</select>
+	
+</sqlMap>

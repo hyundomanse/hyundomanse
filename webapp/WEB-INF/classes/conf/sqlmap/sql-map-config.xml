@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMapConfig PUBLIC "-//iBATIS.com//DTD SQL Map Config 2.0//EN"
+    "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMapConfig>
+	<settings useStatementNamespaces="true" />
+
+	<!-- BO -->
+	<sqlMap resource="conf/sqlmap/common/Common_SQL.xml"/>						<!-- 공통컴포넌트 SQL -->
+	<sqlMap resource="conf/sqlmap/common/NewZip_SQL.xml"/>						<!-- 공통컴포넌트 SQL -->
+	<sqlMap resource="conf/sqlmap/common/FileMgr_SQL.xml"/>						<!-- 파일매니저 SQL -->
+	<sqlMap resource="conf/sqlmap/commcode/CommCodeMgr_SQL.xml"/>				<!-- 공통코드관리 SQL -->
+	<sqlMap resource="conf/sqlmap/main/MainMgr_SQL.xml"/>						<!-- 메인관리 SQL -->
+	<sqlMap resource="conf/sqlmap/login/LoginMgr_SQL.xml"/>						<!-- 로그인 -->
+	<sqlMap resource="conf/sqlmap/operate/OperateMgr_SQL.xml"/>					<!-- 운영관리 SQL -->
+	<sqlMap resource="conf/sqlmap/operate/PgMgr_SQL.xml"/>						<!-- PG관리 SQL -->
+	<sqlMap resource="conf/sqlmap/member/MemberMgr_SQL.xml"/>					<!-- 쇼핑회원관리 SQL -->
+	<sqlMap resource="conf/sqlmap/member/MemberLoginMgr_SQL.xml"/>				<!-- 공급업체 로그인 SQL 20160415_남복현-->
+	<sqlMap resource="conf/sqlmap/goods/GoodsMgr_SQL.xml"/>						<!-- 상품관리 SQL -->
+	<sqlMap resource="conf/sqlmap/goods/GoodsApprMgr_SQL.xml"/>					<!-- 상품승인관리 SQL -->
+	<sqlMap resource="conf/sqlmap/goods/FlowerMgr_SQL.xml"/>					<!-- 꽃배달승인 SQL -->
+	<sqlMap resource="conf/sqlmap/goods/CostBillMgr_SQL.xml"/>					<!-- 꽃배달승인 SQL -->
+	<sqlMap resource="conf/sqlmap/goods/GoodsMdTalk_SQL.xml"/>					<!-- MD TALK 관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/CommunityMgr_SQL.xml"/>				<!-- 커뮤니티 관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/MainBannerMgr_SQL.xml"/>				<!-- 메인배너 관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/DisplayMgr_SQL.xml"/>					<!-- 전시관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/EventMgr_SQL.xml"/>					<!-- 이벤트 관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/EventPlnMgr_SQL.xml"/>				<!-- 행사기획전관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/EventStMgr_SQL.xml"/>					<!-- 상설이벤트상시전시관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/SuperiorCustPointMgr_SQL.xml"/>		<!-- 전시관리 - 우수고객 포인트 관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/RetrieveMgr_SQL.xml"/>				<!-- 전시관리 - 기부쇼핑몰 SQL -->
+	<sqlMap resource="conf/sqlmap/display/ColabBuyMgr_SQL.xml"/>				<!-- 전시관리 - 공동구매 SQL -->
+	<sqlMap resource="conf/sqlmap/display/EventExprnMgr_SQL.xml"/>				<!-- 체험행사관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/EventCorpMgr_SQL.xml"/>				<!-- 법인관리 SQL -->
+	<sqlMap resource="conf/sqlmap/display/SellShopMgr_SQL.xml"/>				<!-- 판매자샵 SQL -->
+	<sqlMap resource="conf/sqlmap/display/BannerMgr_SQL.xml"/>					<!-- 전시관리 - 배너관리 SQL -->
+	<sqlMap resource="conf/sqlmap/order/OrderMgr_SQL.xml"/>						<!-- 주문관리 SQL -->
+	<sqlMap resource="conf/sqlmap/order/OrderWalletMgr_SQL.xml"/>				<!-- 주문관리 SQL -->
+	<sqlMap resource="conf/sqlmap/order/TaxMgr_SQL.xml"/>						<!-- 세금계산서/현금영수증 SQL -->
+	<sqlMap resource="conf/sqlmap/order/CouponMgr_SQL.xml"/>					<!-- 쿠폰관리 SQL -->
+	<sqlMap resource="conf/sqlmap/send/SendMgr_SQL.xml"/>						<!-- 배송관리 SQL -->
+	<sqlMap resource="conf/sqlmap/send/SendProc_SQL.xml"/>						<!-- 배송관리 > 배송처리 SQL -->
+	<sqlMap resource="conf/sqlmap/send/SendPostReprint_SQL.xml"/>				<!-- 배송관리 > 기표지 재출력 SQL -->
+	<sqlMap resource="conf/sqlmap/adj/AdjMgr_SQL.xml"/>							<!-- 정산관리 SQL -->
+	<sqlMap resource="conf/sqlmap/adj/AdjRunMgr_SQL.xml"/>						<!-- 정산실행 SQL -->
+	<sqlMap resource="conf/sqlmap/adj/AdjIntegMgr_SQL.xml"/>					<!-- 통합정산조회 SQL -->
+	<sqlMap resource="conf/sqlmap/adj/AdjPoMgr_SQL.xml"/>						<!-- 우체국 정산업무 SQL -->
+	<sqlMap resource="conf/sqlmap/monitoring/MonitoringMgr_SQL.xml"/>			<!-- 모니터링관리 SQL -->
+	<sqlMap resource="conf/sqlmap/voc/VocMgr_SQL.xml"/>							<!-- VOC관리 SQL -->
+	<sqlMap resource="conf/sqlmap/survey/SurveyMgr_SQL.xml"/>					<!-- 설문조사관리 SQL -->
+	<sqlMap resource="conf/sqlmap/ecpt/EcptMgr_SQL.xml"/>						<!-- 예외설정관리 SQL -->
+	<sqlMap resource="conf/sqlmap/regular/RegularCustomerMgr_SQL.xml"/>			<!-- 단골고객 관리 -->
+	<sqlMap resource="conf/sqlmap/spcsal/SpcsalMgr_SQL.xml"/>					<!-- 특판관리 -->
+	<sqlMap resource="conf/sqlmap/counterSell/CounterSellMgr_SQL.xml"/>			<!-- 창구판매관리-->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboMgr_SQL.xml"/>						<!-- 공급업체관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboGoodsApprove_SQL.xml"/>			<!-- 공급업체상품승인관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboContractMgr_SQL.xml"/>				<!-- 공급업체계약관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboSupplyMgr_SQL.xml"/>				<!-- 공급업체게시판관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboNoticMgr_SQL.xml"/>				<!-- 공지사항관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboLwrnkCompMgr_SQL.xml"/>			<!-- 하위업체관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboQc_SQL.xml"/>						<!-- 공급업체 상품 품질검사 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboQltyCertMgr_SQL.xml"/>				<!-- 품질인증관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboClaimMgr_SQL.xml"/>				<!-- 공급업체 민원관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboCatalogMgr_SQL.xml"/>				<!-- 공급업체 카탈로그관리 SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboDeliver_SQL.xml"/>					<!-- 배송 정보 현황 201603014_Nbh SQL -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboDdmGroupMgr_SQL.xml"/>				<!-- 동대문기관관리 SQL -->
+	<sqlMap resource="conf/sqlmap/sijang/SijangMgr_SQL.xml"/>					<!-- 전통시장 관리 SQL -->
+	<sqlMap resource="conf/sqlmap/oversea/OverseaMgr_SQL.xml"/>					<!-- 해외관리 -->
+	<sqlMap resource="conf/sqlmap/cooperation/CooperationMgr_SQL.xml"/>			<!-- 제휴관리 -->
+	<sqlMap resource="conf/sqlmap/srmbo/SrmboRecommendMgr_SQL.xml"/>			<!-- 모집인관리 -->
+
+	<!-- 모바일MO -->
+	<sqlMap resource="conf/sqlmap/mobile/Mo_OperateMgr_SQL.xml"/>				<!-- 모바일 GNB,검색어,홍보,인트로,로딩이미지관리 SQL -->
+	<sqlMap resource="conf/sqlmap/mobile/Mo_EventPriceMgr_SQL.xml"/>			<!-- 모바일 특가 SQL -->
+	<sqlMap resource="conf/sqlmap/mobile/Mo_MainDispMgr_SQL.xml"/>				<!-- 모바일 메인배너,이벤트배너,게시상품관리 SQL -->
+	<sqlMap resource="conf/sqlmap/mobile/Mo_EventMgr_SQL.xml"/>					<!-- 모바일 이벤트 관리 SQL -->
+	<sqlMap resource="conf/sqlmap/mobile/Mo_EventStMgr_SQL.xml"/>				<!-- 모바일 상설이벤트상시전시관리 SQL -->
+
+	<!-- 통계 및 현황 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatSum1010Q_SQL.xml"/>						<!-- 통계 집계표 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostOpratnStat_SQL.xml"/>						<!-- ePOST운용현황 -->
+	<sqlMap resource="conf/sqlmap/stat/SalesStat_SQL.xml"/>								<!-- 매출통계 -->
+	<sqlMap resource="conf/sqlmap/stat/RcocdAcctoRceptSuplyAcmslt_SQL.xml"/>			<!-- 청별 접수,공급실적 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatReport028k01_SQL.xml"/>					<!-- 실매출레포트 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatMng187k01_SQL.xml"/>					<!-- 우체국쇼핑판매현황 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatReport188k01_SQL.xml"/>					<!-- 상품/업체별재고현황 -->
+	<sqlMap resource="conf/sqlmap/stat/ReceiptResultStat_SQL.xml"/>						<!-- 접수실적통계조회 -->
+	<sqlMap resource="conf/sqlmap/stat/SupplyResultStat_SQL.xml"/>						<!-- 공급실적통계조회 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatONOFF135k01_SQL.xml"/>					<!-- 구간별매출,소포실적 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatONOFF152k01_SQL.xml"/>					<!-- 가격대별 구매고객 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatReport109k01_SQL.xml"/>					<!-- 할인쿠폰 실적현황 보고서 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatRefundReport_SQL.xml"/>					<!-- 환불리포트(송금일자기준) -->
+	<sqlMap resource="conf/sqlmap/stat/EpostStatCompProd_SQL.xml"/>						<!-- 우체국마트 공급업체/상품 현황조회 -->
+	<sqlMap resource="conf/sqlmap/stat/PostageReport_SQL.xml"/>							<!-- 우체국쇼핑 소포요금 현황 -->
+	<sqlMap resource="conf/sqlmap/stat/AcctoSetlMeanSttusReport_SQL.xml"/>				<!-- 결제수단별 현황 보고서 -->
+	<sqlMap resource="conf/sqlmap/stat/AcctoStrAcctoPdCmpr_SQL.xml"/>					<!-- 매장별/기간별 비교 조회 -->
+	<sqlMap resource="conf/sqlmap/stat/DailyTreatmentStat_SQL.xml"/>				  	<!-- 일일보고 -->
+	<sqlMap resource="conf/sqlmap/stat/RetrieveOnLineMemberStat_SQL.xml"/>				<!-- 회원별 매출 총합 -->
+	<sqlMap resource="conf/sqlmap/stat/MonthlyOverseaDelivStat_SQL.xml"/>				<!-- 월별 해외배송 공급국 현황 -->
+	<sqlMap resource="conf/sqlmap/stat/PostSuppCompGoodsStat_SQL.xml"/>					<!-- 우체국마트 공급업체/상품 현황 -->
+	<sqlMap resource="conf/sqlmap/stat/FlowerOrderLatePostStat_SQL.xml"/>				<!-- 꽃배달 주문확인 지연 우체국 현황 -->
+
+	<sqlMap resource="conf/sqlmap/stat/OpratnSttusReportTotal_SQL.xml"/>				<!-- 운용현황보고(TOTAL) -->
+	<sqlMap resource="conf/sqlmap/stat/GoodsEntrpsStat_SQL.xml"/>						<!-- 상품/업체별통계조회 -->
+	<sqlMap resource="conf/sqlmap/stat/GoodsEntrpsStatB2B_SQL.xml"/>					<!-- B2B상품/업체별통계조회 -->
+	<sqlMap resource="conf/sqlmap/stat/SuplyVolmSmrize_SQL.xml"/>						<!-- 공급물량총괄조회 -->
+	<sqlMap resource="conf/sqlmap/stat/OkcashSetleSttusReport_SQL.xml"/>				<!-- OK캐쉬백 결제 현황 보고서 -->
+	<sqlMap resource="conf/sqlmap/stat/RcocdAcctoRceptTreatmentSttus_SQL.xml"/>			<!-- 청별 취급 실적현황 -->
+
+	<sqlMap resource="conf/sqlmap/stat/GoodsStockStat_SQL.xml"/>						<!-- 상품/업체별 재고현황 / 재고이력조회-->
+	<sqlMap resource="conf/sqlmap/stat/PavlnTermStat_SQL.xml"/>							<!-- 매장별/기간별 비교조회 -->
+	<sqlMap resource="conf/sqlmap/stat/PointStatReport_SQL.xml"/>						<!-- 포인트 통계 조회 -->
+	<sqlMap resource="conf/sqlmap/stat/NationStat_SQL.xml"/>							<!-- 국가별품목,상품,EMS/SP조회 -->
+	<sqlMap resource="conf/sqlmap/stat/PostStatMgr_SQL.xml"/>							<!-- 창구판매 판매현황 및 재고현황 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostShopSpFeeStat_SQL.xml"/>					<!-- 우체국쇼핑 소포요금 현황 -->
+	<sqlMap resource="conf/sqlmap/stat/ComplainStat_SQL.xml"/>							<!-- 쇼핑 민원통계 조회 -->
+	<sqlMap resource="conf/sqlmap/stat/PriceSalesStat_SQL.xml"/>                        <!-- 가격대별 매출조회 -->
+	<sqlMap resource="conf/sqlmap/stat/GoodsStopStat_SQL.xml"/>						    <!-- 공급중지현황조회 -->
+	<sqlMap resource="conf/sqlmap/stat/GoodsChgkStat_SQL.xml"/>						    <!-- 사유별중지현황조회 -->
+	<sqlMap resource="conf/sqlmap/stat/DisplayStat_SQL.xml"/>							<!-- 기획전별, 이벤트별 통계현황 -->
+
+	<sqlMap resource="conf/sqlmap/stat/EpostMemStat_SQL.xml"/>							<!-- 우체국별 회원 리포트 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostTop100_SQL.xml"/>							<!--  ePOST Top 100 -->
+	<sqlMap resource="conf/sqlmap/stat/EpostDayOrderStat_SQL.xml"/>							<!--  일별 주문고객수 -->
+
+	<sqlMap resource="conf/sqlmap/stat/EpostStatSuppExpectReport_SQL.xml"/>				<!-- 공급예정물량 -->
+	<sqlMap resource="conf/sqlmap/stat/RetrieveCompareRealStat_SQL.xml"/>				<!-- 구간별 매출,소포실적  -->
+	
+	
+
+	<!-- 우편 포인트 기부 연계 SQL -->
+	<sqlMap resource="conf/sqlmap/order/RmMgr_SQL.xml"/>
+
+</sqlMapConfig>

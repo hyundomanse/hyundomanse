@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchOnlinePayment_Cancel">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectOdOrderMastList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT	PURCHASE_ID,MAX(ACCESS_NAME) ACCESS_NAME, 
+			        NVL(SUM(RM_AMOUNT),0)     RM_AMOUNT, 
+			        NVL(SUM(SP_AMOUNT),0)     SP_AMOUNT, 
+			        NVL(SUM(coupon_amount),0) CP_AMOUNT, 
+			        NVL(SUM(FLOOR(NVL(POST_AMOUNT,0)/10)),0) POST_AMOUNT 
+			FROM TXORDER                      
+			WHERE  ORDER_DATE > TO_CHAR(SYSDATE-30,'YYYYMMDD') || '000000'  and ORDER_DATE < TO_CHAR(SYSDATE-7,'YYYYMMDD') || '000000' 
+			  AND  STATUS       = '1'         
+			  AND  CANCEL_STATE = 'N'         
+			  AND  PAYMETHOD    = 'O'         
+			GROUP BY PURCHASE_ID  
+		]]>	 
+	</select>
+		
+	<select id="selectOdRmPaymentList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 seq 
+			FROM RM_PAYMENT                 
+			WHERE PURCHASE_ID = ?    
+		]]>	 
+	</select>
+		
+	<select id="selectMbSpPaymentList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 seq 
+			FROM SP_PAYMENT                 
+			WHERE PURCHASE_ID = ?  
+		]]>	 
+	</select>
+		
+	<select id="selectMbSpPaymentList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT A.AMOUNT, A.SP_CLASS, 0									
+			FROM SP_PAYMENT A,												
+			(																
+				SELECT MAX(VALID_DATE) VALID_DATE, SP_CLASS, ACCESS_NAME	
+				FROM SP_GRANT												
+				WHERE STATUS = '1'											
+				GROUP BY SP_CLASS, ACCESS_NAME								
+			) B																
+			WHERE A.SP_CLASS = B.SP_CLASS									
+			AND A.ACCESS_NAME = B.ACCESS_NAME								
+			AND A.PURCHASE_ID = ?											
+			AND A.GUBUN = 'U'												
+			AND B.VALID_DATE >= TO_CHAR(SYSDATE, 'YYYYMMDD')		
+		]]>	 
+	</select>
+		
+	<select id="selectOdOrderMastList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT goods_code  
+			FROM txorder 
+			WHERE purchase_id = ? 
+			AND status <> '6' 
+		]]>	 
+	</select>
+		
+	<select id="selectMbMemAccmlamtList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(CUR_POINT, 0) CUR_POINT       
+			FROM RM_MASTER                           
+			WHERE ACCESS_NAME = ?
+		]]>	 
+	</select>
+		
+	<select id="selectMbSpMasterList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(CUR_POINT, 0) CUR_POINT       
+			FROM SP_MASTER                           
+			WHERE ACCESS_NAME = ? AND SP_CLASS = ?   
+		]]>	 
+	</select>
+		
+	<select id="selectMbMemAccmlamtHistorList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 seq          
+			FROM RM_HISTORY                          
+			WHERE ACCESS_NAME = ?     
+		]]>	 
+	</select>
+		
+	<select id="selectMbSpHistoryList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 seq          
+			FROM SP_HISTORY                          
+			WHERE ACCESS_NAME = ?  
+		]]>	 
+	</select>
+		
+	<!-- master, item... 둘다 update필요 -->
+	<update id="updateOdOrderMast" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER                        
+			SET CANCEL_STATE  = 'Y',              
+			    STATUS = '6',             
+			    STATUS_DETAIL = '17',             
+			    CANCEL_DATE   = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 
+			    RM_PEF_AMOUNT = NVL(RM_AMOUNT,0), 
+				  RM_AMOUNT     = 0,                
+			    SP_PEF_AMOUNT = NVL(SP_AMOUNT,0), 
+				  SP_AMOUNT     = 0                 
+			WHERE PURCHASE_ID = ?     
+		]]>
+	</update>
+		
+	<!-- master는 update setl은 insert 로직으로 수정 필요 -->	
+	<update id="updateOdOrderSetl" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE PMT_INSTRUCTION               
+			SET STATE = '2999'                   
+			WHERE PURCHASE_ID = ?     
+		]]>
+	</update>
+		
+	<update id="updateGdGoodsMast" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER 
+			SET TOT_STOCK =  NVL( TOT_STOCK,0)  + 1 
+			WHERE goods_code = ? 
+			AND LANGUAGE = 'KO' 
+			AND SHOP_ID IN ('0','1','2') 
+			AND DISP_YN = 'Y' 
+			AND STOCK_MGMT_YN = 'Y' 
+		]]>
+	</update>
+		
+	<update id="updateGdMgtGoodsMast" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER 
+			SET TOT_STOCK =  NVL(TOT_STOCK,0) + 1 
+			WHERE goods_code = ? 
+			AND LANGUAGE = 'KO' 
+			AND SHOP_ID IN ('0','1','2') 
+			AND DISP_YN = 'Y' 
+			AND STOCK_MGMT_YN = 'Y' 
+		]]>
+	</update>
+		
+	<update id="insertOdRmPayment" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO RM_PAYMENT (PURCHASE_ID, SEQ, ACCESS_NAME, USE_TYPE,  
+								AMOUNT,STATUS,PAY_DATE)                         
+			VALUES(?, ? ,?, '1',? * -1 ,'1',TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') ) 
+		]]>
+	</update>
+		
+	<update id="insertMbSpPayment" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO SP_PAYMENT (PURCHASE_ID, SEQ, ACCESS_NAME, USE_TYPE,    
+								AMOUNT,STATUS,PAY_DATE, SP_CLASS, GUBUN)                         
+			VALUES(?, ? ,?, '1',? * -1 ,'1',TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), ?, ? ) 
+		]]>
+	</update>
+		
+	<update id="111" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ORDER_HISTORY( TXORDER_ID,          
+									      ORDER_HISTORY_ID,    
+									      STATE,               
+									      MODIFY_DATE,         
+									      MESSAGE,             
+									      MODIFIER)            
+				SELECT A.TXORDER_ID,                           
+					   NVL( MAX( B.ORDER_HISTORY_ID), 0 ) + 1, 
+					   '17',                                   
+					   TO_CHAR( SYSDATE, 'YYYYMMDDHH24MI'),    
+					   '미입금자동삭제',                       
+					   'batch'                                 
+				FROM  TXORDER A, ORDER_HISTORY B               
+				WHERE A.PURCHASE_ID = ?                        
+				  AND A.TXORDER_ID = B.TXORDER_ID(+)           
+				GROUP BY A.TXORDER_ID      
+		]]>
+	</update>
+		
+	<update id="insertMbMemAccmlamtHistor" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO RM_HISTORY (ACCESS_NAME, SEQ, RM_TYPE, PURCHASE_ID, 
+			            ACCU_POINT,                                         
+			            CUR_POINT,                                          
+						 CASE_CONT,                                          
+						 REG_DATE,                                           
+						 VALID_DATE,                                         
+						 STATUS,                                             
+						 TYPE_CD,                                            
+						 CREATE_DATE)                                        
+			VALUES(?,?, 'A', ?,                                             
+			    FLOOR(?/10),                                                
+			    ? + FLOOR(?/10) ,                                           
+				 '주문 취소 환불',                                           
+				 TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),                       
+				 TO_CHAR(SYSDATE + 730, 'YYYYMMDD'),                         
+				 '1',                                                        
+				 'A3',                                                       
+				 TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') )  
+		]]>
+	</update>
+		
+	<update id="insertMbSpHistory" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO SP_HISTORY (ACCESS_NAME, SEQ, SP_TYPE, PURCHASE_ID, 
+			            ACCU_POINT,                                         
+			            CUR_POINT,                                          
+						 CASE_CONT,                                          
+						 REG_DATE,                                           
+						 STATUS,                                             
+						 TYPE_CD,                                            
+						 LASTCHANGE,                                         
+						 SP_CLASS)                                           
+			VALUES(?,?, 'A', ?,                                             
+			    ?,                                                          
+			    ? + ? ,                                                     
+				 '주문 취소 환불',                                           
+				 TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),                       
+				 '1',                                                        
+				 'A3',                                                       
+				 SYSDATE,							                         
+				 ? )	
+		]]>
+	</update>
+		
+	<update id="updateMbMemAccmlamt1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_MASTER             
+			SET CUR_POINT      = NVL(CUR_POINT,0)     + FLOOR(?/10),         
+			    TOT_USE_POINT  = NVL(TOT_USE_POINT,0) - FLOOR(?/10),         
+			    LASTCHANGE     = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')        
+			WHERE ACCESS_NAME  = ?
+		]]>
+	</update>
+		
+	<update id="updateMbSpMaster" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE SP_MASTER             
+			SET CUR_POINT      = NVL(CUR_POINT,0)     + ?,         
+			    TOT_USE_POINT  = NVL(TOT_USE_POINT,0) - ?,         
+			    LASTCHANGE     = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')        
+			WHERE ACCESS_NAME  = ?        
+			AND SP_CLASS     = ? 
+		]]>
+	</update>
+		
+	<update id="updateEvCpnUserIssueInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CP_USERINFO    
+			SET USE_DATE = NULL   
+			WHERE ACCESS_NAME = ? 
+			  AND CP_NO in ( Select distinct cp_no  
+			                 From cp_payment Where purchase_id = ?    
+			               )   
+			  AND USE_DATE IS NOT NULL  
+		]]>
+	</update>
+		
+	<update id="updateMbMemAccmlamt2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_MASTER             
+			SET POST_POINT   = NVL(POST_POINT,0) +  NVL(?,0),                           
+			    LASTCHANGE     = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')        
+			WHERE ACCESS_NAME  = ?  
+		]]>
+	</update>
+		
+</sqlMap>

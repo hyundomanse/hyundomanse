@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatCompProd">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 우체국마트 공급업체상품 현황조회 리스트 조회 -->
+	<select id="selectCompProdList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT 1 as value FROM DUAL
+	</select>
+		
+</sqlMap>

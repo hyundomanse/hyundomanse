@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchRMSendMail">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectOdOrderMastList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT /*+ LEADING(A) INDEX (C PK_CONTACT) */ A.ACCESS_NAME, C.EMAIL as billto_email, C.NAME as billto_name,         
+		      max(substr(order_date,1,4) || '년' || substr(order_date,5,2) || '월' || substr(order_date,7,2) || '일 ' || substr(order_date,9,2) || '시' || substr(order_date,11,2) || '분') as odate_time, 
+		      to_char(sysdate , 'YYYY') ||'년'|| to_char(sysdate , 'MM')||'월' || to_char(sysdate , 'DD')||'일' todayStr     
+		FROM  TXORDER A, RM_HISTORY B, CONTACT C                                                                             
+		WHERE a.COMPLETE_DATE BETWEEN TO_CHAR(SYSDATE - 10,'YYYYMMDD') AND TO_CHAR(SYSDATE - 1,'YYYYMMDD')||'999999'          
+		   AND A.INVOICE_COMPLETE_DATE BETWEEN TO_CHAR(SYSDATE - 1,'YYYYMMDD') AND TO_CHAR(SYSDATE - 1,'YYYYMMDD')||'999999'   
+		  AND A.STATUS = '5'                      
+		  AND A.CANCEL_STATE = 'N'                
+		  AND A.TXORDER_ID = B.TXORDER_ID          
+		  AND B.STATUS = '0'                      
+		  AND A.BILL_TO_ID  = C.CONTACT_ID          
+		  AND TRIM(C.EMAIL) IS NOT NULL           
+		  AND TRIM(A.ACCESS_NAME) IS NOT NULL     
+		GROUP BY A.ACCESS_NAME, C.EMAIL, C.NAME   
+				
+		]]>	 
+	</select>
+	
+	<update id="updateMbMemAccmlamtHistor" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_HISTORY                       
+			SET PRE_ACCU_POINT = 0 , STATUS = '3'   
+			WHERE REG_DATE >= TO_CHAR(ADD_MONTHS(SYSDATE -2 , -3),'YYYYMMDD')            
+			  AND REG_DATE <= TO_CHAR(ADD_MONTHS(SYSDATE, -3),'YYYYMMDD') || '999999'   
+			  AND STATUS = '0'                       
+				AND CANCEL_YN = 'N'                   
+		]]>
+	</update>	
+	
+	<select id="selectOdOrderMastList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT a.purchase_id as purchase_id,          
+		  	       a.txorder_id as txorder_id,              
+		  	       a.access_name as access_name,          
+		  	       b.postal_code as shipto_zipcode,        
+		  	       b.name as shipto_name,                  
+		  	       b.address_1 as shipto_addr1,           
+		  	       b.address_2 as shipto_addr2,            
+		  	       b.telephone as shipto_telno,           
+		  	       b.mobile as shipto_mobile,             
+		  	       d.email as billto_email,               
+		  	       c.goods_name,                           
+		  	       c.quantity,                            
+		  	       TO_CHAR(c.price,'99,999,990') sprice,  
+		  	       TO_CHAR(a.rm_point*10,'99,999,990') srm_point, 
+		  	       a.shop_id,                               
+		  	       c.goods_idn,                              
+		  	       f.category_code                         
+		  	FROM   txorder a, contact b, txorder_item c, contact d, rm_history e, goods_master f 
+		  	WHERE a.COMPLETE_DATE BETWEEN TO_CHAR(SYSDATE - 10,'YYYYMMDD')              
+		                                AND TO_CHAR(SYSDATE - 1,'YYYYMMDD')||'999999'   
+		        AND A.INVOICE_COMPLETE_DATE BETWEEN TO_CHAR(SYSDATE - 1,'YYYYMMDD')        
+		                                AND TO_CHAR(SYSDATE - 1,'YYYYMMDD')||'999999'    
+		  	  AND A.STATUS = '5'                          
+		  	  AND a.cancel_state = 'N'                      
+		  	  AND a.txorder_id  = c.txorder_id             
+		  	  AND c.goods_idn > 0                         
+		  	  AND c.price > 0                                 
+		  	  AND a.txorder_id  = e.txorder_id             
+		  	  AND e.status = '0'                            
+		  	  AND e.cancel_yn = 'N'                       
+		  	  AND f.goods_idn   = c.goods_idn              
+		  	  AND a.SHIP_TO_ID  = b.CONTACT_ID            
+		  	  AND a.BILL_TO_ID  = d.CONTACT_ID            
+		  	  AND a.access_name = ?             
+		]]>	 
+	</select>
+	
+	<select id="selectMeminfoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT DECODE(member_type, 2, ?,                                                     
+				   DECODE(FOREIGN_YN, 'Y', substr( ?,1,1) || '**' || substr(?,4,length(?)),      
+				                           substr( ?,1,1) || '*' || substr(?,3,length(?)))) billto_name 
+		FROM MEMINFO              
+		where access_name = ? 
+		]]>	 
+	</select>
+</sqlMap>

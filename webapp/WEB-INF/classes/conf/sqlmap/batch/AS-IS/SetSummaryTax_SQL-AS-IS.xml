@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetSummaryTax">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectHistoryAdjustList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  MAX(confirm_day) confirm_day,                       
+			        MAX(from_day) from_day,                             
+			        MAX(to_day) to_day,                                 
+			        MAX(trans_day) trans_day,                           
+			        MAX(supp_adj_yn) supp_adj_yn,                           
+			        MAX(before_ymd) before_ymd                          
+			FROM (                                                      
+			SELECT  REPLACE( CONFIRM_DAY, '/', '' ) confirm_day,        
+			        REPLACE( START_DAY, '/', '' ) from_day,             
+			        REPLACE( END_DAY, '/', '' )   to_day,               
+			        REPLACE( TRANS_DAY, '/', '' )   trans_day,          
+			        SUPP_ADJ_YN supp_adj_yn,                              
+			        TO_CHAR(SYSDATE-1,'YYYYMMDD') before_ymd              
+			FROM    history_adjust                                          
+			WHERE   CONFIRM_DAY IN (SELECT MAX(CONFIRM_DAY)             
+			                        FROM HISTORY_ADJUST                 
+			                        WHERE REPLACE(CONFIRM_DAY,'/','') BETWEEN TO_CHAR(ADD_MONTHS(TO_DATE(REPLACE(CONFIRM_DAY,'/',''),'YYYYMMDD'),-2),'YYYYMMDD') AND TO_CHAR(SYSDATE,'YYYYMMDD'))  AND  NVL(SUPP_ADJ_YN,'B') != 'C' 
+			AND     NVL(SUPP_ADJ_YN,'B') != 'C'                          
+			UNION ALL                                                   
+			SELECT  '' confirm_day,                                     
+			        '' from_day,                                        
+			        '' to_day,                                          
+			        '' trans_day,                                       
+			        '' supp_adj_yn,                                       
+			        TO_CHAR(SYSDATE-1,'YYYYMMDD') before_ymd              
+			FROM DUAL   )                                                 
+                                                                                    
+		]]>	 
+	</select>
+	
+	
+	<update id="deleteXInvoiceTax" parameterClass="java.util.HashMap">
+		<![CDATA[
+			delete  from X_INVOICE_TAX   
+			where days >= SUBSTR(?, 1, 8 ) 
+			and  days <= SUBSTR(?, 1, 8 ) 
+			and  jobid in ('01','02','03','04') 
+		]]>
+	</update>	
+	
+	<update id="insertXInvoiceTax" parameterClass="java.util.HashMap">
+		<![CDATA[
+			insert into X_INVOICE_TAX (                                                                                                                                                                                          
+										 DAYS,                                                                                                                                                                                                     
+										 JOBID,                                                                                                                                                                                                    
+										 BIZ_CODE,                                                                                                                                                                                                 
+										 GOODS_CODE,                                                                                                                                                                                               
+										 ITEM,                                                                                                                                                                                                     
+										 ITEMSTD,                                                                                                                                                                                                  
+										 ITEMPRC,                                                                                                                                                                                                  
+										 ITEMQTY,                                                                                                                                                                                                  
+										 CARD_ITEMPRC,                                                                                                                                                                                             
+										 CARD_ITEMQTY,                                                                                                                                                                                             
+										 ITEMDATE,                                                                                                                                                                                                 
+										 ITEMAMT,                                                                                                                                                                                                  
+										 ITEMSTAX,                                                                                                                                                                                                 
+										 ITEMMEMO,                                                                                                                                                                                                 
+										 SUPTOTAMT,                                                                                                                                                                                                
+										 SURTAX,                                                                                                                                                                                                   
+										 SUMAMT,                                                                                                                                                                                                   
+										 REG_DATE                                                                                                                                                                                                  
+										 )                                                                                                                                                                                                         
+									SELECT                                                                                                                                                                                                         
+										AA.DAY,                                                                                                                                                                                                    
+										AA.RECEV_PO,                                                                                                                                                                                               
+										substr(AA.BIZ_CODE,1,20),                                                                                                                                                                                  
+										substr(AA.GOODS_CODE,1,20),                                                                                                                                                                                
+										substrb(AA.GOODS_NAME,1,60),                                                                                                                                                                               
+										'',                                                                                                                                                                                                        
+										AA.GOODS_AMOUNT,                                                                                                                                                                                           
+										AA.GOODS_CNT,                                                                                                                                                                                              
+										AA.CARD_AMOUNT,                                                                                                                                                                                            
+										AA.CARD_CNT,                                                                                                                                                                                               
+										AA.DAY,                                                                                                                                                                                                    
+										round(AA.CSF_FEE/1.1),                                                                                                                                                                                     
+										AA.CSF_FEE - round(AA.CSF_FEE/1.1),                                                                                                                                                                        
+										'',                                                                                                                                                                                                        
+										round(AA.CSF_FEE/1.1),                                                                                                                                                                                     
+										AA.CSF_FEE - round(AA.CSF_FEE/1.1),                                                                                                                                                                        
+										AA.CSF_FEE,                                                                                                                                                                                                
+										to_char(sysdate,'yyyymmddhh24miss')                                                                                                                                                                        
+									FROM (                                                                                                                                                                                                         
+										SELECT  substr(A.COMPLETE_DATE,1,8) DAY,                                                                                                                                                                   
+											decode(A.RECEV_PO_REGIPOCD,'89903',DECODE(A.MOBILE_GBN,'M','04',DECODE(A.SHOP_ID,'8','03','02')),'85414',DECODE(A.SHOP_ID,'8','03','02'),'01') RECEV_PO,                                                                             
+											A.BIZ_CODE,                                                                                                                                                                                            
+											A.GOODS_CODE,                                                                                                                                                                                          
+											( SELECT max( B.goods_name || ' '|| B.unit)                                                                                                                                                            
+											  FROM goods_master B                                                                                                                                                                                  
+										 	  where B.goods_code = A.goods_code                                                                                                                                                                    
+										 	  and B.disp_yn = 'Y'                                                                                                                                                                                  
+											  and B.language  = 'KO'                                                                                                                                                                               
+											) goods_name,                                                                                                                                                                                          
+											SUM(1) GOODS_CNT,                                                                                                                                                                                      
+											SUM(A.AMOUNT) GOODS_AMOUNT,                                                                                                                                                                            
+											SUM(DECODE(A.PAYMETHOD,'2',1,'3',1,'C',1,'D',1,0)) CARD_CNT,                                                                                                                                           
+											SUM(DECODE(A.PAYMETHOD,'2',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT - NVL(A.AMOUNT_OKCASH,0),                                                             
+																	    '3',A.AMOUNT - A.CASH_BILL_AMT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT -NVL(A.AMOUNT_OKCASH,0), 0)) +                                
+																		SUM(DECODE(A.PAYMETHOD,'C',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT -NVL(A.AMOUNT_OKCASH,0) , 0))   +                         
+																		SUM(DECODE(A.PAYMETHOD,'D',A.AMOUNT - (A.SP_AMOUNT + NVL(A.SP_PEF_AMOUNT, 0)) - (A.RM_AMOUNT + NVL(A.RM_PEF_AMOUNT, 0)) - A.COUPON_AMOUNT -NVL(A.AMOUNT_OKCASH,0), 0))   CARD_AMOUNT ,             
+											SUM(DECODE(A.RET_YN,'Y',0,DECODE(A.DEFICIT_YN,'Y',0,A.CSF_FEE))) CSF_FEE                                                                                                                               
+										FROM TXORDER A                                                                                                                                                                                             
+										WHERE A.COMPLETE_DATE >= ? AND A.COMPLETE_DATE <= ? || '999999'                                                                                                                                            
+											AND A.SHOP_ID IN ('1', '2', '4', '5', '6', '7', '8')                                                                                                                                                         
+											AND A.CANCEL_STATE = 'N'                                                                                                                                                                               
+											AND DECODE(A.SHOP_ID ,'8',decode(A.RECEV_PO_REGIPOCD,'89903',1,decode(A.RECEV_PO_REGIPOCD,'85414',1,DECODE(A.RET_YN,'Y',0,DECODE(A.DEFICIT_YN,'Y',0,1)))) ,DECODE(A.RET_YN,'Y',0,DECODE(A.DEFICIT_YN,'Y',0,A.CSF_FEE))) > 0 
+										GROUP BY substr(A.COMPLETE_DATE,1,8),                                                                                                                                                                      
+													decode(A.RECEV_PO_REGIPOCD,'89903',DECODE(A.MOBILE_GBN,'M','04',DECODE(A.SHOP_ID,'8','03','02')),'85414',DECODE(A.SHOP_ID,'8','03','02'),'01'),                                                                              
+													A.BIZ_CODE,                                                                                                                                                                                    
+													A.GOODS_CODE                                                                                                                                                                                   
+										) AA                                                                                                                                                                                                          
+		]]>
+	</update>	
+	
+
+		
+</sqlMap>

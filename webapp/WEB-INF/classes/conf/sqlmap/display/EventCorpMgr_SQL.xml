@@ -1,0 +1,1402 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.EventCorpMgr">
+	<typeAlias alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	<typeAlias alias="egovMap" type="egovframework.rte.psl.dataaccess.util.EgovMap"/>
+
+	<!-- 특판법인 목록 조회 -->
+	<select id="selectEventCorpList" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 목록 조회] SQL ID : selectEventCorpList */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY CHG_DATE DESC) RNUM
+                      , SPCSAL_CORP_ID
+                      , SPCSAL_CORP_NM
+                      , SPCSALID
+                      , CHRGERNM
+                      , CHRGER_TELNO
+                      , CHRGEREMAIL
+                      , SPC_CORP_STUS_CD
+                      , F_GET_COMN_CD_NM('SPC_CORP_STUS_CD', SPC_CORP_STUS_CD) AS SPC_CORP_STUS_CD_STR
+                      , TO_CHAR(REG_DATE,'YYYY-MM-DD') AS REG_DATE
+                   FROM MB_SPCSAL_CORP
+                  WHERE 1 = 1
+		<isNotEmpty property="spcsalCorpNm">
+                    AND SPCSAL_CORP_NM LIKE '%'||#spcsalCorpNm#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="chrgernm">
+                    AND CHRGERNM LIKE '%'||#chrgernm#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="spcCorpStusCd">
+			<isNotEqual property="spcCorpStusCd" compareValue="all">
+                    AND SPC_CORP_STUS_CD = #spcCorpStusCd#
+			</isNotEqual>
+		</isNotEmpty>
+                  ORDER BY CHG_DATE DESC
+               ) TM
+        <isEmpty property="noPageType">
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+        </isEmpty>
+	</select>
+
+	<!-- 특판법인 상세 조회 -->
+	<select id="selectEventCorpInfo" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 상세 조회] SQL ID : selectEventCorpInfo */
+               T1.SPCSAL_CORP_ID
+             , T1.SPCSAL_CORP_NM
+             , T1.ESTBURL
+             , T1.CHRGERNM
+             , T1.CHRGER_TELNO
+             , T1.CHRGER_MOBILE
+             , T1.CHRGEREMAIL
+             , T1.CHRGER_FAXNO
+             , T1.SPCSALID
+             , T1.PASSWD
+             , T1.ADJCHRGERNM
+             , T1.ADJCHRGER_EMAIL
+             , T1.ADJCHRGER_TELNO
+             , T1.ADJCHRGER_FAXNO
+             , T1.ADJCHRGER_MOBILE
+             , T1.ZIPCD
+             , T1.ADDR
+             , T1.DTAILADDR
+             , '(' || T1.ZIPCD || ') ' || T1.ADDR || ' ' || T1.DTAILADDR AS ZIP_ADDR
+             , T1.SP_BIZ_NO
+             , T1.SP_CEO
+             , T1.BUCO_NM
+             , T1.STK_NM
+             , T1.SPC_CORP_STUS_CD
+             , F_GET_COMN_CD_NM('SPC_CORP_STUS_CD', T1.SPC_CORP_STUS_CD) AS SPC_CORP_STUS_CD_STR
+             , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+             , TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD') AS CHG_DATE
+             , T2.ATTCHFILE_ID
+             , T2.FILE_SEQ
+             , T2.FILE_STRE_PATH
+             , T2.STRE_FILE_NM
+             , T2.ORIG_FILE_NM
+          FROM MB_SPCSAL_CORP T1
+             , CM_FILE_MGT T2
+         WHERE T1.ATTCHFILE_ID = T2.ATTCHFILE_ID(+)
+           AND SPCSAL_CORP_ID = #spcsalCorpId#
+	</select>
+
+	<!-- 특판법인 이벤트 목록 조회 -->
+	<select id="selectEventCorpEventList" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 목록 조회] SQL ID : selectEventCorpEventList */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY T1.DSPY_STRT_DATE DESC) RNUM
+                      , T1.DSPY_SEQ
+                      , T1.DSPY_STUS_CD
+                      , TO_CHAR(T1.DSPY_STRT_DATE,'YYYY-MM-DD') AS DSPY_STRT_DATE
+                      , TO_CHAR(T1.DSPY_END_DATE,'YYYY-MM-DD') AS DSPY_END_DATE
+                      , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+                      , T2.EVENT_ID
+                      , T2.EVENT_NM
+                      , T4.SPCSAL_CORP_ID
+                      , T4.SPCSAL_CORP_NM
+                      , F_GET_COMN_CD_NM('DSPY_STUS_CD', T1.DSPY_STUS_CD) AS DSPY_STUS_CD_STR
+                      , ( SELECT COUNT(X.COORIG_NO) FROM EV_CORPSPCSAL_MEM X
+                           WHERE X.SPCSAL_CORP_ID = T3.SPCSAL_CORP_ID
+                             AND X.EVENT_ID = T2.EVENT_ID ) AS MEM_CNT
+                      , ( SELECT COUNT(GOODS_CD) FROM EV_EVENT_DC_GOODS X
+                           WHERE X.EVENT_ID = T2.EVENT_ID ) AS GOODS_CNT
+                      , ( SELECT SUM(REG_AMT) FROM EV_CORPSPCSAL_MEM X
+                           WHERE X.SPCSAL_CORP_ID = T3.SPCSAL_CORP_ID
+                             AND X.EVENT_ID = T3.EVENT_ID ) AS SALE_AMT
+                   FROM DP_DSPY_MAST T1
+                      , EV_EVENT_MAST T2
+                      , EV_CORPSPCSAL_EVENT T3
+                      , MB_SPCSAL_CORP T4
+                  WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+                    AND T2.EVENT_ID = T3.EVENT_ID
+                    AND T3.SPCSAL_CORP_ID = T4.SPCSAL_CORP_ID
+                    AND T2.EVENT_DIV_CD = '18'
+        <isNotEmpty property="spcsalCorpId">
+			<isNotEqual property="spcsalCorpId" compareValue="all">
+                    AND T4.SPCSAL_CORP_ID = #spcsalCorpId#
+			</isNotEqual>
+        </isNotEmpty>
+        <isNotEmpty property="spcsalCorpNm">
+                    AND T4.SPCSAL_CORP_NM LIKE '%' || #spcsalCorpNm# || '%'
+        </isNotEmpty>
+        <isNotEmpty property="eventNm">
+                    AND T2.EVENT_NM LIKE '%' || #eventNm# || '%'
+        </isNotEmpty>
+        <isNotEmpty property="dspyStusCd">
+			<isNotEqual property="dspyStusCd" compareValue="all">
+                    AND T1.DSPY_STUS_CD = #dspyStusCd#
+			</isNotEqual>
+        </isNotEmpty>
+        <isNotEmpty property="searchStartDate">
+                    AND TO_CHAR(T3.REG_DATE,'YYYY-MM-DD') <![CDATA[>=]]> #searchStartDate#
+        </isNotEmpty>
+        <isNotEmpty property="searchEndDate">
+                    AND TO_CHAR(T3.REG_DATE,'YYYY-MM-DD') <![CDATA[<=]]> #searchEndDate#
+        </isNotEmpty>
+                  ORDER BY T1.DSPY_STRT_DATE DESC
+               ) TM
+        <isEmpty property="noPageType">
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+        </isEmpty>
+	</select>
+
+	<!-- 특판법인 이벤트 상세 조회 -->
+	<select id="selectEventCorpEventInfo" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 상세 조회] SQL ID : selectEventCorpEventInfo */
+               T1.DSPY_SEQ
+             , T1.DSPY_STUS_CD
+             , TO_CHAR(T1.DSPY_STRT_DATE,'YYYY-MM-DD') AS DSPY_STRT_DATE
+             , TO_CHAR(T1.DSPY_END_DATE,'YYYY-MM-DD') AS DSPY_END_DATE
+             , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+             , T2.EVENT_ID
+             , T2.EVENT_NM
+             , T2.EVENT_DESC
+             , T2.EVENT_TTL
+             , T4.SPCSAL_CORP_ID
+             , T4.SPCSAL_CORP_NM
+             , F_GET_COMN_CD_NM('DSPY_STUS_CD', T1.DSPY_STUS_CD) AS DSPY_STUS_CD_STR
+             , ( SELECT COUNT(X.COORIG_NO) FROM EV_CORPSPCSAL_MEM X
+                  WHERE X.SPCSAL_CORP_ID = T3.SPCSAL_CORP_ID
+                    AND X.EVENT_ID = T2.EVENT_ID ) AS MEM_CNT
+             , ( SELECT COUNT(GOODS_CD) FROM EV_EVENT_DC_GOODS X
+                  WHERE X.EVENT_ID = T2.EVENT_ID ) AS GOODS_CNT
+             , ( SELECT SUM(REG_AMT) FROM EV_CORPSPCSAL_MEM X
+                  WHERE X.SPCSAL_CORP_ID = T3.SPCSAL_CORP_ID
+                    AND X.EVENT_ID = T3.EVENT_ID ) AS SALE_AMT
+          FROM DP_DSPY_MAST T1
+             , EV_EVENT_MAST T2
+             , EV_CORPSPCSAL_EVENT T3
+             , MB_SPCSAL_CORP T4
+         WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+           AND T2.EVENT_ID = T3.EVENT_ID
+           AND T3.SPCSAL_CORP_ID = T4.SPCSAL_CORP_ID
+           AND T2.EVENT_DIV_CD = '18'
+           AND T4.SPCSAL_CORP_ID = #spcsalCorpId#
+           AND T2.EVENT_ID = #eventId#
+	</select>
+
+	<!-- 신규특판법인 유효성 체크 -->
+	<select id="checkValidEventCorpInfo" parameterClass="java.util.Map" resultClass="String">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[신규특판법인 유효성 체크] SQL ID : checkValidEventCorpInfo */
+               COUNT(1)
+          FROM MB_SPCSAL_CORP T1
+         WHERE ( ESTBURL = #spcsalid# OR SPCSALID = #spcsalid# )
+	</select>
+
+	<!-- 특판법인 등록/수정  -->
+	<update id="registEventCorpInfo" parameterClass="java.util.Map" >
+         MERGE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 등록/수정] SQL ID : registEventCorpInfo */
+          INTO MB_SPCSAL_CORP
+         USING DUAL
+            ON (SPCSAL_CORP_ID = #spcsalCorpId#)
+          WHEN MATCHED THEN
+        UPDATE SET SPCSAL_CORP_NM = #spcsalCorpNm#
+                 , SPC_CORP_STUS_CD = #spcCorpStusCd#
+                 , PASSWD = #passwd#
+                 , SP_CEO = #spCeo#
+                 , BUCO_NM = #bucoNm#
+                 , STK_NM = #stkNm#
+                 , ZIPCD = #zipcd#
+                 , ADDR = #addr#
+                 , DTAILADDR = #dtailaddr#
+                 , ATTCHFILE_ID = #attchfileId#
+                 , CHRGERNM = #chrgernm#
+                 , CHRGER_TELNO = #chrgerTelno#
+                 , CHRGER_MOBILE = #chrgerMobile#
+                 , CHRGEREMAIL = #chrgeremail#
+                 , CHRGER_FAXNO = #chrgerFaxno#
+                 , ADJCHRGERNM = #adjchrgernm#
+                 , ADJCHRGER_EMAIL = #adjchrgerEmail#
+                 , ADJCHRGER_TELNO = #adjchrgerTelno#
+                 , ADJCHRGER_FAXNO = #adjchrgerFaxno#
+                 , ADJCHRGER_MOBILE = #adjchrgerMobile#
+                 , CHG_DATE = SYSDATE
+                 , CHGER_ID = #login_usr_id#
+          WHEN NOT MATCHED THEN
+        INSERT ( SPCSAL_CORP_ID
+               , SPCSAL_CORP_NM, SPC_CORP_STUS_CD, ESTBURL, SPCSALID, PASSWD
+               , SP_BIZ_NO, SP_CEO, BUCO_NM, STK_NM
+               , ZIPCD, ADDR, DTAILADDR, ATTCHFILE_ID
+               , CHRGERNM, CHRGER_TELNO, CHRGER_MOBILE, CHRGEREMAIL, CHRGER_FAXNO
+               , ADJCHRGERNM, ADJCHRGER_EMAIL, ADJCHRGER_TELNO, ADJCHRGER_FAXNO, ADJCHRGER_MOBILE
+               , REG_DATE, REGER_ID, CHG_DATE, CHGER_ID
+               )
+        VALUES ( #spBizNo#
+               , #spcsalCorpNm#, #spcCorpStusCd#, #spcsalid#, #spcsalid#, #passwd#
+               , #spBizNo#, #spCeo#, #bucoNm#, #stkNm#
+               , #zipcd#, #addr#, #dtailaddr#, #attchfileId#
+               , #chrgernm#, #chrgerTelno#, #chrgerMobile#, #chrgeremail#, #chrgerFaxno#
+               , #adjchrgernm#, #adjchrgerEmail#, #adjchrgerTelno#, #adjchrgerFaxno#, #adjchrgerMobile#
+               , SYSDATE, #login_usr_id#, SYSDATE, #login_usr_id#
+               )
+	</update>
+
+    <!-- 특판법인 삭제  -->
+    <delete id="deleteEventCorpInfo" parameterClass="java.util.Map" >
+        DELETE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 삭제] SQL ID : deleteEventCorpInfo */
+          FROM MB_SPCSAL_CORP
+         WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+    </delete>
+
+	<!-- 특판법인회원 목록 조회 -->
+	<select id="selectEventCorpMemList" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인회원 목록 조회] SQL ID : selectEventCorpMemList */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY COORIG_NM) RNUM
+                      , SPCSAL_CORP_ID
+                      , EVENT_ID
+                      , COORIG_NO
+                      , COORIG_NM
+                      , SECT_NM
+                      , MEM_ID
+                      , MEM_PW
+                      , MEM_DUTY
+                      , MEM_PHON
+                      , REG_AMT
+                      , REMND_AMT
+                      , (REG_AMT-REMND_AMT) AS USE_AMT
+                      , (SELECT X.DSPY_STUS_CD FROM DP_DSPY_MAST X WHERE X.DSPY_SEQ = ( SELECT DSPY_SEQ FROM EV_EVENT_MAST WHERE EVENT_ID = #eventId# )) AS DSPY_STUS_CD
+                   FROM EV_CORPSPCSAL_MEM
+                  WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+                    AND EVENT_ID = #eventId#
+		<isNotEqual property="coorigNm" compareValue="">
+                    AND COORIG_NM LIKE '%' || #coorigNm# || '%'
+		</isNotEqual>
+		<isNotEqual property="memId" compareValue="">
+                    AND	MEM_ID LIKE '%' || #memId# || '%'
+		</isNotEqual>
+                  ORDER BY COORIG_NM
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+	</select>
+
+	<!-- 특판법인 이벤트 상품 목록 조회 -->
+	<select id="selectEventCorpEventGoodsList" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 상품 목록 조회] SQL ID : selectEventCorpEventGoodsList */
+               TM.*
+             , FN_GOODS_FINAL_DC(TM.GOODS_CD, '', '', '') AS DC_SELL_PRC
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY T3.SORT_ORDER) RNUM
+                      , T1.SPCSAL_CORP_ID
+                      , T2.EVENT_ID
+                      , T3.GOODS_CD
+                      , T4.GOODS_NM
+                      , T4.STD_SELL_PRC
+                      , T5.SUPP_COMP_ID
+                      , T5.BCNC_NM
+                      , (SELECT X.DSPY_STUS_CD FROM DP_DSPY_MAST X WHERE X.DSPY_SEQ = T2.DSPY_SEQ) AS DSPY_STUS_CD
+                      , NVL(T3.SORT_ORDER, 0) AS SORT_ORDER
+                      , TO_CHAR(T3.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+                   FROM EV_CORPSPCSAL_EVENT T1
+                      , EV_EVENT_MAST T2
+                      , EV_EVENT_DC_GOODS T3
+                      , GD_GOODS_MAST T4
+                      , CO_SUPP_COMP_MAST T5
+                  WHERE T1.EVENT_ID = T2.EVENT_ID
+                    AND T1.EVENT_ID = T3.EVENT_ID
+                    AND T3.GOODS_CD = T4.GOODS_CD
+                    AND T4.SUPP_COMP_ID = T5.SUPP_COMP_ID
+                    AND T1.SPCSAL_CORP_ID = #spcsalCorpId#
+                    AND T2.EVENT_ID = #eventId#
+                    AND T2.EVENT_DIV_CD = '18'
+        <isNotEmpty property="goodsCd">
+            <isNotEqual property="goodsCd" compareValue="">
+                    AND T4.GOODS_CD LIKE '%' || #goodsCd# || '%'
+            </isNotEqual>
+        </isNotEmpty>
+        <isNotEmpty property="goodsNm">
+            <isNotEqual property="goodsNm" compareValue="">
+                    AND T4.GOODS_NM LIKE '%' || #goodsNm# || '%'
+            </isNotEqual>
+        </isNotEmpty>
+                    AND T4.SELL_TYP_CD = 'S'
+                  ORDER BY T3.GOODS_CD
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+         ORDER BY TM.RNUM
+	</select>
+
+	<!-- 특판법인 이벤트 상품 삭제 -->
+	<delete id="deleteEventCorpEventGoods" parameterClass="java.util.Map">
+        DELETE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 상품 삭제] SQL ID : deleteEventCorpEventGoods */
+               EV_EVENT_DC_GOODS
+		 WHERE EVENT_ID = #eventId#
+		   AND GOODS_CD = #goodsCd#
+	</delete>
+
+	<!-- 특판법인 이벤트 상품 등록 -->
+	<update id="registEventCorpEventGoods" parameterClass="java.util.Map">
+         MERGE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 상품 등록] SQL ID : registEventCorpEventGoods */
+          INTO EV_EVENT_DC_GOODS
+         USING DUAL
+            ON (EVENT_ID = #eventId# AND GOODS_CD = #goodsCd#)
+          WHEN NOT MATCHED THEN
+        INSERT ( EVENT_ID, GOODS_CD, PAVLN_DIV_CD
+               , DSPY_REPLC_GOODS_NM
+               , DSPY_SEQ
+               , DC_DIV_CD, REG_DATE, CHG_DATE, REGER_ID, CHGER_ID
+               )
+        VALUES ( #eventId#, #goodsCd#, '99'
+               , (SELECT GOODS_NM FROM GD_GOODS_MAST WHERE GOODS_CD = #goodsCd#)
+               , (SELECT DSPY_SEQ FROM EV_EVENT_MAST WHERE EVENT_ID = #eventId#)
+               , '1', SYSDATE, SYSDATE, #login_usr_id#, #login_usr_id#
+               )
+	</update>
+
+	<!-- 특판법인 이벤트 회원 상세 조회 -->
+	<select id="selectEventCorpMemInfo" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 회원 상세 조회] SQL ID : selectEventCorpMemInfo */
+               T1.SPCSAL_CORP_ID
+             , (SELECT X.SPCSAL_CORP_NM FROM MB_SPCSAL_CORP X WHERE X.SPCSAL_CORP_ID = T1.SPCSAL_CORP_ID ) AS SPCSAL_CORP_NM
+             , EVENT_ID
+             , (SELECT X.EVENT_NM FROM EV_EVENT_MAST X WHERE X.EVENT_ID = T1.EVENT_ID ) AS EVENT_NM
+             , (SELECT X.DSPY_STUS_CD FROM DP_DSPY_MAST X WHERE X.DSPY_SEQ = ( SELECT DSPY_SEQ FROM EV_EVENT_MAST WHERE EVENT_ID = #eventId# )) AS DSPY_STUS_CD
+             , COORIG_NO
+             , COORIG_NM
+             , SECT_NM
+             , MEM_NO
+             , MEM_ID
+             , MEM_PW
+             , MEM_DUTY
+             , MEM_PHON
+             , REG_AMT
+             , REMND_AMT
+             , (REG_AMT-REMND_AMT) AS USE_AMT
+          FROM EV_CORPSPCSAL_MEM T1
+         WHERE T1.SPCSAL_CORP_ID = #spcsalCorpId#
+           AND T1.EVENT_ID = #eventId#
+           AND T1.COORIG_NO = #coorigNo#
+	</select>
+
+	<!-- 특판법인 이벤트 회원 주문 목록 조회 old -->
+	<select id="selectEventCorpMemOrdList_old" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 회원 주문 목록 조회] SQL ID : selectEventCorpMemOrdList */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY TT.ORDER_DATE DESC) RNUM
+                      , TT.ORDER_ID
+                      , TO_CHAR(TT.ORDER_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ORDER_DATE
+                      , TT.GOODS_CD
+                      , TT.GOODS_NM
+                      , TT.RECPTER_NM
+                      , TT.SUPP_COMP_NM
+                      , TT.SUPP_COMP_ID
+                      , TT.REQ_CNT
+                      , TT.PER_DC_APPLY_PRC
+                      , SUM(((TT.PER_DC_APPLY_PRC) * REQ_CNT)) OVER(PARTITION BY TT.ORDER_ID, TT.GOODS_CD, TT.SEND_SEQ) AS TOT_GOODS_PRC
+                      , TT.SETL_APPR_AMT
+                      , TT.ORDER_STUS_CD
+                      , F_GET_COMN_CD_NM('ORDER_STUS_CD', TT.ORDER_STUS_CD) AS ORDER_STUS_CD_STR
+                   FROM ( SELECT DISTINCT T1.ORDER_ID
+                                , T1.ORDER_DATE
+                                , T2.GOODS_CD
+                                , T2.GOODS_NM
+                                , T2.RECPTER_NM
+                                , T2.SUPP_COMP_NM
+                                , T2.SUPP_COMP_ID
+                                , SUM(T2.REQ_CNT) OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ) AS REQ_CNT
+                                , ROW_NUMBER() OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ ORDER BY 1) AS DUP_RN
+                                , T2.DC_APPLY_PRC
+                                , T2.OPTN_GOODS_APPLY_PRC
+                                , (T2.DC_APPLY_PRC + T2.OPTN_GOODS_APPLY_PRC)  AS PER_DC_APPLY_PRC
+                                , T2.SEND_SEQ
+                                , T2.ORDER_STUS_CD
+                                , T3.SETL_APPR_AMT
+                             FROM OD_ORDER_MAST T1
+                                , OD_ORDER_ITM T2
+                                , OD_ORDER_SETL T3
+                            WHERE T1.ORDER_ID = T2.ORDER_ID
+                              AND T1.ORDER_ID = T3.ORDER_ID
+                              AND T1.COORIG_NO IS NOT NULL
+                              AND T1.COORIG_NO = #coorigNo#
+                              AND T2.EVENT_ID = #eventId#
+                              AND T2.PRSNT_YN = 'N'
+                        ) TT
+                  WHERE DUP_RN = 1
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+         ORDER BY TM.RNUM
+	</select>
+
+	<!-- 특판법인 이벤트 회원 주문 목록 조회 튜닝 -->
+	<select id="selectEventCorpMemOrdList" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 회원 주문 목록 조회] SQL ID : selectEventCorpMemOrdList */
+               /*+ no_merge  push_pred */ TM.*
+          FROM ( SELECT /*+ no_merge  push_pred */
+          				COUNT(0) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY TT.ORDER_DATE DESC) RNUM
+                      , TT.ORDER_ID
+                      , TO_CHAR(TT.ORDER_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ORDER_DATE
+                      , TT.GOODS_CD
+                      , TT.GOODS_NM
+                      , TT.RECPTER_NM
+                      , TT.SUPP_COMP_NM
+                      , TT.SUPP_COMP_ID
+                      , TT.REQ_CNT
+                      , TT.PER_DC_APPLY_PRC
+                      , SUM(((TT.PER_DC_APPLY_PRC) * REQ_CNT)) OVER(PARTITION BY TT.ORDER_ID, TT.GOODS_CD, TT.SEND_SEQ) AS TOT_GOODS_PRC
+                      , TT.SETL_APPR_AMT
+                      , TT.ORDER_STUS_CD
+                      , F_GET_COMN_CD_NM('ORDER_STUS_CD', TT.ORDER_STUS_CD) AS ORDER_STUS_CD_STR
+                   FROM ( SELECT DISTINCT T1.ORDER_ID
+                                , T1.ORDER_DATE
+                                , T2.GOODS_CD
+                                , T2.GOODS_NM
+                                , T2.RECPTER_NM
+                                , T2.SUPP_COMP_NM
+                                , T2.SUPP_COMP_ID
+                                , SUM(T2.REQ_CNT) OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ) AS REQ_CNT
+                                , ROW_NUMBER() OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ ORDER BY 1) AS DUP_RN
+                                , T2.DC_APPLY_PRC
+                                , T2.OPTN_GOODS_APPLY_PRC
+                                , (T2.DC_APPLY_PRC + T2.OPTN_GOODS_APPLY_PRC)  AS PER_DC_APPLY_PRC
+                                , T2.SEND_SEQ
+                                , T2.ORDER_STUS_CD
+                                , T3.SETL_APPR_AMT
+                             FROM OD_ORDER_MAST T1
+                                , OD_ORDER_ITM T2
+                                , OD_ORDER_SETL T3
+                            WHERE T1.ORDER_ID = T2.ORDER_ID
+                              AND T1.ORDER_ID = T3.ORDER_ID
+                              AND T1.COORIG_NO IS NOT NULL
+                              AND T1.COORIG_NO = #coorigNo#
+                              AND T2.EVENT_ID = #eventId#
+                              AND T2.PRSNT_YN = 'N'
+                        ) TT
+                  WHERE DUP_RN = 1
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+         ORDER BY TM.RNUM
+	</select>
+
+	<!-- 신규특판법인 회원 유효성 체크 -->
+	<select id="checkValidEventCorpMemInfo" parameterClass="java.util.Map" resultClass="String">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[신규특판법인 유효성 체크] SQL ID : checkValidEventCorpMemInfo */
+               COUNT(1)
+          FROM EV_CORPSPCSAL_MEM
+         WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+           and EVENT_ID = #eventId#
+           and MEM_ID = #memId#
+           and MEM_NO = #memId#
+	</select>
+
+	<select id="selectNewCoorigNo" resultClass="String">
+		SELECT SEQ_EV_CORPSPCSAL_MEM.NEXTVAL FROM DUAL
+	</select>
+
+	<!-- 특판법인 이벤트 회원 등록/수정  -->
+	<update id="registEventCorpMemInfo" parameterClass="java.util.Map" >
+         MERGE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 회원 등록/수정] SQL ID : registEventCorpMemInfo */
+          INTO EV_CORPSPCSAL_MEM
+         USING DUAL
+            ON (SPCSAL_CORP_ID = #spcsalCorpId# and EVENT_ID = #eventId# AND COORIG_NO = #coorigNo# )
+          WHEN MATCHED THEN
+        UPDATE SET COORIG_NM = #coorigNm#
+                 , SECT_NM = #sectNm#
+                 , MEM_PW = #memPw#
+                 , MEM_DUTY = #memDuty#
+                 , MEM_PHON = #memPhon#
+                 , REG_AMT = #regAmt#
+                 , REMND_AMT = (TO_NUMBER(#regAmt#) - REG_AMT + REMND_AMT)
+                 , CHG_DATE = SYSDATE
+                 , CHGER_ID = #login_usr_id#
+          WHEN NOT MATCHED THEN
+        INSERT ( SPCSAL_CORP_ID, EVENT_ID, COORIG_NO
+               , COORIG_NM, SECT_NM, MEM_ID, MEM_NO, MEM_PW
+               , MEM_DUTY, MEM_PHON, REG_AMT, REMND_AMT
+               , REG_DATE, REGER_ID, CHG_DATE, CHGER_ID
+               )
+        VALUES ( #spcsalCorpId#, #eventId#, #coorigNo#
+               , #coorigNm#, #sectNm#, #memId#, #memId#, #memPw#
+               , #memDuty#, #memPhon#, #regAmt#, #regAmt#
+               , SYSDATE, #login_usr_id#, SYSDATE, #login_usr_id#
+               )
+	</update>
+
+	<!-- 특판법인 이벤트 회원 수정이력 등록  -->
+	<insert id="registEventCorpMemHistInfo" parameterClass="java.util.Map" >
+        INSERT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 회원 등록/수정] SQL ID : registEventCorpMemHistInfo */
+               INTO EV_CORPSPCSAL_USE_HISTOR
+             ( SPCSAL_CORP_ID, EVENT_ID, COORIG_NO
+             , HIST_SEQ
+             , REG_AMT
+             , REG_DATE, REGER_ID, CHG_DATE, CHGER_ID
+             ) VALUES
+             ( #spcsalCorpId#, #eventId#, #coorigNo#
+             , ( SELECT (COUNT(1) + 1 ) FROM EV_CORPSPCSAL_USE_HISTOR
+                  WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+                    AND EVENT_ID = #eventId#
+                    AND COORIG_NO = #coorigNo# )
+             , #regAmt#
+             , SYSDATE, #login_usr_id#, SYSDATE, #login_usr_id#
+             )
+	</insert>
+
+    <!-- 특판법인 이벤트 회원 삭제  -->
+    <delete id="deleteEventCorpMemInfo" parameterClass="java.util.Map" >
+        DELETE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 회원 삭제] SQL ID : deleteEventCorpMemInfo */
+          FROM EV_CORPSPCSAL_MEM
+         WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+           AND EVENT_ID = #eventId#
+           AND COORIG_NO = #coorigNo#
+    </delete>
+
+    <!-- 특판법인 이벤트 회원 수정이력 삭제  -->
+    <delete id="deleteEventCorpMemHistInfo" parameterClass="java.util.Map" >
+        DELETE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 회원 삭제] SQL ID : deleteEventCorpMemHistInfo */
+          FROM EV_CORPSPCSAL_USE_HISTOR
+         WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+           AND EVENT_ID = #eventId#
+           AND COORIG_NO = #coorigNo#
+    </delete>
+
+	<!-- 특판법인 이벤트 수정  -->
+	<update id="updateDspyMastInfo" parameterClass="java.util.Map" >
+        UPDATE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 수정] SQL ID : updateDspyMastInfo */
+               DP_DSPY_MAST
+           SET DSPY_NM = #eventNm#
+             , DSPY_STRT_DATE = To_DATE(#dspyStrtDate# || ' 000000', 'YYYY-MM-DD HH24MISS')
+             , DSPY_END_DATE = To_DATE(#dspyEndDate# || ' 235959', 'YYYY-MM-DD HH24MISS')
+             , DSPY_STUS_CD = #dspyStusCd#
+             , CHG_DATE = SYSDATE
+             , CHGER_ID = #login_usr_id#
+         WHERE DSPY_SEQ = #dspySeq#
+	</update>
+
+	<!-- 특판법인 이벤트 수정  -->
+	<update id="updateEventMastInfo" parameterClass="java.util.Map" >
+		UPDATE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 수정] SQL ID : updateEventMastInfo */
+		       EV_EVENT_MAST
+		   SET EVENT_NM = #eventNm#
+		     , EVENT_STRT_DATE = To_DATE(#dspyStrtDate# || ' 000000', 'YYYY-MM-DD HH24MISS')
+		     , EVENT_END_DATE = To_DATE(#dspyEndDate# || ' 235959', 'YYYY-MM-DD HH24MISS')
+		     , EVENT_DESC = #eventDesc#
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = #login_usr_id#
+		 WHERE EVENT_ID = #eventId#
+	</update>
+
+	<!-- 특판법인 이벤트 등록 -->
+	<insert id="insertDspyMastInfo" parameterClass="java.util.Map" >
+        INSERT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 등록] SQL ID : insertDspyMastInfo */
+               INTO DP_DSPY_MAST
+             ( DSPY_SEQ, DSPY_TYP_CD
+             , DSPY_STRT_DATE
+             , DSPY_END_DATE
+             , DSPY_STUS_CD, USE_YN, DEL_YN, DSPY_NM
+             , REG_DATE, REGER_ID, CHG_DATE, CHGER_ID
+             ) VALUES (
+			   #dspySeq#, '40'
+             , To_DATE(#dspyStrtDate# || ' 000000', 'YYYY-MM-DD HH24MISS')
+             , To_DATE(#dspyEndDate# || ' 235959', 'YYYY-MM-DD HH24MISS')
+             , #dspyStusCd#, 'Y', 'N', #eventNm#
+             , SYSDATE, #login_usr_id#, SYSDATE, #login_usr_id#
+			 )
+	</insert>
+
+	<!-- 특판법인 이벤트 등록  -->
+	<insert id="insertEventMastInfo" parameterClass="java.util.Map" >
+		INSERT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 등록] SQL ID : insertEventMastInfo */
+               INTO EV_EVENT_MAST
+             ( EVENT_ID, DSPY_SEQ, PAVLN_DIV_CD
+	         , EVENT_NM
+	         , EVENT_TTL
+	         , EVENT_DESC
+	         , EVENT_STRT_DATE
+	         , EVENT_END_DATE
+	         , EVENT_DIV_CD, PLNBEF_MAIN_IMAGE_YN, PAVLN_AREA_CD
+	         , LANG_CD, BEFCITY_YN, DEL_YN, IS_MOBILE
+	         , REG_DATE, REGER_ID, CHG_DATE, CHGER_ID
+			 ) VALUES (
+			   #eventId#, #dspySeq#, '99'
+			 , #eventNm#
+	         , #eventNm#
+	         , #eventDesc#
+             , To_DATE(#dspyStrtDate# || ' 000000', 'YYYY-MM-DD HH24MISS')
+             , To_DATE(#dspyEndDate# || ' 235959', 'YYYY-MM-DD HH24MISS')
+	         , '18', 'N', '99'
+	         , 'KO', 'Y', 'N', 'F'
+             , SYSDATE, #login_usr_id#, SYSDATE, #login_usr_id#
+			 )
+	</insert>
+
+	<!-- 특판법인 이벤트 등록  -->
+	<insert id="insertCorpspcsalEventInfo" parameterClass="java.util.Map" >
+		INSERT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 등록] SQL ID : insertCorpspcsalEventInfo */
+               INTO EV_CORPSPCSAL_EVENT
+             ( SPCSAL_CORP_ID, EVENT_ID
+             , BOND_COLLCT_YN
+	         , REG_DATE, REGER_ID, CHG_DATE, CHGER_ID
+			 ) VALUES (
+			   #spcsalCorpId#, #eventId#
+			 , 'N'
+             , SYSDATE, #login_usr_id#, SYSDATE, #login_usr_id#
+			 )
+	</insert>
+
+    <!-- 특판법인 이벤트 삭제  -->
+    <delete id="deleteCorpspcsalEventInfo" parameterClass="java.util.Map" >
+        DELETE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 삭제] SQL ID : deleteCorpspcsalEventInfo */
+          FROM EV_CORPSPCSAL_EVENT
+         WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+           AND EVENT_ID = #eventId#
+    </delete>
+
+    <!-- 특판법인 이벤트 삭제  -->
+    <delete id="deleteEventMastInfo" parameterClass="java.util.Map" >
+        DELETE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 삭제] SQL ID : deleteEventMastInfo */
+          FROM EV_EVENT_MAST
+         WHERE EVENT_ID = #eventId#
+    </delete>
+
+	<!-- 특판법인 이벤트 삭제 -->
+    <delete id="deleteDspyMastInfo" parameterClass="java.util.Map" >
+        DELETE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판법인 이벤트 삭제] SQL ID : deleteDspyMastInfo */
+          FROM DP_DSPY_MAST
+         WHERE DSPY_SEQ = #dspySeq#
+    </delete>
+
+    <!-- 특판이벤트 회원 수정이력 조회 -->
+    <select id="selectCorpMemUpdHistList" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판이벤트 회원 수정이력 조회] SQL ID : selectCorpMemUpdHistList */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY HIST_SEQ) RNUM
+                      , SPCSAL_CORP_ID
+                      , COORIG_NO
+                      , EVENT_ID
+                      , HIST_SEQ
+                      , REG_AMT
+                      , TO_CHAR(REG_DATE,'YYYY-MM-DD') AS REG_DATE
+                      , TO_CHAR(CHG_DATE,'YYYY-MM-DD') AS CHG_DATE
+                   FROM EV_CORPSPCSAL_USE_HISTOR
+                  WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+                    AND EVENT_ID = #eventId#
+                    AND COORIG_NO = #coorigNo#
+                  ORDER BY HIST_SEQ
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+    </select>
+
+	<!-- 법인특판 주문이력 조회  -->
+    <select id="selectCorpOrderList" parameterClass="java.util.Map" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[법인특판 주문이력 조회] SQL ID : selectCorpOrderList */
+               TM.*
+             , (SELECT SPCSAL_CORP_NM FROM MB_SPCSAL_CORP X WHERE X.SPCSAL_CORP_ID = TM.SPCSAL_CORP_ID ) AS SPCSAL_CORP_NM
+             , (SELECT EVENT_NM FROM EV_EVENT_MAST X WHERE X.EVENT_ID = TM.SPCSAL_EVENT_ID ) AS EVENT_NM
+             , F_GET_COMN_CD_NM('ORDER_STUS_CD', TM.ORDER_STUS_CD) AS ORDER_STUS_CD_STR
+             , F_GET_COMN_CD_NM('SETL_STUS_CD', TM.SETL_STUS_CD) AS SETL_STUS_CD_STR
+             , F_GET_COMN_CD_NM('SPC_CRDT_TRD_STUS_CD', TM.SPC_CRDT_TRD_STUS_CD) AS SPC_CRDT_TRD_STUS_CD_STR
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY TT.ORDER_DATE DESC) RNUM
+                      , TT.ORDER_ID AS SPAN_ORDER_ID
+                      , TT.ORDER_ID
+                      , TT.SPCSAL_CORP_ID
+                      , TT.SPCSAL_EVENT_ID
+                      , TO_CHAR(TT.ORDER_DATE, 'YYYY-MM-DD HH24:MI') AS ORDER_DATE
+                      , TO_CHAR(TT.APPR_DATE, 'YYYY-MM-DD HH24:MI') AS APPR_DATE
+                      , TO_CHAR(TT.GOODS_CANCEL_DATE, 'YYYY-MM-DD HH24:MI') AS GOODS_CANCEL_DATE
+                      , TT.GOODS_CD
+                      , TT.GOODS_NM
+                      , TT.ORDRR_NM
+                      , TT.RECPTER_NM
+                      , TT.SUPP_COMP_NM
+                      , TT.SUPP_COMP_ID
+                      , TT.REQ_CNT
+                      , TT.PER_DC_APPLY_PRC
+                      , SUM(((TT.PER_DC_APPLY_PRC) * REQ_CNT)) OVER(PARTITION BY TT.ORDER_ID, TT.GOODS_CD, TT.SEND_SEQ) AS TOT_GOODS_PRC
+                      , TT.SETL_APPR_AMT
+                      , TT.ORDER_STUS_CD
+                      , TT.SETL_STUS_CD
+                      , TT.SPC_CRDT_TRD_STUS_CD
+                   FROM ( SELECT DISTINCT T1.ORDER_ID
+                                , T1.SPCSAL_CORP_ID
+                                , T1.SPCSAL_EVENT_ID
+                                , T1.ORDER_DATE
+                                , T1.APPR_DATE
+                                , T2.GOODS_CANCEL_DATE
+                                , T2.GOODS_CD
+                                , T2.GOODS_NM
+                                , T1.ORDRR_NM
+                                , T2.RECPTER_NM
+                                , T2.SUPP_COMP_NM
+                                , T2.SUPP_COMP_ID
+                                , SUM(T2.REQ_CNT) OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ) AS REQ_CNT
+                                , ROW_NUMBER() OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ ORDER BY 1) AS DUP_RN
+                                , T2.DC_APPLY_PRC
+                                , T2.OPTN_GOODS_APPLY_PRC
+                                , (T2.DC_APPLY_PRC + T2.OPTN_GOODS_APPLY_PRC) AS PER_DC_APPLY_PRC
+                                , T2.SEND_SEQ
+                                , T1.SETL_STUS_CD
+                                , T1.SPC_CRDT_TRD_STUS_CD
+                                , T2.ORDER_STUS_CD
+                                , T3.SETL_APPR_AMT
+                             FROM OD_ORDER_MAST T1
+                                , OD_ORDER_ITM T2
+                                , OD_ORDER_SETL T3
+                            WHERE T1.ORDER_ID = T2.ORDER_ID
+                              AND T1.ORDER_ID = T3.ORDER_ID
+                              AND T1.SPCSAL_CORP_ID IS NOT NULL
+                              AND T1.SPCSAL_EVENT_ID IS NOT NULL
+                              AND T1.COORIG_NO IS NOT NULL
+                              AND T2.PRSNT_YN = 'N'
+        <isNotEqual property="spcsalCorpId" compareValue="">
+                              AND T1.SPCSAL_CORP_ID = #spcsalCorpId#
+        </isNotEqual>
+        <isNotEqual property="eventId" compareValue="">
+                              AND T1.SPCSAL_EVENT_ID = #eventId#
+        </isNotEqual>
+        <isNotEqual property="setlStusCd" compareValue="">
+                              AND T1.SETL_STUS_CD = #setlStusCd#
+        </isNotEqual>
+        <isNotEqual property="spcCrdtTrdStusCd" compareValue="">
+                              AND T1.SPC_CRDT_TRD_STUS_CD = #spcCrdtTrdStusCd#
+        </isNotEqual>
+        <isNotEqual property="orderStusCd" compareValue="">
+                              AND T2.ORDER_STUS_CD = #orderStusCd#
+        </isNotEqual>
+        <isNotEqual property="searchOrdererValue" compareValue="">
+            <isEqual property="searchOrdererInfo" compareValue="ordrrNm">
+                              AND T1.ORDRR_NM LIKE '%' || #searchOrdererValue# || '%'
+            </isEqual>
+            <isEqual property="searchOrdererInfo" compareValue="ordrrHtelno">
+                              AND T1.ORDRR_HTELNO LIKE '%' || #searchOrdererValue# || '%'
+            </isEqual>
+            <isEqual property="searchOrdererInfo" compareValue="ordrrTelno">
+                              AND T1.ORDRR_TELNO LIKE '%' || #searchOrdererValue# || '%'
+            </isEqual>
+        </isNotEqual>
+        <isNotEqual property="searchRecpterValue" compareValue="">
+            <isEqual property="searchRecpterInfo" compareValue="recpterNm">
+                              AND T2.RECPTER_NM LIKE '%' || #searchRecpterValue# || '%'
+            </isEqual>
+            <isEqual property="searchRecpterInfo" compareValue="recpterHtelno">
+                              AND T2.RECPTER_HTELNO LIKE '%' || #searchRecpterValue# || '%'
+            </isEqual>
+            <isEqual property="searchRecpterInfo" compareValue="recpterTelno">
+                              AND T2.RECPTER_TELNO LIKE '%' || #searchRecpterValue# || '%'
+            </isEqual>
+        </isNotEqual>
+        <isNotEqual property="searchValue" compareValue="">
+            <isEqual property="searchType" compareValue="orderId">
+                              AND T1.ORDER_ID LIKE '%' || #searchValue# || '%'
+            </isEqual>
+            <isEqual property="searchType" compareValue="goodsNm">
+                              AND T2.GOODS_NM LIKE '%' || #searchValue# || '%'
+            </isEqual>
+            <isEqual property="searchType" compareValue="goodsCd">
+                              AND T2.GOODS_CD LIKE '%' || #searchValue# || '%'
+            </isEqual>
+        </isNotEqual>
+        <isEqual property="searchDateType" compareValue="orderDate">
+                              AND TO_CHAR(T1.ORDER_DATE, 'YYYY-MM-DD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+        </isEqual>
+        <isEqual property="searchDateType" compareValue="apprDate">
+                              AND TO_CHAR(T1.APPR_DATE, 'YYYY-MM-DD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+        </isEqual>
+        <isEqual property="searchDateType" compareValue="orderCancelDate">
+                              AND TO_CHAR(T2.GOODS_CANCEL_DATE, 'YYYY-MM-DD') BETWEEN #searchStrtYmd# AND #searchEndYmd#
+        </isEqual>
+                        ) TT
+                  WHERE DUP_RN = 1
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+         ORDER BY TM.RNUM
+    </select>
+
+    <!-- 법인특판 주문마스터 승인처리  -->
+    <update id="approveCorpOrderMast" parameterClass="java.util.Map" >
+        UPDATE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[법인특판 주문 승인처리] SQL ID : approveCorpOrder */
+               OD_ORDER_MAST
+           SET SETL_STUS_CD = '2100'
+             , ORDER_STUS_CD = 'O02'
+             , APPR_DATE = SYSDATE
+             , CHG_DATE = SYSDATE
+             , CHGER_ID = #login_usr_id#
+         WHERE SETL_STUS_CD = '3010'
+           AND ORDER_STUS_CD = 'O01'
+           AND ORDER_ID IN <iterate property="orderIdArr" open="(" conjunction="," close=")">#orderIdArr[]#</iterate>
+    </update>
+
+	<!-- 법인특판 주문아이템 승인처리  -->
+    <update id="approveCorpOrderItem" parameterClass="java.util.Map" >
+        UPDATE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[법인특판 주문아이템 승인처리] SQL ID : approveCorpOrderItem */
+               OD_ORDER_ITM
+           SET ORDER_STUS_CD = 'O02'
+             , CHG_DATE = SYSDATE
+             , CHGER_ID = #login_usr_id#
+         WHERE ORDER_STUS_CD = 'O01'
+           AND ORDER_ID IN <iterate property="orderIdArr" open="(" conjunction="," close=")">#orderIdArr[]#</iterate>
+    </update>
+
+    <!-- 법인특판 주문결재 승인처리  -->
+    <update id="approveCorpOrderSetl" parameterClass="java.util.Map" >
+        UPDATE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[법인특판 주문결재 승인처리] SQL ID : approveCorpOrderSetl */
+               OD_ORDER_SETL
+           SET SETL_STUS_CD = '2100'
+             , CHG_DATE = SYSDATE
+             , CHGER_ID = #login_usr_id#
+         WHERE SETL_STUS_CD = '3010'
+           AND ORDER_ID IN <iterate property="orderIdArr" open="(" conjunction="," close=")">#orderIdArr[]#</iterate>
+    </update>
+
+	<select id="selectCorpBillOrderList" parameterClass="java.util.HashMap" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[법인특판 주문결재 목록조회] SQL ID : selectCorpBillOrderList */
+               TM.*
+          FROM ( SELECT COUNT(1) OVER(ORDER BY 1) AS TOTAL_ROWS
+                      , ROW_NUMBER() OVER(ORDER BY TT.ORDER_DATE DESC) RNUM
+                      , TT.*
+                      , F_GET_COMN_CD_NM('ORDER_STUS_CD', TT.ORDER_STUS_CD) AS ORDER_STUS_CD_STR
+                      , F_GET_COMN_CD_NM('SETL_STUS_CD', TT.SETL_STUS_CD) AS SETL_STUS_CD_STR
+                      , F_GET_COMN_CD_NM('SPC_CRDT_TRD_STUS_CD', TT.SPC_CRDT_TRD_STUS_CD) AS SPC_CRDT_TRD_STUS_CD_STR
+                      , SUM( TT.SETL_APPR_AMT/TT.SEND_ITEM_CNT ) OVER(PARTITION BY 1) AS TOT_ORDER_AMT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD IN ('O05','O06','O08') THEN TT.SETL_APPR_AMT/TT.SEND_ITEM_CNT ELSE 0 END ) OVER(PARTITION BY 1) AS TOT_CANCEL_ORDER_AMT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD NOT IN ('O05','O06','O08') THEN TT.SETL_APPR_AMT/TT.SEND_ITEM_CNT ELSE 0 END ) OVER(PARTITION BY 1) AS TOT_NORMAL_ORDER_AMT
+                      , SUM( CASE WHEN TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_TOT_CNT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD = 'O01' AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_O01_CNT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD = 'O02' AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_O02_CNT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD = 'O04' AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_O04_CNT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD = 'O05' AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_O05_CNT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD = 'O06' AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_O06_CNT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD = 'D02' AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_D02_CNT
+                      , SUM( CASE WHEN TT.ORDER_STUS_CD = 'D03' AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_D03_CNT
+                      , SUM( CASE WHEN (TT.ORDER_STUS_CD IN ('D04','O08') OR TT.ORDER_STUS_CD IS NULL) AND TT.ORDER_RNUM = 1 THEN 1 ELSE 0 END ) OVER(PARTITION BY 1) AS ORDER_ETC_CNT
+                      , (SELECT SPCSAL_CORP_NM FROM MB_SPCSAL_CORP X WHERE X.SPCSAL_CORP_ID = TT.SPCSAL_CORP_ID ) AS SPCSAL_CORP_NM
+                      , (SELECT EVENT_NM FROM EV_EVENT_MAST X WHERE X.EVENT_ID = TT.SPCSAL_EVENT_ID ) AS EVENT_NM
+                   FROM ( SELECT A.ORDER_ID
+                               , A.ORDER_ID AS SPAN_ORDER_ID
+                               , TO_CHAR(A.ORDER_DATE, 'YYYY-MM-DD HH24:MI') AS ORDER_DATE
+                               , TO_CHAR(A.GOODS_CANCEL_DATE, 'YYYY-MM-DD HH24:MI') AS GOODS_CANCEL_DATE
+                               , A.GOODS_NM
+                               , A.ORDRR_NM
+                               , A.RECPTER_NM
+                               , A.REQ_CNT
+                               , A.PER_DC_APPLY_PRC
+                               , SUM(((A.PER_DC_APPLY_PRC) * REQ_CNT)) OVER(PARTITION BY A.ORDER_ID, A.GOODS_CD, A.SEND_SEQ) AS TOT_GOODS_PRC
+                               , A.SETL_APPR_AMT
+                               , A.ORDER_STUS_CD
+                               , A.SETL_STUS_CD
+                               , A.SPC_CRDT_TRD_STUS_CD
+                               , COUNT(A.ORDER_ID) OVER(PARTITION BY A.ORDER_ID) AS SEND_ITEM_CNT
+                               , A.SPCSAL_CORP_ID
+                               , A.SPCSAL_EVENT_ID
+                               , ROW_NUMBER() OVER(PARTITION BY A.ORDER_ID ORDER BY 1) ORDER_RNUM
+                            FROM ( SELECT DISTINCT T1.ORDER_ID
+                                        , T1.ORDER_DATE
+                                        , T2.GOODS_CANCEL_DATE
+                                        , T2.GOODS_CD
+                                        , T2.GOODS_NM
+                                        , T1.ORDRR_NM
+                                        , T2.RECPTER_NM
+                                        , SUM(T2.REQ_CNT) OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ) AS REQ_CNT
+                                        , ROW_NUMBER() OVER(PARTITION BY T2.ORDER_ID, T2.GOODS_CD, T2.SEND_SEQ ORDER BY 1) AS DUP_RN
+                                        , T2.DC_APPLY_PRC
+                                        , T2.OPTN_GOODS_APPLY_PRC
+                                        , (T2.DC_APPLY_PRC + T2.OPTN_GOODS_APPLY_PRC)  AS PER_DC_APPLY_PRC
+                                        , T2.SEND_SEQ
+                                        , T1.SETL_STUS_CD
+                                        , T1.SPC_CRDT_TRD_STUS_CD
+                                        , T2.ORDER_STUS_CD
+                                        , T3.SETL_APPR_AMT
+                                        , T1.SPCSAL_CORP_ID
+                                        , T1.SPCSAL_EVENT_ID
+                                     FROM OD_ORDER_MAST T1
+                                        , OD_ORDER_ITM T2
+                                        , OD_ORDER_SETL T3
+                                    WHERE T1.ORDER_ID = T2.ORDER_ID
+                                      AND T1.ORDER_ID = T3.ORDER_ID
+                                      AND T1.SPCSAL_CORP_ID IS NOT NULL
+                                      AND T1.SPCSAL_EVENT_ID IS NOT NULL
+                                      AND T1.COORIG_NO IS NOT NULL
+                                      AND T2.PRSNT_YN = 'N'
+                                      AND T1.SPCSAL_CORP_ID = #spcsalCorpId#
+                                      AND T1.SPCSAL_EVENT_ID = #spcsalEventId#
+                                 ) A
+                           WHERE A.DUP_RN = 1
+                        ) TT
+               ) TM
+         WHERE TM.RNUM BETWEEN #firstIndex# + 1 AND #firstIndex# + #rows#
+         ORDER BY TM.RNUM
+	</select>
+
+    <!-- 특판이벤트 회원 요약정보 조회 -->
+    <select id="selectEventCorpMemSummInfo" parameterClass="java.util.HashMap" resultClass="egovMap">
+        SELECT /* 파일명[파일설명] : EventCorpMgr_SQL.xml[특판이벤트 회원 요약정보 조회] SQL ID : selectEventCorpMemSummInfo */
+               DISTINCT SPCSAL_CORP_ID
+             , EVENT_ID
+             , COUNT(COORIG_NO) OVER(PARTITION BY SPCSAL_CORP_ID, EVENT_ID) AS COORIG_CNT
+             , SUM(REG_AMT) OVER(PARTITION BY SPCSAL_CORP_ID, EVENT_ID) AS TOT_REG_AMT
+             , SUM(REMND_AMT) OVER(PARTITION BY SPCSAL_CORP_ID, EVENT_ID) AS TOT_REMND_AMT
+             , SUM(REG_AMT - REMND_AMT) OVER(PARTITION BY SPCSAL_CORP_ID, EVENT_ID) AS TOT_USE_AMT
+          FROM EV_CORPSPCSAL_MEM
+         WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+           AND EVENT_ID = #spcsalEventId#
+    </select>
+
+    <!-- 법인특판이벤트 주문 외상채권 회수완료 처리  -->
+    <update id="recoverCrdtTrdOrderMast" parameterClass="java.util.Map" >
+        UPDATE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[법인특판이벤트 주문 외상채권 회수완료 처리] SQL ID : recoverCrdtTrdOrder */
+               OD_ORDER_MAST
+           SET SPC_CRDT_TRD_STUS_CD = '02'
+             , CHG_DATE = SYSDATE
+             , CHGER_ID = #login_usr_id#
+         WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+           AND SPCSAL_EVENT_ID = #spcsalEventId#
+    </update>
+
+    <!-- 법인특판이벤트 주문 외상채권 회수완료 처리  -->
+    <update id="recoverCrdtTrdOrderSetl" parameterClass="java.util.Map" >
+        UPDATE /* 파일명[파일설명] : EventCorpMgr_SQL.xml[법인특판이벤트 주문 외상채권 회수완료 처리] SQL ID : recoverCrdtTrdOrder */
+               OD_ORDER_SETL
+           SET SETL_APPR_DATE = SYSDATE
+             , CHG_DATE = SYSDATE
+             , CHGER_ID = #login_usr_id#
+         WHERE ORDER_ID IN ( SELECT ORDER_ID
+                               FROM OD_ORDER_MAST
+                              WHERE SPCSAL_CORP_ID = #spcsalCorpId#
+                                AND SPCSAL_EVENT_ID = #spcsalEventId# )
+           AND SETL_SEQ = (SELECT MIN(X.SETL_SEQ)
+                                FROM OD_ORDER_SETL X
+                               WHERE X.ORDER_ID = ORDER_ID)
+    </update>
+
+
+
+	<!--***************************** 정리된 소스 *****************************-->
+
+
+
+
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	<select id="selectRetrieveEcAdmin" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT COUNT(*) CNT FROM MB_SUPP_COMP_MEM_MAST WHERE SUPP_COMP_ACCESS_NAME = #accessName#
+		]]>
+	</select>
+
+	<select id="selectRetrieveAdminId" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT 	A.SUPP_COMP_ACCESS_NAME AS ID, A.SUPP_COMP_ID AS BIZ_CODE,  (SELECT B.PO_ECODE FROM CO_SUPP_COMP_MAST B WHERE B.SUPP_COMP_ID = A.SUPP_COMP_ID) AS ECODE
+		FROM 	MB_SUPP_COMP_MEM_MAST A
+		WHERE 	A.SUPP_COMP_ACCESS_NAME = #accessName#
+		]]>
+	</select>
+
+	<select id="selectRetrieveNewEchostCode" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT	'98'||NVL(LPAD(TO_CHAR(MAX(TO_NUMBER(SUBSTR(PO_ECODE,3)))+1),4,'0'), '0001') NEW_ECODE,
+                '98'||NVL(LPAD(TO_CHAR(MAX(TO_NUMBER(SUBSTR(PO_ECODE,3)))+1),4,'0'), '0001')||'01' NEW_BIZCODE
+        FROM    CO_SUPP_COMP_MAST
+        WHERE   SUBSTR(SUPP_COMP_ID,0,2) = '98'
+		]]>
+		<!-- WHERE   SUPP_COMP_DIV_CD = '08' -->
+	</select>
+
+	<insert id="registerNewEcAdmin" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO MB_SUPP_COMP_MEM_MAST
+			(
+			SUPP_COMP_ACCESS_NAME,
+			PASSWD,
+			ADMINNM,
+			PO_ECODE,
+			SUPP_COMP_ID,
+			REG_DATE,
+			JOB_DUTY_CD,
+			MAIN_ID_YN
+			)
+		VALUES
+			(
+			#accessName#,
+			#password#,
+			#bizName#,
+			#keyStoreSeqid#,
+			#bizCode#,
+			SYSDATE,
+			'001',
+			'Y'
+			)
+		]]>
+	</insert>
+
+	<insert id="registerSupplierInfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO CO_SUPP_COMP_MAST
+			(
+			SUPP_COMP_ID,
+            SUPP_COMP_DIV_CD,
+            SUPP_PO_ID,
+            PO_ECODE,
+            BCNC_NM,
+            PRSDT_NM,
+            COMPREG_NO,
+            INDUTY,
+            ENTRPS,
+            BIZFLD_LOC,
+            HDOFC_LOC,
+            EMAIL,
+            TELNO,
+            FAXNO,
+            ZIPCD,
+            NATION_CD,
+            ADDR1,
+            ADDR2,
+            CNTRAC_STRT_YY,
+            CNTRAC_REASN,
+            CNTRAC_STOP_STRT_YMD,
+            CNTRAC_STOP_END_YMD,
+            CNTRAC_CANCEL_YMD,
+            REG_DATE,
+            CHG_DATE,
+            REGER_ID,
+            ADJ_ACC_NO,
+            SUPP_COMP_PO_ACC_NO,
+            SUPP_COMP_SEQ,
+            SUPPO_RGIST_POCD,
+            CORP_SSN
+            )
+		VALUES
+			(
+			#bizCode#,
+			#bizType#,
+			'1',
+			#keyStoreSeqid#,
+			#bizName#,
+			#bossName#,
+			#registerNo#,
+			#businessCond#,
+			#businessCate#,
+			#belonging#,
+			#position#,
+			#email#,
+			#telephone#,
+			#fax#,
+			#postalCode#,
+			'KOR',
+			#address1#,
+			#address2#,
+			TO_CHAR(SYSDATE, 'YYYY'),
+			'',
+			'99991231',
+			'99991231',
+			'99991231',
+			TO_CHAR(SYSDATE, 'YYYYMMDD'),
+			TO_CHAR(SYSDATE, 'YYYYMMDD'),
+			NVL(#loginId#, 'ADMIN'),
+			#account#,
+			#suppcomppoaccnm#,
+			'-',
+			(DECODE(SUBSTR(#keyStoreSeqid#, 1, 2), '90','A','98','Z','X') || SUBSTR(#keyStoreSeqid#, 3, 4)),
+			#corpsSeedSn#
+			)
+		]]>
+	</insert>
+
+	<insert id="registerSupplierDtailInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CO_SUPP_COMP_DTAIL_INFO
+			 ( SUPP_COMP_ID
+			 , BCNC_LOGO_IMAGE_FILE_ID
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE )
+		VALUES
+			 ( #bizCode#
+			 , #bcncLogoImageFileId#
+			 , NVL(#loginId#, 'ADMIN')
+			 , NVL(#loginId#, 'ADMIN')
+			 , SYSDATE
+			 , SYSDATE )
+	</insert>
+
+	<!--
+	<insert id="registerNewEcPost" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO POSTOFFICE_MASTER
+			(
+			ECODE, PCODE, ACCESS_NAME, PASSWORD, NAME,
+			SHORT_NAME, POSTAL_CODE, ADDRESS1, ADDRESS2, TELEPHONE,
+			FAX, EMAIL, P_LEVEL, ACCOUNT, CREATE_DATE,
+			MODIFY_DATE, KEY_STORE_SEQID, MODIFY_ID
+			)
+    	VALUES
+    		(
+    		#keyStoreSeqid#, #keyStoreSeqid#, #accessName#, #password#, #bizName#,
+    		#bizName#, #postalCode#, #address1#, #address2#, #telephone#,
+            #fax#, #email#, #type#, pkg_obfus.encrypt(rpad(NVL(#account#, ' '), 24)), TO_CHAR(sysdate, 'YYYYMMDD'),
+            TO_CHAR(sysdate, 'YYYYMMDD'), #keyStoreSeqid#, #loginId#
+			)
+		]]>
+	</insert>
+	 -->
+
+	<insert id="registerNewEcPost60" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO PICMT0060
+			(
+			REGIPOCD, POCHGSEQ, HRNKORREGIPOCD, HRNKORPOCHGSEQ, EDPSCD,
+			POSTCD, MPOPOSTCD, RCOCD, DELIVTREATPOYN, CUSTOMTREATYN,
+			POGRADECD, PODIVCD, DSCDPOYN, PONM, ZIPCD,
+			POADDR, POFNO, POMNO, POLNO, BIZFAXFNO,
+			BIZFAXMNO, BIZFAXLNO, XPRTMAILTREATYN, HIGHWGHTTREATYN, SUPEXPTREATYN,
+			MPOIP, LTUPDYMD, MPOREGIPOCD, COMPPOREGIPOCD, USEYN,
+			WORKTYPECD, POSHORTNM, LTUPDCD, FNCTREATYN
+			)
+		VALUES
+			(
+	      	DECODE(SUBSTR(#keyStoreSeqid#, 1, 2), '90','A','98','Z','X') || SUBSTR(#keyStoreSeqid#, 3, 4), '1', ' ', '1', #keyStoreSeqid#,
+		   	#keyStoreSeqid#, ' ', ' ', 'N', 'N',
+		   	'EE', ' ', 'N', #bizName#, SUBSTR(REPLACE(#postalCode#, '-',''), 1, 6),
+		   	#address1# || ' ' || #address2#, #telephone1#, #telephone2#, #telephone3#, #spltFax1#,
+	      	#spltFax2#, #spltFax3#, 'N', 'N', 'N',
+	      	'N', TO_CHAR(SYSDATE, 'YYYYMMDD'), ' ', ' ', 'Y',
+	      	'EE', SUBSTRB(#bizName#, 1, 30), 'Y', 'Y'
+			)
+		]]>
+	</insert>
+
+	<update id="modifyAdmin" parameterClass="java.util.HashMap">
+		<![CDATA[
+		UPDATE 	MB_SUPP_COMP_MEM_MAST
+		SET 	PASSWD   = #password#
+		WHERE 	SUPP_COMP_ACCESS_NAME   = #accessName#
+		]]>
+	</update>
+
+	<update id="modifyCorpLogo" parameterClass="java.util.HashMap">
+		MERGE INTO CO_SUPP_COMP_DTAIL_INFO
+					 USING DUAL
+						ON (SUPP_COMP_ID = #bizCode#)
+		WHEN MATCHED THEN
+			UPDATE
+			   SET CHGER_ID = NVL(#loginId#, 'ADMIN')
+				 , CHG_DATE = SYSDATE
+		<isNotEmpty property="bcncLogoImageFileId" prepend=",">
+			BCNC_LOGO_IMAGE_FILE_ID = #bcncLogoImageFileId#
+		</isNotEmpty>
+		WHEN NOT MATCHED THEN
+			INSERT
+				 ( SUPP_COMP_ID
+				 , BCNC_LOGO_IMAGE_FILE_ID
+				 , REGER_ID
+				 , CHGER_ID
+				 , REG_DATE
+				 , CHG_DATE )
+			VALUES
+				 ( #bizCode#
+				 , #bcncLogoImageFileId#
+				 , NVL(#loginId#, 'ADMIN')
+				 , NVL(#loginId#, 'ADMIN')
+				 , SYSDATE
+				 , SYSDATE )
+	</update>
+
+	<update id="stopAdminId" parameterClass="java.util.HashMap">
+		<![CDATA[
+		UPDATE 	ADMIN
+		SET 	DELETE_DATE = TO_CHAR(SYSDATE,'YYYYMMDD')
+		WHERE 	TYPE        ='t'
+		AND 	ID          = #accessName#
+		]]>
+	</update>
+
+	<update id="reUseAdminId" parameterClass="java.util.HashMap">
+		<![CDATA[
+		UPDATE 	ADMIN
+		SET 	DELETE_DATE = null
+		WHERE 	TYPE        ='t'
+		AND 	ID          = #accessName#
+		]]>
+	</update>
+
+
+
+	<select id="selectSupplyInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT  B.SUPP_COMP_ID,
+                B.BCNC_NM,
+                A.SUPP_COMP_ACCESS_NAME,
+                A.ADMINNM,
+                C.BCNC_LOGO_IMAGE_FILE_ID,
+           	 	IMAGE.FILE_STRE_PATH || IMAGE.STRE_FILE_NM AS IMAGE_PATH,
+           	 	IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM,
+                TO_CHAR(A.REG_DATE,'YYYYMMDD') AS REG_DATE
+        FROM    MB_SUPP_COMP_MEM_MAST A, CO_SUPP_COMP_MAST B, CO_SUPP_COMP_DTAIL_INFO C, CM_FILE_MGT IMAGE
+        WHERE   A.SUPP_COMP_ID = B.SUPP_COMP_ID
+        AND     A.SUPP_COMP_ID = C.SUPP_COMP_ID(+)
+        AND	    C.BCNC_LOGO_IMAGE_FILE_ID = IMAGE.ATTCHFILE_ID(+)
+        AND     B.SUPP_COMP_DIV_CD = '08'
+        AND     JOB_DUTY_CD = '001'
+        AND 	A.SUPP_COMP_ACCESS_NAME   = #searchText#
+        AND     ROWNUM = 1
+	</select>
+
+
+	<!-- 회원 조회 -->
+	<select id="selectRetrieveCorMemInfoList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT 	/*+ index(A IDX_MEMINFO_02) */ ACCESS_NAME, NAME,PEOPLENUM,
+		       	POSTAL_CODE,ADDRESS_1,ADDRESS_2,
+		       	EMAIL,TELNO_1 || '-' || TELNO_2 || '-' || TELNO_3 TELNO,
+		       	TELNO_1 TELNO1, TELNO_2 TELNO2, TELNO_3 TELNO3
+		FROM 	MEMINFO A
+		WHERE 	MEMBER_TYPE ='2'
+		AND		ACCESS_NAME NOT IN ( SELECT A.ACCESS_NAME FROM MEMINFO A, ADMIN B WHERE A.ACCESS_NAME = B.ID )
+		]]>
+<!-- 		AND NAME LIKE substr(?,2) -->
+		<isNotEmpty property="searchTxt">
+		<![CDATA[AND 	NAME LIKE '%' || #searchTxt# || '%']]>
+		</isNotEmpty>
+		<![CDATA[
+		AND STATUS IN ('1','2')
+		]]>
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 회원 건수 -->
+	<select id="selectRetrieveCorMemInfoTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT 	COUNT(*)
+		FROM 	MEMINFO A
+		WHERE 	MEMBER_TYPE ='2'
+		AND		ACCESS_NAME NOT IN ( SELECT A.ACCESS_NAME FROM MEMINFO A, ADMIN B WHERE A.ACCESS_NAME = B.ID )
+		]]>
+<!-- 		AND NAME LIKE substr(?,2) -->
+		<isNotEmpty property="searchTxt">
+		<![CDATA[AND 	NAME LIKE '%' || #searchTxt# || '%']]>
+		</isNotEmpty>
+		<![CDATA[
+		AND STATUS IN ('1','2')
+		]]>
+	</select>
+
+	<!-- 법인회원 목록 건수 -->
+	<select id="selectEventCorpMemTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT 	COUNT(SUPP_COMP_ID)
+		FROM 	EV_CORPSPCSAL_MEM
+		WHERE   SUPP_COMP_ID = #suppCompId#
+		]]>
+	</select>
+
+	<delete id="deleteCorpMemAll" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE 	FROM EV_CORPSPCSAL_MEM
+		WHERE   SUPP_COMP_ID = #suppCompId#
+		]]>
+	</delete>
+
+	<insert id="registCorpMem" parameterClass="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO EV_CORPSPCSAL_MEM
+			(
+			SUPP_COMP_ID,
+            COORIG_NO,
+            COORIG_NM,
+            SECT_NM,
+            REG_DATE,
+            REGER_ID
+            )
+		VALUES
+			(
+			 #suppCompId#,
+			 #coorigNo#,
+			 #coorigNm#,
+			 #sectNm#,
+			 SYSDATE,
+			 NVL(#loginId#, 'ADMIN')
+			)
+		]]>
+	</insert>
+
+	<select id="selectCorpMemInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT 	SUPP_COMP_ID,
+				COORIG_NO,
+				COORIG_NM,
+				SECT_NM,
+				REG_DATE,
+				CHG_DATE,
+				REGER_ID,
+				CHGER_ID,
+				PNT
+		FROM 	EV_CORPSPCSAL_MEM
+		WHERE   SUPP_COMP_ID = #suppCompId#
+		AND     COORIG_NO = #useKye#
+		]]>
+	</select>
+
+	<delete id="deleteCorpMem" parameterClass="java.util.HashMap">
+		<![CDATA[
+		DELETE 	FROM EV_CORPSPCSAL_MEM
+		WHERE   SUPP_COMP_ID  = #suppCompId#
+		AND     COORIG_NO = #useKye#
+		]]>
+	</delete>
+
+	<update id="updateCorpMem" parameterClass="java.util.HashMap">
+		<![CDATA[
+		UPDATE 	EV_CORPSPCSAL_MEM
+		SET 	COORIG_NM = #coorigNm#,
+			    SECT_NM   = #sectNm#,
+			    PNT       = #pnt#,
+			    CHG_DATE  = SYSDATE,
+			    CHGER_ID  = NVL(#loginId#, 'ADMIN')
+		WHERE   SUPP_COMP_ID  = #suppCompId#
+		AND     COORIG_NO = #coorigNo#
+		]]>
+	</update>
+
+	<select id="selectCorpMemCount" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT COUNT(*) CNT FROM EV_CORPSPCSAL_MEM  WHERE SUPP_COMP_ID = #suppCompId# AND COORIG_NO = #coorigNo#
+		]]>
+	</select>
+
+	<update id="updateCorpBillInfo" parameterClass="java.util.HashMap">
+		UPDATE EV_CORPSPCSAL_EVENT
+		   SET BOND_COLLCT_YN	= 'Y'
+		     , CHG_DATE		 	= SYSDATE
+		     , CHGER_ID			= #login_usr_id#
+		 WHERE EVENT_ID IN
+		 <iterate property="event_arr" open="("  close=")" conjunction=",">
+			#event_arr[]#
+		</iterate>
+	</update>
+
+	<update id="updateCorpBillDspyStusCd" parameterClass="java.util.HashMap">
+		UPDATE DP_DSPY_MAST
+		   SET DSPY_STUS_CD	= '40'
+		     , CHG_DATE		= SYSDATE
+		     , CHGER_ID		= #login_usr_id#
+		 WHERE DSPY_SEQ IN
+		 	 ( SELECT DSPY_SEQ FROM EV_EVENT_MAST
+		 	 	WHERE EVENT_ID IN
+			 <iterate property="event_arr" open="("  close=")" conjunction=",">
+				#event_arr[]#
+			</iterate>
+		 	 )
+	</update>
+
+</sqlMap>

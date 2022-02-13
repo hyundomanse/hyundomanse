@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchCashPrtNew">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- SetBatchCashPrtNewQuery START -->
+		
+	<select id="selectOdOrderMastList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT	/*+ USE_NL(A B) INDEX(A TXORDER_IX10) */         
+					a.TXORDER_ID,                           
+					a.BIZ_CODE,                         
+					max(a1.gbn) gbn,                    							                        
+					' ' auth_data,      			 				                        
+					max(replace(e.register_no,'-','')) register_no,                                                  
+					max(d.IP_ADDR) ip_addr,                                                                         
+					SUM(CASE WHEN A.SHOP_ID IN ('0','1','2','8') THEN  							   
+					      decode(f.TAXGBN,'Y',(b.PRICE - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) )) - round(( ( b.PRICE - (nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) ) )/ 1.1),0), 0)  			           
+					 	WHEN A.SHOP_ID IN ('5','10') THEN		 					           
+					      decode(f.TAXGBN,'Y',(b.GOODS_PRICE - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) )) - round(((b.GOODS_PRICE - (nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) +  nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0)))/ 1.1),0), 0)           
+					 	END) AS vat,									      	
+					SUM(b.PRICE - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0)  + nvl(A.AMOUNT_OKCASH,0) )) amount ,         
+		   		  max(A1.JUMIN_SEED_1)  jumin_seed_1,      
+		   		  max(A1.JUMIN_SEED_2)  jumin_seed_2,      
+		   		  max(A1.JUMIN_SEED_3)  jumin_seed_3,      
+		   		  'Y'  jumin_seed_yn     
+			FROM TXORDER a,                      
+				   CASHREQ a1,                     
+			   	 TXORDER_ITEM b,                 
+			   	 PMT_INSTRUCTION d,              
+				   BIZ_MASTER e,                
+			   	 GOODS_MASTER f              
+			WHERE  a.purchase_id = a1.purchase_id      
+			  and  a.txorder_id  = b.txorder_id          
+			  and  a.purchase_id = d.purchase_id       
+			  and  a.BIZ_CODE    = e.BIZ_CODE          
+			  and  b.goods_idn   = f.goods_idn           
+			  and  b.goods_code  = f.goods_code       
+			  and  A.COMPLETE_DATE >= to_char(sysdate - 1 ,'yyyymmddhh24')           
+			  and  A.COMPLETE_DATE <= to_char(sysdate ,'yyyymmddhh24') || '9999999'	 				         
+			  and  A.shop_id in ('0','1','2','5','8','10')              
+			  and  A.status not in ('1','9')                   
+			  and  A.PAYMETHOD IN ('B','O')                    
+			  and  A.cancel_state = 'N'               
+			  and  a1.SEND_CHK = '00'                  
+			  and  b.goods_code > '0'                    
+			  and  b.goods_idn > 0                       
+			  and  e.language  = 'KO'                 
+			  and  f.language  = 'KO'				  	      
+			  AND a1.JUMIN_SEED_1 IS NOT NULL                     
+			GROUP BY a.TXORDER_ID,a.BIZ_CODE                   
+                                                                                    
+		]]>	 
+	</select>
+	
+	<select id="selectCashinfoSeq" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select to_char(sysdate,'yyyymmddhh24miss') ||            
+			       ltrim(to_char(cashinfo_seq.NEXTVAL,'00000000009')) info  
+			From  dual                                                            
+		]]>	 
+	</select>
+	
+	<select id="selectOdCashinfoCnt" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select count(*) cnt FROM CASHINFO    
+			where ORDER_ID  = ?    
+			  and BIZ_CODE     = ?                                                           
+		]]>	 
+	</select>
+	
+	<update id="insertOdCashinfo1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO CASHINFO( 
+									ORDER_ID,              	   /* 주문번호          */
+									BIZ_CODE,                  /* 업체코드          */
+									TERMINAL_ID,               /* Terminal ID       */
+									ORDER_DATE,                /* 주문일자          */
+									SEQUENCE_NO,               /* SEQ               */
+									VAT,                       /* 부가세            */
+									TIPS,                      /* 봉사료            */
+									AMOUNT,                    /* 금액              */
+									PRTGBN,                    /* 발행여부          */
+									REGISTER_NO,               /* 사업자번호        */
+									MSGTYPE,                   /* 현금영수증 구분   */
+									AUTH_TYPE,                 /* 승인 구분         */
+									AUTH_SEED_DATA,            /* 승인 인증 자료    */
+									APPROVAL_NO,               /* 승인 번호         */
+									APPROVAL_TIME,             /* 승인 일자         */
+									REPLY_CODE,                /* 결과 코드         */
+									SCREEN_MSG,                /* 결과 메시지       */
+									STATUS,                    /* 상태              */
+									RESERVED1,                 /* 우체국쇼핑상품    */
+									RESERVED2,                 /* 승인번호          */
+									NEW_BIZ_CODE,              /* 변경업체코드      */
+									PROCESS_ID                 /* 처리자			*/
+									)                           
+									SELECT ? ,? ,? ,sysdate,? , 
+									      ?,?,?,'Y',? ,?,       
+									      ?,?,?,?,substr(?,1,4) , 
+									      ?,?,?,?,?,? FROM DUAL   
+
+		]]>
+	</update>	
+	
+	<select id="selectStCashsendinfoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select /*+ INDEX_DESC(A IDX_CASHSENDINFO_01) */    
+			       A.SEND_DAY, nvl(A.SEND_STAT,'')  SEND_STAT  
+			From CASHSENDINFO A                         
+			where rownum = 1                                                                                          
+		]]>	 
+	</select>
+	
+	<update id="insertStCashsendinfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO CASHSENDINFO(SEND_DAY,SEND_STAT ) 
+			values (to_char(sysdate,'yyyymmddhh24miss'),'0')    
+		]]>
+	</update>	
+	
+	<update id="updateStCashsendinfo" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CASHSENDINFO    
+			SET SEND_ENDDATE = to_char(sysdate,'yyyymmddhh24miss') , 
+			    SEND_SUCCCNT = ? ,  
+			    SEND_ERRCNT  = ? ,  
+			    SEND_STAT    = '1'  
+			where SEND_DAY   = ? 
+		]]>
+	</update>	
+	
+	<update id="updateOdCashreq1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CASHREQ       
+			SET SEND_CHK     = '01'    
+			where ORDER_ID   = ?     
+		]]>
+	</update>	
+	<!-- SetBatchCashPrtNewQuery END -->
+	
+	
+	
+	
+	<!-- SendCashPreConfirmQuery START -->
+	<select id="selectOdCashinfoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 Select '51' msgtype,                                  /* 승인구분   */
+			         purchase_id,                                  /* 주문번호   */
+			         auth_data,                                    /* 승인DATA   */
+			         auth_type,                                    /* 승인구분   */
+			         biz_code,                                     /* 업체코드   */
+			         register_no,                                  /* 사업자번호 */
+			         approval_no,                                  /* 승인번호   */
+			         approval_time,                                /* 승인시간   */
+			         to_char(order_date,'yyyymmdd') order_date,    /* 승인일자   */
+			         sequence_no,                                  /* 승인SEQ    */
+			         reserved2,                                    /* 거래번호   */  
+			         amount,                                       /* 금액       */
+			         vat ,                                         /* 부가세     */
+			         'Y' auth_seed_yn,  													 /* 승인DATA   */
+			         auth_seed_data                          			 /* 승인DATA		*/
+			 From cashinfo                                  			
+			 where ORDER_ID = ?                                
+			   and STATUS = 'D1'                                  
+			 UNION ALL                                            
+			 Select /*+ index( A TXORDER_IX08) */         				
+			 		'50' msgtype,                                			 
+					    a.ORDER_ID,                                
+					    '',                                          
+					    '',                                          
+					    a.BIZ_CODE,                                   
+					    replace(D.register_no,'-',''),                
+					    '',                                           
+					    '',                                          
+					    '',                                           
+					    '',                                          
+					    '',                                          
+					    sum(b.PRICE - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0) ) ),                                
+					    sum(decode(c.TAXGBN,'Y',(b.PRICE - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0)  ) ) - round(( (b.PRICE - (nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0)  ) ) / 1.1),0), 0)), 
+					    '',                                          
+					    ''                                           
+			 From TXORDER      A,                             
+				  TXORDER_ITEM    B,                           
+				  GOODS_MASTER C,                             
+				  BIZ_MASTER   D                              
+			 WHERE A.TXORDER_ID   = B.TXORDER_ID                    
+			   AND A.BIZ_CODE     = D.BIZ_CODE			            
+			   AND B.GOODS_IDN    = C.GOODS_IDN                    
+			   AND B.GOODS_CODE   = C.GOODS_CODE                    
+			   AND A.ORDER_ID  = ?                              
+			   AND A.SHOP_ID in ('0','1','2','8')                  
+			   AND A.STATUS NOT IN ( '1', '9' )                    
+			   AND A.CANCEL_STATE = 'N'                           
+			   AND B.PRICE        > 0                             
+			   AND C.LANGUAGE     = 'KO'                           
+			   AND D.LANGUAGE     = 'KO'                           
+			 Group by a.ORDER_ID,a.BIZ_CODE,replace(D.register_no,'-','') 
+			 UNION ALL                                            
+			 Select /*+ index( a TXORDER_IX08) */               
+			 		'50' msgtype,                                   
+					    a.ORDER_ID,                                
+					    '',                                          
+					    '',                                          
+					    a.BIZ_CODE,                                   
+					    replace(D.register_no,'-',''),                
+					    '',                                           
+					    '',                                          
+					    '',                                           
+					    '',                                          
+					    '',                                          
+					    sum(b.PRICE - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0)  )),                                
+					    sum(decode(c.TAXGBN,'Y',(b.GOODS_PRICE - (nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0)  ) ) - round(((b.GOODS_PRICE - (nvl(A.SP_AMOUNT,0) + nvl(A.SP_PEF_AMOUNT,0) + nvl(A.RM_AMOUNT,0) + nvl(A.RM_PEF_AMOUNT,0) + nvl(A.COUPON_AMOUNT,0) + nvl(A.AMOUNT_OKCASH,0)  ))/ 1.1),0), 0)) ,
+					    '',                                          
+					    ''                                          
+			From TXORDER      A,                             
+			  TXORDER_ITEM    B,                           
+			  GOODS_MASTER C,                             
+			  BIZ_MASTER   D                              
+			WHERE A.TXORDER_ID   = B.TXORDER_ID                    
+			  AND A.BIZ_CODE     = D.BIZ_CODE			            
+			  AND B.GOODS_IDN    = C.GOODS_IDN                    
+			  AND B.GOODS_CODE   = C.GOODS_CODE                    
+			  AND A.ORDER_ID  = ?                              
+			  AND A.SHOP_ID in ('5','10')                         
+			  AND A.STATUS NOT IN ( '1', '9' )                    
+			  AND A.CANCEL_STATE = 'N'                           
+			  AND B.GOODS_IDN    > 0                                                             
+			  AND B.PRICE        > 0                             
+			  AND C.LANGUAGE     = 'KO'                           
+			  AND D.LANGUAGE     = 'KO'                           
+			Group by a.ORDER_ID,a.BIZ_CODE,replace(D.register_no,'-','')                                                     
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderSetlList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 Select IP_ADDR, 
+				       to_char(sysdate,'yyyymmddhh24miss') ||            
+				       ltrim(to_char(cashinfo_seq.NEXTVAL,'00000000009')) info  
+				From  PMT_INSTRUCTION                              
+				where ORDER_ID  = ?                                                                                       
+		]]>	 
+	</select>
+	
+	<update id="insertOdCashinfo2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO CASHINFO( 
+									ORDER_ID,               /* 주문번호        */
+									BIZ_CODE,                  /* 업체코드        */
+									TERMINAL_ID,               /* Terminal ID     */
+									ORDER_DATE,                /* 주문일자        */
+									SEQUENCE_NO,               /* SEQ             */
+									VAT,                       /* 부가세          */
+									TIPS,                      /* 봉사료          */
+									AMOUNT,                    /* 금액            */
+									PRTGBN,                    /* 발행여부        */
+									REGISTER_NO,               /* 사업자번호      */
+									MSGTYPE,                   /* 현금영수증 구분 */
+									AUTH_TYPE,                 /* 승인 구분       */
+									AUTH_SEED_DATA,            /* 승인 인증 자료  */
+									APPROVAL_NO,               /* 승인 번호       */
+									APPROVAL_TIME,             /* 승인 일자       */
+									REPLY_CODE,                /* 결과 코드       */
+									SCREEN_MSG,                /* 결과 메시지     */
+									STATUS,                    /* 상태            */
+									RESERVED1,                 /* 우체국쇼핑상품  */
+									NEW_BIZ_CODE,              /* 변경업체코드    */
+									PROCESS_ID,                /* 처리자          */
+									RESERVED2                  /* 거래번호				*/
+								)                           
+								SELECT ?,?,?,?,?,           
+								       ?,?,?,'Y',?,?,       
+								       ?,?,?,?,?,           
+								       ?,?,?,?,?,?  FROM DUAL   
+
+		]]>
+	</update>	
+	
+	<update id="updateOdCashinfo1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CASHINFO            
+			SET    REPLY_CODE    = ?      ,  
+			       SCREEN_MSG    = substr(?,1,60)  ,  
+			       PROCESS_ID    = ?      ,  
+			       STATUS        = ?      ,  
+			       ORDER_DATE    = sysdate,  
+			       PRTGBN        = 'Y'    ,  
+			       SEQUENCE_NO   = ?      ,  
+			       APPROVAL_NO   = ?      ,  
+			       APPROVAL_TIME = ?      ,  
+			       AMOUNT        = ?      ,  
+			       VAT           = ?      ,  
+			       REGISTER_NO   = ?      ,  
+			       MSGTYPE       = ?      ,  
+			       RESERVED1     = ?      ,  
+			       AUTH_SEED_DATA     = ?      ,  
+				   AUTH_TYPE     = ?      ,
+			       KICC_CHK      = null   ,  
+			       NEW_BIZ_CODE  = ?      ,  
+			       RESERVED2     = ?         
+			where ORDER_ID     = ?        
+			  and BIZ_CODE        = ?       
+
+		]]>
+	</update>
+		
+	<update id="updateOdCashinfo2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CASHINFO            
+			SET    AMOUNT_4999    = ?        
+			where ORDER_ID     = ?        
+			  and BIZ_CODE        = ?
+
+		]]>
+	</update>
+		
+	<update id="updateOdCashinfo3" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CASHINFO            
+			SET    REPLY_CODE    = ?      ,  
+			       SCREEN_MSG    = ?      ,  
+			       PROCESS_ID    = ?      ,  
+			       STATUS        = ?      ,  
+			       ORDER_DATE    = sysdate,  
+			       PRTGBN        = 'Y'    ,  
+			       SEQUENCE_NO   = ?      ,  
+			       APPROVAL_NO   = ?      ,  
+			       APPROVAL_TIME = ?      ,  
+			       AMOUNT        = ?      ,  
+			       MSGTYPE       = ?      ,  
+				   AUTH_TYPE     = ?      ,   
+			       KICC_CHK      = null   ,  
+			       RESERVED2     = ?         
+			where ORDER_ID     = ?        
+			  and BIZ_CODE        = ?  
+
+		]]>
+	</update>
+		
+	<update id="updateOdCashinfo4" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CASHINFO     
+			SET REPLY_CODE     = ? ,  
+			    SCREEN_MSG     = ? ,  
+			    PROCESS_ID     = ? ,  
+			    STATUS         = 'E1' 
+			where ORDER_ID  = ?    
+			  and BIZ_CODE     = ?    
+
+		]]>
+	</update>
+
+	<update id="updateOdCashreq2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE CASHREQ    
+			SET GBN        = ? ,    
+			    JUMIN_SEED_1     = ? ,    
+			    JUMIN_SEED_2     = ? ,    
+			    JUMIN_SEED_3     = ? ,    
+			    SEND_CHK   = '01'   
+			where ORDER_ID  = ?    
+		]]>
+	</update>		
+
+	<!-- SendCashPreConfirmQuery END -->		
+</sqlMap>

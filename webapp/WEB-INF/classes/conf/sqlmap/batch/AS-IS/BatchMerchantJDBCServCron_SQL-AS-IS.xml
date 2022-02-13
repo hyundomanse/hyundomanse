@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchMerchantJDBCServCron">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="select_execMySQL_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT COUNT(*) CNT  
+			FROM TXORDER
+			WHERE PURCHASE_ID  = replace(#rVTransactionNo#,'-','') 
+			AND PAYMETHOD    = 'O'
+			AND STATUS       = '1'
+			AND CANCEL_STATE = 'N'
+		]]>	 
+	</select>
+	
+	<select id="select_execMySQL_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 	TXORDER_ID,
+					ACCESS_NAME,
+					RM_POINT,
+					RM_AMOUNT,
+					SP_AMOUNT,
+					WISH_DATE,
+					SHOP_ID 
+			FROM TXORDER 
+			WHERE PURCHASE_ID = replace(#rVTransactionNo#,'-','')  
+			AND CANCEL_STATE = 'N' 
+		]]>	 
+	</select>
+	
+	<select id="select_execMySQL_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  WEEKDAYCD, 
+					HOLDAYYN 
+			FROM COMM_USR.PIEMT0160 
+			WHERE RCOCD='0'  
+			AND WORKCALEYMD = #sToday#
+		]]>	 
+	</select>
+	
+	<select id="select_WISHDATE" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(SYSDATE + 0.136,'YYYYMMDDHH24') WISHDATE FROM DUAL
+		]]>	 
+	</select>
+	
+	<insert id="insert_ORD_DATA_LINK_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ORD_DATA_LINK (purchase_id, job_type, job_date) 
+			VALUES (replace(#rVTransactionNo#,'-','') , #rcnt#, sysdate)  
+		]]>	 
+	</insert>
+	
+	<update id="update_TXORDER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER 
+			SET    STATUS = '2',
+				   COMPLETE_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS'),
+				   WISH_DATE = #wishDate#
+			WHERE TXORDER_ID = #sTxorderId# 
+			AND CANCEL_STATE = 'N'	
+		]]>	 
+	</update>
+	
+	<update id="update_RM_PAYMENT_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_PAYMENT 
+			SET STATUS = '1' 
+			WHERE PURCHASE_ID = replace(#rVTransactionNo#,'-','') 
+			AND USE_TYPE = '1' 
+			AND STATUS   = '0'
+		]]>	 
+	</update>
+	
+	<select id="select_execMySQL_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 seq  
+			FROM RM_HISTORY  
+			WHERE ACCESS_NAME = #sAccessName# 
+		]]>	 
+	</select>
+	
+	<select id="select_execMySQL_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(CUR_POINT,0) CUR_POINT  
+			FROM RM_MASTER 
+			WHERE ACCESS_NAME = #sAccessName# 
+		]]>	 
+	</select>
+	
+	<select id="select_execMySQL_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			INSERT INTO RM_HISTORY (ACCESS_NAME, SEQ, RM_TYPE,  
+								PURCHASE_ID, TXORDER_ID,  
+								PRE_ACCU_POINT, ACCU_POINT, CUR_POINT, 
+								CASE_CONT, STATUS, TYPE_CD, REG_DATE, CREATE_DATE)  
+								VALUES(#sAccessName#, #iSeq#, 'A',
+								replace(#rVTransactionNo#,'-','') , #sTxorderId#,  
+								#iRmPoint# , 0, #iCurPoint#,  
+								'상품주문', '0', 'A1', TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') )
+		]]>	 
+	</select>
+	
+	<update id="update_SP_PAYMENT_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE SP_PAYMENT  
+			SET STATUS = '1', 
+			PAY_DATE = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')  
+			WHERE PURCHASE_ID = replace(#rVTransactionNo#,'-','') 
+			AND USE_TYPE = '1' 
+			AND STATUS   = '0' 
+		]]>	 
+	</update>
+	
+	<update id="update_VRACT_INFO_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE VRACT_INFO
+			   SET USE_FG='A'
+			   ,USE_FIN_DATE= TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+			   WHERE TRN_NO=replace(#rVTransactionNo#,'-','')
+		]]>	 
+	</update>
+	
+	<update id="update_PMT_INSTRUCTION_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE PMT_INSTRUCTION 
+			SET    STATE = '2100' , PMT_DATE = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') 
+			WHERE  PURCHASE_ID = replace(#rVTransactionNo#,'-','') 
+		]]>	 
+	</update>
+	
+	<update id="update_ONLINE_PAYMENT_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ONLINE_PAYMENT 
+			SET REALBANKNAME    = FINANCE_NAME,   
+				REALBANKACCOUNT = ACCOUNT_NO,
+				ONLINEDATE      = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS'),     
+				RESULT          = '1',  
+				RECVDATE        = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS'),       
+				ACCESS_NAME     = 'AUTO'     
+			WHERE PURCHASE_ID = replace(#rVTransactionNo#,'-','')
+		]]>	 
+	</update>
+	
+	
+</sqlMap>

@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.CostBill">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	
+	<!-- 원가계산서 리스트 카운드 -->
+	<select id="selectCostBillListCount" parameterClass="java.util.HashMap" resultClass="int">
+	<![CDATA[
+		SELECT COUNT(*) AS CNT FROM (
+				
+			SELECT ROWNUM AS CNUM, T.* FROM (
+				SELECT	A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+				FROM   	CF_COST A,CF_ITEMS B,CF_SUPPLIER C
+				WHERE 	A.BIZ_CODE = C.BIZ_CODE
+				AND 	A.ITEM_CODE = B.ITEM_CODE
+				AND 	A.REG_DATE BETWEEN #searchStrtYmd# AND #searchEndYmd#
+	]]>	
+				<isNotEmpty property="searchDelYn">
+		    	AND    	A.DEL_FLAG = #searchDelYn# 
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchTypeTitle">
+		    		<isEqual property="searchType" compareValue="1">
+			    	AND    C.BIZNAME like '%'||#searchTypeTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="2">
+			    	AND    C.BIZ_CODE = #searchTypeTitle#
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="3">
+			    	AND    C.RESISTERNO = #searchTypeTitle#
+			    	</isEqual>
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchGoodsTitle">
+		    		<isEqual property="searchGoods" compareValue="1">
+			    	AND    B.ITEM_NAME like '%'||#searchGoodsTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchGoods" compareValue="2">
+			    	AND    B.ITEM_CODE = #searchGoodsTitle#
+			    	</isEqual>	    	
+		    	</isNotEmpty>	
+				GROUP BY A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+				ORDER BY A.REG_DATE  desc
+			) T    	
+    	)
+	</select>
+	<!-- 원가계산서 리스트-->
+	<select id="selectCostBillList" parameterClass="java.util.HashMap" resultClass="commMap">
+	<include refid="pagingHeader"/>	
+	<![CDATA[
+		SELECT ROWNUM AS CNUM, T.* FROM (
+			SELECT	A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+			FROM   	CF_COST A,CF_ITEMS B,CF_SUPPLIER C
+			WHERE 	A.BIZ_CODE = C.BIZ_CODE
+			AND 	A.ITEM_CODE = B.ITEM_CODE
+			AND 	A.REG_DATE BETWEEN #searchStrtYmd# AND #searchEndYmd#
+	]]>	
+			<isNotEmpty property="searchDelYn">
+	    	AND    	A.DEL_FLAG = #searchDelYn# 
+	    	</isNotEmpty>
+	    	<isNotEmpty property="searchTypeTitle">
+	    		<isEqual property="searchType" compareValue="1">
+		    	AND    C.BIZNAME like '%'||#searchTypeTitle#||'%'
+		    	</isEqual>
+		    	<isEqual property="searchType" compareValue="2">
+		    	AND    C.BIZ_CODE = #searchTypeTitle#
+		    	</isEqual>
+		    	<isEqual property="searchType" compareValue="3">
+		    	AND    C.RESISTERNO = #searchTypeTitle#
+		    	</isEqual>
+	    	</isNotEmpty>
+	    	<isNotEmpty property="searchGoodsTitle">
+	    		<isEqual property="searchGoods" compareValue="1">
+		    	AND    B.ITEM_NAME like '%'||#searchGoodsTitle#||'%'
+		    	</isEqual>
+		    	<isEqual property="searchGoods" compareValue="2">
+		    	AND    B.ITEM_CODE = #searchGoodsTitle#
+		    	</isEqual>	    	
+	    	</isNotEmpty>	
+			GROUP BY A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+			ORDER BY A.REG_DATE  desc
+		) T
+    <include refid="pagingFooter"/>	 
+	</select>
+	
+	<!-- 원가계산서 업체 상세 리스트-->
+	<select id="selectCostBillDetailList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	A.REG_DATE,
+				A.BIZ_CODE,
+				C.BIZNAME,
+				A.ITEM_CODE,
+				B.ITEM_NAME,
+				A.MAIN_AMT,
+				A.COST_AMT,
+				A.TOT_AMT,
+				A.TAX_VOL,
+				A.POST_AMT,
+				A.EMP_AMT,
+				A.SUB_TOT_AMT,
+				A.MAR_AMT,
+				A.MGM_FEE,
+				(select MIN(UNIT) KEEP(DENSE_RANK FIRST ORDER BY UNIT DESC) from CF_ITEMS D where D.ITEM_CODE = A.iTEM_CODE ) as UNIT
+		FROM  	CF_COST A, 
+				(select item_code, ITEM_NAME, supplier_code  from CF_items group by item_code, ITEM_NAME, supplier_code) B,
+  				CF_SUPPLIER C
+		WHERE 	A.BIZ_CODE = C.BIZ_CODE
+		AND 	A.ITEM_CODE = B.ITEM_CODE
+		AND 	A.BIZ_CODE = #searchBizCode#
+		AND 	A.REG_DATE = #searchRegDate#
+		AND 	A.BIZ_CODE = B.SUPPLIER_CODE
+		Order by A.ITEM_CODE asc
+	</select>
+	
+	<!-- 원가계산서 엑셀-->
+	<select id="selectCostBillExcel" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[	
+		SELECT ROWNUM CNT
+      		  ,REG_DATE
+			  ,BIZ_CODE
+			  ,BIZNAME
+			  ,ITEM_CODE
+			  ,ITEM_NAME
+			  ,MAIN_AMT
+			  ,EMP_AMT
+			  ,SUB_TOT_AMT
+			  ,MAR_AMT
+			  ,COST_AMT
+			  ,MGM_FEE
+			  ,TOT_AMT
+			  ,TAX_VOL
+			  ,POST_AMT
+			  ,DEL_FLAG
+			  ,UNIT
+		FROM (
+			  SELECT A.REG_DATE
+					,A.BIZ_CODE
+					,MAX(C.BIZNAME) BIZNAME
+					,A.ITEM_CODE
+					,MAX(B.ITEM_NAME) ITEM_NAME
+					,A.MAIN_AMT
+					,A.EMP_AMT
+					,A.SUB_TOT_AMT
+					,A.MAR_AMT
+					,A.COST_AMT
+					,A.MGM_FEE
+					,A.TOT_AMT
+					,A.TAX_VOL
+					,A.POST_AMT
+					,MAX(A.DEL_FLAG) DEL_FLAG
+					,MAX(B.UNIT) UNIT
+			   FROM CF_COST A
+				   ,CF_ITEMS B
+				   ,CF_SUPPLIER C
+			  WHERE A.BIZ_CODE = C.BIZ_CODE
+				AND A.ITEM_CODE = B.ITEM_CODE       
+				]]>  
+				<isNotEmpty property="searchDelYn">
+		    	AND    	A.DEL_FLAG = #searchDelYn# 
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchTypeTitle">
+		    		<isEqual property="searchType" compareValue="1">
+			    	AND    C.BIZNAME like '%'||#searchTypeTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="2">
+			    	AND    C.BIZ_CODE = #searchTypeTitle#
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="3">
+			    	AND    C.RESISTERNO = #searchTypeTitle#
+			    	</isEqual>
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchGoodsTitle">
+		    		<isEqual property="searchGoods" compareValue="1">
+			    	AND    B.ITEM_NAME like '%'||#searchGoodsTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchGoods" compareValue="2">
+			    	AND    B.ITEM_CODE = #searchGoodsTitle#
+			    	</isEqual>	    	
+		    	</isNotEmpty>      
+			  GROUP BY A.REG_DATE
+				      ,A.BIZ_CODE                
+					  ,A.ITEM_CODE                
+					  ,A.MAIN_AMT
+					  ,A.EMP_AMT
+					  ,A.SUB_TOT_AMT
+					  ,A.MAR_AMT
+					  ,A.COST_AMT
+					  ,A.MGM_FEE
+					  ,A.TOT_AMT
+					  ,A.TAX_VOL
+					  ,A.POST_AMT                 
+			  ORDER BY A.REG_DATE, A.BIZ_CODE, A.ITEM_CODE
+             )
+    
+    </select>
+    
+	<!-- 변경요청내역 팝업 카운트 -->
+	<select id="selectCostBillPopListCount" parameterClass="java.util.HashMap" resultClass="int">
+	<![CDATA[
+		SELECT COUNT(*) AS CNT FROM (
+				
+			SELECT ROWNUM AS CNUM, T.* FROM (
+				SELECT	A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+				FROM   	CF_COST_BIZ A,CF_ITEMS B,CF_SUPPLIER C
+				WHERE 	A.BIZ_CODE = C.BIZ_CODE
+				AND 	A.ITEM_CODE = B.ITEM_CODE
+				AND 	A.REG_DATE BETWEEN #searchStrtYmd# AND #searchEndYmd#
+	]]>	
+				<isNotEmpty property="searchDelYn">
+		    	AND    	A.DEL_FLAG = #searchDelYn# 
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchTypeTitle">
+		    		<isEqual property="searchType" compareValue="1">
+			    	AND    C.BIZNAME like '%'||#searchTypeTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="2">
+			    	AND    C.BIZ_CODE = #searchTypeTitle#
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="3">
+			    	AND    C.RESISTERNO = #searchTypeTitle#
+			    	</isEqual>
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchGoodsTitle">
+		    		<isEqual property="searchGoods" compareValue="1">
+			    	AND    B.ITEM_NAME like '%'||#searchGoodsTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchGoods" compareValue="2">
+			    	AND    B.ITEM_CODE = #searchGoodsTitle#
+			    	</isEqual>	    	
+		    	</isNotEmpty>	
+				GROUP BY A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+				ORDER BY A.REG_DATE  desc
+			) T    	
+    	)
+	</select>
+	<!-- 변경요청내역 팝업 리스트-->
+	<select id="selectCostBillPopList" parameterClass="java.util.HashMap" resultClass="commMap">
+	<include refid="pagingHeader"/>	
+	<![CDATA[
+		SELECT ROWNUM AS CNUM, T.* FROM (
+			SELECT	A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+			FROM   	CF_COST_BIZ A,CF_ITEMS B,CF_SUPPLIER C
+			WHERE 	A.BIZ_CODE = C.BIZ_CODE
+			AND 	A.ITEM_CODE = B.ITEM_CODE
+			AND 	A.REG_DATE BETWEEN #searchStrtYmd# AND #searchEndYmd#
+	]]>	
+			<isNotEmpty property="searchDelYn">
+	    	AND    	A.DEL_FLAG = #searchDelYn# 
+	    	</isNotEmpty>
+	    	<isNotEmpty property="searchTypeTitle">
+	    		<isEqual property="searchType" compareValue="1">
+		    	AND    C.BIZNAME like '%'||#searchTypeTitle#||'%'
+		    	</isEqual>
+		    	<isEqual property="searchType" compareValue="2">
+		    	AND    C.BIZ_CODE = #searchTypeTitle#
+		    	</isEqual>
+		    	<isEqual property="searchType" compareValue="3">
+		    	AND    C.RESISTERNO = #searchTypeTitle#
+		    	</isEqual>
+	    	</isNotEmpty>
+	    	<isNotEmpty property="searchGoodsTitle">
+	    		<isEqual property="searchGoods" compareValue="1">
+		    	AND    B.ITEM_NAME like '%'||#searchGoodsTitle#||'%'
+		    	</isEqual>
+		    	<isEqual property="searchGoods" compareValue="2">
+		    	AND    B.ITEM_CODE = #searchGoodsTitle#
+		    	</isEqual>	    	
+	    	</isNotEmpty>	
+			GROUP BY A.REG_DATE,A.BIZ_CODE,C.BIZNAME,A.DEL_FLAG
+			ORDER BY A.REG_DATE  desc
+		) T
+    <include refid="pagingFooter"/>	 
+	</select>
+	
+	<!-- 변경요청내역 팝업 업체 상세 리스트-->
+	<select id="selectCostBillPopDetailList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	A.REG_DATE,
+	 			A.BIZ_CODE,
+	 			C.BIZNAME,
+	 			A.ITEM_CODE,
+	 			B.ITEM_NAME,
+	 			A.MAIN_AMT,
+	 			A.EMP_AMT,
+	 			A.SUB_TOT_AMT,
+	 			A.MAR_AMT,
+	 			A.COST_AMT,
+	 			A.MGM_FEE,
+	 			A.TOT_AMT,
+	 			A.TAX_VOL,
+	 			A.POST_AMT,
+	 			A.FLAG,
+	 			D.UNIT,
+	 			A.S_FLAG
+		FROM 	CF_COST_BIZ A ,CF_ITEMS B ,CF_SUPPLIER C ,CF_ITEMS D
+		WHERE 	A.BIZ_CODE = C.BIZ_CODE
+		AND 	A.ITEM_CODE = B.ITEM_CODE
+		AND 	A.BIZ_CODE = #searchBizCode#
+		AND 	A.REG_DATE = #searchRegDate#
+		AND	 	A.BIZ_CODE = D.SUPPLIER_CODE
+		AND	 	A.ITEM_CODE = D.ITEM_CODE
+	</select>
+	
+	<!-- 변경요청내역 팝업 업체 상세 리스트-->
+	<select id="selectCostBillPopExcel" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT 	rownum cnt,REG_DATE,BIZ_CODE,BIZNAME,ITEM_CODE,ITEM_NAME,
+			    MAIN_AMT,EMP_AMT,SUB_TOT_AMT,MAR_AMT,COST_AMT,MGM_FEE,TOT_AMT,
+	            TAX_VOL,POST_AMT,DEL_FLAG
+		FROM 	(
+				SELECT	A.REG_DATE,
+				        A.BIZ_CODE,
+						C.BIZNAME,
+						A.ITEM_CODE,
+						B.ITEM_NAME,
+						A.MAIN_AMT,
+						A.EMP_AMT,
+						A.SUB_TOT_AMT,
+						A.MAR_AMT,
+						A.COST_AMT,
+						A.MGM_FEE,
+						A.TOT_AMT,
+						A.TAX_VOL,
+						A.POST_AMT,
+						A.DEL_FLAG
+				FROM 	CF_COST_BIZ A ,CF_ITEMS B ,CF_SUPPLIER C
+			    WHERE 	A.BIZ_CODE = C.BIZ_CODE
+				AND A.ITEM_CODE = B.ITEM_CODE
+				<isNotEmpty property="searchDelYn">
+		    	AND    	A.DEL_FLAG = #searchDelYn# 
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchTypeTitle">
+		    		<isEqual property="searchType" compareValue="1">
+			    	AND    C.BIZNAME like '%'||#searchTypeTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="2">
+			    	AND    C.BIZ_CODE = #searchTypeTitle#
+			    	</isEqual>
+			    	<isEqual property="searchType" compareValue="3">
+			    	AND    C.RESISTERNO = #searchTypeTitle#
+			    	</isEqual>
+		    	</isNotEmpty>
+		    	<isNotEmpty property="searchGoodsTitle">
+		    		<isEqual property="searchGoods" compareValue="1">
+			    	AND    B.ITEM_NAME like '%'||#searchGoodsTitle#||'%'
+			    	</isEqual>
+			    	<isEqual property="searchGoods" compareValue="2">
+			    	AND    B.ITEM_CODE = #searchGoodsTitle#
+			    	</isEqual>	    	
+		    	</isNotEmpty>	
+				order by A.REG_DATE, A.BIZ_CODE, A.ITEM_CODE
+			)
+	</select>		
+	<select id="selectSuppCompInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+
+             SELECT NVL(A.BIZ_CODE,'') BIZ_CODE, 
+		            NVL(A.BIZNAME,'') BIZNAME,
+		            NVL(A.BOSSNAME,'') BOSSNAME,
+		            NVL(A.RESISTERNO,'') RESISTERNO,
+		            NVL(B.NAME,'') NAME,
+		            NVL(A.BIZCOND,'') BIZCOND,
+		            NVL(A.BIZCATE,'') BIZCATE,
+		            NVL(TO_CHAR(A.START_CONT_DATE, 'YYYY-MM-DD'),'') START_CONT_DATE,
+		            NVL(A.BIZ_TEL,'') BIZ_TEL,
+		            NVL(A.BOSS_MOBILE,'') BOSS_MOBILE,
+		            NVL(A.FAX,'') FAX,
+		            NVL(A.BIZ_ACCOUNT,'') BIZ_ACCOUNT,
+		            NVL(A.POSTCODE,'') POSTCODE,
+		            NVL(A.BELONGING,'') BELONGING,
+		            NVL(A.POFFICEIDX,'') POFFICEIDX,
+		            NVL(C.POSTNAME,'') POSTNAME,
+		            NVL(A.CONT_STATUS,'') CONT_STATUS,
+		            NVL(TO_CHAR(A.CANCEL_CONTDATE, 'YYYY/MM/DD'),'') CANCEL_CONTDATE,
+		            SUBSTR(NVL(A.COMPREGNO,''),1,6) + '-' + SUBSTR(NVL(A.COMPREGNO,''),7,13) BIZ_REG_NO,
+		            V.V1,
+		            V.V2,
+		            NVL(A.SUPPLIER_PWD,'') SUPPLIER_PWD,
+		            CO.NAME NAME1,
+		            NVL(TO_CHAR(A.STOP_DATE, 'YYYY/MM/DD'),'') STOP_DATE,
+		            NVL(A.CONT_REASON,'') CONT_REASON,
+		            SUBSTR(NVL(A.COMPREGNO,''),1,6) + '-' + SUBSTR(NVL(A.COMPREGNO,''),7,13) COMPREGNO,
+		            (SELECT NAME FROM CFCODES WHERE ID = 'CONT_STATUS' AND CODE = A.CONT_STATUS) AS CONT_STATUSNM
+		            NVL(TO_CHAR(A.STOPEND_DATE, 'YYYY/MM/DD'),'') STOPEND_DATE,
+		            NVL(TO_CHAR(A.START_CONT_DATE, 'YYYY/MM/DD'),'') START_CONT_DATE_2 ,
+		            NVL(A.BIZ_ACCOUNT_NM,'') BIZ_ACCOUNT_NM
+	           FROM CF_SUPPLIER A,
+		            CFCODES B,
+		            CF_POSTOFFICE C,CFCODES CO ,
+		            (SELECT NVL(SUM(SCORE),0) / SUM((SELECT COUNT(*) CNT FROM CFCODES WHERE ID='RATING_ID')) V1, 
+		                    CASE WHEN SUM(NVL(SCORE,0)) >= 90 THEN '최우수업체' 
+		                         WHEN SUM(NVL(SCORE,0)) <  90 AND SUM(NVL(SCORE,0)) >= 80 THEN '우수업체' 
+		                         WHEN SUM(NVL(SCORE,0)) <  80 AND SUM(NVL(SCORE,0)) >= 70 THEN '보통업체' 
+		                         WHEN SUM(NVL(SCORE,0)) <  70 AND SUM(NVL(SCORE,0)) >= 60 THEN '주의업체' 
+		                    ELSE '해지업체' END AS V2 
+		              FROM CFSUPPLY_RATING
+		             WHERE BIZ_CODE =  #bizCode# ) V		             
+		      WHERE A.BIZ_TYPE   = B.CODE(+)
+		      AND 	A.POFFICEIDX = C.ECODE(+)
+		      AND 	CO.ID='CONT_STATUS' 
+		      AND 	A.CONT_STATUS = CO.CODE 
+		      AND 	B.ID = 'BIZ_TYPE'
+		      AND 	A.BIZ_CODE = #bizCode#
+
+	]]>
+	</select>
+	
+	<!-- 원가계산서 수정의뢰 등록 -->
+	<insert id="insertCostBill" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		INSERT INTO  CF_COST (
+                      REG_DATE
+                      ,BIZ_CODE
+					  ,ITEM_CODE
+					  ,MAIN_AMT
+					  ,COST_AMT
+					  ,TOT_AMT
+					  ,TAX_VOL
+					  ,POST_AMT
+					  ,DEL_FLAG
+					  ,EMP_AMT
+					  ,SUB_TOT_AMT
+					  ,MAR_AMT
+					  ,MGM_FEE
+					  ) 
+			   VALUES (
+			          replace(TO_CHAR(sysdate,'YYYY/MM/DD'),'-','/')
+					  ,#bizCode#
+					  ,#itemCode#
+					  ,#mainAmt#
+					  ,#costAmt#
+					  ,#totAmt#
+					  ,#taxVol#
+					  ,#postAmt#
+					  ,'N'
+					  ,0
+					  ,0
+					  ,0
+					  ,0
+				      )  
+]]>
+	</insert>
+	
+	<!-- 쿠폰 상품삭제 -->
+	<delete id="deleteCostBill" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE	CF_COST	WHERE REG_DATE = #regDate# AND BIZ_CODE = #bizCode#
+	    ]]>
+	</delete>
+	
+	<!-- 쿠폰 상품 수정 -->
+	<update id="updateCostBill" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE	CF_COST 
+		   	SET 	MAIN_AMT 	= #mainAmt#,
+		   			COST_AMT 	= #costAmt#,
+			   		TOT_AMT 	= #totAmt#,
+			   		TAX_VOL 	= #taxVol#,
+			   		POST_AMT 	= #postAmt#,
+			   		DEL_FLAG	= 'Y',
+			   		EMP_AMT 	= 0,
+			   		SUB_TOT_AMT = 0,
+			   		MAR_AMT 	= 0,
+			   		MGM_FEE 	= 0
+        	WHERE 	REG_DATE 	= #regDate#,
+		  	AND 	BIZ_CODE 	= #bizCode#,
+		  	AND 	ITEM_CODE 	= #itemCode#
+	    ]]>
+	</update>
+	
+	<select id="selectSuppCompCode" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT SUPPLIER_CODE
+		FROM CF_ITEMS
+	    WHERE ITEM_CODE = #itemCode#
+	</select>
+</sqlMap>

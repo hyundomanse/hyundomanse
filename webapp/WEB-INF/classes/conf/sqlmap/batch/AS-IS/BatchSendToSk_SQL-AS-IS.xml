@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchSendToSk">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectGifticonSendList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT TR_ID                                                
+			         , PURCHASE_ID                                        
+			         , GOODS_CODE                                         
+			         , GOODS_URL                                          
+			         , BIZ_NAME                                           
+			         , ACCESS_NAME                                        
+			         , BILL_TO_NAME                                       
+			         , BILL_TO_MOBILE                                     
+			         , SHIP_TO_NAME                                       
+			         , SHIP_TO_MOBILE                                     
+			         , STATUS                                             
+			         , COMPLETE_DATE                                      
+			         , TRACKING_NUMBER                                    
+			         , CREATE_DATE                                        
+			         , SEND_GBN                                           
+			         , ORDERID                                            
+			         , MSG                                                
+			      FROM GIFTICON_SEND                                      
+			     WHERE DEAL_STATE = 'N'                                   
+			       AND STATUS IS NOT NULL                                 
+			       and complete_date >= to_char(sysdate-30,'yyyymmdd')    
+			       AND COMPLETE_DATE IS NOT NULL                          
+			       AND SEND_GBN = 'I'                                     
+			  UNION ALL                                                   
+			   SELECT  C.TR_ID                                            
+			         , C.PURCHASE_ID                                      
+			         , C.GOODS_CODE                                       
+			         , C.GOODS_URL                                        
+			         , C.BIZ_NAME                                         
+			         , C.ACCESS_NAME                                      
+			         , C.BILL_TO_NAME                                     
+			         , C.BILL_TO_MOBILE                                   
+			         , C.SHIP_TO_NAME                                     
+			         , C.SHIP_TO_MOBILE                                   
+			         , C.STATUS                                           
+			         , C.COMPLETE_DATE                                    
+			         , C.TRACKING_NUMBER                                  
+			         , C.CREATE_DATE                                      
+			         , C.SEND_GBN                                         
+			         , C.orderid                                          
+			         , C.MSG                                              
+			     FROM (                                                   
+			            SELECT A.TR_ID                                    
+			                   , A.PURCHASE_ID                            
+			                   , A.GOODS_CODE                             
+			                   , A.GOODS_URL                              
+			                   , A.BIZ_NAME                               
+			                   , A.ACCESS_NAME                            
+			                   , A.BILL_TO_NAME                           
+			                   , A.BILL_TO_MOBILE                         
+			                   , A.SHIP_TO_NAME                           
+			                   , A.SHIP_TO_MOBILE                         
+			                   , A.STATUS                                 
+			                   , A.COMPLETE_DATE                          
+			                   , A.TRACKING_NUMBER                        
+			                   , A.CREATE_DATE                            
+			                   , A.SEND_GBN                               
+			                   , (select max(b.orderid) from gifticon_recev b where B.PURCHASE_ID = a.PURCHASE_ID) orderid  
+			                   , A.MSG                                                                                      
+			                FROM GIFTICON_SEND  A                                                                           
+			               WHERE A.DEAL_STATE = 'N'                                                                         
+			                 AND A.STATUS IS NOT NULL                                                                       
+			                 AND A.COMPLETE_DATE >= TO_CHAR(SYSDATE-30,'YYYYMMDD')                                          
+			                 AND A.COMPLETE_DATE IS NOT NULL                                                                
+			                 AND A.SEND_GBN <> 'I'                                                                          
+			          ) C                                                                                                   
+			  WHERE  C.ORDERID IS NOT NULL                                                                                  
+			  ORDER BY CREATE_DATE                                                                                              
+		]]>	 
+
+	</select>
+	
+	<update id="updateGifticonSend" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE GIFTICON_SEND      
+				SET DEAL_STATE = 'Y'   
+			WHERE 1 = 1
+			AND TR_ID  = ?         
+		]]>
+	</update>	
+
+	<update id="insertGifticonRecev" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO GIFTICON_RECEV ( 
+										TR_ID, 
+										CODE, 
+										PURCHASE_ID, 
+										SHIP_TO_MOBILE, 
+										ACCESS_NAME, 
+										DEAL_STATE, 
+										ORDERiD, 
+										RECEV_DATE, 
+										MESSAGE 
+										)
+                    			VALUES (  
+                    					?,  
+                    					?,  
+                    					?,  
+                    					?,  
+                    					?,  
+                    					'N', 
+                    					?, 
+                    					TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+                    					? 
+                    					)
+		]]>
+	</update>
+		
+</sqlMap>

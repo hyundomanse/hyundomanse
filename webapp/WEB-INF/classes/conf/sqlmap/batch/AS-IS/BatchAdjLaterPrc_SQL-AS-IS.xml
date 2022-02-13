@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchAdjLaterPrc">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectSuppCompLaterPayList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT A.BIZ_CODE, A.ADD_RDCT_PRC ,B.LATER_PRCL_PRC 
+				FROM (                                              
+				       SELECT  SUPP_COMP_CD BIZ_CODE , SUM(nvl(ADD_RDCT_PRC,0)) ADD_RDCT_PRC  
+				       FROM SUPP_COMP_LATER_PAY                           
+				       WHERE RECEV_YM LIKE to_char(add_months(sysdate,-2),'yyyymm') || '%' 
+				       	 AND TO_CHAR(SYSDATE,'yyyymm') = '201605'            
+				         AND nvl(ADD_RDCT_PRC,0) <> 0                      
+				       GROUP BY SUPP_COMP_CD                                
+				       UNION ALL                                            
+				       SELECT  SUPP_COMP_CD BIZ_CODE , SUM(nvl(ADD_RDCT_PRC,0)) ADD_RDCT_PRC  
+				       FROM SUPP_COMP_LATER_PAY                           
+				       WHERE RECEV_YM LIKE to_char(add_months(sysdate,-1),'yyyymm') || '%' 
+				       	 AND TO_CHAR(SYSDATE,'yyyymm') > '201604'            
+				         AND nvl(ADD_RDCT_PRC,0) <> 0                      
+				       GROUP BY SUPP_COMP_CD                                
+				) A,                                                        
+				(                                                          
+				       SELECT BIZ_CODE, SUM(NVL(LATER_PRCL_SALE_PRC,0)) LATER_PRCL_PRC  
+				       FROM TXORDER                                       
+				       WHERE COMPLETE_DATE LIKE to_char(add_months(sysdate,-1),'yyyymm') || '%' 
+				         AND NVL(DEFICIT_YN,'N') ='N'                            
+				         AND NVL(RET_YN,'N') ='N'                           
+				         AND NVL(CANCEL_STATE,'N')='N'                     
+				         AND NVL(LATER_PRCL_PRC,0) > 0                       
+				         AND SHOP_ID = '1'                                 
+				         AND STATUS NOT IN ('1','6')                          
+				       GROUP BY BIZ_CODE                                     
+				) B                                                         
+				WHERE 1=1                                                    
+				  AND A.BIZ_CODE     = B.BIZ_CODE                           
+				  AND A.ADD_RDCT_PRC <> B.LATER_PRCL_PRC                                                                            
+		]]>	 
+	</select>
+	
+	<select id="selectOdOrderMastList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT PURCHASE_ID,TXORDER_ID,NVL(LATER_PRCL_PRC,0) LATER_PRCL_PRC  
+			FROM TXORDER  
+			WHERE 1=1     
+			  AND COMPLETE_DATE LIKE to_char(add_months(sysdate,-1),'yyyymm') || '%' 
+			  AND NVL(DEFICIT_YN,'N') ='N'                       
+			  AND NVL(RET_YN,'N') ='N'                            
+			  AND NVL(CANCEL_STATE,'N')='N'                        
+			  AND NVL(LATER_PRCL_PRC,0) > 0                     
+			  AND NVL(PRCL_PRC,0) >= NVL(LATER_PRCL_PRC,0)                     
+			  AND AMOUNT  > 0                                    
+			  AND SHOP_ID  = '1'                                   
+			  AND BIZ_CODE = ?                                   
+			  AND STATUS NOT IN ('1','6')                       
+			ORDER BY COMPLETE_DATE DESC                                                                                                 
+		]]>	 
+	</select>
+	
+	<update id="updateOdOrderItm1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER               
+			SET LATER_PRCL_SALE_PRC = ?  
+			WHERE PURCHASE_ID  =    ?     
+			  AND TXORDER_ID   =    ?    
+		]]>
+	</update>
+		
+	<update id="updateOdOrderItm2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER               
+			SET LATER_PRCL_SALE_PRC = 0  
+			WHERE COMPLETE_DATE LIKE to_char(add_months(sysdate,-1),'yyyymm') || '%'  
+			  AND BIZ_CODE   =    ?    
+			  AND NVL(LATER_PRCL_SALE_PRC,0) <>  0   
+		]]>
+	</update>	
+</sqlMap>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchCashPrtCancelNew">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<select id="selectOdCashreqList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select A.PURCHASE_ID            
+            	   , max(A.gbn) GBN                   
+    		       , max(a.JUMIN_SEED_1)  jumin_seed_1      
+    		       , max(a.JUMIN_SEED_2)  jumin_seed_2      
+    		       , max(a.JUMIN_SEED_3)  jumin_seed_3      
+      	 From CASHREQ A, CASHINFO B                       
+          Where A.purchase_id = B.purchase_id                          
+      	    and A.purchase_id in (                                                 
+                SELECT /*+ INDEX ( A TXORDER_IX13 ) */ distinct A.PURCHASE_ID                                      
+      	        FROM TXORDER A                                            
+                 Where  A.Cancel_DATE >= to_char(sysdate -1,'yyyymmdd')                     
+    	            and  A.Cancel_DATE <= to_char(sysdate,'yyyymmdd') || '999999'     
+    	            and  a.CANCEL_STATE = 'Y'                                                                 
+      	          AND  A.PAYMETHOD IN ('B','O')                                                                                            
+                )                                                                                                                     
+      	   AND A.SEND_CHK    = '01'		                                  
+	          AND A.JUMIN_SEED_1 IS NOT NULL                                      
+      	   AND B.STATUS      = 'D1'		                                   
+      	  group by A.PURCHASE_ID	                              	
+		]]>	 
+	</select>
+			
+	<select id="selectXInvoiceReqList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select 'D2' taxgbn , b.purchase_id              
+		           , max(b.gbn) gbn                
+		    		    , max(b.JUMIN_SEED_1)  jumin_seed_1      
+		    		    , max(b.JUMIN_SEED_2)  jumin_seed_2      
+		    		    , max(b.JUMIN_SEED_3)  jumin_seed_3      
+		      From x_invoice_req a               
+		          , CASHREQ b                     
+		          , cashinfo bb                          
+		      WHERE a.purchase_id = b.purchase_id                                               
+		          AND  b.purchase_id = bb.purchase_id                
+		          AND  a.reg_date >= to_char(sysdate -10 ,'yyyymmdd')      
+		          AND  a.reg_date <= to_char(sysdate ,'yyyymmdd') || '999999'   
+		          AND  a.state NOT IN ('TO','60','90') and a.onoffline = 1         
+		          AND  bb.status = 'D1'           
+			         AND  b.JUMIN_SEED_1 IS NOT NULL        
+		      group by b.purchase_id        
+		      UNION ALL                       
+		      Select 'D1' taxgbn , b.purchase_id                
+		                  , max(b.gbn) gbn                  
+		            		 , max(b.JUMIN_SEED_1)  jumin_seed_1        
+		            		 , max(b.JUMIN_SEED_2)  jumin_seed_2        
+		            		 , max(b.JUMIN_SEED_3)  jumin_seed_3        
+		      From x_invoice_req a                 
+		           , CASHREQ b                       
+		          , cashinfo bb                            
+		      WHERE a.purchase_id = b.purchase_id                                                     
+		        AND  b.purchase_id = bb.purchase_id                  
+		        AND  a.reg_date >= to_char(sysdate -10 ,'yyyymmdd')                
+		        AND  a.reg_date <= to_char(sysdate ,'yyyymmdd') || '999999'      
+		        AND  a.state IN ('60','90') and a.onoffline = 1             
+		        AND  bb.status = 'D2'                       
+		  	   AND  b.JUMIN_SEED_1 IS NOT NULL          
+		      Group by b.purchase_id                                 	
+		]]>	 
+	</select>
+			
+</sqlMap>

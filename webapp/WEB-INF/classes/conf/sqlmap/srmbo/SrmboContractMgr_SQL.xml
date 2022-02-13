@@ -1,0 +1,1039 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboContract">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+					, ROWNUM  AS RNUM
+				 FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+					) A	WHERE ROWNUM <= #lastIndex#
+			) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 공급업체 계약서류 조회 -->
+	<select id="selectSuppDocMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			SELECT	D.SUBDOC_ID
+					,D.DOC_NM
+					,D.USEYN
+					,D.CONTRACT_URL
+					,F.ATTCHFILE_ID
+					,F.ORIG_FILE_NM
+					,TO_CHAR(D.REG_DATE,'YYYY-MM-DD') AS REG_DATE
+					,D.REGER_ID
+			FROM	SC_CONTRACT_DOC D
+					,CM_FILE_MGT F
+			WHERE	D.ATTCHFILE_ID = F.ATTCHFILE_ID(+)
+			<isNotEmpty property="searchWord" prepend="AND">
+				D.DOC_NM LIKE '%'|| #searchWord# ||'%'
+			</isNotEmpty>
+			<isNotEmpty property="useYn" prepend="AND">
+				D.USEYN = #useYn#
+			</isNotEmpty>
+			ORDER BY D.SUBDOC_ID DESC
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 공급업체 계약서류 리스트 카운트 -->
+	<select id="selectSuppDocMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS TOTCNT
+		FROM SC_CONTRACT_DOC
+		WHERE 1=1
+		<isNotEmpty property="searchWord" prepend="AND">
+			DOC_NM LIKE '%'|| #searchWord# ||'%'
+		</isNotEmpty>
+		<isNotEmpty property="useYn" prepend="AND">
+			USEYN = #useYn#
+		</isNotEmpty>
+	</select>
+	<!-- 공급업체 계약서류 파일 업로드 -->
+	<insert id="registSrmboContractFileInfo" parameterClass="java.util.HashMap" >
+		INSERT INTO CM_FILE_MGT ( ATTCHFILE_ID
+								, FILE_SEQ
+								, FILE_STRE_PATH
+								, STRE_FILE_NM
+								, ORIG_FILE_NM
+								, FILE_EXTNER
+								, FILE_SIZE
+								, DEL_YN
+								, REG_DATE
+								, CHG_DATE
+								, REGER_ID
+								, CHGER_ID )
+						 VALUES ( #attchfileId#
+								, ( SELECT NVL(MAX(FILE_SEQ)+1, 0)
+									FROM CM_FILE_MGT
+									WHERE ATTCHFILE_ID = #attchfileId# )
+								, #fileStrePath#
+								, #streFileNm#
+								, #origFileNm#
+								, #fileExtner#
+								, #fileSize#
+								, 'N'
+								, SYSDATE
+								, SYSDATE
+								, #loginId#
+								, #loginId# )
+	</insert>
+	<!-- 파일 삭제 -->
+	<delete id="deleteSrmboContractFileInfo" parameterClass="java.util.HashMap">
+		DELETE FROM CM_FILE_MGT
+		WHERE ATTCHFILE_ID = #attchfileId#
+	</delete>
+	<!-- 공급업체 계약서류 파일 조회 -->
+	<select id="selectSrmboContractInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	ATTCHFILE_ID
+				, FILE_SEQ
+				, FILE_STRE_PATH
+				, STRE_FILE_NM
+				, ORIG_FILE_NM
+				, FILE_STRE_PATH || STRE_FILE_NM AS FILE_PATH
+				, FILE_EXTNER
+				, FILE_SIZE
+				, DEL_YN
+				, REG_DATE
+				, CHG_DATE
+				, REGER_ID
+				, CHGER_ID
+		FROM	CM_FILE_MGT
+		WHERE	ATTCHFILE_ID = #attchfileId#
+		<isNotEmpty property="fileSeq">
+		  AND	FILE_SEQ = #fileSeq#
+		</isNotEmpty>
+	</select>
+
+	<!-- 공급업체 계약서류 FILE 삭제 -->
+	<delete id="deletermboContractFileInfo" parameterClass="java.util.HashMap">
+		DELETE FROM CM_FILE_MGT
+		WHERE ATTCHFILE_ID = #attchfileId#
+	</delete>
+
+	<!-- 공급업체 계약서류 등록 -->
+	<insert id="insertSuppDoc" parameterClass="java.util.HashMap">
+			INSERT INTO SC_CONTRACT_DOC
+				(
+				SUBDOC_ID
+				,DOC_NM
+				,USEYN
+				,ATTCHFILE_ID
+				,CONTRACT_URL
+				,DOC_CONT
+				,REG_DATE
+				,REGER_ID
+				)
+			VALUES (
+				(SELECT NVL(MAX(SUBDOC_ID)+1, 1) FROM SC_CONTRACT_DOC)
+				,#docNm#
+				,#useyn#
+				,#attchfileId#
+				,#contractUrl#
+				,#docCont#
+				,SYSDATE
+				,#loginId#
+				)
+	</insert>
+
+		<!-- 공급업체 계약서류 상세 조회 -->
+	<select id="selectSuppDocInfo" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	SUBDOC_ID
+				,DOC_NM
+				,ATTCHFILE_ID
+				,DOC_CONT
+				,USEYN
+				,REG_DATE
+				,REGER_ID
+		FROM	SC_CONTRACT_DOC
+		WHERE	SUBDOC_ID = #subdocId#
+	</select>
+
+	<!-- 공급업체 계약서류 수정 -->
+	<update id="updateSuppDoc" parameterClass="java.util.HashMap">
+		UPDATE	SC_CONTRACT_DOC
+		SET 	DOC_NM			= #docNm#,
+				USEYN			= #useyn#,
+				DOC_CONT		= #docCont#,
+				<isNotEmpty property="attchfileId">
+				ATTCHFILE_ID	= #attchfileId#,
+				</isNotEmpty>
+				CHG_DATE		= SYSDATE,
+				CHGER_ID		= #loginId#
+		WHERE	SUBDOC_ID		= #subdocId#
+	</update>
+	<!-- 공급업체 계약서류 삭제 -->
+	<delete id="deleteSuppDoc" parameterClass="java.util.HashMap">
+		DELETE FROM SC_CONTRACT_DOC
+		WHERE SUBDOC_ID = #subdocId#
+	</delete>
+
+	<!-- //////공급업체 계약서 관리////// -->
+
+	<!-- 공급업체 계약서 관리 리스트-->
+	<select id="selectSuppContractMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			SELECT *
+			FROM(
+				SELECT	ROW_NUMBER() OVER(ORDER BY CONTRAC_ID DESC ) AS ONUM
+						,CONTRAC_ID
+						,CONTRACT_NM
+						,PAVLN_DIV_CD
+						,CNTR_YEAR
+						,F_GET_COMN_CD_NM('PAVLN_DIV_CD',PAVLN_DIV_CD) AS PAVLN_DIV_NM
+						,(SELECT COUNT(SUPP_COMP_ID) FROM SC_CONTRACT_DTL A WHERE A.CONTRAC_ID = SCM.CONTRAC_ID ) COMP_COUNT
+						,(SELECT COUNT(*) FROM SC_CONT_MST_DOC A WHERE A.CONTRAC_ID = SCM.CONTRAC_ID) SUBDOC_COUNT
+						,TO_CHAR(REG_DATE,'YYYY-MM-DD') AS REG_DATE
+						,REGER_ID
+						,TO_CHAR(CHG_DATE,'YYYY-MM-DD') AS CHG_DATE
+						,CHGER_ID
+				FROM	SC_CONTRACT_MST SCM
+				WHERE 1=1
+				<isNotEmpty property="cntrYear" prepend="AND">
+					CNTR_YEAR = #cntrYear#
+				</isNotEmpty>
+				<isNotEmpty property="pavlnDivCd" prepend="AND">
+					PAVLN_DIV_CD = #pavlnDivCd#
+				</isNotEmpty>
+				<isNotEmpty property="contractNm" prepend="AND">
+					CONTRACT_NM LIKE '%'||#contractNm#||'%'
+				</isNotEmpty>
+			)T2
+		<isNotNull property="firstIndex">
+			<isNotNull property="lastIndex">
+				WHERE T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+			</isNotNull>
+		</isNotNull>
+	</select>
+
+	<!-- 공급업체 계약서 관리 리스트 카운트 -->
+	<select id="selectSuppContractMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT DISTINCT COUNT(*) OVER() TOTCNT
+		FROM SC_CONTRACT_MST
+		WHERE 1=1
+			<isNotEmpty property="cntrYear" prepend="AND">
+				CNTR_YEAR = #cntrYear#
+			</isNotEmpty>
+			<isNotEmpty property="pavlnDivCd" prepend="AND">
+				PAVLN_DIV_CD = #pavlnDivCd#
+			</isNotEmpty>
+			<isNotEmpty property="contractNm" prepend="AND">
+				CONTRACT_NM LIKE '%'||#contractNm#||'%'
+			</isNotEmpty>
+	</select>
+	<!-- 공급업체 계약서 계약번호 발번 -->
+	<select id="selectContracIdNewPkNumber" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT SEQ_SC_CONTRAC_ID.NEXTVAL FROM DUAL
+	</select>
+	<!-- 공급업체 계약서 등록 -->
+	<insert id="insertContractMgr" parameterClass="java.util.HashMap">
+			INSERT INTO SC_CONTRACT_MST
+				(
+					CONTRAC_ID
+					,PAVLN_DIV_CD
+					,CONTRACT_NM
+					,CNTR_YEAR
+					,CONTR_SEQ
+					,REG_DATE
+					,REGER_ID
+				)
+			VALUES(
+					#contracId#
+					,#pavlnDivCd#
+					,#contractNm#
+					,#cntrYear#
+					,(SELECT NVL(MAX(CONTR_SEQ),1) FROM SC_CONTRACT_MST WHERE CNTR_YEAR = #cntrYear# AND PAVLN_DIV_CD = #pavlnDivCd#)
+					,SYSDATE
+					,#loginId#
+				)
+	</insert>
+	<!-- 계약서 최초 등록시 대상 매장타입의 업체 등록 -->
+	<insert id="insertSuppCompContractDtl" parameterClass="java.util.HashMap">
+		INSERT INTO SC_CONTRACT_DTL
+		(
+			CONTRAC_ID,
+			SUPP_COMP_ID,
+			CONFIRM
+		)
+		SELECT #contracId#,A.SUPP_COMP_ID,'N'
+		FROM	CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	A.SUPP_COMP_DIV_CD NOT IN ('08')
+		AND 	B.PAVLN_DIV_CD IN (#pavlnDivCd#)
+		AND 	B.SUPP_COMP_STUS_CD != '07'
+		<isNotEmpty prepend="AND">
+			<iterate prepend="A.SUPP_COMP_ID NOT IN" property="exceptSuppCompIdList" open="(" close=")" conjunction=",">
+				#exceptSuppCompIdList[]#
+			</iterate>
+		</isNotEmpty>
+	</insert>
+	<!-- 공급업체 계약서 상세 조회 -->
+	<select id="selectContractInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	CONTRAC_ID
+				,CONTRACT_NM
+				,PAVLN_DIV_CD
+				,CNTR_YEAR
+				,F_GET_COMN_CD_NM('PAVLN_DIV_CD',PAVLN_DIV_CD) AS PAVLN_DIV_NM
+				,REG_DATE
+				,REGER_ID
+		FROM	SC_CONTRACT_MST
+		WHERE	CONTRAC_ID = #contracId#
+	</select>
+	<!-- 공급업체 계약 수정 -->
+	<update id="updateContractMgr" parameterClass="java.util.HashMap">
+		UPDATE	SC_CONTRACT_MST
+		SET 	CONTRACT_NM 	= #contractNm#
+				,CHG_DATE		= SYSDATE
+				,CHGER_ID		= #loginId#
+		WHERE	CONTRAC_ID		= #contracId#
+	</update>
+	<!-- 공급업체 계약 삭제(계약서에 포함된 계약서류 관계 테이블) -->
+	<update id="deleteContract1Mgr" parameterClass="java.util.HashMap">
+		DELETE	FROM SC_CONT_MST_DOC
+		WHERE	CONTRAC_ID = #contracId#
+	</update>
+	<!-- 공급업체 계약 삭제(공급업체 작성 테이블) -->
+	<update id="deleteContract2Mgr" parameterClass="java.util.HashMap">
+		DELETE	FROM SC_CONTRACT_DTL
+		WHERE	CONTRAC_ID = #contracId#
+	</update>
+	<!-- 공급업체 계약 삭제(공급업체 작성 상세 서류 테이블) -->
+	<update id="deleteContract3Mgr" parameterClass="java.util.HashMap">
+		DELETE	FROM SC_CONT_DTL_DOC
+		WHERE	CONTRAC_ID = #contracId#
+	</update>
+	<!-- 공급업체 계약 삭제(계약서 마스터) -->
+	<update id="deleteContract4Mgr" parameterClass="java.util.HashMap">
+		DELETE	FROM SC_CONTRACT_MST
+		WHERE	CONTRAC_ID = #contracId#
+	</update>
+
+	<!-- 공급업체 계약서에 계약서류 있는지 카운트 -->
+	<select id="selectContMstDocConfirmCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*)
+		FROM SC_CONT_MST_DOC
+		WHERE	SUBDOC_ID = #subdocId#
+		AND		CONTRAC_ID = #contracId#
+	</select>
+
+	<!-- 공급업체 계약서에 포함된 계약서류 등록 -->
+	<insert id="insertContMstDoc" parameterClass="java.util.HashMap">
+		MERGE INTO SC_CONT_MST_DOC A
+		USING DUAL
+		ON (A.SUBDOC_ID = #subdocId# AND A.CONTRAC_ID = #contracId#)
+		WHEN NOT MATCHED THEN
+		INSERT
+			(
+				SUBDOC_ID
+				,CONTRAC_ID
+			)
+		VALUES(
+				#subdocId#
+				,#contracId#
+			)
+	</insert>
+	<!-- 계약서에 포함된 계약서류 LIST -->
+	<select id="selectContMstDocList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			SELECT	C.SUBDOC_ID
+					,C.DOC_NM
+					,C.USEYN
+					,F.ORIG_FILE_NM
+			FROM	SC_CONT_MST_DOC D
+					,SC_CONTRACT_DOC C
+					,CM_FILE_MGT F
+			WHERE	D.CONTRAC_ID = #contracId#
+			AND 	D.SUBDOC_ID = C.SUBDOC_ID
+			AND 	C.ATTCHFILE_ID = F.ATTCHFILE_ID(+)
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 계약서에 포함된 계약서류 LIST COUNT -->
+	<select id="selectContMstDocListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT (*)
+		FROM	SC_CONT_MST_DOC D
+				,SC_CONTRACT_DOC C
+		WHERE	D.CONTRAC_ID = #contracId#
+		AND 	D.SUBDOC_ID = C.SUBDOC_ID
+	</select>
+
+	<!-- 계약서에 포함된 계약서류 LIST -->
+	<select id="selectContractSuppCompList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT	A.SUPP_COMP_ID
+				,A.BCNC_NM
+				,B.PAVLN_DIV_CD
+		FROM	CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.PAVLN_DIV_CD = #pavlnDivCd#
+		AND 	A.SUPP_COMP_DIV_CD NOT IN ('08')
+		<isNotEmpty property="suppCompStusCd" prepend="AND">
+			B.SUPP_COMP_STUS_CD = #suppCompStusCd#
+		</isNotEmpty>
+		<isNotEmpty property="searchNmTxt" prepend="AND">
+			<isEqual property="searchNm" compareValue="suppCompId">
+				A.SUPP_COMP_ID LIKE '%' || #searchNmTxt# || '%'
+			</isEqual>
+			<isEqual property="searchNm" compareValue="bcncNm">
+				A.BCNC_NM LIKE '%' || #searchNmTxt# || '%'
+			</isEqual>
+		</isNotEmpty>
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 계약서에 포함된 계약서류 LIST COUNT -->
+	<select id="selectContractSuppCompListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT (*)
+		FROM	CO_SUPP_COMP_MAST A, CO_PAVLN_MGT B
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND 	B.PAVLN_DIV_CD = #pavlnDivCd#
+		AND 	A.SUPP_COMP_DIV_CD NOT IN ('08')
+		<isNotEmpty property="suppCompStusCd" prepend="AND">
+			B.SUPP_COMP_STUS_CD = #suppCompStusCd#
+		</isNotEmpty>
+		<isNotEmpty property="searchNmTxt" prepend="AND">
+			<isEqual property="searchNm" compareValue="suppCompId">
+				A.SUPP_COMP_ID LIKE '%' || #searchNmTxt# || '%'
+			</isEqual>
+			<isEqual property="searchNm" compareValue="bcncNm">
+				A.BCNC_NM LIKE '%' || #searchNmTxt# || '%'
+			</isEqual>
+		</isNotEmpty>
+	</select>
+
+	<!-- 공급업체 계약서에 포함된 계약서류 삭제 -->
+	<delete id="deleteContMstDoc" parameterClass="java.util.HashMap">
+		DELETE	FROM SC_CONT_MST_DOC
+		WHERE	CONTRAC_ID = #contracId#
+	</delete>
+	<!-- 공급업체가 작성한 계약서류 삭제 (해당 계약서류가 계약서에서 제외 됐을 경우)-->
+	<delete id="deleteScContDtlDoc" parameterClass="java.util.HashMap">
+	DELETE FROM SC_CONT_DTL_DOC
+	WHERE SUBDOC_ID NOT IN (SELECT SUBDOC_ID FROM SC_CONT_MST_DOC WHERE CONTRAC_ID = #contracId#)
+	AND CONTRAC_ID = #contracId#
+	</delete>
+	<!-- 공급업체 계약별 공급업체 리스트-->
+	<select id="selectContractDtlList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT *
+		FROM(
+				SELECT	ROW_NUMBER() OVER(ORDER BY A.SUPP_COMP_ID ASC ) AS RNUM,
+						A.CONTRAC_ID ,
+						A.SUPP_COMP_ID,
+						B.BCNC_NM
+				FROM	SC_CONTRACT_DTL A , CO_SUPP_COMP_MAST B
+				WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+				AND 	A.CONTRAC_ID = #contracId#
+				<isNotEmpty property="suppSrchWord">
+					<isEqual property="suppSrchIndex" compareValue="00">
+						AND (A.SUPP_COMP_ID = #suppSrchWord# OR B.BCNC_NM LIKE '%'||#suppSrchWord#||'%')
+					</isEqual>
+					<isEqual property="suppSrchIndex" compareValue="01">
+						AND A.SUPP_COMP_ID = #suppSrchWord#
+					</isEqual>
+					<isEqual property="suppSrchIndex" compareValue="02">
+						AND B.BCNC_NM LIKE '%'||#suppSrchWord#||'%'
+					</isEqual>
+				</isNotEmpty>
+			)T1
+		<isNotNull property="firstIndex">
+			<isNotNull property="lastIndex">
+		WHERE T1.RNUM BETWEEN #firstIndex# AND #lastIndex#
+			</isNotNull>
+		</isNotNull>
+	</select>
+	<!-- 공급업체 계약별 공급업체 리스트 카운트 -->
+	<select id="selectContractDtlListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT DISTINCT COUNT(*) TOTCNT
+		FROM SC_CONTRACT_DTL A , CO_SUPP_COMP_MAST B
+		WHERE	A.SUPP_COMP_ID = B.SUPP_COMP_ID
+		AND A.CONTRAC_ID = #contracId#
+		<isNotEmpty property="suppSrchWord">
+			<isEqual property="suppSrchIndex" compareValue="00">
+				AND (A.SUPP_COMP_ID = #suppSrchWord# OR B.BCNC_NM LIKE '%'||#suppSrchWord#||'%')
+			</isEqual>
+			<isEqual property="suppSrchIndex" compareValue="01">
+				AND A.SUPP_COMP_ID = #suppSrchWord#
+			</isEqual>
+			<isEqual property="suppSrchIndex" compareValue="02">
+				AND B.BCNC_NM LIKE '%'||#suppSrchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+	</select>
+		<!-- 계약별 공급업체 등록 -->
+	<insert id="insertContractDtl" parameterClass="java.util.HashMap">
+		MERGE INTO SC_CONTRACT_DTL A
+		USING DUAL
+		ON (A.CONTRAC_ID = #contracId# AND A.SUPP_COMP_ID = #suppCompId#)
+		WHEN NOT MATCHED THEN
+		INSERT
+			(
+			CONTRAC_ID,
+			SUPP_COMP_ID,
+			CONFIRM
+			 )
+		VALUES (
+			#contracId#,
+			#suppCompId#,
+			'N'
+			)
+	</insert>
+	<!-- 계약별 공급업체 삭제 -->
+	<update id="deleteContractDtl" parameterClass="java.util.HashMap">
+		DELETE
+		FROM SC_CONTRACT_DTL
+		WHERE CONTRAC_ID	= #contracId#
+		AND SUPP_COMP_ID	= #suppCompId#
+	</update>
+
+	<!-- 공급업체 계약 승인관리 목록 조회 -->
+
+	<!-- 공급업체 계약 승인 관리 조회 LIST -->
+	<select id="selectContractApprovalList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			SELECT	SCD.SUPP_COMP_ID
+					,SCM.BCNC_NM
+					,SCD.CONTRAC_ID
+					,C.CONTRACT_NM
+					,C.CNTR_YEAR
+					,A.NEED
+					,NVL(B.CHECKY,0) AS CHECKY
+					,SCD.CONFIRM
+					,SCD.CONTRACTOR
+					,TO_CHAR(SCD.DATE1,'YYYY-MM-DD') AS DATE1
+					,F_GET_COMN_CD_NM('PAVLN_DIV_CD',C.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+			FROM	SC_CONTRACT_DTL SCD
+					,CO_SUPP_COMP_MAST SCM
+					,(	SELECT COUNT(SUBDOC_ID) AS NEED
+						FROM SC_CONT_MST_DOC
+						WHERE CONTRAC_ID = #contracId#
+						GROUP BY CONTRAC_ID ) A
+					,(	SELECT	SUPP_COMP_ID
+								,COUNT(CHECKYN) CHECKY
+						FROM	SC_CONT_DTL_DOC
+						WHERE	CONTRAC_ID = #contracId#
+						AND CHECKYN = 'Y'
+						GROUP BY SUPP_COMP_ID) B
+					,SC_CONTRACT_MST C
+			WHERE	SCD.CONTRAC_ID = #contracId#
+			AND 	SCD.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+			AND 	SCD.CONTRAC_ID = C.CONTRAC_ID
+			AND 	SCD.SUPP_COMP_ID = SCM.SUPP_COMP_ID
+			<isNotEmpty property="search_supp_comp_id" prepend="AND">
+				SCD.SUPP_COMP_ID = #search_supp_comp_id#
+			</isNotEmpty>
+			<isNotEmpty property="searchConfirm" prepend="AND">
+				SCD.CONFIRM = #searchConfirm#
+			</isNotEmpty>
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 공급업체 계약 승인 관리 조회 LIST COUNT -->
+	<select id="selectContractApprovalListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(SCD.SUPP_COMP_ID)
+		FROM	SC_CONTRACT_DTL SCD
+				,(	SELECT COUNT(SUBDOC_ID) AS NEED
+					FROM SC_CONT_MST_DOC
+					WHERE CONTRAC_ID = #contracId#
+					GROUP BY CONTRAC_ID ) A
+				,(	SELECT	SUPP_COMP_ID
+							,COUNT(CHECKYN) CHECKY
+					FROM	SC_CONT_DTL_DOC
+					WHERE	CONTRAC_ID = #contracId#
+					AND CHECKYN = 'Y'
+					GROUP BY SUPP_COMP_ID) B
+				,SC_CONTRACT_MST C
+				,CO_SUPP_COMP_MAST SCM
+		WHERE	SCD.CONTRAC_ID = #contracId#
+		AND 	SCD.SUPP_COMP_ID = B.SUPP_COMP_ID(+)
+		AND 	SCD.CONTRAC_ID = C.CONTRAC_ID
+		AND 	SCD.SUPP_COMP_ID = SCM.SUPP_COMP_ID
+			<isNotEmpty property="suppCompId" prepend="AND">
+				B.SUPP_COMP_ID = #suppCompId#
+			</isNotEmpty>
+			<isNotEmpty property="searchConfirm" prepend="AND">
+				SCD.CONFIRM = #searchConfirm#
+			</isNotEmpty>
+	</select>
+
+	<!-- 공급업체 계약 동의문서 작성 상세 리스트 -->
+	<select id="selectSuppCompContApprList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+			SELECT	A.SUBDOC_ID
+					,AD.DOC_NM
+					,NVL(H.CHECKYN,'N') AS CHECKYN
+					,H.DISQUAL_REASN
+					,H.ATTCHFILE_ID
+					,H.FILE_STRE_PATH
+					,H.STRE_FILE_NM
+					,H.ORIG_FILE_NM
+			FROM	SC_CONTRACT_DTL CD
+					,SC_CONT_MST_DOC A
+					,SC_CONTRACT_DOC AD
+					,(  SELECT	DD.CHECKYN
+								,DD.SUBDOC_ID
+								,DD.DISQUAL_REASN
+								,DD.ATTCHFILE_ID
+								,F.FILE_STRE_PATH
+								,F.STRE_FILE_NM
+								,F.ORIG_FILE_NM
+						FROM	SC_CONT_DTL_DOC DD, CM_FILE_MGT F
+						WHERE	SUPP_COMP_ID = #suppCompId#
+						AND 	CONTRAC_ID = #contracId#
+						AND 	DD.ATTCHFILE_ID = F.ATTCHFILE_ID(+))H
+			WHERE	CD.CONTRAC_ID = #contracId#
+			AND 	CD.SUPP_COMP_ID = #suppCompId#
+			AND 	CD.CONTRAC_ID = A.CONTRAC_ID
+			AND 	A.SUBDOC_ID = AD.SUBDOC_ID
+			AND 	A.SUBDOC_ID = H.SUBDOC_ID(+)
+			ORDER BY SUBDOC_ID ASC
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 공급업체 계약 동의문서 작성 상세 LIST COUNT -->
+	<select id="selectSuppCompContApprListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(*) TOTCNT
+		FROM	SC_CONTRACT_DTL CD
+				,SC_CONT_MST_DOC A
+				,SC_CONTRACT_DOC AD
+				,(  SELECT	DD.CHECKYN
+							,DD.SUBDOC_ID
+							,DISQUAL_REASN
+							,DD.ATTCHFILE_ID
+							,F.FILE_STRE_PATH
+							,F.STRE_FILE_NM
+							,F.ORIG_FILE_NM
+					FROM	SC_CONT_DTL_DOC DD, CM_FILE_MGT F
+					WHERE	SUPP_COMP_ID = #suppCompId#
+					AND 	CONTRAC_ID = #contracId#
+					AND 	DD.ATTCHFILE_ID = F.ATTCHFILE_ID(+))H
+		WHERE	CD.CONTRAC_ID = #contracId#
+		AND 	CD.SUPP_COMP_ID = #suppCompId#
+		AND 	CD.CONTRAC_ID = A.CONTRAC_ID
+		AND 	A.SUBDOC_ID = AD.SUBDOC_ID
+		AND 	A.SUBDOC_ID = H.SUBDOC_ID(+)
+	</select>
+
+	<!-- 공급업체 계약 승인 처리 -->
+	<update id="updateContractDtl" parameterClass="java.util.HashMap">
+		UPDATE	SC_CONTRACT_DTL
+		SET 	CONFIRM = #confirmCd#
+				,DATE1 = SYSDATE
+				,CONTRACTOR = #loginId#
+		WHERE	CONTRAC_ID = #contracId#
+		AND 	SUPP_COMP_ID = #suppCompId#
+	</update>
+
+	<!-- 공급업체 계약서 체크 처리 -->
+	<update id="updateContractDtlDoc" parameterClass="java.util.HashMap">
+		MERGE INTO SC_CONT_DTL_DOC
+		USING DUAL
+		ON (		SUPP_COMP_ID = #suppCompId#
+			AND 	SUBDOC_ID = #subdocId#
+			AND 	CONTRAC_ID = #contracId# )
+		WHEN NOT MATCHED THEN
+		INSERT (
+					SUPP_COMP_ID
+					,SUBDOC_ID
+					,CONTRAC_ID
+					,CHECKYN
+					,DISQUAL_REASN
+					,PRSDT_NM
+					,REG_DATE
+					,CHG_DATE
+					,REGER_ID
+					,CHGER_ID
+				)
+		VALUES (
+					#suppCompId#
+					,#subdocId#
+					,#contracId#
+					,#checkYn#
+					,#disqualReasn#
+					,(SELECT PRSDT_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #suppCompId#)
+					,SYSDATE
+					,SYSDATE
+					,#loginId#
+					,#loginId#
+				)
+		WHEN MATCHED THEN
+		UPDATE SET
+				CHECKYN = #checkYn#
+				,DISQUAL_REASN = #disqualReasn#
+				,CHG_DATE = SYSDATE
+				,CHGER_ID = #loginId#
+	</update>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	<!-- 계약별 사용문서 조회 -->
+	<select id="selectContractMstDocList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	A.SUBDOC_ID AS CNTRACDOC_ID
+				 ,A.DOC_NM
+				 ,NVL(B.CHECKYN, 'N') AS  CHECKYN
+		FROM SC_CONTRACT_DOC A, SC_CONT_MST_DOC B
+		WHERE A.SUBDOC_ID = B.SUBDOC_ID
+		AND A.USEYN = 'Y'
+		AND B.CONTRAC_ID = #contracId#
+		ORDER BY A.SUBDOC_ID ASC
+	</select>
+
+
+
+	<!-- 공급업체 계약 사용문서 정보 삭제 -->
+	<update id="deleteContractMstDoc" parameterClass="java.util.HashMap">
+		DELETE
+		  FROM SC_CONT_MST_DOC
+		 WHERE CONTRAC_ID   = #contracId#
+	</update>
+
+
+    <!-- 첨부파일 상세정보 -->
+	<select id="selectContractFileList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	ATTCHFILE_ID,
+			 	FILE_SEQ,
+			 	FILE_STRE_PATH,
+			 	STRE_FILE_NM,
+			 	ORIG_FILE_NM,
+			 	FILE_STRE_PATH || STRE_FILE_NM AS FILE_PATH,
+			 	FILE_EXTNER,
+			 	FILE_SIZE,
+			 	DEL_YN,
+			 	REG_DATE,
+			 	CHG_DATE,
+			 	REGER_ID,
+			 	CHGER_ID
+		FROM    CM_FILE_MGT
+		WHERE   ATTCHFILE_ID = #attchfileId#
+		AND FILE_SEQ = 1
+	</select>
+
+
+
+
+
+
+
+
+	<!-- 계약별 공급업체 중복확인 -->
+	<select id="isContractDtlComp" parameterClass="java.util.HashMap" resultClass="int">
+	   SELECT COUNT(*)
+		 FROM SC_CONTRACT_DTL
+		WHERE CONTRAC_ID   = #contracId#
+		  AND SUPP_COMP_ID = #suppCompId#
+	</select>
+
+	<!-- 공급업체 계약승인 리스트-->
+	<select id="selectSuppyContractApproveList" parameterClass ="java.util.HashMap" resultClass="commMap">
+         SELECT T2.ONUM
+		        ,T2.SUPP_COMP_ID
+                ,T2.BCNC_NM
+                ,T2.PRSDT_NM
+                ,T2.COMPREG_NO
+                ,T2.CONFIRM
+                ,T2.CONTRACT
+                ,T2.CONTRACT10
+                ,T2.REG_DATE
+                ,T2.CONTRACT_DATE
+	        	,T2.CONTRACT1
+	        	,T2.CONTRACT2
+	        	,T2.CONTRACT3
+	        	,T2.CONTRACT4
+	        	,T2.CONTRACT5
+	        	,T2.CONTRACT6
+	        	,T2.CONTRACT7
+	        	,T2.CONTRACT8
+	        	,T2.CONTRACT9
+        FROM(
+            SELECT
+		        <isEmpty property="sidx">
+		        	ROW_NUMBER() OVER(ORDER BY T1.CONTRAC_ID DESC ) AS ONUM
+		        </isEmpty>
+		       ,T1.SUPP_COMP_ID
+               ,T1.BCNC_NM
+               ,T1.PRSDT_NM
+               ,T1.COMPREG_NO
+               ,T1.CONFIRM
+               ,CASE WHEN T1.BIZ_TYPE = '02' THEN
+                                CASE WHEN NVL(T1.CONTRACT1, 'N') = 'Y' AND NVL(T1.CONTRACT8, 'N') = 'Y' AND NVL(T1.CONTRACT5, 'N') = 'Y'
+                                       AND NVL(T1.CONTRACT6, 'N') = 'Y'AND NVL(T1.CONTRACT9, 'N') = 'Y' THEN 'Y'
+                                     ELSE 'N'
+                                 END
+                           ELSE
+                                CASE WHEN NVL(T1.CONTRACT1, 'N') = 'Y' AND NVL(T1.CONTRACT8, 'N') = 'Y' AND NVL(T1.CONTRACT5, 'N') = 'Y' THEN 'Y'
+                                      ELSE 'N'
+                             END
+                        END as CONTRACT
+               ,T1.CONTRACT10
+               ,T1.REG_DATE
+               ,T1.CONTRACT_DATE
+	        	,NVL(T1.CONTRACT1,'N') as CONTRACT1
+	        	,NVL(T1.CONTRACT2,'N') as CONTRACT2
+	        	,NVL(T1.CONTRACT3,'N') as CONTRACT3
+	        	,NVL(T1.CONTRACT4,'N') as CONTRACT4
+	        	,NVL(T1.CONTRACT5,'N') as CONTRACT5
+	        	,NVL(T1.CONTRACT6,'N') as CONTRACT6
+	        	,NVL(T1.CONTRACT7,'N') as CONTRACT7
+	        	,NVL(T1.CONTRACT8,'N') as CONTRACT8
+	        	,NVL(T1.CONTRACT9,'N') as CONTRACT9
+            FROM(
+                SELECT A.CONTRAC_ID
+                       ,A.SUPP_COMP_ID
+                       ,D.BCNC_NM
+                       ,D.PRSDT_NM
+                       ,D.COMPREG_NO
+                      ,NVL(A.CONFIRM, 'N') as CONFIRM
+                      , CM.BIZ_TYPE
+                       ,A.CONTRACT10
+                       ,CM.REG_DATE   REG_DATE
+                       ,NVL(TO_CHAR(A.DATE2,'YYYY/MM/DD'), '9999/99/99') CONTRACT_DATE
+                       ,D.PO_ECODE
+                       <isNotEmpty property="subdocid1">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid1# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID)  AS CONTRACT1
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid1">
+			        	,'N'  AS CONTRACT1
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid2">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid2# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID)  AS CONTRACT2
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid2">
+			        	,'N'  AS CONTRACT2
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid3">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid3# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT3
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid3">
+			        	,'N'  AS CONTRACT3
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid4">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid4# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT4
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid4">
+			        	,'N'  AS CONTRACT4
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid5">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid5# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT5
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid5">
+			        	,'N'  AS CONTRACT5
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid6">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid6# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT6
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid6">
+			        	,'N'  AS CONTRACT6
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid7">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid7# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT7
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid7">
+			        	,'N'  AS CONTRACT7
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid8">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid8# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT8
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid8">
+			        	,'N'  AS CONTRACT8
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid9">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid8# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT9
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid9">
+			        	,'N'  AS CONTRACT9
+			       	   </isEmpty>
+                  FROM SC_CONTRACT_DTL A, SC_CONTRACT_MST CM, CO_SUPP_COMP_MAST D
+                 WHERE A.CONTRAC_ID=CM.CONTRAC_ID
+                   AND A.CONTRAC_ID = #idx#
+                   AND A.SUPP_COMP_ID = D.SUPP_COMP_ID
+            )T1
+            WHERE 1=1
+            <isNotEmpty property="searchConfirm">
+        	AND T1.CONFIRM = #searchConfirm#
+       	    </isNotEmpty>
+       	    <isNotEmpty property="search_supp_comp_id">
+        	AND T1.SUPP_COMP_ID = #search_supp_comp_id#
+       	    </isNotEmpty>
+       	    <isNotEmpty property="contractMiss">
+        	AND T1.$contractMiss$ = 'N'
+       	    </isNotEmpty>
+       	    <isNotEmpty property="postname">
+        	AND T1.PO_ECODE IN  (SELECT EDPSCD FROM PICMT0060 WHERE RCOCD = #postname# AND USEYN='Y' GROUP BY EDPSCD)
+       	    </isNotEmpty>
+             )T2
+        WHERE 1=1
+        <isNotNull property="firstIndex">
+        	<isNotNull property="lastIndex">
+        		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+        	</isNotNull>
+        </isNotNull>
+
+        <isEmpty property="sidx">
+        	ORDER BY T2.ONUM DESC
+        </isEmpty>
+	</select>
+
+
+    <!-- 공급업체 계약승인 리스트 카운트 -->
+	<select id="selectSuppyContractApproveListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+         SELECT DISTINCT COUNT(*) OVER() TOTCNT
+           FROM(
+                SELECT A.SUPP_COMP_ID
+                       ,D.BCNC_NM
+                       ,D.PRSDT_NM
+                       ,D.COMPREG_NO
+                      ,NVL(A.CONFIRM, 'N') as CONFIRM
+                       ,A.CONTRACT10
+                       ,CM.REG_DATE   REG_DATE
+                       ,NVL(TO_CHAR(A.DATE2,'YYYYMMDD'), '99999999') CONTRACT_DATE
+                       ,D.PO_ECODE
+                        <isNotEmpty property="subdocid1">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid1# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID)  AS CONTRACT1
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid1">
+			        	,'N'  AS CONTRACT1
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid2">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid2# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID)  AS CONTRACT2
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid2">
+			        	,'N'  AS CONTRACT2
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid3">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid3# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT3
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid3">
+			        	,'N'  AS CONTRACT3
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid4">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid4# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT4
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid4">
+			        	,'N'  AS CONTRACT4
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid5">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid5# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT5
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid5">
+			        	,'N'  AS CONTRACT5
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid6">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid6# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT6
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid6">
+			        	,'N'  AS CONTRACT6
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid7">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid7# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT7
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid7">
+			        	,'N'  AS CONTRACT7
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid8">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid8# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT8
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid8">
+			        	,'N'  AS CONTRACT8
+			       	   </isEmpty>
+			       	   <isNotEmpty property="subdocid9">
+			        	,(SELECT (DOCCHECKYN) FROM SC_CONT_DTL_DOC E WHERE    E.SUBDOC_ID = #subdocid8# AND E.SUPP_COMP_ID = A.SUPP_COMP_ID AND E.CONTRAC_ID=A.CONTRAC_ID) as CONTRACT9
+			       	   </isNotEmpty>
+			       	   <isEmpty property="subdocid9">
+			        	,'N'  AS CONTRACT9
+			       	   </isEmpty>
+                  FROM SC_CONTRACT_DTL A, SC_CONTRACT_MST CM, CO_SUPP_COMP_MAST D
+                 WHERE A.CONTRAC_ID=CM.CONTRAC_ID
+                   AND A.CONTRAC_ID = #idx#
+                   AND A.SUPP_COMP_ID = D.SUPP_COMP_ID
+            )T1
+            WHERE 1=1
+            <isNotEmpty property="searchConfirm">
+        	AND T1.CONFIRM = #searchConfirm#
+       	    </isNotEmpty>
+       	    <isNotEmpty property="search_supp_comp_id">
+        	AND T1.SUPP_COMP_ID = #search_supp_comp_id#
+       	    </isNotEmpty>
+       	    <isNotEmpty property="contractMiss">
+        	AND T1.$contractMiss$ = 'N'
+       	    </isNotEmpty>
+       	    <isNotEmpty property="postname">
+        	AND T1.PO_ECODE IN (SELECT EDPSCD FROM PICMT0060 WHERE HRNKORREGIPOCD = #postname# AND USEYN='Y' GROUP BY EDPSCD)
+       	    </isNotEmpty>
+	</select>
+
+
+	<!-- 공급업체별  계약문서별 승인정보 저장 -->
+	<update id="saveContractDocApprove" parameterClass="java.util.HashMap">
+		MERGE INTO  SC_CONT_DTL_DOC
+		      USING DUAL
+		      ON    (CONTRAC_ID = #idx#
+		            AND SUBDOC_ID = #subdocid#
+		            AND SUPP_COMP_ID = #suppCompId#)
+		      WHEN  MATCHED THEN
+		            UPDATE SET DOCCHECKYN = #doccheckyn#
+		      WHEN  NOT MATCHED THEN
+					INSERT (
+							CONTRAC_ID,
+							SUBDOC_ID,
+							SUPP_COMP_ID,
+							CHECKYN,
+							DOCCHECKYN )
+			         VALUES(#idx#,
+			                #subdocid#,
+			                #suppCompId#,
+			                'Y',
+			                #doccheckyn#)
+	</update>
+
+	<!-- 공급업체  계약 승인정보 저장 -->
+	<update id="updateContractApprove" parameterClass="java.util.HashMap">
+		UPDATE SC_CONTRACT_DTL
+		   SET CONFIRM  = #confirm#,
+		       DATE2 = SYSDATE
+		 WHERE CONTRAC_ID = #idx#
+		   AND SUPP_COMP_ID = #suppCompId#
+	</update>
+	<!-- 공급업체 계약 사용문서 등록 -->
+	<insert id="insertContractMstDoc" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO SC_CONT_MST_DOC
+				(
+				CONTRAC_ID,
+				SUBDOC_ID,
+				CHECKYN
+				 )
+			VALUES (
+				#cntracdocId#,
+				#subdocId#,
+				#checkyn#
+			)
+		]]>
+	</insert>
+
+</sqlMap>

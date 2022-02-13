@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.MainBannerMgr">
+
+	<sql id="mainBanner_list">
+		SELECT A.REG_NO
+			 , A.SHOP_ID
+			 , A.TITLE
+			 , A.PAVLN_AREA_CD
+			 , A.PAVLN_DTL_AREA_CD
+			 , A.PAVLN_3DEPTH_DTL_CD
+			 , A.IMGFILENAME
+			 , A.LINK
+			 , A.ALT
+			 , NVL(A.SORT_ORDER, 1) AS SORT_ORDER
+			 , TO_CHAR(TO_DATE(A.START_DATE), 'YYYY-MM-DD') AS START_DATE
+			 , TO_CHAR(TO_DATE(A.END_DATE), 'YYYY-MM-DD') AS END_DATE
+			 , A.DISPYN
+			 , DECODE(A.DISPYN, 'Y', '예', '아니오') AS DISPYN_NM
+             , IMAGE.FILE_STRE_PATH AS IMAGE_PATH
+             , IMAGE.STRE_FILE_NM AS IMAGE_NM
+             , IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+             , F_GET_COMN_CD_NM('PAVLN_AREA_CD', A.PAVLN_AREA_CD) AS PAVLN_AREA_CD_NM
+             , CASE
+             	WHEN PAVLN_AREA_CD = '00' THEN F_GET_COMN_CD_NM('MAIN_PAVLN_AREA_CD', A.PAVLN_DTL_AREA_CD)
+             	WHEN PAVLN_AREA_CD = '04' THEN F_GET_COMN_CD_NM('FLOWER_PAVLN_AREA_CD', A.PAVLN_DTL_AREA_CD)
+             	WHEN PAVLN_AREA_CD = '05' THEN F_GET_COMN_CD_NM('SIJANG_PAVLN_AREA_CD', A.PAVLN_DTL_AREA_CD)
+             	WHEN PAVLN_AREA_CD = '07' THEN F_GET_COMN_CD_NM('OVERSEA_PAVLN_AREA_CD', A.PAVLN_DTL_AREA_CD)
+             	WHEN PAVLN_AREA_CD = '08' THEN F_GET_COMN_CD_NM('B2B_PAVLN_AREA_CD', A.PAVLN_DTL_AREA_CD)
+             	WHEN PAVLN_AREA_CD = '09' THEN F_GET_COMN_CD_NM('B2C_PAVLN_AREA_CD', A.PAVLN_DTL_AREA_CD)
+             	WHEN PAVLN_AREA_CD = '90' THEN CTGRY_2DEPTH.CTGRY_NM
+             	WHEN PAVLN_AREA_CD = '91' THEN F_GET_COMN_CD_NM('CMNT_PAVLN_AREA_CD', A.PAVLN_DTL_AREA_CD)
+             	ELSE ''
+             	END PAVLN_DTL_AREA_CD_NM
+             , F_GET_COMN_CD_NM('CTGRY_2DEPTH_PAVLN_AREA_CD', A.PAVLN_3DEPTH_DTL_CD) AS PAVLN_3DEPTH_DTL_CD_NM
+		  FROM DP_PROMOTION_BANNER A, CM_FILE_MGT IMAGE
+		  	 , (SELECT A.CTGRY_CD, A.CTGRY_NM
+		          FROM GD_CTGRY_MAST A, GD_CTGRY_PAVLN_MAPP B
+		         WHERE A.CTGRY_CD = B.CTGRY_CD
+		           AND A.USE_YN = 'Y' AND POSTNET_CTGRY_YN = 'N' AND A.CTGRY_LEVEL = '2'
+				 GROUP BY A.CTGRY_CD, A.CTGRY_NM, A.SORT_ORDER
+				 ORDER BY A.SORT_ORDER) CTGRY_2DEPTH
+		 WHERE A.IMGFILENAME = IMAGE.ATTCHFILE_ID(+)
+		   AND A.PAVLN_DTL_AREA_CD = CTGRY_2DEPTH.CTGRY_CD(+)
+	   <isNotEmpty property="search_title" prepend="AND">
+			A.TITLE LIKE '%'||#search_title#||'%'
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+	   		(TO_CHAR(TO_DATE(A.START_DATE), 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#
+	   		OR
+	   		TO_CHAR(TO_DATE(A.END_DATE), 'YYYY-MM-DD') BETWEEN #search_strt_ymd# AND #search_end_ymd#)
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dispyn" prepend="AND">
+			A.DISPYN = #search_dispyn#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_pavln_area_cd" prepend="AND">
+			A.PAVLN_AREA_CD = #search_pavln_area_cd#
+		   <isNotEmpty property="search_pavln_dtl_area_cd" prepend="AND">
+				A.PAVLN_DTL_AREA_CD = #search_pavln_dtl_area_cd#
+			   <isNotEmpty property="search_pavln_3depth_dtl_cd" prepend="AND">
+					A.PAVLN_3DEPTH_DTL_CD = #search_pavln_3depth_dtl_cd#
+			   </isNotEmpty>
+		   </isNotEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="reg_no" prepend="AND">
+			A.REG_NO = #reg_no#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectMainBannerList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY PAVLN_AREA_CD, PAVLN_DTL_AREA_CD, PAVLN_3DEPTH_DTL_CD, SORT_ORDER ) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="mainBanner_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectMainBannerCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer" remapResults="true">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="mainBanner_list" />)
+	</select>
+	
+	<insert id="insertMainBannerInfo" parameterClass="java.util.HashMap">
+		INSERT INTO DP_PROMOTION_BANNER
+			 ( REG_NO
+			 , SHOP_ID
+			 , TITLE
+			 , PAVLN_AREA_CD
+			 , PAVLN_DTL_AREA_CD
+			 , PAVLN_3DEPTH_DTL_CD
+			 , SORT_ORDER
+			 , IMGFILENAME
+			 , LINK
+			 , ALT
+			 , START_DATE
+			 , END_DATE
+			 , DISPYN
+			 , REG_ID
+			 , REG_DATE
+			 , MODIFY_ID
+			 , MODIFY_DATE )
+	   VALUES
+	   		 ( SEQ_PROMOTION_BANNER.NEXTVAL
+			 , #shop_id#
+			 , #title#
+			 , #pavln_area_cd#
+			 , #pavln_dtl_area_cd#
+			 , #pavln_3depth_dtl_cd#
+			 , #sort_order#
+			 , #imgfilename#
+			 , #link#
+			 , #alt#
+			 , REPLACE(#start_date#, '-')
+			 , REPLACE(#end_date#, '-')
+			 , #dispyn#
+			 , #login_usr_id#
+			 , TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+			 , #login_usr_id#
+			 , TO_CHAR(SYSDATE, 'YYYY-MM-DD'))
+	</insert>
+	
+	<update id="updateMainBannerDispyn" parameterClass="java.util.HashMap">
+		UPDATE DP_PROMOTION_BANNER
+		   SET DISPYN = 'N'
+		 WHERE PAVLN_AREA_CD = #pavln_area_cd#
+		   AND PAVLN_DTL_AREA_CD = #pavln_dtl_area_cd#
+	</update>
+	
+	<update id="updateMainBannerInfo" parameterClass="java.util.HashMap">
+		UPDATE DP_PROMOTION_BANNER
+		   SET SHOP_ID		 = #shop_id#
+			 , TITLE		 = #title#
+			 , PAVLN_AREA_CD	= #pavln_area_cd#
+			 , PAVLN_DTL_AREA_CD = #pavln_dtl_area_cd#
+			 , PAVLN_3DEPTH_DTL_CD = #pavln_3depth_dtl_cd#
+			 , SORT_ORDER = #sort_order#
+		<isNotEmpty property="imgfilename" prepend=",">
+			IMGFILENAME	= #imgfilename#
+		</isNotEmpty>
+		<isEmpty property="imgfilename">
+			<isEqual property="image_del_yn" compareValue="Y" prepend=",">
+				IMGFILENAME = NULL
+			</isEqual>
+		</isEmpty>
+			 , LINK			 = #link#
+			 , ALT			 = #alt#
+			 , START_DATE	 = REPLACE(#start_date#, '-')
+			 , END_DATE		 = REPLACE(#end_date#, '-')
+			 , DISPYN		 = #dispyn#
+			 , MODIFY_ID	 = #login_usr_id#
+			 , MODIFY_DATE	 = TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+		 WHERE REG_NO		 = #reg_no#
+	</update>
+	
+</sqlMap>

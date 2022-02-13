@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchOverSeaEmsPrice">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectGdGoodsMastList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT DISTINCT A.GOODS_CODE , A.GOODS_IDN, A.UNIT_WGT, A.UNIT_VOL, A.OVERSEA_WGT, A.OVERSEA_VOL 
+		FROM  GOODS_MASTER A, OVERSEA_GOODS B 
+		WHERE A.GOODS_IDN = B.GOODS_IDN 
+		      AND  A.OVERSEA_WGT >  0  
+		]]>	 
+	</select>
+	
+	<select id="selectGdGoodsMastList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		select goods_code ,goods_idn ,UNIT_WGT,UNIT_VOL ,OVERSEA_WGT , OVERSEA_VOL  
+		from goods_master      
+		where goods_idn = ( select max(goods_idn)      
+		                                   from goods_master          
+		                                   where goods_code = ?       
+		                                     and language = 'KO'        
+		                                 )                                            
+		  and language = 'KO'  
+		]]>	 
+	</select>
+	
+	<select id="selectGdGoodsMastList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		 SELECT  GOODSIDN , LOCALE  
+			, DECODE(TO_NUMBER(?), '0', '0', CASE WHEN SUM(PRC1) < 0 THEN 0 ELSE SUM(PRC1) END ) PRC1 /*MICRO*/ 
+			, DECODE(TO_NUMBER(?), '0', '0', SUM(PRC2)) PRC2 /*EMS*/ 
+			    FROM (                                                                                             
+			     SELECT A.GOODS_IDN GOODSIDN , B.LOCALE, A.OVERSEA_WGT OVERSEAWGT,C.PRCAPPLYAREACD,  
+			        DECODE ( C.FRNMAILDIVCD,'1', MIN(D.DOMFRNPRC) + (   
+			            SELECT A.FEEAMT  FROM PIPMT0020 A                             
+			            WHERE A.FEELARGEDIVCD = 'F03'                                         
+			            AND A.FEEMIDDIVCD = '00'                                                      
+			            AND A.FEESMALLDIVCD = '000'                                               
+			            AND TO_CHAR(SYSDATE, 'YYYYMMDD')  BETWEEN A.APPLYSTRTYMD AND  A.APPLYENDYMD)-(SELECT MIN(DOMFRNPRC) + MAX(B.FEEAMT) FEE 
+			            FROM PIPMT0010 A, PIPMT0020 B                                         
+			            WHERE A.PRCLARGEDIVCD = 'P01'                                      
+			            AND A.PRCMIDDIVCD = '02'                                                      
+			            AND A.PRCSMALLDIVCD = '12'                                                
+			            AND A.PRCCALSTDWGHT  >= TO_NUMBER(?)  AND A.PRCCALSTDVOLM >= TO_NUMBER(?)  
+			            AND B.FEELARGEDIVCD = 'F01'                                             
+			            AND B.FEEMIDDIVCD = '01'                                                        
+			            AND B.FEESMALLDIVCD = '02'                                                  
+			            AND TO_CHAR(SYSDATE,'YYYYMMDD') BETWEEN A.APPLYSTRTYMD AND A.APPLYENDYMD   
+			            AND TO_CHAR(SYSDATE,'YYYYMMDD') BETWEEN B.APPLYSTRTYMD AND B.APPLYENDYMD), 0 ) PRC1, 
+			        DECODE(C.FRNMAILDIVCD,'31',MIN(D.DOMFRNPRC) - (        
+			            SELECT MIN(DOMFRNPRC) + MAX(B.FEEAMT) FEE           
+			            FROM PIPMT0010 A, PIPMT0020 B                                            
+			            WHERE A.PRCLARGEDIVCD = 'P01'                                            
+			            AND A.PRCMIDDIVCD = '02'                                                         
+			            AND A.PRCSMALLDIVCD = '12'                                                   
+			            AND A.PRCCALSTDWGHT  >= TO_NUMBER(?)  AND A.PRCCALSTDVOLM >= TO_NUMBER(?)  
+			            AND B.FEELARGEDIVCD = 'F01'                                               
+			            AND B.FEEMIDDIVCD = '01'                                                          
+			            AND B.FEESMALLDIVCD = '02'                                                     
+			            AND TO_CHAR(SYSDATE,'YYYYMMDD') BETWEEN A.APPLYSTRTYMD AND A.APPLYENDYMD  
+			            AND TO_CHAR(SYSDATE,'YYYYMMDD') BETWEEN B.APPLYSTRTYMD AND B.APPLYENDYMD),0 ) PRC2  
+			      FROM  GOODS_MASTER A, OVERSEA_GOODS B , PRRWT0240 C , PIPMT0010 D  
+			      WHERE A.GOODS_IDN = B.GOODS_IDN                                         
+			      AND A.GOODS_IDN = ?                                
+			      AND A.SHOP_ID IN ('0','1','2', '5', '6', '7')       
+			      AND B.LOCALE = C.NATIONCD                    
+			      AND C.FRNMAILDIVCD  IN  ( '31' ,'1')           
+			      AND C.FRNTRANSPPARTYDIVCD = '1'       
+			      AND TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN C.APPLYSTRTYMD  AND C.APPLYENDYMD  
+			      AND D.FRNAREACD = C.PRCAPPLYAREACD  
+			      AND D.PRCMIDDIVCD = C.FRNMAILDIVCD           
+			      AND  ( (D.PRCMIDDIVCD = '31' AND D.PRCLARGEDIVCD = 'P03' AND D.PRCSMALLDIVCD = '301' ) OR (D.PRCMIDDIVCD = '1' AND D.PRCLARGEDIVCD = 'P02' AND D.PRCSMALLDIVCD = '104')) 
+			     AND D.PRCCALSTDWGHT >= TO_NUMBER(?)     
+			      AND TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN D.APPLYSTRTYMD  AND D.APPLYENDYMD  
+			      GROUP BY  A.GOODS_IDN  , B.LOCALE, A.OVERSEA_WGT ,C.PRCAPPLYAREACD,C.FRNMAILDIVCD,A.MICRO_GBN 
+			    ) GROUP BY  GOODSIDN  , LOCALE     
+		]]>	 
+	</select>
+	
+	<update id="updateGdGoodsSendNation" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE OVERSEA_GOODS       
+			SET  MICRO_FEE = ?, EMS_FEE=? , LASTCHANGE = TO_CHAR(SYSDATE,'YYYYMMDD')      
+			WHERE GOODS_IDN = ?       
+			     AND LOCALE = ?          
+		]]>
+	</update>	
+	
+	<update id="updateGdMgtGoodsSendNation" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_OVERSEA_GOODS       
+			SET  MICRO_FEE = ?, EMS_FEE = ?, LASTCHANGE = TO_CHAR(SYSDATE,'YYYYMMDD')      
+			WHERE GOODS_IDN = ?       
+			     AND LOCALE = ?                
+		]]>
+	</update>	
+	
+</sqlMap>

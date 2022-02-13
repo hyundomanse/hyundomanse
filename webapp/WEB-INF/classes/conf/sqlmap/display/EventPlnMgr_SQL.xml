@@ -1,0 +1,607 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.EventPln">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<!--기 등록된 전시관 조회 -->
+	<select id="selectDspyHall"  resultClass="commMap">
+		 SELECT T2.CD_GRP_ID
+		     , T2.COMN_CD_ID AS CODE
+		     , T2.COMN_CD_NM AS NAME
+		  FROM CM_COMN_CD_GRP T1
+		     , CM_COMN_CD T2
+		 WHERE T1.CD_GRP_ID = T2.CD_GRP_ID
+		   AND T1.CD_GRP_ID = 'PAVLN_DIV_CD'     /* 전시관 분류 코드*/
+		   AND COMN_CD_ID <![CDATA[<]]> 20 
+		 ORDER BY T2.SORT_ORDER ASC
+	</select>
+	
+	<!--기 등록된 행사기획전 조회 -->
+	<select id="selectPlnBefList" resultClass="commMap">
+		SELECT PLNBEF_ID AS CODE
+             , PLNBEF_NM AS NAME
+          FROM EV_PLNBEF_MAST
+	</select>
+	
+	<!--상품상태 -->
+	<select id="selectGoodsStusCd"  resultClass="commMap">
+		SELECT COMN_CD_ID  AS CODE
+             , COMN_CD_NM  AS NAME
+          FROM CM_COMN_CD
+         WHERE CD_GRP_ID = 'SYS_06'
+	</select>
+	
+	<!--판매유형 -->
+	<select id="selectSellTypCd"  resultClass="commMap">
+		SELECT COMN_CD_ID  AS CODE
+             , COMN_CD_NM  AS NAME
+          FROM CM_COMN_CD
+         WHERE CD_GRP_ID = 'SELL_TYP_CD'
+	</select>
+	
+	<!-- 기획전 관리 목록 조회 -->
+	<select id="selectEventMgrTotalCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(1) AS CNT      
+               FROM EV_PLNBEF_MAST T1
+                   , DP_DSPY_MAST T2
+              WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+                AND T2.DSPY_TYP_CD = '30'    /* 20:상설이벤트 30:기획전 40:특판이벤트 50:모바일이벤트 70:모바일특가 */
+                AND T1.DEL_YN = 'N'
+		  	<isNotEmpty  property="schPlnbefId">
+			    AND T1.PLNBEF_ID    = #schPlnbefId#
+			</isNotEmpty>
+			<isNotEmpty  property="schPavlnDivCd">
+			    AND T1.PAVLN_DIV_CD = #schPavlnDivCd#
+			</isNotEmpty>
+	</select>	
+	
+	<!-- 템플릿 조회 -->
+	<select id="selectTemplateList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT TEMPL_SEQ AS CODE
+		     , TEMPL_NM  AS NAME
+		  FROM DP_DSPY_TEMPL
+		 WHERE USE_YN = 'Y'
+	</select>	
+	
+	<!-- 행사 기획전 관리 조회 -->
+	<select id="selectEventMgrList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>	
+		<![CDATA[
+			SELECT T1.PAVLN_DIV_CD
+	             , T1.PLNBEF_ID
+	             , T1.TEMPL_SEQ                                                                           /*템플릿 일련번호*/
+	             , F_GET_COMN_CD_NM('PAVLN_DIV_CD', T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+	             , T1.PLNBEF_NM                                                                           /*기획전 명*/
+	             , (SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ = T1.TEMPL_SEQ ) AS TEMPL_NM       /*템플릿 명*/
+	             , DECODE(T1.USE_YN, 'Y','예','아니오') AS USE_YN_NM                                      /*사용여부*/
+	             , TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') AS CHG_DATE                               /*최종 수정일자*/
+	             , (SELECT ADMINNM
+					  FROM MB_SUPP_COMP_MEM_MAST
+                     WHERE SUPP_COMP_ACCESS_NAME = T1.CHGER_ID AND ROWNUM <= '1' ) AS CHGER_ID                                                                          /*최종 수정 ID*/
+	             , T1.LINK_BANNER_IMAGE                                                                   /*링크이미지 배너*/
+	             , T1.USE_YN                                                                              /*사용 여부*/
+	             , TO_CHAR(T1.PLNBEF_STRT_DATE,'YYYY-MM-DD HH24:MI:SS') AS PLNBEF_STRT_DATE               /*기획전 시작 일시*/
+	             , TO_CHAR(T1.PLNBEF_END_DATE,'YYYY-MM-DD HH24:MI:SS') AS PLNBEF_END_DATE                 /*기획전 종료 일시*/
+			 FROM EV_PLNBEF_MAST T1
+			      , DP_DSPY_MAST T2
+			WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+			  AND T2.DSPY_TYP_CD = '30'    /* 20:상설이벤트 30:기획전 40:특판이벤트 50:모바일이벤트 70:모바일특가 */
+			  AND T1.DEL_YN = 'N'
+			]]>
+			
+				<isNotEmpty  property="dspyStusCd">  				      /* 이벤트 상태 */
+			    	AND T2.DSPY_STUS_CD    = #dspyStusCd#
+				</isNotEmpty>
+				<isNotEmpty property="schPlnbefId">
+				    AND T1.PLNBEF_ID    = #schPlnbefId#                   /*전시관코드*/
+				</isNotEmpty>
+				<isNotEmpty property="schPavlnDivCd">
+				    AND T1.PAVLN_DIV_CD = #schPavlnDivCd#                 /*전시관명*/
+				</isNotEmpty>
+				<isNotEmpty property="schPlnbefNm">
+				    AND T1.PLNBEF_NM LIKE '%'|| #schPlnbefNm# || '%'      /*행사 기획전 명*/
+				</isNotEmpty>
+				<isNotEmpty property="rdoUseYn">
+				    AND T1.USE_YN    =  #rdoUseYn#                        /*사용여부*/
+				</isNotEmpty>
+				<isNotEmpty property="rdoImgYn">
+				    AND T1.LINK_BANNER_IMAGE is not null                  /*배너 유무*/
+				</isNotEmpty>
+				<isNotEmpty property="txUrl">
+				    AND T1.PLNBEF_BANNER_PATH LIKE '%'|| #txUrl# || '%'   /* URL */
+				</isNotEmpty>
+				<isNotEmpty property="calPlnbefStrtDate">                 /*행사 기획전 시작-종료일자*/
+					AND (TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYY-MM-DD') BETWEEN #calPlnbefStrtDate# AND #calPlnbefEndDate#
+					OR TO_CHAR(T1.PLNBEF_END_DATE, 'YYYY-MM-DD') BETWEEN #calPlnbefStrtDate# AND #calPlnbefEndDate#)
+				</isNotEmpty>
+				
+				
+	       	ORDER BY T1.DSPY_SEQ DESC	
+		<include refid="pagingFooter"/>	
+	</select>
+	
+	
+	<!-- 행사 기획전 관리 상세조회 -->
+	<select id="selectPlnBefDtl" parameterClass="java.util.HashMap" resultClass="commMap">		
+		<![CDATA[
+			 SELECT ROWNUM AS RNUM 
+				  , T1.PLNBEF_ID
+                  , T1.DSPY_SEQ
+                  , T1.PLNBEF_DIV_CD
+                  , T1.PAVLN_DIV_CD
+                  , T1.PAVLN_AREA_CD
+                  , T1.PAVLN_DTL_AREA_CD
+                  , F_GET_COMN_CD_NM('PAVLN_DIV_CD', T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+	              , ( SELECT DSPY_STUS_CD
+	                    FROM DP_DSPY_MAST T2                                                              /* 전시 마스터 테이블 */ 
+	                   WHERE T1.DSPY_SEQ = T2.DSPY_SEQ) AS DSPY_STUS_CD                                   /* 이벤트 진행 상태 */
+                  , T1.PAVLN_DIV_CD
+                  , T1.PLNBEF_NM
+                  , TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ALL_PLNBEF_STRT_DATE
+                  , TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYYMMDD') AS PLNBEF_STRT_DATE
+                  , TO_CHAR(T1.PLNBEF_STRT_DATE, 'HH24')     AS FR_TM
+                  , TO_CHAR(T1.PLNBEF_STRT_DATE, 'MI')       AS FR_MN
+                  , TO_CHAR(T1.PLNBEF_END_DATE, 'YYYY-MM-DD HH24:MI:SS') AS ALL_PLNBEF_END_DATE
+                  , TO_CHAR(T1.PLNBEF_END_DATE, 'YYYYMMDD') AS PLNBEF_END_DATE
+                  , TO_CHAR(T1.PLNBEF_END_DATE, 'HH24')     AS TO_TM
+                  , TO_CHAR(T1.PLNBEF_END_DATE, 'MI')       AS TO_MN
+                  , T1.USE_YN
+                  , T1.TEMPL_SEQ
+                  , ( SELECT TEMPL_NM  from DP_DSPY_TEMPL WHERE TEMPL_SEQ = T1.TEMPL_SEQ ) AS TEMPL_NM
+                  , ( SELECT ITM_VIEW_CNT from DP_DSPY_TEMPL_ITM WHERE TEMPL_SEQ = T1.TEMPL_SEQ ) AS TEMPL_IMG_NUM /* 이미지 진열수 */
+                  , T1.PLNBEF_DIV_CD
+                  , T1.IS_MOBILE
+                  , T1.PLNBEF_MAIN_IMAGE_YN
+                  , T1.PLNBEF_MAIN_IMAGE_URL
+                  , T1.ATTCHFILE_ID
+             	  , IMAGE.FILE_STRE_PATH AS IMAGE_PATH
+             	  , IMAGE.STRE_FILE_NM AS IMAGE_NM
+             	  , IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+                  , T1.LOGO_ATTCHFILE_ID
+                  , T1.LOGO_TEXT
+             	  , LOGOIMAGE.FILE_STRE_PATH AS LOGO_IMAGE_PATH
+             	  , LOGOIMAGE.STRE_FILE_NM AS LOGO_IMAGE_NM
+             	  , LOGOIMAGE.ORIG_FILE_NM AS LOGO_IMAGE_ORIG_NM
+             FROM EV_PLNBEF_MAST T1, CM_FILE_MGT IMAGE, CM_FILE_MGT LOGOIMAGE
+			WHERE T1.ATTCHFILE_ID = IMAGE.ATTCHFILE_ID(+)
+			  AND T1.LOGO_ATTCHFILE_ID = LOGOIMAGE.ATTCHFILE_ID(+)
+			  AND T1.PLNBEF_ID = #plnbefId#
+			]]>
+	</select>
+	
+	<!-- 행사기획전 상품전시 관리 리스트 상세 조회  -->
+	<select id="selectEventPlnProdList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT ROWNUM AS RNUM, A.*
+		  FROM (
+				SELECT  T1.PLNBEF_ID                              /* 기획전 ID */
+		             ,  T1.DSPY_SEQ                               /* 전시일련번호 */
+		             ,  T2.GOODS_CD                               /* 상품코드 */
+		             ,  T3.GOODS_NM                               /* 상품명 */
+		             ,  T6.DSPY_STUS_CD                           /* 기획전 상태 1:진행대기 2:진행중 3:일시중지 4:종료 */
+		             , (SELECT BCNC_NM 
+		                  FROM CO_SUPP_COMP_MAST S1 
+		                 WHERE S1.SUPP_COMP_ID = T3.SUPP_COMP_ID) AS SUPP_COMP_NM    /* 공급 업체 명 */
+		             ,  T3.STD_SELL_PRC                              /* 판매가  */
+		             ,  T2.DSPY_SPOT_CD                           /* 전시위치 */
+		             ,  T2.FIXAMT_DC                              /* 정액 할인_행사가 */
+		             ,  T2.DC_APPLY_PRC                           /* 할인 적용가 */
+		             ,  T2.DC_APPLY_PRC  AS EVENT_PRC             /* 할인 적용가(조회용) */
+		             ,  T2.SORT_ORDER
+		             ,  T1.TEMPL_SEQ                              /* 템플릿 일련번호 */
+		             ,  T5.ATTCHFILE_ID                           /* 첨부파일 ID */
+		             ,  T5.ORIG_FILE_NM                           /* 원본 파일명 */
+		             ,  REPLACE(T5.FILE_STRE_PATH, '\') || '/' || T5.STRE_FILE_NM AS FILE_FULL_NAME  /* | | '.' | |  T5.FILE_EXTNER  이미지 경로*/
+		             ,  T3.STOCK_VOLM								/* 재고 량 */
+		             , DECODE(FN_GOODS_SUPP_YN(T7.GOODS_CD), 'Y', '공급', '공급중단') AS SUPP_YN
+		          FROM EV_PLNBEF_MAST  T1                        
+		             , EV_PLNBEF_GOODS T2
+		             , GD_GOODS_MAST T3
+		             , GD_GOODS_IMAGE T4                          /* 상품 이미지 정보 테이블 */
+		                , CM_FILE_MGT T5                             /* 이미지 업로드 정보 테이블 */
+		                , DP_DSPY_MAST T6                            /* 전시 마스터 테이블 */ 
+		                , GD_MGT_GOODS_MAST T7
+		         WHERE T1.PLNBEF_ID = T2.PLNBEF_ID
+		           AND T1.DSPY_SEQ  = T2.DSPY_SEQ(+)
+		           AND T1.DSPY_SEQ  = T6.DSPY_SEQ(+)
+		           AND T2.GOODS_CD  = T3.GOODS_CD(+)
+		           AND T3.GOODS_CD  = T4.GOODS_CD(+)
+		           AND T3.GOODS_CD = T7.GOODS_CD(+)
+		           AND T4.REPRSNT_IMAGE = T5.ATTCHFILE_ID
+		           AND T1.PLNBEF_ID = #plnbefId#
+		         ORDER BY T2.SORT_ORDER ASC, T2.CHG_DATE DESC) A
+	</select>
+	<!-- 20160125 전시상품 추가 - 조회 수정-->
+	<select id="selectProdListTotCnt" parameterClass="java.util.HashMap" resultClass="int">		
+		<![CDATA[
+			 SELECT COUNT(GOODS_CD) AS CNT      
+			   FROM GD_GOODS_MAST T1
+			   WHERE 1=1
+		]]>
+			   	<isNotEmpty property="goodsStusCd">
+	   				AND	GOODS_STUS_CD = #goodsStusCd#
+			   	</isNotEmpty>	
+			   	<isNotEmpty property="sellTypCd">
+			   		AND	SELL_TYP_CD   = #sellTypCd#
+			   	</isNotEmpty>
+			   	<isNotEmpty property="suppCompNm">
+			   		AND	(SELECT BCNC_NM FROM CO_SUPP_COMP_MAST S1 WHERE S1.SUPP_COMP_ID = T1.SUPP_COMP_ID)  LIKE '%'|| #suppCompNm# || '%' /* 공급사 명 */
+			   	</isNotEmpty>
+			   	<isNotEmpty property="suppCompId">
+			   		AND	SUPP_COMP_ID  LIKE '%'|| #suppCompId# || '%' /* 공급사 코드 */
+			   	</isNotEmpty>
+			   	<isNotEmpty property="lstGoodsStusCd">
+			   		AND	GOODS_STUS_CD  = #lstGoodsStusCd#            /* 상품 유형 */
+			   	</isNotEmpty>
+			   	<isNotEmpty property="lstSellTypCd">
+			   		AND	SELL_TYP_CD  = #lstSellTypCd#                /* 판매 상태 */
+			   	</isNotEmpty>
+			   	<isNotEmpty property="goodsNm">
+			   		AND	GOODS_NM LIKE '%'|| #goodsNm# || '%'         /* 상품명 */
+			   	</isNotEmpty>
+		   	
+	</select>
+	<!-- 20160125 전시상품 추가 - 조회 수정-->
+	<select id="selectProdList" parameterClass="java.util.HashMap" resultClass="commMap">		
+		
+		<include refid="pagingHeader"/>	
+		
+		<![CDATA[
+			 SELECT ROWNUM AS RNUM 
+				  , T1.GOODS_CD         /* 상품 코드 */
+				  , T1.GOODS_STUS_CD    /* 상품 상태 코드 */
+				  , T1.SELL_TYP_CD      /* 판매 유형 코드 */
+				  , T1.SUPP_COMP_ID     /* 공급 업체 ID */
+				  , F_GET_COMN_CD_NM('SYS_06',T1.GOODS_STUS_CD) AS GOODS_STUS_NM   /* 상품 상태 명 */
+				  , F_GET_COMN_CD_NM('SELL_TYP_CD',T1.SELL_TYP_CD)   AS SELL_TYP_NM     /* 판매 유형 명 */
+				  , (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST S1 WHERE S1.SUPP_COMP_ID = T1.SUPP_COMP_ID) AS SUPP_COMP_NM    /* 공급 업체 명 */
+				  , T1.GOODS_NM         /* 상품 명 */
+				  , T1.GOODS_DESC       /* 상품 설명 */
+				  , T1.STD_SELL_PRC     /* 기준 판매가 */
+				  , T1.STOCK_VOLM       /* 재고 량 */
+				FROM GD_GOODS_MAST T1
+				/*,GD_MGT_GOODS_MAST T2   /  관리 상품 마스터 - 공급여부  /
+			    WHERE T1.GOODS_CD = T2.GOODS_CD    테이블 데이터가 없어서 주석처리 */
+			    WHERE 1=1
+		]]>
+		
+		   	<isNotEmpty property="goodsStusCd">
+	   		 	AND GOODS_STUS_CD = #goodsStusCd#
+		   	</isNotEmpty>	
+		   	<isNotEmpty property="sellTypCd">
+		   		AND SELL_TYP_CD   = #sellTypCd#
+		   	</isNotEmpty>
+		   	<isNotEmpty property="suppCompNm">
+		   		AND (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST S1 WHERE S1.SUPP_COMP_ID = T1.SUPP_COMP_ID)  LIKE '%' || #suppCompNm# || '%' /* 공급사 명 */
+		   	</isNotEmpty>
+		   	<isNotEmpty property="suppCompId">
+		   		AND SUPP_COMP_ID  LIKE '%'|| #suppCompId# || '%' /* 공급사 코드 */
+		   	</isNotEmpty>
+		   	<isNotEmpty property="lstGoodsStusCd">
+		   		AND GOODS_STUS_CD  = #lstGoodsStusCd#            /* 상품 유형 */
+		   	</isNotEmpty>
+		   	<isNotEmpty property="lstSellTypCd">
+		   		AND SELL_TYP_CD  = #lstSellTypCd#                /* 판매 상태 */
+		   	</isNotEmpty>
+		   	<isNotEmpty property="goodsNm">
+		   		AND GOODS_NM LIKE '%'|| #goodsNm# || '%'         /* 상품명 */
+		   	</isNotEmpty>
+		 
+		 
+		 <include refid="pagingFooter"/>	
+	</select>
+	
+	
+	<!-- 행사 기획전 전시 저장,업데이트 -->
+	<insert id="insertDspyMast" parameterClass="java.util.HashMap">
+	<![CDATA[
+		MERGE INTO DP_DSPY_MAST T1
+		       USING (
+		       		SELECT  #dspySeq#                                       AS DSPY_SEQ         /* 전시 일련번호   */
+                          , #dspyStrtDate#  || #txFrTm# || #txFrMn# || '00' AS DSPY_STRT_DATE   /* 전시 시작 일시  */
+                          , #dspyEndDate#   || #txToTm# || #txToMn# || '59' AS DSPY_END_DATE    /* 전시 종료 일시  */
+                          , #useYn#                                         AS USE_YN           /* 사용 여부       */
+                          , #dspyNm#                                        AS DSPY_NM          /* 전시 명         */
+                          , #templSeq#                                      AS TEMPL_SEQ        /* 템플릿 일련번호 */
+                          , NVL(#regerId#, 'ADMIN')                         AS REGER_ID         /* 등록자 아이디   */
+                          , NVL(#chgerId#, 'ADMIN')                         AS CHGER_ID         /* 수정자 아이디   */
+                          , #dspyStusCd#                                    AS DSPY_STUS_CD     /* 진행상태 1:진행대기 2:진행중 3:일시중지 4:종료 */
+                          , #dspyTypCd#			                            AS DSPY_TYP_CD		/* 20:상설이벤트 30:기획전 40:특판이벤트 50:모바일이벤트 70:모바일특가 */
+		       		  FROM DUAL
+		       ) T2
+		       ON (T1.DSPY_SEQ = T2.DSPY_SEQ)
+		       WHEN MATCHED THEN
+		       	   UPDATE 
+		       	      SET DSPY_STRT_DATE = TO_DATE(T2.DSPY_STRT_DATE,'YYYYMMDDHH24MISS')
+		       	        , DSPY_END_DATE  = TO_DATE(T2.DSPY_END_DATE ,'YYYYMMDDHH24MISS')
+		       	        , USE_YN         = #useYn#
+		       	        , DSPY_NM        = #dspyNm#		       	        
+		       	        , TEMPL_SEQ      = #templSeq#
+		       	        , CHG_DATE       = SYSDATE
+		       	        , CHGER_ID       = NVL(#chgerId#, 'ADMIN')
+		       	        , DSPY_STUS_CD   = #dspyStusCd#
+		       WHEN NOT MATCHED THEN
+			       INSERT(
+				       	    T1.DSPY_SEQ
+			       	      , T1.CONTS_DIV_CD
+			       	      , T1.DSPY_TYP_CD
+                          , T1.DSPY_STRT_DATE
+                          , T1.DSPY_END_DATE
+                          , T1.DSPY_STUS_CD
+                          , T1.USE_YN
+                          , T1.DSPY_NM
+                          , T1.TEMPL_SEQ
+                          , T1.REG_DATE
+                          , T1.CHG_DATE
+                          , T1.REGER_ID
+                          , T1.CHGER_ID
+                          , T1.DEL_YN
+			       )VALUES(
+			       		    T2.DSPY_SEQ
+			       		  , ''
+			       		  , T2.DSPY_TYP_CD                                                   
+                          , TO_DATE(T2.DSPY_STRT_DATE,'YYYYMMDDHH24MISS')
+                          , TO_DATE(T2.DSPY_END_DATE ,'YYYYMMDDHH24MISS')
+                          , T2.DSPY_STUS_CD
+                          , T2.USE_YN
+                          , T2.DSPY_NM
+                          , T2.TEMPL_SEQ
+                          , SYSDATE
+                          , SYSDATE
+                          , T2.REGER_ID
+                          , T2.CHGER_ID
+                          , 'N'
+			       ) 
+	]]>
+	</insert>
+	
+	<!-- 행사 기획전 전시 키조회-->
+	<select id="selectDspyMastKey" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+		SELECT SEQ_DSPY_SEQ.NEXTVAL AS DSPY_SEQ FROM DUAL
+	]]>
+	</select>
+	
+	<!-- 행사 기획전 관리 신규 저장을 위한 plnbefId 키조회-->
+	<select id="selectPlnMastKey" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+		 SELECT SEQ_PLNBEF_ID.NEXTVAL AS PLNBEF_ID FROM DUAL
+	]]>
+	</select>
+	
+	<!-- 행사 기획전 저장,업데이트 AND 신규저장-->
+	<insert id="insertEventPlnMgr" parameterClass="java.util.HashMap">
+		MERGE INTO EV_PLNBEF_MAST T1
+		       USING (
+   		 		SELECT #plnbefId#                                          AS PLNBEF_ID	            /* 기획전 ID */
+	       		     , #dspySeq#                                           AS DSPY_SEQ              /* 전시 일련번호 */
+	       		     , #lstPavlnDivId#                                     AS PAVLN_DIV_CD          /* 전시관 ID */
+	       		     , #plnbefDivCd#									   AS PLNBEF_DIV_CD			/* 기획전 구분 코드 */
+	       		     , #txPlnbefNm#                                        AS PLNBEF_NM	            /* 기획전 명 */		       		     
+	       		     , #calPlnbefStrtDate# || #txFrTm# || #txFrMn# || '00' AS PLNBEF_STRT_DATE	    /* 기획전 시작 일시 */
+	       		     , #calPlnbefEndDate#  || #txToTm# || #txToMn# || '59' AS PLNBEF_END_DATE		/* 기획전 종료 일시 */
+	       		     , #templSeq#                                          AS TEMPL_SEQ             /* 템플릿 일련번호 */
+	       		     , #rdoUseYn#                                          AS USE_YN	            /* 사용 여부 */
+	       		     , #plnbefMainImageYn#								   AS PLNBEF_MAIN_IMAGE_YN  /* 메인 이미지 사용여부 */
+	       		     , #plnbefMainImageUrl#								   AS PLNBEF_MAIN_IMAGE_URL /* 메인 이미지 URL */
+	       		     , #attchfileId#									   AS ATTCHFILE_ID 			/* 이미지 첨부파일 */
+	       		     , #logoAttchfileId#								   AS LOGO_ATTCHFILE_ID 	/* 로고 이미지 첨부파일 */
+	       		     , #logoText#										   AS LOGO_TEXT 			/* 로고 텍스트 */
+	       		     , #pavlnAreaCd#									   AS PAVLN_AREA_CD  		/* 전시 영역 */
+ 					 , #pavlnDtlAreaCd#									   AS PAVLN_DTL_AREA_CD 	/* 전시 상세영역 */
+ 					 , #isMobile#										   AS IS_MOBILE				/* 웹, 모바일 구분 */
+	       		     , #regerId#                                           AS REGER_ID	            /* 등록자 아이디 */
+	       		     , #chgerId#                                           AS CHGER_ID	            /* 수정자 아이디 */
+	       		  FROM DUAL
+		       ) T2
+		       ON (T1.PLNBEF_ID = T2.PLNBEF_ID)
+		       WHEN MATCHED THEN
+		       	   UPDATE SET T1.PLNBEF_NM       		= T2.PLNBEF_NM
+		       	            , T1.DSPY_SEQ         		= T2.DSPY_SEQ
+		       	            , T1.PAVLN_DIV_CD    		= T2.PAVLN_DIV_CD
+		       	            , T1.PLNBEF_DIV_CD	  		= T2.PLNBEF_DIV_CD
+		       	            , T1.PLNBEF_STRT_DATE 		= TO_DATE(T2.PLNBEF_STRT_DATE,'YYYYMMDDHH24MISS')
+		       	            , T1.PLNBEF_END_DATE  		= TO_DATE(T2.PLNBEF_END_DATE ,'YYYYMMDDHH24MISS')
+		       	            , T1.TEMPL_SEQ        		= T2.TEMPL_SEQ
+		       	            , T1.USE_YN           		= T2.USE_YN
+		                    , T1.PLNBEF_MAIN_IMAGE_YN	= T2.PLNBEF_MAIN_IMAGE_YN
+		                    , T1.PLNBEF_MAIN_IMAGE_URL	= T2.PLNBEF_MAIN_IMAGE_URL
+		                    , T1.PAVLN_AREA_CD	 		= T2.PAVLN_AREA_CD
+		                    , T1.PAVLN_DTL_AREA_CD		= T2.PAVLN_DTL_AREA_CD
+						<isNotEmpty property="attchfileId" prepend=",">
+							T1.ATTCHFILE_ID	= T2.ATTCHFILE_ID
+						</isNotEmpty>
+						<isEmpty property="attchfileId">
+							<isEqual property="imageDelyn" compareValue="Y" prepend=",">
+								ATTCHFILE_ID = NULL
+							</isEqual>
+						</isEmpty>
+						<isNotEmpty property="logoAttchfileId" prepend=",">
+							T1.LOGO_ATTCHFILE_ID = T2.LOGO_ATTCHFILE_ID
+						</isNotEmpty>
+						<isEmpty property="logoAttchfileId">
+							<isEqual property="logoImageDelyn" compareValue="Y" prepend=",">
+								LOGO_ATTCHFILE_ID = NULL
+							</isEqual>
+						</isEmpty>
+							, T1.LOGO_TEXT				= T2.LOGO_TEXT
+							, T1.IS_MOBILE				= T2.IS_MOBILE
+							, T1.CHG_DATE				= SYSDATE
+		       	            , T1.CHGER_ID         		= T2.CHGER_ID
+		       	            , T1.DEL_YN					= 'N'
+		       WHEN NOT MATCHED THEN
+			       INSERT(
+				       	  T1.PLNBEF_ID
+				       	, T1.DSPY_SEQ
+				       	, T1.PAVLN_DIV_CD
+				       	, T1.PLNBEF_DIV_CD
+	                    , T1.PLNBEF_NM
+	                    , T1.PLNBEF_STRT_DATE
+	                    , T1.PLNBEF_END_DATE
+	                    , T1.TEMPL_SEQ
+	                    , T1.USE_YN
+	                    , T1.PLNBEF_MAIN_IMAGE_YN
+	                    , T1.PLNBEF_MAIN_IMAGE_URL
+	                    , T1.ATTCHFILE_ID
+	                    , T1.LOGO_ATTCHFILE_ID
+	                    , T1.LOGO_TEXT
+	                    , T1.PAVLN_AREA_CD
+	                    , T1.PAVLN_DTL_AREA_CD
+	                    , T1.IS_MOBILE
+	                    , T1.REG_DATE
+	                    , T1.REGER_ID
+	                    , T1.CHG_DATE
+	                    , T1.CHGER_ID
+	                    , T1.DEL_YN
+			       )VALUES(
+			       		  T2.PLNBEF_ID
+			       		, T2.DSPY_SEQ
+			       		, T2.PAVLN_DIV_CD
+			       		, T2.PLNBEF_DIV_CD 
+			       		, T2.PLNBEF_NM
+			       		, TO_DATE(T2.PLNBEF_STRT_DATE,'YYYYMMDDHH24MISS')
+			       		, TO_DATE(T2.PLNBEF_END_DATE ,'YYYYMMDDHH24MISS')
+			       		, T2.TEMPL_SEQ
+			       		, T2.USE_YN
+	                    , T2.PLNBEF_MAIN_IMAGE_YN
+	                    , T2.PLNBEF_MAIN_IMAGE_URL
+	                    , T2.ATTCHFILE_ID
+	                    , T2.LOGO_ATTCHFILE_ID
+	                    , T2.LOGO_TEXT
+	                    , T2.PAVLN_AREA_CD
+	                    , T2.PAVLN_DTL_AREA_CD
+	                    , T2.IS_MOBILE
+			       		, SYSDATE
+			       		, T2.REGER_ID
+			       		, SYSDATE
+			       		, T2.REGER_ID
+			       		, 'N'
+			       ) 
+	</insert>
+	
+	<!-- 행사 기획전 상품 삭제 -->
+	<delete id="deleteEventPlnProds" parameterClass="java.util.HashMap">
+		DELETE 
+		  FROM EV_PLNBEF_GOODS
+		 WHERE PLNBEF_ID = #plnbefId#
+	</delete>
+	
+	<!-- 행사 기획전 관리 삭제 -->
+	<delete id="deleteEventPln" parameterClass="java.util.HashMap">
+
+		 UPDATE EV_PLNBEF_MAST
+		   SET DEL_YN = 'Y'
+	     WHERE PLNBEF_ID = #plnbefId#
+		 
+	</delete>
+	
+	<!-- 행사 기획전 전시 삭제 -->
+	<delete id="deleteEventPlnDspy" parameterClass="java.util.HashMap">
+
+		 UPDATE DP_DSPY_MAST
+		   SET DEL_YN = 'Y'
+	     WHERE DSPY_SEQ = ( SELECT DSPY_SEQ FROM EV_PLNBEF_MAST WHERE PLNBEF_ID = #plnbefId# )
+	</delete>
+
+	
+	<!-- 행사 기획전 저장,업데이트 -->
+	<insert id="insertEventPlnProd" parameterClass="java.util.HashMap">
+	<![CDATA[
+		MERGE INTO EV_PLNBEF_GOODS T1
+	       USING (
+	       		SELECT #plnbefId#           AS PLNBEF_ID              /* 기획전 Id */
+                     , #goodsCd#            AS GOODS_CD               /* 상품 코드 */
+                     , #dspySeq#            AS DSPY_SEQ               /* 전시 일련번호 */
+                     , #dspySpotCd#         AS DSPY_SPOT_CD           /* 전시 위치 코드 */
+                     , #useYn#              AS USE_YN                 /* 사용 여부 */
+                     , #dcApplyPrc#    		AS DC_APPLY_PRC           /* 할인적용가 */
+                     , NVL(#sortOrder#, 1)	AS SORT_ORDER             /* 전시순서 */
+                     , #regerId#            AS REGER_ID               /* 등록자 아이디 */
+                     , #chgerId#            AS CHGER_ID               /* 수정자 아이디 */
+	       		  FROM DUAL
+	       ) T2
+	       ON (T1.PLNBEF_ID = T2.PLNBEF_ID
+	       AND T1.GOODS_CD = T2.GOODS_CD
+	       AND T1.DSPY_SEQ = T2.DSPY_SEQ )
+	       WHEN MATCHED THEN
+	       	   UPDATE SET T1.USE_YN           = T2.USE_YN
+	       	            , T1.DSPY_SPOT_CD     = T2.DSPY_SPOT_CD
+	       	            , T1.DC_APPLY_PRC     = T2.DC_APPLY_PRC
+	       	            , T1.SORT_ORDER       = T2.SORT_ORDER
+	       	            , T1.CHGER_ID         = T2.CHGER_ID
+	       	            , T1.CHG_DATE         = SYSDATE
+	       	            
+	       WHEN NOT MATCHED THEN
+		       INSERT(
+			       	  T1.PLNBEF_ID
+			       	, T1.GOODS_CD
+			       	, T1.DSPY_SEQ
+                    , T1.USE_YN
+                    , T1.DSPY_SPOT_CD
+                    , T1.DC_APPLY_PRC
+                    , T1.SORT_ORDER
+                    , T1.REG_DATE
+                    , T1.CHG_DATE
+                    , T1.REGER_ID
+                    , T1.CHGER_ID
+		       )VALUES(
+		       		  T2.PLNBEF_ID
+			       	, T2.GOODS_CD
+			       	, T2.DSPY_SEQ
+                    , T2.USE_YN
+                    , T2.DSPY_SPOT_CD
+                    , T2.DC_APPLY_PRC
+                    , T2.SORT_ORDER
+                    , SYSDATE
+                    , SYSDATE
+                    , T2.REGER_ID
+                    , T2.CHGER_ID
+		       ) 
+	]]>
+	</insert>
+	
+	<!-- 행사 기획전 상품 삭제-->
+	<delete id="deleteEventPlnGoods" parameterClass="java.util.HashMap">
+	<![CDATA[
+		DELETE FROM EV_PLNBEF_GOODS
+		 WHERE PLNBEF_ID = #plnbefId#
+	]]>
+	</delete>
+	
+	
+	<!-- 20160210 행사 기획전 진행상태 총 건수 - 진행대기건수-->
+	<select id="selectPlnEventMgrStusTotalCnt" parameterClass="java.util.HashMap" resultClass="int">		
+		<![CDATA[
+			 SELECT COUNT(1) AS CNT      
+			   FROM EV_PLNBEF_MAST T1
+			       , DP_DSPY_MAST T2
+			  WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+			    AND T2.DSPY_TYP_CD = '30'                 /* 20:상설이벤트 30:기획전 40:특판이벤트 50:모바일이벤트 70:모바일특가 */
+			    AND T1.DEL_YN = 'N'
+		]]>
+			<isNotEmpty property="toTalDspyStusCd">	
+				AND T2.DSPY_STUS_CD = #toTalDspyStusCd#   /* 기획전 상태 10:진행대기 20:진행중 30:일시중지 40:종료 */
+			</isNotEmpty>
+	</select>
+	
+	
+</sqlMap>

@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchPostOffice">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="Select_Update_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT regipocd AS sRegiPoCd, max(pochgseq) AS iPochgSeq
+			FROM comm_usr.picmt0060
+			WHERE ltupdymd like to_char(sysdate - 1 ,'yyyymmdd') || '%'
+			  AND useyn = 'Y'
+			  AND dscdpoyn = 'N'
+			GROUP BY regipocd
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  edpscd AS sEdpscd,
+			        postcd AS sPostcd,
+			        ponm AS sPonm,
+			        substr(zipcd,1,3) || '-' || substr(zipcd,4,3) AS sZipcd,
+			        poaddr AS sPoaddr,
+			        decode(pofno,'',pofno || pomno || polno ,pofno||'-'||pomno||'-'||polno) AS sPofno,
+			        decode(bizfaxfno,'',bizfaxfno||bizfaxmno||bizfaxlno ,bizfaxfno||'-'||bizfaxmno||'-'||bizfaxlno) AS sBizfaxfno,
+			        to_number(pogradecd) AS iPogradecd,
+			        mpopostcd AS sMpopostcd,
+			        regipocd AS sRegipocd,
+			        rcocd AS sRcocd,
+			        podivcd AS sPodivcd
+			 FROM comm_usr.picmt0060
+			 WHERE regipocd = #sRegiPoCd#
+			   and pochgseq = #iPochgSeq#
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			 SELECT edpscd AS sSERVER_ECODE, substrb(ponm,1,30) AS sSERVER_NAME
+			 FROM comm_usr.picmt0060
+			 WHERE postcd  = #sMpopostcd#
+			 AND pochgseq = ( SELECT max(pochgseq)
+			                  FROM comm_usr.picmt0060
+			                  WHERE postcd = #sMpopostcd# )
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT decode(#sRcocd#, '15', #sRcocd#, decode(substr(#sEdpscd#,1,2),
+				                     '01','01','10','01','78','01','99','01','11','01',
+				                     '02','02','20','02',
+				                     '03','03','30','03','31','03','90','03',
+				                     '04','04','40','04',
+				                     '05','05','50','05',
+				                     '06','06','60','06','61','06',
+				                     '07','07','70','07',
+				                     '51','08','08','08','01')) AS sCHUNG_CODE
+				 FROM dual
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT count(*) AS iCnt
+				FROM POSTOFFICE_MASTER
+				WHERE ecode = #sEdpscd#
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT count(*) AS iPCnt
+				FROM POSTOFFICE_MASTER
+				WHERE PCODE = #sPostcd#
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_07" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(max(seq) ,0) + 1 AS iSeq
+			FROM POSTOFFICE_MASTER_HISTORY
+			WHERE ecode = #sEdpscd#
+		]]>	 
+	</select>
+	
+	<insert id="insert_POSTOFFICE_MASTER_HISTORY_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO POSTOFFICE_MASTER_HISTORY (ECODE,SEQ ,PCODE ,NAME ,CREATE_DATE,STATE,ERR_MSG)
+							 VALUES (#sEdpscd#, #iSeq#, #sPostcd#, #sPonm#, to_char(sysdate,'yyyymmddhh24miss'),'E','PCODE 중복')
+		]]>	 
+	</insert>
+	
+	<select id="Select_Update_08" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(max(seq) ,0) + 1 as iSeq
+			FROM POSTOFFICE_MASTER_HISTORY
+			WHERE ecode = #sEdpscd#
+		]]>	 
+	</select>
+	
+	<insert id="insert_POSTOFFICE_MASTER_HISTORY_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO POSTOFFICE_MASTER_HISTORY (
+													ECODE,SEQ,
+													PCODE,
+													NAME,
+													POSTAL_CODE,
+													ADDRESS1,
+													ADDRESS2,
+													TELEPHONE,
+													FAX,
+													P_LEVEL,
+													SERVER_NAME,
+													SERVER_ECODE,
+													SERVER_PCODE,
+													RCODE,
+													CHUNG_CODE,
+													PODIVCD,
+													STATE,
+													CREATE_DATE
+													)
+			VALUES (
+					#sEdpscd#,
+					#iSeq#,
+					#sPostcd#, 
+					#sPonm#,
+					#sZipcd#,
+					#sPoaddr#,
+					'',
+					#sPofno#,
+					#sBizfaxfno#,
+					DECODE(LENGTH(#sPostcd#),7,SUBSTR(#sPostcd#,7),'9'),
+					#sSERVERNAME#,
+					#sSERVERECODE#,
+					#sMpopostcd#,
+					#sRegipocd#,
+					#sCHUNGCODE#,
+					#sPodivcd#,
+					'I',
+					to_char(sysdate,'yyyymmddhh24miss') 
+				)
+		]]>	 
+	</insert>
+	 
+	<insert id="insert_POSTOFFICE_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO POSTOFFICE_MASTER (
+						         ECODE,PCODE ,ACCESS_NAME,PASSWORD, NAME ,SHORT_NAME,
+						         POSTAL_CODE ,ADDRESS1 ,ADDRESS2,TELEPHONE   ,FAX     ,
+						         P_LEVEL,
+						         KEY_STORE_SEQID,
+						         SERVER_NAME,SERVER_ECODE,SERVER_PCODE ,RCODE ,CHUNG_CODE ,PODIVCD,
+						         CREATE_DATE,MODIFY_DATE, ACCOUNT)
+						 VALUES( #sEdpscd#,#sPostcd#,#sPostcd#, 'xMpCOKC5I4INzFCab3WEmw==' , #sPonm# ,#sPonm#,
+						         #sZipcd#,#sPoaddr#,'',#sPofno#,#sBizfaxfno#,
+						         DECODE(LENGTH(#sPostcd#),7,SUBSTR(#sPostcd#,7),'9'),
+						         #sEdpscd#,
+						         #sSERVERNAME#,#sSERVERECODE#,#sMpopostcd#,#sRegipocd#,#sCHUNGCODE#,#sPodivcd#,
+						         to_char(sysdate,'yyyymmdd'),to_char(sysdate,'yyyymmdd'),pkg_obfus.encrypt(rpad(' ', 24))
+						       )
+		]]>	 
+	</insert>
+	
+	
+	
+	<select id="Select_Update_09" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select count(*) as iAdmin_Cnt
+			From ADMIN
+			Where ID = #sPostcd#
+		]]>	 
+	</select>
+	
+	<insert id="insert_ADMIN_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ADMIN (ID, PW, NAME, ECODE, TYPE, CREATE_DATE, DELETE_DATE)
+							VALUES (#sPostcd#,'xMpCOKC5I4INzFCab3WEmw==', #sPonm#, #sEdpscd#, 'm', TO_CHAR(sysdate, 'YYYYMMDD'),'')
+		]]>	 
+	</insert>
+	
+	<select id="Select_Update_10" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as iPCnt
+			FROM POSTOFFICE_MASTER
+			WHERE PCODE = #sPostcd#
+			AND ECODE <> #sEdpscd#
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_11" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(max(seq) ,0) + 1 as iSeq
+			FROM POSTOFFICE_MASTER_HISTORY
+			WHERE ecode = #sEdpscd#
+		]]>	 
+	</select>
+	
+	<insert id="insert_POSTOFFICE_MASTER_HISTORY_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO POSTOFFICE_MASTER_HISTORY (ECODE,SEQ ,PCODE ,NAME ,CREATE_DATE,STATE,ERR_MSG)
+						 VALUES(#sEdpscd#,#iSeq#,#sPostcd#,#sPonm#,to_char(sysdate,'yyyymmddhh24miss'),'E','PCODE 중복' )
+		]]>	 
+	</insert>
+	
+	<select id="Select_Update_12" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			Select pcode as sPrePcode
+						 From postoffice_master
+						 Where ecode = #sEdpscd#
+		]]>	 
+	</select>
+	
+	<select id="Select_Update_13" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(max(seq) ,0) + 1 as iSeq
+						 from POSTOFFICE_MASTER_HISTORY
+						 where ecode = #sEdpscd#
+		]]>	 
+	</select>
+	
+	<insert id="insert_POSTOFFICE_MASTER_HISTORY_04" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO POSTOFFICE_MASTER_HISTORY (
+						         ECODE,SEQ ,PCODE    ,NAME ,POSTAL_CODE ,ADDRESS1 ,ADDRESS2,TELEPHONE   ,FAX ,P_LEVEL,
+						         SERVER_NAME,SERVER_ECODE,SERVER_PCODE ,
+						         RCODE ,CHUNG_CODE ,PODIVCD,STATE,CREATE_DATE)
+						 SELECT  ECODE,#iSeq#,PCODE    ,NAME ,POSTAL_CODE ,ADDRESS1 ,ADDRESS2,TELEPHONE ,FAX ,P_LEVEL,
+						         SERVER_NAME,SERVER_ECODE,SERVER_PCODE ,
+						         RCODE ,CHUNG_CODE ,PODIVCD,'S',to_char(sysdate,'yyyymmddhh24miss')
+						 FROM POSTOFFICE_MASTER
+						 WHERE ECODE = #sEdpscd#
+		]]>	 
+	</insert>
+	
+	<update id="update_POSTOFFICE_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE POSTOFFICE_MASTER
+			 Set ECODE           = #sEdpscd#,
+			     PCODE           = #sPostcd#,
+			     NAME            = #sPonm#,
+			     SHORT_NAME      = #sPonm#,
+			     POSTAL_CODE     = #sZipcd#,
+			     ADDRESS1        = #sPoaddr#,
+			     ADDRESS2        = '',
+			     TELEPHONE       = #sPofno#,
+			     FAX             = #sBizfaxfno#,
+			     P_LEVEL         = DECODE(LENGTH(#sPostcd#),7,SUBSTR(#sPostcd#,7),'9'),
+			     KEY_STORE_SEQID = #sEdpscd#,
+			     SERVER_NAME     = #sSERVERNAME#,
+			     SERVER_ECODE    = #sSERVERECODE#,
+			     SERVER_PCODE    = #sMpopostcd#,
+			     RCODE           = #sRegipocd#,
+			     CHUNG_CODE      = #sCHUNGCODE#,
+			     PODIVCD         = #sPodivcd#,
+			     MODIFY_DATE = to_char(sysdate,'yyyymmdd')
+			 where ECODE = #sEdpscd#
+		]]>	 
+	</update>
+	
+	
+</sqlMap>

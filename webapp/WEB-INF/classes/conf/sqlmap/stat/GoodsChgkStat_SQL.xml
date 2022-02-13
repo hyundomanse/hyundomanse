@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.GoodsChgkStat">
+
+	<select id="selectStopCont" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+			SELECT   /* 파일명[파일설명] : GoodsChgkStat_SQL.xml[사유별 중지 현황 조회] SQL ID : selectStopCont */
+			         NVL(GOODS_CHG_DIV_CD,'-') AS GOODS_CHG_DIV_CD
+			        ,NVL((SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODS_CHG_DIV_CD' AND COMN_CD_ID=a.GOODS_CHG_DIV_CD AND USE_YN='Y'),'-') AS GOODS_CHG_DIV_NM
+			        ,NVL(a.GOODS_CHG_REASN_CD,'-') AS GOODS_CHG_REASN_CD
+			        /*AS-IS는 GOODS_CHG_DIV_CD 되어있으나 아무래도 GOODS_CHG_REASN_CD가 맞는 것 같은데...추후 확인필요*/
+			        ,NVL((SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODS_CHG_DIV_CD' AND COMN_CD_ID=a.GOODS_CHG_REASN_CD AND USE_YN='Y'),'-') AS GOODS_CHG_REASN_NM
+			        ,COUNT(1) AS REASN_STOP_CNT
+
+			FROM    GD_GOODS_CHG_REQ a, GD_GOODS_MAST b
+			WHERE   a.GOODS_CD = b.GOODS_CD
+        ]]>
+			AND    a.CHG_REQ_YMD BETWEEN #searchFromDt# AND #searchToDt#
+
+		<isNotEmpty property="goods_cd">
+			<![CDATA[ AND    a.GOODS_CD LIKE #goods_cd# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="supp_comp_id">
+			<![CDATA[ AND    b.SUPP_COMP_ID LIKE #supp_comp_id# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="SearchRcode">
+			<![CDATA[ AND    b.SUPPO_RGIST_POCD = #SearchRcode# ]]>
+		</isNotEmpty>
+		<![CDATA[
+			GROUP BY a.GOODS_CHG_DIV_CD, a.GOODS_CHG_REASN_CD
+			ORDER BY a.GOODS_CHG_DIV_CD, a.GOODS_CHG_REASN_CD
+		]]>
+	</select>
+
+	<select id="selectStopContDetail" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+			SELECT   /* 파일명[파일설명] : GoodsChgkStat_SQL.xml[사유별 중지 현황 상세조회] SQL ID : selectStopContDetail */
+			         a.GOODS_CD
+		            ,b.GOODS_NM
+		            ,a.CHG_REQ_YMD
+		            ,a.CSF_APPR_YMD
+		            ,NVL(a.SUPP_STOP_STRT_YMD,'-') AS SUPP_STOP_STRT_YMD
+		            ,NVL(TO_CHAR(TO_DATE(DECODE(a.SUPP_STOP_END_YMD,'99991231','99991230',a.SUPP_STOP_END_YMD), 'YYYYMMDD') + 1, 'YYYYMMDD'),'-') AS SUPP_STOP_END_YMD
+		            ,NVL((SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'GOODS_CHG_DIV_CD' AND COMN_CD_ID = a.GOODS_CHG_REASN_CD), '-') AS GOODS_CHG_REASN_NM
+            		,a.SUPP_STRT_YMD || ' ~ ' || a.SUPP_END_YMD  AS SUPP_YMD_TERM
+
+			FROM    GD_GOODS_CHG_REQ a, GD_GOODS_MAST b
+			WHERE   a.GOODS_CD = b.GOODS_CD
+        ]]>
+			AND    a.CHG_REQ_YMD BETWEEN #searchFromDt# AND #searchToDt#
+
+		<isNotEmpty property="goods_cd">
+			<![CDATA[ AND    a.GOODS_CD LIKE #goods_cd# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="supp_comp_id">
+			<![CDATA[ AND    b.SUPP_COMP_ID LIKE #supp_comp_id# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="SearchRcode">
+			<![CDATA[ AND    b.SUPPO_RGIST_POCD = #SearchRcode#  ]]>
+		</isNotEmpty>
+		<![CDATA[
+			ORDER BY a.GOODS_CD, b.GOODS_NM, a.CHG_REQ_YMD, a.CSF_APPR_YMD, a.SUPP_STRT_YMD
+		]]>
+	</select>
+
+</sqlMap>

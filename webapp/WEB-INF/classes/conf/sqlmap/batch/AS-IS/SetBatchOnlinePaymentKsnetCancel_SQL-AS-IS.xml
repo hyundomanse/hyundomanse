@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchOnlinePaymentKsnetCancel">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 주문취소 정보 가져오기 -->
+	<select id="selectOrderCancelList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+            SELECT 
+				ORDER_ID,	
+				MAX(NVL(ACCESS_NAME,' ')) ACCESS_NAME ,
+				MAX(ORDER_DATE) ORDER_DATE ,	
+				SUM(DECODE(CANCEL_STATE,'N',AMOUNT - ( NVL(RM_AMOUNT,0) + NVL(RM_PEF_AMOUNT,0) + NVL(COUPON_AMOUNT,0) + NVL(SP_AMOUNT,0) + NVL(SP_PEF_AMOUNT,0) + NVL(AMOUNT_OKCASH,0) ),0)) AMT_N  
+			FROM OD_ORDER_MAST														 
+			WHERE ORDER_ID IN (												 
+									SELECT 
+                                        DISTINCT A.ORDER_ID                                     
+                                    FROM OD_ORDER_MAST A, OD_ONLINE_PAYMENT B, OD_ORDER_SETL C                                 
+                                    WHERE 1 = 1
+                                    AND A.ORDER_ID = B.ORDER_ID                                 
+                                    AND A.ORDER_ID = C.ORDER_ID
+                                    AND TO_CHAR(A.ORDER_CANCEL_DATE, 'YYYYMMDD') >= TO_CHAR(SYSDATE-1,'YYYYMMDD')                 
+                                    AND TO_CHAR(A.ORDER_CANCEL_DATE, 'YYYYMMDD') <= TO_CHAR(SYSDATE,'YYYYMMDD')|| '9999999'     
+                                    AND C.CANCEL_YN = 'Y'                                        
+                                    AND C.SETL_MEAN_CD = '1'                                            
+                                    AND A.ORDER_STUS_CD IN ( 'O01','O06')                                                
+                                    AND B.SEND_CANCEL_DATE IS NULL 
+								 )								
+			AND COMPLETE_DATE IS NULL 		 					
+			GROUP BY ORDER_ID		
+		]]>	 
+	</select>	
+	
+	<!-- 승인정보 가져오기 -->
+	<select id="selectOnlinePaymentList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+				PURCHASE_ID,
+				FINANCE_NAME,
+				ACCOUNT_NO,						
+				AMOUNT,
+				ONLINENAME,
+				BNK_CODE,
+				TO_CHAR(SYSDATE+7,'YYYYMMDD') VALID_DT	
+			FROM ONLINE_PAYMENT												
+			WHERE PURCHASE_ID = ?					
+		]]>	 
+	</select>	
+	
+	<!-- 전체취소 KSNET 전문 처리 -->
+	<update id="updateOnlinePayment" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE ONLINE_PAYMENT SET 
+				SEND_CANCEL_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')			
+			WHERE PURCHASE_ID =?			
+		]]>
+	</update>
+	
+				
+	
+</sqlMap>

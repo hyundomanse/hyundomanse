@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http#//ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchRMOffLineOrder">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt,
+					TO_CHAR(sysdate-1, 'YYYYMMDD') as startdt_key,
+					to_char(sysdate,'yyyymmdd') as startdt_stat
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="f_orderinfo_update_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT PURCHASE_ID as sPURCHASE_ID_KEY,
+					PURCHASE_ID as sPURCHASE_ID, 
+					TXORDER_ID as sTXORDER_ID,
+					GOODS_CODE as sGOODS_CODE,
+					GOODS_NAME as sGOODS_NAME,
+					COUNT(GOODS_CODE) as iQUANTITY,
+					AMOUNT as iPRICE_SALE,
+					CANCEL_STATE as sCANCEL_STATE,
+					ORDER_DATE as sORDER_DATE,
+					EPOST_MILE_ID as sEPOSTID
+			FROM  TXORDER
+			WHERE COMPLETE_DATE >= to_char(sysdate-30, 'yyyymmdd')
+			AND goods_idn > 0
+			AND amount  > 0
+			AND EPOST_MILE_ID is not null
+			AND EPOST_MILE_ID <> ' '
+			AND RECEV_PO_REGIPOCD not in('89903','85414')
+			GROUP BY PURCHASE_ID, TXORDER_ID,GOODS_CODE,GOODS_NAME,CANCEL_STATE,ORDER_DATE,EPOST_MILE_ID,AMOUNT
+		]]>	 
+	</select>
+	
+	<select id="f_orderinfo_update_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					goods_idn as iGOODS_IDN,
+					shop_id as sSHOP_ID,
+					ceil(#iPRICESALE# * point* 0.01) as iRM_POINT
+			FROM goods_master
+			WHERE goods_idn = (
+								  select max(goods_idn)
+								  from goods_master
+								  where goods_code = #sGOODSCODE#
+								   and language = 'KO'
+							  )
+		]]>	 
+	</select>
+	
+	<select id="f_orderinfo_update_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as iPointDownCnt
+			FROM RM_HISTORY
+			WHERE TXORDER_ID = #sTXORDERID#
+			  And status in ('1','2')
+		]]>	 
+	</select>
+	
+	<select id="f_orderinfo_update_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 as i_RMSEQ
+			FROM RM_HISTORY
+			WHERE ACCESS_NAME = #sEPOSTID#
+		]]>	 
+	</select>
+	
+	<select id="f_orderinfo_update_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(CUR_POINT, 0) - #iTotCancelPoint# as iRM_CURPOINT
+			FROM RM_MASTER
+			WHERE ACCESS_NAME = #sEPOSTID#
+		]]>	 
+	</select>
+	
+	<insert id="insert_RM_HISTORY_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO RM_HISTORY (ACCESS_NAME, SEQ, RM_TYPE,
+			                        PURCHASE_ID,TXORDER_ID,
+			                        USE_POINT,
+			                        CUR_POINT,
+						            CASE_CONT,
+						            STATUS,
+						            TYPE_CD, REG_DATE,CREATE_DATE)
+			VALUES(#sEPOSTID#,#iRMSEQ#, 'U',
+			       #sPURCHASEID#,#sTXORDERID#,
+			       #iRMPOINT#,
+			       #iRMCURPOINT#,
+				   '주문 취소 회수', '2', 'U3',
+				   TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+				   TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') )
+		]]>	 
+	</insert>
+	
+	<update id="update_RM_HISTORY_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_HISTORY
+			SET CANCEL_YN      = 'Y',
+			    CANCEL_DATE    = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+			WHERE TXORDER_ID = #sTXORDERID#
+		]]>	 
+	</update>
+	
+	<select id="f_orderinfo_update_06" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					NVL(CUR_POINT, 0) - #iTotCancelPoint# as iRM_CURPOINT,
+					NVL(TOT_ACCU_POINT, 0) - #iTotCancelPoint# as iTOT_ACCU_POINT
+			FROM RM_MASTER
+			WHERE ACCESS_NAME = #sEPOSTID#
+		]]>	 
+	</select>
+	
+	<update id="update_RM_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE RM_MASTER
+			SET CUR_POINT      = #iRMCURPOINT#,
+				  TOT_ACCU_POINT = #iTOTACCUPOINT#,
+			    LASTCHANGE     = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+			WHERE ACCESS_NAME  = #sEPOSTID#
+		]]>	 
+	</update>
+	
+	<select id="f_orderinfo_update_07" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT count(*) as i_RMcnt
+			FROM RM_HISTORY
+			WHERE ACCESS_NAME = #sEPOSTID#
+			AND TXORDER_ID = #sTXORDERID#
+		]]>	 
+	</select>
+	
+	<select id="f_orderinfo_update_08" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 as i_RMSEQ
+			FROM RM_HISTORY
+			WHERE ACCESS_NAME = #sEPOSTID#
+		]]>	 
+	</select>
+	
+	<select id="f_orderinfo_update_09" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SUM(CUR_POINT) as iRM_CURPOINT, count(*) as iRMCnt
+			FROM RM_MASTER
+			WHERE ACCESS_NAME = #sEPOSTID#
+		]]>	 
+	</select>
+	
+	<insert id="insert_RM_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO RM_MASTER(ACCESS_NAME, CUR_POINT, TOT_ACCU_POINT, TOT_USE_POINT, LASTCHANGE)
+		    VALUES(#sEPOSTID#, 0, 0, 0, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'))
+		]]>	 
+	</insert>
+	
+	<insert id="insert_RM_HISTORY_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO RM_HISTORY (ACCESS_NAME, SEQ, RM_TYPE, PURCHASE_ID, TXORDER_ID, PRE_ACCU_POINT, ACCU_POINT, CUR_POINT,
+									CASE_CONT, STATUS, TYPE_CD, REG_DATE, CREATE_DATE)
+			VALUES(nvl(#sEPOSTID#, ' '), #iRMSEQ#, 'A', #sPURCHASEID#, #sTXORDERID#,
+				    nvl(#iRMPOINT#,0),0,nvl(#iRMCURPOINT#, 0),
+					 '상품주문', '0', 'A1', TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') )
+		]]>	 
+	</insert>
+	
+	
+</sqlMap>

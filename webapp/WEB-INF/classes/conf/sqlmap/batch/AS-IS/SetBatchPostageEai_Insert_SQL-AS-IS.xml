@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchPostageEai_Insert">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectHistoryAdjustList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  REPLACE( START_DAY, '/', '' )           from_day,
+			        REPLACE( END_DAY, '/', '' ) || '999999' to_day   
+			FROM    history_adjust                                   
+			WHERE   TRANS_DAY IS NULL                                
+			  AND   ROWNUM = 1                                                                              
+		]]>	 
+	</select>
+	
+	<select id="select3DayList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select to_char(sysdate-4,'yyyymmdd')              from_day,
+			       to_char(sysdate,'yyyymmdd')|| '999999'   to_day   
+			from dual                            
+		]]>	 
+	</select>
+	
+	<delete id="deleteHistoryPostageInterface" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			delete from EAI.HISTORY_postage_INTERFACE        
+			where sellRecevYmd >= ?  and sellRecevYmd <=  ?  
+			   and sellRecevDivCd = '005'                              
+		]]>	 
+	</delete>
+	<update id="insertHistoryPostageInterface1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO EAI.HISTORY_POSTAGE_INTERFACE 							
+													 (         																
+													 	SELLRECEVYMD,REGIPOCD,SUPPPOREGIPOCD,SHOPDIVCD,SELLRECEVDIVCD, 
+													 	GOODSCNT,GOODSAMT,PRCLAMT,WRITEDATE,GOODSCNT2 					
+													 )																		
+													    SELECT /*+ INDEX( B IDX_TXORDER_02 ) */           	 		   		   
+													    	SUBSTR(B.COMPLETE_DATE,1,8) SELLRECEVYMD,  	   					   
+													    	NVL(B.M_REGIPOCD, NVL(A.REGIPOCD,'00000')) REGIPOCD,   															   
+													    	NVL(A.REGIPOCD, '00000') SUPPPOREGIPOCD,                    	     				   
+													    	'005' SHOPDIVCD,                           			    			   
+													    	'005' SELLRECEVDIVCD,                  			  				   
+													    	COUNT(A.TXORDER_ID) GOODSCNT,               		  				   
+													    	SUM(B.AMOUNT) GOODSAMT,                     		 				   
+													    	SUM(NVL(A.SENDPRC,0)) PRCLAMT,             		  				   
+													    	SYSDATE WRITEDATE,				    									   
+													    	COUNT(B.TXORDER_ID) GOODSCNT2                          	   		   
+													   FROM TXORDER B ,                                                                                             
+													         EAI.EC_ORDER_POSTAGE_INTERFACE A               		  		   
+													    WHERE B.COMPLETE_DATE >= ?                         		                     		   
+													    	AND B.COMPLETE_DATE <= ?                		                         					   
+													    	AND B.TXORDER_ID = A.TXORDER_ID(+)               		     		   
+													    	AND NVL(B.M_REGIPOCD ,'99999') <> '99999'                        	   		   
+													    	AND B.SHOP_ID = '8'                               			      	   
+													    	AND B.STATUS IN ('2','3','4','5')                      		     	   
+													    	AND B.CANCEL_STATE = 'N' 				     						
+													    GROUP BY SUBSTR(B.COMPLETE_DATE,1,8), NVL(B.M_REGIPOCD, NVL(A.REGIPOCD,'00000')) , NVL(A.REGIPOCD, '00000') 	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	
+	<update id="insertHistoryPostageInterface2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO EAI.HISTORY_POSTAGE_INTERFACE 							
+													 (         																
+													 	SELLRECEVYMD,REGIPOCD,SUPPPOREGIPOCD,SHOPDIVCD,SELLRECEVDIVCD, 
+													 	GOODSCNT,GOODSAMT,PRCLAMT,WRITEDATE,GOODSCNT2 					
+													 )																		
+													    SELECT /*+ INDEX( B IDX_TXORDER_02 ) */           	 		   		   
+													    	SUBSTR(B.COMPLETE_DATE,1,8) SELLRECEVYMD,  	   					   
+													    	NVL(B.M_REGIPOCD, NVL(A.REGIPOCD,'00000')) REGIPOCD,   															   
+													    	NVL(A.REGIPOCD, '00000') SUPPPOREGIPOCD,                    	     				   
+													    	'013' SHOPDIVCD,                           			    			   
+													    	'005' SELLRECEVDIVCD,                  			  				   
+													    	COUNT(A.TXORDER_ID) GOODSCNT,               		  				   
+													    	SUM(B.AMOUNT) GOODSAMT,                     		 				   
+													    	SUM(NVL(A.SENDPRC,0)) PRCLAMT,             		  				   
+													    	SYSDATE WRITEDATE,				    									   
+													    	COUNT(B.TXORDER_ID) GOODSCNT2                          	   		   
+													   FROM TXORDER B ,                                                                                             
+													         EAI.EC_ORDER_POSTAGE_INTERFACE A               		  		   
+													    WHERE B.COMPLETE_DATE >= ?                         		                     		   
+													    	AND B.COMPLETE_DATE <= ?                		                         					   
+													    	AND B.TXORDER_ID = A.TXORDER_ID(+)               		     		   
+													    	AND NVL(B.M_REGIPOCD ,'99999') =  '99999'                        		   		   
+													    	AND B.SHOP_ID = '8'                               			      	   
+													    	AND B.STATUS IN ('2','3','4','5')                      		     	   
+													    	AND B.CANCEL_STATE = 'N' 				     						
+													    GROUP BY SUBSTR(B.COMPLETE_DATE,1,8), NVL(B.M_REGIPOCD, NVL(A.REGIPOCD,'00000')) , NVL(A.REGIPOCD, '00000') 	                                                                                                                                                                                                          
+		]]>
+	</update>	
+	 	
+</sqlMap>

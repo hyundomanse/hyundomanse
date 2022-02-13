@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="BO.Banner">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<sql id ="selectBannerMgr">
+		SELECT 
+			BID,
+			SITENAME,
+			SEARCHNAME,
+			SITEURL,
+			SITEADMIN,
+			SITETELEPHONE,
+			SITEFAX,
+			SITEEMAIL,
+			TO_CHAR(TO_DATE(STARTDATE), 'YYYY-MM-DD') AS STARTDATE,
+			TO_CHAR(TO_DATE(ENDDATE), 'YYYY-MM-DD') AS ENDDATE,
+			CID,
+			MID,
+			COMMISSION,
+			PROPRIETY USE_YN,
+			PAVLN_DIV_CD.COMN_CD_NM SERVICE,
+			REGISTDATE,
+			LASTCHANGED,
+			CASE WHEN  STARTDATE IS NOT NULL AND ENDDATE IS NOT NULL THEN
+						CASE WHEN  SYSDATE BETWEEN TO_DATE(STARTDATE || '00000','YYYYMMDDHH24MISS') AND TO_DATE(ENDDATE,'YYYYMMDD')+.99999
+					  	  THEN '서비스중' 
+				        ELSE '게재기간 초과'
+				        END
+				ELSE ''   
+			END STATE
+		FROM 
+		  DP_BANNER ,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV_CD
+		  
+		WHERE  DP_BANNER.SERVICE =  PAVLN_DIV_CD.COMN_CD_ID(+)
+		AND 	NVL(PROPRIETY,'Y') ='Y'
+		<isNotEmpty property="search_pavln_id" prepend="AND">
+				SERVICE = #search_pavln_id#
+		</isNotEmpty>
+		<isNotEmpty property="search_SiteName" prepend="AND">
+			SITENAME Like '%' || #search_SiteName# || '%' 
+		</isNotEmpty>
+		<isNotEmpty property="search_SiteAdmin" prepend="AND">
+			SITEADMIN = #search_SiteAdmin#
+		</isNotEmpty>
+		<isNotEmpty property="search_StartDate" prepend="AND">
+			<![CDATA[	TO_DATE(STARTDATE,'YYYY-MM-DD') >= #search_StartDate# ]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_EndDate" prepend="AND">
+			<![CDATA[	TO_DATE(ENDDATE,'YYYY-MM-DD') <= #search_EndDate# ]]>
+		</isNotEmpty>
+		<isNotEmpty property="searchIndex" >
+			<isEqual property="searchIndex" compareValue="search_SiteName" prepend="AND">
+			    SITENAME Like '%' || #search_text# || '%' 
+			</isEqual>   
+			<isEqual property="searchIndex" compareValue="search_Bid" prepend="AND">
+			    BID Like '%' || #search_text# || '%' 
+			</isEqual>  
+		</isNotEmpty>	
+	</sql>
+	<select id="selectBannerMgrList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY BID DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectBannerMgr" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectBannerMgrListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectBannerMgr" />)
+	</select>
+	<select id="selectBannerMgrMap"  parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT
+		    CASE WHEN SUBSTR(BID,1,1) ='P' THEN 'postOffice' 
+		    	 WHEN SUBSTR(BID,1,1) ='C' THEN 'company'
+		    ELSE '' END  CATE_TYPE,
+			BID,
+			SITENAME,
+			SEARCHNAME,
+			SITEURL,
+			SITEADMIN,
+			SITETELEPHONE,
+			SITEFAX,
+			SITEEMAIL,
+			TO_CHAR(TO_DATE(STARTDATE), 'YYYY-MM-DD') AS STARTDATE,
+			TO_CHAR(TO_DATE(ENDDATE), 'YYYY-MM-DD') AS ENDDATE,
+			CID,
+			MID,
+			COMMISSION,
+			PROPRIETY,
+			PAVLN_DIV_CD.COMN_CD_NM SERVICE,
+			REGISTDATE,
+			LASTCHANGED,
+			PWD,
+			ECODE
+		FROM
+			DP_BANNER,(SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV_CD
+		  
+		WHERE  DP_BANNER.SERVICE =  PAVLN_DIV_CD.COMN_CD_ID(+)
+		AND    BID = #bid#
+	</select>
+	<select id="selectBid" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT 'C'||REPLACE(TO_CHAR(NVL(MAX(SUBSTR(BID, 2, 6)), 0)+1, '000000'), ' ', '') AS BID
+				
+			FROM DP_BANNER
+	</select>
+	<insert id="registBannerInfo" parameterClass="java.util.HashMap">
+	 MERGE INTO DP_BANNER A
+	 	USING DUAL
+	 	ON (A.BID = #bid# )
+	 WHEN MATCHED THEN
+	 	UPDATE SET 
+			SITENAME =#siteName#,
+			SEARCHNAME = REPLACE(#siteName#, ' ', '' ),
+			SITEURL =#siteUrl#,
+			SITEADMIN =#siteAdmin#,
+			SITETELEPHONE =#siteTelePhone#,
+			SITEFAX =#siteFax#,
+			SITEEMAIL = #siteEmail#,
+			STARTDATE =REPLACE(#startDate#,'-',''),
+			ENDDATE =REPLACE(#endDate#,'-',''),
+			MID=#chger_id#,
+			COMMISSION=#commission#,
+			PROPRIETY =#propriety#,
+			LASTCHANGED = SYSDATE,
+			PWD=#siteEmail#
+	 WHEN NOT MATCHED THEN		
+		INSERT	
+		(
+			BID,
+			SITENAME,
+			SEARCHNAME,
+			SITEURL,
+			SITEADMIN,
+			SITETELEPHONE,
+			SITEFAX,
+			SITEEMAIL,
+			STARTDATE,
+			ENDDATE,
+			CID,
+			MID,
+			COMMISSION,
+			PROPRIETY,
+			SERVICE,
+			REGISTDATE,
+			LASTCHANGED,
+			PWD
+		)
+		VALUES(
+			#bid#,
+			#siteName#,
+			REPLACE(#siteName#, ' ', '' ),
+			#siteUrl#,
+			#siteAdmin#,
+			#siteTelePhone#,
+			#siteFax#,
+			#siteEmail#,
+			REPLACE(#startDate#,'-',''),
+			REPLACE(#endDate#,'-',''),
+			#reger_id#,
+	        #reger_id#,
+	        #commission#,
+	        #propriety#,
+	        #service#,
+	        SYSDATE,
+	        SYSDATE,
+	        #siteEmail#
+		)
+	</insert>
+	<delete id="deleteBannerMgr" parameterClass="java.util.HashMap">
+		UPDATE DP_BANNER SET PROPRIETY='N', MID=#chger_id#,LASTCHANGED=SYSDATE  WHERE BID =#BID#
+	</delete>
+	<sql id="selectBannerSaleMgr">
+	SELECT
+        B.SITENAME,
+        PAVLN_DIV_CD.COMN_CD_NM AS ,
+        SUM(A.CNT) CNT, 
+        SUM(A.SAMOUNT-A.CAMOUNT) AMT , 
+	  	NVL(MAX(B.COMMISSION), 0) COMMISSION_AMT , 
+	  	SUM((A.SAMOUNT-A.CAMOUNT)*B.COMMISSION/100)  COMMISSION_RATE
+    FROM
+       (
+           SELECT 
+                  DBS.BID
+                , DBS.SERVICE 
+                , ODM.ORDER_ID  
+                , TO_CHAR(ODM.ORDER_DATE,'YYYYMMDD') ORDER_DATE 
+                , NVL(SUM(ODI.STD_SELL_PRC),0) SAMOUNT
+                , NVL(SUM( DECODE( ODI.GOODS_CANCEL_YN , 'N', 0, ODI.STD_SELL_PRC )),0) CAMOUNT
+                , SUM( DECODE( ODI.GOODS_CANCEL_YN , 'N', ODI.REQ_CNT, 0 )) CNT  
+            FROM DP_BANNER_SALE DBS, OD_ORDER_MAST ODM , OD_ORDER_ITM ODI 
+           WHERE  DBS.ORDER_ID = ODM.ORDER_ID
+           AND    ODM.ORDER_ID = ODI.ORDER_ID
+           <isNotEmpty property="search_StartDate" prepend="AND">
+			<![CDATA[	TO_CHAR(ODM.ORDER_DATE,'YYYY-MM-DD') >= #search_StartDate# ]]>
+		   </isNotEmpty>
+		   <isNotEmpty property="search_EndDate" prepend="AND">
+			<![CDATA[	TO_CHAR(ODM.ORDER_DATE,'YYYY-MM-DD') <= #search_EndDate# ]]>
+		   </isNotEmpty>
+           AND   ODI.GOODS_CD > 0  
+           AND   ODI.STD_SELL_PRC > 0 
+           GROUP BY DBS.BID,DBS.SERVICE,ODM.ORDER_ID,ORDER_DATE
+       ) A, DP_BANNER B , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD') PAVLN_DIV_CD
+       WHERE A.BID = B.BID
+       AND A.SERVICE = PAVLN_DIV_CD.COMN_CD_ID(+)
+       AND CAMOUNT != DECODE(SIGN(SAMOUNT), 0, -999, SAMOUNT)  
+       <isNotEmpty property="search_pavln_id" prepend="AND">
+       A.SERVICE = #search_pavln_id#
+       </isNotEmpty>
+       <isNotEmpty property="search_SiteName" prepend="AND">
+       B.SITENAME LIKE '%'|| #search_SiteName# ||'%'
+       </isNotEmpty>
+       GROUP BY PAVLN_DIV_CD.COMN_CD_NM, B.SITENAME 
+	</sql>
+	<select id="selectBannerSaleMgrList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY SITENAME DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectBannerSaleMgr" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectBannerSaleMgrListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectBannerSaleMgr" />)
+	</select>
+	<sql id="selectPostBannerMgr">
+	
+	SELECT 
+		GUBUN,
+		TITLE,
+		BANNER_SIZE,
+		IMAGE,
+		LINK_ADDRESS,
+		TO_CHAR(WRITE_DATE,'YYYY-MM-DD HH24:MI') AS WRITE_DATE,
+		CNT,
+		A.BID,
+		SN,
+		B.FILE_STRE_PATH,
+		B.STRE_FILE_NM,
+		CASE WHEN B.ATTCHFILE_ID IS NOT NULL THEN
+			B.FILE_STRE_PATH || B.STRE_FILE_NM  
+		ELSE '' END AS FILE_FULL_NAME  /* 이미지 경로*/
+	FROM
+		DP_BANNER_POST A, CM_FILE_MGT B , DP_BANNER C
+	WHERE A.IMAGE = B.ATTCHFILE_ID(+)
+	AND A.BID = C.BID
+	AND B.DEL_YN ='N'
+     <isNotEmpty property="search_SiteName" prepend="AND">
+      C.SITENAME LIKE '%'|| #search_SiteName# ||'%'
+     </isNotEmpty>
+     <isNotEmpty property="search_Bid" prepend="AND">
+      A.BID = #search_Bid# 
+     </isNotEmpty>
+	</sql>
+	<select id="selectPostBannerMgrList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY GUBUN DESC) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectPostBannerMgr" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<select id="selectPostBannerMgrListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectPostBannerMgr" />)
+	</select>
+	<select id="selectPostBannerMgrMap"  parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT 
+		GUBUN,
+		TITLE,
+		BANNER_SIZE,
+		IMAGE,
+		LINK_ADDRESS,
+		WRITE_DATE,
+		CNT,
+		BID,
+		SN,
+		B.FILE_STRE_PATH,
+		B.STRE_FILE_NM,
+		B.ORIG_FILE_NM AS IMAGE_ORIG_NM,
+		CASE WHEN B.ATTCHFILE_ID IS NOT NULL THEN
+			B.FILE_STRE_PATH || B.STRE_FILE_NM  
+		ELSE '' END AS FILE_FULL_NAME  /* 이미지 경로*/
+	FROM
+		DP_BANNER_POST A, CM_FILE_MGT B
+	WHERE A.IMAGE = B.ATTCHFILE_ID(+)
+	AND B.DEL_YN ='N'
+	AND A.GUBUN = #gubun#
+	</select>
+	<delete id="deletePostBannerMgr" parameterClass="java.util.HashMap">
+		DELETE DP_BANNER_POST WHERE GUBUN =#GUBUN#
+	</delete>
+	<insert id="registPostBannerInfo" parameterClass="java.util.HashMap">
+	MERGE INTO DP_BANNER_POST A
+	 	USING DUAL
+	 	ON (A.GUBUN = #gubun# )
+	 WHEN MATCHED THEN
+	 	UPDATE SET 
+			TITLE = #title#,
+			BANNER_SIZE = #bannerSize#,
+			IMAGE = #image#,
+			LINK_ADDRESS = #linkAddress#,
+			WRITE_DATE =SYSDATE,
+			CNT = 0,
+			BID = #bid#
+	 WHEN NOT MATCHED THEN		
+		INSERT	
+		(
+			GUBUN,
+			TITLE,
+			BANNER_SIZE,
+			IMAGE,
+			LINK_ADDRESS,
+			WRITE_DATE,
+			CNT,
+			BID,
+			SN
+		)
+		VALUES(
+			(SELECT NVL(MAX(GUBUN)+1,1) FROM DP_BANNER_POST),
+			#title#,
+			#bannerSize#,
+			#image#,
+			#linkAddress#,
+			SYSDATE,
+			0,
+			#bid#,
+			null
+		)
+	</insert>
+</sqlMap>	

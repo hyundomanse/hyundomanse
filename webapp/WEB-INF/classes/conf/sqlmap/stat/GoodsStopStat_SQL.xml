@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.GoodsStopStat">
+
+	<select id="selectStopStat" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+			SELECT   /* 파일명[파일설명] : GoodsStopStat_SQL.xml[공급중지현황조회] SQL ID : selectStopStat */
+			          B.SUPP_COMP_ID
+		             ,B.BCNC_NM
+		             ,A.GOODS_CD
+		             ,A.GOODS_NM
+		             ,A.STOCK_STOP_YMD
+		             ,A.TOT_ACCUM_STOCK_VOLM
+		             ,A.STOCK_VOLM
+
+			FROM     GD_MGT_GOODS_HISTOR A
+			        ,CO_SUPP_COMP_MAST B
+			        ,PICMT0060 C
+
+			WHERE   A.SUPP_COMP_ID = B.SUPP_COMP_ID
+			AND     B.PO_ECODE = C.EDPSCD
+
+            AND     A.STOCK_STOP_YMD IS NOT NULL
+            AND     A.STOCK_CHG_CD = '01'
+            AND     A.GOODS_STUS_CD = '04'
+            AND     A.GOODS_CHG_REASN_CD = '04'
+
+			AND    TO_DATE(SUBSTR(A.GOODS_CHG_DATE,0,14),'yyyymmddhh24miss')
+			       BETWEEN TO_DATE(#searchFromDt#||'000000', 'yyyymmddhh24miss')
+			       AND TO_DATE(#searchToDt#||'235959', 'yyyymmddhh24miss')
+
+		]]>
+
+		<isNotEmpty property="goods_cd">
+			<![CDATA[ AND    A.GOODS_CD LIKE #goods_cd# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="supp_comp_id">
+			<![CDATA[ AND    A.SUPP_COMP_ID LIKE #supp_comp_id# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="SearchName">
+			<![CDATA[ AND    B.BCNC_NM LIKE #SearchName# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="SearchRcode">
+			<![CDATA[ AND    B.PO_ECODE = #SearchRcode# ]]>
+		</isNotEmpty>
+		<![CDATA[
+			ORDER BY A.SUPP_COMP_ID, A.GOODS_CD, A.GOODS_CHG_DATE
+		]]>
+	</select>
+
+</sqlMap>

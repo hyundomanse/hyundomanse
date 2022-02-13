@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatSuppExpectReport">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 집중국 조회 -->
+	<select id="selectCtrlcnPoRegipocdList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : BO.Stat.EpostStatSuppExpectReport.selectCtrlcnPoRegipocdList **/
+		SELECT
+				  RCOCD
+				, REGIPOCD
+				, (SELECT NAME FROM SYSTEM_CODE SC WHERE SC.CLASS = 'P32' AND SC.CODE = A.RCOCD )|| ' ' || PONM AS REGIPOCDNAME
+		  FROM    PICMT0060 A
+		 WHERE    PODIVCD  = '05'	/** 집중국 **/
+		   AND    USEYN    = 'Y'
+		   AND    DSCDPOYN = 'N'
+		ORDER BY A.RCOCD, A.REGIPOCD
+	</select>
+	
+	<!-- 공급국 조회 -->
+	<select id="selectSuplyBuraCdList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	/** SQL_ID : BO.Stat.EpostStatSuppExpectReport.selectSuplyBuraCdList **/
+		SELECT 
+				  REGIPOCD 
+				, PONM
+		  FROM    PICMT0060 A
+		 WHERE    A.CTRLCNPOREGIPOCD = #regipocd#
+		   AND    A.USEYN    = 'Y'
+		   AND    A.PODIVCD  = '06'	/** 공급국 **/
+		   AND    A.DSCDPOYN = 'N'
+		ORDER BY A.REGIPOCD
+	</select>
+	
+	<!-- 공급예정물량 조회 (집중국) -->
+	<select id="selectSuppExpectReportCtrlcnList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	/** SQL_ID : BO.Stat.EpostStatSuppExpectReport.selectSuppExpectReportList **/
+		SELECT
+		            CT.RCOCD					AS CHUNGCODE
+		          , CT.CTRLCNPOREGIPOCD			AS ECODE
+		          , (SELECT NAME FROM SYSTEM_CODE SC WHERE SC.CLASS = 'P32' AND SC.CODE = CT.RCOCD )	AS CHUNGNAME
+		          , CT.PONM						AS REGIPOCDNAME
+		          , SUM(NVL(OOI.REQ_CNT,0))		AS COUNT
+		  FROM
+		          OD_ORDER_MAST OOM
+		        , OD_ORDER_ITM  OOI
+		        , PICMT0060     SU		/** 공급국 **/
+		        , PICMT0060     CT		/** 집중국 **/
+		 WHERE
+		          OOM.ORDER_ID = OOI.ORDER_ID
+		<!-- 기간 -->
+		<isNotEmpty property="searchFromDate">
+		   AND    OOM.APPR_DATE BETWEEN TO_DATE(#searchFromDate#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDate#||'235959', 'YYYYMMDDHH24MISS')
+		</isNotEmpty>
+		   AND    OOI.PAVLN_DIV_CD <![CDATA[ <> ]]>  '02'	/** 제철상품 **/
+		   AND    OOI.ORDER_STUS_CD NOT IN ('O01')			/** 결제대기 **/
+		   AND    SU.REGIPOCD         = OOI.SUPPO_RGIST_POCD
+		   AND    SU.CTRLCNPOREGIPOCD = CT.REGIPOCD
+		   AND    EXISTS(SELECT 1 
+		                   FROM OD_ORDER_SETL OOS 
+		                  WHERE OOM.ORDER_ID = OOS.ORDER_ID 
+		                    AND OOS.RECEV_PO_REGIPOCD IN ('89903', '85414')
+		                    AND NVL(OOS.CANCEL_YN, 'N') = 'N'                )
+		<!-- 집중국 -->
+		<isEqual property="searchSuplyBuraCd" compareValue="ALL">
+			<isNotEmpty property="searchCtrlcnPoRegipocd">
+		   AND    SU.CTRLCNPOREGIPOCD = #searchCtrlcnPoRegipocd#
+			</isNotEmpty>
+		</isEqual>
+		
+		<!-- 공급국 -->
+		<isNotEmpty property="searchSuplyBuraCd">
+			<isNotEqual property="searchSuplyBuraCd" compareValue="ALL">
+		   AND    SU.REGIPOCD = #searchSuplyBuraCd#
+			</isNotEqual>
+		</isNotEmpty>
+		GROUP BY
+		            CT.RCOCD, CT.CTRLCNPOREGIPOCD, CT.PONM
+		ORDER BY
+		            CT.RCOCD, CT.CTRLCNPOREGIPOCD, CT.PONM
+	</select>
+	
+	<!-- 공급예정물량 조회 (공급국) -->
+	<select id="selectSuppExpectReportSuppoList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	/** SQL_ID : BO.Stat.EpostStatSuppExpectReport.selectSuppExpectReportList **/
+		SELECT
+		            CT.RCOCD					AS CHUNGCODE
+		          , CT.CTRLCNPOREGIPOCD			AS ECODE
+		          , (SELECT NAME FROM SYSTEM_CODE SC WHERE SC.CLASS = 'P32' AND SC.CODE = CT.RCOCD )	AS CHUNGNAME
+		          , CT.PONM						AS REGIPOCDNAME
+		          , SU.PONM						AS SUPPORGISTPOCDNM
+		          , SUM(NVL(OOI.REQ_CNT,0))		AS COUNT
+		  FROM
+		          OD_ORDER_MAST OOM
+		        , OD_ORDER_ITM  OOI
+		        , PICMT0060     SU		/** 공급국 **/
+		        , PICMT0060     CT		/** 집중국 **/
+		 WHERE
+		          OOM.ORDER_ID = OOI.ORDER_ID
+		<!-- 기간 -->
+		<isNotEmpty property="searchFromDate">
+		   AND    OOM.APPR_DATE BETWEEN TO_DATE(#searchFromDate#||'000000', 'YYYYMMDDHH24MISS') AND TO_DATE(#searchToDate#||'235959', 'YYYYMMDDHH24MISS')
+		</isNotEmpty>
+		   AND    OOI.PAVLN_DIV_CD <![CDATA[ <> ]]>  '02'	/** 제철상품 **/
+		   AND    OOI.ORDER_STUS_CD NOT IN ('O01')			/** 결제대기 **/
+		   AND    SU.REGIPOCD         = OOI.SUPPO_RGIST_POCD
+		   AND    SU.CTRLCNPOREGIPOCD = CT.REGIPOCD
+		   AND    EXISTS(SELECT 1 
+		                   FROM OD_ORDER_SETL OOS 
+		                  WHERE OOM.ORDER_ID = OOS.ORDER_ID 
+		                    AND OOS.RECEV_PO_REGIPOCD IN ('89903', '85414')
+		                    AND NVL(OOS.CANCEL_YN, 'N') = 'N'                )
+		<!-- 집중국 -->
+		<isEqual property="searchSuplyBuraCd" compareValue="ALL">
+			<isNotEmpty property="searchCtrlcnPoRegipocd">
+		   AND    SU.CTRLCNPOREGIPOCD = #searchCtrlcnPoRegipocd#
+			</isNotEmpty>
+		</isEqual>
+		
+		<!-- 공급국 -->
+		<isNotEmpty property="searchSuplyBuraCd">
+			<isNotEqual property="searchSuplyBuraCd" compareValue="ALL">
+		   AND    SU.REGIPOCD = #searchSuplyBuraCd#
+			</isNotEqual>
+		</isNotEmpty>
+		GROUP BY
+		            CT.RCOCD, CT.CTRLCNPOREGIPOCD, CT.PONM, SU.PONM
+		ORDER BY
+		            CT.RCOCD, CT.CTRLCNPOREGIPOCD, CT.PONM, SU.PONM
+	</select>
+	
+</sqlMap>

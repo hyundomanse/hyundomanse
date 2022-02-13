@@ -1,0 +1,1439 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.GoodsAppr">
+
+	<select id="selectGoodsPrcChgInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.STD_SELL_PRC AS NEW_PRC
+			 , B.STD_SELL_PRC AS OLD_PRC
+		  FROM GD_MGT_GOODS_MAST A, GD_GOODS_MAST B
+		 WHERE A.GOODS_CD = B.GOODS_CD
+		   AND A.GOODS_CD = #goods_cd#
+	</select>
+
+	<insert id="insertGoodsPrcHistInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_MGT_GOODS_PRC_HISTOR
+			   ( GOODS_CD
+			   , OLD_PRC
+			   , CHG_PRC
+			   , GOODS_CHG_DATE
+			   , REG_DATE
+			   , CHG_DATE
+			   , REGER_ID
+			   , CHGER_ID )
+		  VALUES
+			   ( #goods_cd#
+			   , #old_prc#
+			   , #new_prc#
+			   , SYSDATE
+			   , SYSDATE
+			   , SYSDATE
+			   , NVL(#login_usr_id#, 'ADMIN')
+			   , NVL(#login_usr_id#, 'ADMIN') )
+	</insert>
+
+	<delete id="deleteGoodsMastInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_MAST
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsMastInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_MAST
+	         ( GOODS_CD
+			 , GOODS_STUS_CD
+			 , GOODS_CHG_REASN_CD
+			 , GOODS_CHG_REASN_CONT
+			 , APPR_PROC_CD
+			 , MD_APPR_REJCT_REASN
+			 , MD_ID
+			 , SELL_TYP_CD
+			 , SUPP_COMP_ID
+			 , GOODS_NM
+			 , GOODS_DESC
+			 , SRCH_GOODS_NM
+			 , EXTN_GOODS_NM
+			 , ERNC_GOODS_PRDLST_CD
+			 , SUPPO_RGIST_POCD
+			 , MATRL_NM_CNAMT
+			 , FUNC_INFO
+			 , NTR_INFO
+			 , INTK_INFO
+			 , SDEFCT_INFO
+			 , ETC_INFO
+			 , UNIT
+			 , UNIT_WGHT
+			 , UNIT_VOLM
+			 , OVERSEA_WGHT
+			 , OVERSEA_VOLM
+			 , STD_DIV_CD
+			 , STD_DIV_YN
+			 , STD
+			 , KIND_DIV_CD
+			 , MAKR
+			 , ORGPLCE_DIV_CD
+			 , ORGPLCE_DTAIL_DIV_CD
+			 , ORGPLCE_DTAIL_AREA_CHOICE_YN
+			 , ORGPLCE_DTAIL_AREA_CD
+			 , ORGPLCE
+			 , PRDCTN_TIM
+			 , KEEP_METH_ATPN
+			 , PRDT_VLD_TERM
+			 , PRDCTN_AREA_CD
+			 , EVRFRND_CRTFC_TALLY
+			 , POSTNET_CTGRY_CD
+			 , HS_CD
+			 , EDPS_CD
+			 , PRC_COMPAR_EXPSR_YN
+			 , IDTC_YN
+			 , EXCHG_RETRNGD_PSSB_YN
+			 , BUY_CNT_LIMIT_YN
+			 , MAX_BUY_CNT_LIMIT_YN
+			 , MIN_BUY_CNT
+			 , MAX_BUY_CNT
+			 , CRRGR_CARD_USE_YN
+			 , SEND_MSG_TYP_CD
+			 , GOODS_GUDE_DIV
+			 , TRDACL_GOODS_YN
+			 , TRDACL_CNT
+			 , BUYER_AGELIMIT_CD
+			 , COLAB_BUY_GOODS_YN
+			 , BUND_SEND_USE_YN
+			 , BUND_SEND_TYP_CD
+			 , WICKET_GOODS_DC_YN
+			 , WICKET_GOODS_DC_AMT
+			 , FIX_RESRV_GOODS_YN
+			 , EXTRA_GOODS_YN
+			 , EVENT_DC_YN
+			 , RGR_GOODS_YN
+			 , SHORT_MGT_YN
+			 , OVSEA_SEND_PSSB_YN
+			 , SMART_SHPBOX_PSSB_YN
+			 , GIFT_PSSB_YN
+			 , GOODS_OPTN_APPLY_YN
+			 , GOODS_PRSNT_APPLY_YN
+			 , CNSMR_PRC
+			 , STD_SELL_PRC
+			 , PUCHAS_PRC
+			 , DC_APPLY_PRC
+			 , DC_APPLY_STRT_YMD
+			 , DC_APPLY_END_YMD
+			 , VAT_RATE
+			 , GOODS_BASIC_FEE
+			 , PO_FEE_RATE
+			 , VAT_YN
+			 , TAXT_DIV_CD
+			 , NINTR_INSTLMT_YN
+			 , NINTR_STRT_AMT
+			 , NINTR_MNTH
+			 , ACCML_PNT_APPLY_YN
+			 , ACCML_PNT_DIV_CD
+			 , ACCML_PNT_FIXAMT
+			 , ACCML_PNT_FIXRATE
+			 , BASIC_DC_SET_YN
+			 , BASIC_DC_DIV_CD
+			 , BASIC_DC_RATE
+			 , BASIC_DC_AMT
+			 , OKCASH_SUPP_YN
+			 , OKCASH_SUPP_DIV_CD
+			 , OKCASH_SUPP_RATE
+			 , OKCASH_SUPP_AMT
+			 , STRT_SUPP_YMD
+			 , SUPP_BGIN_YMD
+			 , SUPP_END_YMD
+			 , SUPP_DSCNTC_STRT_YMD
+			 , SUPP_DSCNTC_END_YMD
+			 , SUPP_DSCNTC_STUS_CD
+			 , SUPP_DSCNTC_REASN
+			 , STOCK_VOLM
+			 , TOT_ACCUM_STOCK_VOLM
+			 , DD_SUPP_PSSB_VOLM
+			 , SUPP_PSSB_CNT
+			 , SAFE_STOCK_VOLM
+			 , ADD_STOCK_VOLM
+			 , STOCK_MGT_USE_YN
+			 , STOCK_MGT_STRT_YMD
+			 , STOCK_MGT_END_YMD
+			 , SEND_PRC
+			 , SEND_AREA_CD
+			 , SEND_MSG
+			 , SEND_TYP_CD
+			 , SEND_PSSB_AREA
+			 , TDAY_EXP_YN
+			 , DOM_EXP_YN
+			 , HDRYCO_CD
+			 , OTHER_SEND_COMP_REASN
+			 , PRCL_INMATL_CD
+ 			 , SET_GOODS_YN
+			 , SET_GOODS_CNT
+			 , REG_DATE
+			 , CHG_DATE
+	         , REGER_ID
+	         , CHGER_ID )
+		SELECT GOODS_CD
+			 , GOODS_STUS_CD
+			 , GOODS_CHG_REASN_CD
+			 , GOODS_CHG_REASN_CONT
+			 , APPR_PROC_CD
+			 , MD_APPR_REJCT_REASN
+			 , MD_ID
+			 , SELL_TYP_CD
+			 , SUPP_COMP_ID
+			 , GOODS_NM
+			 , GOODS_DESC
+			 , SRCH_GOODS_NM
+			 , EXTN_GOODS_NM
+			 , ERNC_GOODS_PRDLST_CD
+			 , SUPPO_RGIST_POCD
+			 , MATRL_NM_CNAMT
+			 , FUNC_INFO
+			 , NTR_INFO
+			 , INTK_INFO
+			 , SDEFCT_INFO
+			 , ETC_INFO
+			 , UNIT
+			 , UNIT_WGHT
+			 , UNIT_VOLM
+			 , OVERSEA_WGHT
+			 , OVERSEA_VOLM
+			 , STD_DIV_CD
+			 , NVL(STD_DIV_YN, 'N')
+			 , STD
+			 , KIND_DIV_CD
+			 , MAKR
+			 , ORGPLCE_DIV_CD
+			 , ORGPLCE_DTAIL_DIV_CD
+			 , NVL(ORGPLCE_DTAIL_AREA_CHOICE_YN, 'N')
+			 , ORGPLCE_DTAIL_AREA_CD
+			 , ORGPLCE
+			 , PRDCTN_TIM
+			 , KEEP_METH_ATPN
+			 , PRDT_VLD_TERM
+			 , PRDCTN_AREA_CD
+			 , EVRFRND_CRTFC_TALLY
+			 , POSTNET_CTGRY_CD
+			 , HS_CD
+			 , EDPS_CD
+			 , NVL(PRC_COMPAR_EXPSR_YN, 'N')
+			 , NVL(IDTC_YN, 'N')
+			 , NVL(EXCHG_RETRNGD_PSSB_YN, 'N')
+			 , NVL(BUY_CNT_LIMIT_YN, 'N')
+			 , NVL(MAX_BUY_CNT_LIMIT_YN, 'N')
+			 , NVL(MIN_BUY_CNT, 0)
+			 , NVL(MAX_BUY_CNT, 0)
+			 , NVL(CRRGR_CARD_USE_YN, 'N')
+			 , SEND_MSG_TYP_CD
+			 , GOODS_GUDE_DIV
+			 , NVL(TRDACL_GOODS_YN, 'N')
+			 , TRDACL_CNT
+			 , BUYER_AGELIMIT_CD
+			 , NVL(COLAB_BUY_GOODS_YN, 'N')
+			 , NVL(BUND_SEND_USE_YN, 'N')
+			 , BUND_SEND_TYP_CD
+			 , NVL(WICKET_GOODS_DC_YN, 'N')
+			 , NVL(WICKET_GOODS_DC_AMT, '0')
+			 , NVL(FIX_RESRV_GOODS_YN, 'N')
+			 , NVL(EXTRA_GOODS_YN, 'N')
+			 , NVL(EVENT_DC_YN, 'N')
+			 , NVL(RGR_GOODS_YN, 'N')
+			 , NVL(SHORT_MGT_YN, 'N')
+			 , NVL(OVSEA_SEND_PSSB_YN, 'N')
+			 , NVL(SMART_SHPBOX_PSSB_YN, 'N')
+			 , NVL(GIFT_PSSB_YN, 'N')
+			 , NVL(GOODS_OPTN_APPLY_YN, 'Y')
+			 , NVL(GOODS_PRSNT_APPLY_YN, 'N')
+			 , NVL(CNSMR_PRC, 0)
+			 , NVL(STD_SELL_PRC, 0)
+			 , NVL(PUCHAS_PRC, 0)
+			 , NVL(DC_APPLY_PRC, 0)
+			 , DC_APPLY_STRT_YMD
+			 , DC_APPLY_END_YMD
+			 , NVL(VAT_RATE, 10)
+			 , NVL(GOODS_BASIC_FEE, 0)
+			 , NVL(PO_FEE_RATE, 0)
+			 , NVL(VAT_YN, 'Y')
+			 , TAXT_DIV_CD
+			 , NVL(NINTR_INSTLMT_YN, 'N')
+			 , NVL(NINTR_STRT_AMT, 0)
+			 , NVL(NINTR_MNTH, 0)
+			 , NVL(ACCML_PNT_APPLY_YN, 'N')
+			 , ACCML_PNT_DIV_CD
+			 , NVL(ACCML_PNT_FIXAMT, 0)
+			 , NVL(ACCML_PNT_FIXRATE, 0)
+			 , NVL(BASIC_DC_SET_YN, 'N')
+			 , BASIC_DC_DIV_CD
+			 , NVL(BASIC_DC_RATE, 0)
+			 , NVL(BASIC_DC_AMT, 0)
+			 , NVL(OKCASH_SUPP_YN, 'N')
+			 , OKCASH_SUPP_DIV_CD
+			 , NVL(OKCASH_SUPP_RATE, 0)
+			 , NVL(OKCASH_SUPP_AMT, 0)
+			 , STRT_SUPP_YMD
+			 , SUPP_BGIN_YMD
+			 , SUPP_END_YMD
+			 , SUPP_DSCNTC_STRT_YMD
+			 , SUPP_DSCNTC_END_YMD
+			 , SUPP_DSCNTC_STUS_CD
+			 , SUPP_DSCNTC_REASN
+			 , NVL(STOCK_VOLM, 9999)
+			 , NVL(TOT_ACCUM_STOCK_VOLM, 9999)
+			 , NVL(DD_SUPP_PSSB_VOLM, 9999)
+			 , NVL(SUPP_PSSB_CNT, 9999)
+			 , NVL(SAFE_STOCK_VOLM, 9999)
+			 , NVL(ADD_STOCK_VOLM, 9999)
+			 , NVL(STOCK_MGT_USE_YN, 'Y')
+			 , STOCK_MGT_STRT_YMD
+			 , STOCK_MGT_END_YMD
+			 , NVL(SEND_PRC, 2500)
+			 , SEND_AREA_CD
+			 , SEND_MSG
+			 , SEND_TYP_CD
+			 , SEND_PSSB_AREA
+			 , NVL(TDAY_EXP_YN, 'N')
+			 , NVL(DOM_EXP_YN, 'N')
+			 , HDRYCO_CD
+			 , OTHER_SEND_COMP_REASN
+			 , PRCL_INMATL_CD
+			 , NVL(SET_GOODS_YN, 'N')
+			 , NVL(SET_GOODS_CNT, '1')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+	         , NVL(REGER_ID, 'ADMIN')
+	         , NVL(CHGER_ID, 'ADMIN')
+	      FROM GD_MGT_GOODS_MAST
+	     WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGoodsCrtfcInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_CRTFC
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsCrtfcInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_CRTFC
+			 ( GOODS_CD
+			 , CRTFCT_ID
+			 , CRTFCT_SEQ
+			 , CRTFCT_NO
+			 , VLD_TERM_STRT_YMD
+			 , VLD_TERM_END_YMD
+			 , USE_YN
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE)
+		SELECT GOODS_CD
+			 , CRTFCT_ID
+			 , CRTFCT_SEQ
+			 , CRTFCT_NO
+			 , VLD_TERM_STRT_YMD
+			 , VLD_TERM_END_YMD
+			 , USE_YN
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_CRTFC
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGoodsCtgryInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_CTGRY
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsCtgryInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_CTGRY
+			 ( PAVLN_DIV_CD
+			 , CTGRY_CD
+			 , GOODS_CD
+			 , USE_YN
+			 , BASIC_CTGRY_YN
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE)
+		SELECT PAVLN_DIV_CD
+			 , CTGRY_CD
+			 , GOODS_CD
+			 , USE_YN
+			 , BASIC_CTGRY_YN
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_CTGRY
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGoodsImageInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_IMAGE
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsImageInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_IMAGE
+			 ( GOODS_CD
+			 , REPRSNT_IMAGE
+			 , ADD_IMAGE1
+			 , ADD_IMAGE2
+			 , ADD_IMAGE3
+			 , ADD_IMAGE4
+			 , USE_YN
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE)
+		SELECT GOODS_CD
+			 , REPRSNT_IMAGE
+			 , ADD_IMAGE1
+			 , ADD_IMAGE2
+			 , ADD_IMAGE3
+			 , ADD_IMAGE4
+			 , USE_YN
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_IMAGE
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGoodsMlangInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_MLANG_SPRT
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsMlangInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_MLANG_SPRT
+			 ( GOODS_CD
+			 , LANG_CD
+			 , GOODS_NM
+			 , STD
+			 , GOODS_DESC
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE )
+		SELECT GOODS_CD
+			 , LANG_CD
+			 , GOODS_NM
+			 , STD
+			 , GOODS_DESC
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_MLANG_SPRT
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGoodsOptnGrpInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_OPTN_GRP
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<delete id="deleteGoodsOptnDtailInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_OPTN_DTAIL
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsOptnGrpInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_OPTN_GRP
+			 ( GOODS_CD
+			 , GOODS_OPTN_GRP_SEQ
+			 , GOODS_OPTN_GRP_NM
+			 , USE_YN
+			 , ESSN_CHOICE_YN
+			 , HRNK_OPTN_GRP_SEQ
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE )
+		SELECT GOODS_CD
+			 , GOODS_OPTN_GRP_SEQ
+			 , GOODS_OPTN_GRP_NM
+			 , USE_YN
+			 , ESSN_CHOICE_YN
+			 , HRNK_OPTN_GRP_SEQ
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_OPTN_GRP
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<insert id="insertGoodsOptnDtailInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_OPTN_DTAIL
+			 ( GOODS_CD
+			 , GOODS_OPTN_GRP_SEQ
+			 , GOODS_OPTN_SEQ
+			 , GOODS_OPTN_NM
+			 , OPTN_GOODS_APPLY_PRC
+			 , STOCK_VOLM
+			 , SORT_ORDER
+			 , RGB_COLOR
+			 , HRNK_GOODS_OPTN_SEQ
+			 , USE_YN
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE )
+		SELECT GOODS_CD
+			 , GOODS_OPTN_GRP_SEQ
+			 , GOODS_OPTN_SEQ
+			 , GOODS_OPTN_NM
+			 , NVL(OPTN_GOODS_APPLY_PRC, 0)
+			 , NVL(STOCK_VOLM, 999)
+			 , SORT_ORDER
+			 , RGB_COLOR
+			 , HRNK_GOODS_OPTN_SEQ
+			 , USE_YN
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_OPTN_DTAIL
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGoodsPrsntInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_PRSNT
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsPrsntInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_PRSNT
+			 ( GOODS_CD
+			 , PRSNT_SEQ
+			 , PRSNT_NM
+			 , PRSNT_DESC
+			 , PRSNT_IMAGE_PATH
+			 , EVENT_STRT_YMD
+			 , EVENT_END_YMD
+			 , USE_YN
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE )
+		SELECT GOODS_CD
+			 , PRSNT_SEQ
+			 , PRSNT_NM
+			 , PRSNT_DESC
+			 , PRSNT_IMAGE_PATH
+			 , EVENT_STRT_YMD
+			 , EVENT_END_YMD
+			 , USE_YN
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_PRSNT
+		 WHERE GOODS_CD = #goods_cd#
+		   AND PRSNT_NM IS NOT NULL
+	</insert>
+
+	<delete id="deleteGoodsSendInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_SEND
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsSendInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_SEND
+			 ( GOODS_CD
+			 , SEND_PSSB_AREA_CD
+			 , SEND_PSSB_AREA_DTAIL_CD
+			 , SEND_METH_DIV_CD
+			 , SEND_METH_DTAIL_CD
+			 , VISIT_RECPT_YN
+			 , OUTWARE_ADDR
+			 , RETRNGD_EXCHG_ADDR
+			 , SENDNON_DIV_CD
+			 , SENDNON
+			 , SENDNON_LWEST_BUY_PRC
+			 , SENDNON_MAX_BUY_PRC
+			 , BUNDSEND_DIV_YN
+			 , SENDNON_ADD_DIV_CD
+			 , SETL_METH_DIV_CD
+			 , IDSRTS_ADD_SENDNON_SET_YN
+			 , JEJU_SENDNON
+			 , IDSRTS_SENDNON
+			 , SEND_ADD_SET_YN
+			 , WGHT
+			 , VOLM
+			 , OVSEA_KIND_DIV_CD
+			 , OVSEA_EXP_DIV_CD
+			 , PRCL_INMATL_NM
+			 , SENDLIMIT_ATPN
+			 , EMS_YN
+			 , SMALL_PACKET_YN
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE )
+		SELECT GOODS_CD
+			 , SEND_PSSB_AREA_CD
+			 , SEND_PSSB_AREA_DTAIL_CD
+			 , SEND_METH_DIV_CD
+			 , SEND_METH_DTAIL_CD
+			 , VISIT_RECPT_YN
+			 , OUTWARE_ADDR
+			 , RETRNGD_EXCHG_ADDR
+			 , SENDNON_DIV_CD
+			 , NVL(SENDNON, 0)
+			 , NVL(SENDNON_LWEST_BUY_PRC, 0)
+			 , NVL(SENDNON_MAX_BUY_PRC, 0)
+			 , BUNDSEND_DIV_YN
+			 , SENDNON_ADD_DIV_CD
+			 , SETL_METH_DIV_CD
+			 , IDSRTS_ADD_SENDNON_SET_YN
+			 , NVL(JEJU_SENDNON, 0)
+			 , NVL(IDSRTS_SENDNON, 0)
+			 , SEND_ADD_SET_YN
+			 , NVL(WGHT, 0)
+			 , NVL(VOLM, 0)
+			 , OVSEA_KIND_DIV_CD
+			 , OVSEA_EXP_DIV_CD
+			 , PRCL_INMATL_NM
+			 , SENDLIMIT_ATPN
+			 , EMS_YN
+			 , SMALL_PACKET_YN
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_SEND
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGoodsDcInfo" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_DC
+		 WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGoodsDcInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_DC
+			 ( GOODS_CD
+			 , GOODS_DC_SEQ
+			 , DC_TYP_CD
+			 , DC_APPLY_YN
+			 , DC_DIV_CD
+			 , DC_TERM_SET_YN
+			 , FIXAMT_DC
+			 , FIXRATE_DC
+			 , DC_STRT_YMD
+			 , DC_END_YMD
+			 , DC_STD_CNT
+			 , REGER_ID
+			 , CHGER_ID
+			 , REG_DATE
+			 , CHG_DATE )
+		SELECT GOODS_CD
+			 , GOODS_DC_SEQ
+			 , DC_TYP_CD
+			 , DC_APPLY_YN
+			 , DC_DIV_CD
+			 , DC_TERM_SET_YN
+			 , NVL(FIXAMT_DC, 0)
+			 , NVL(FIXRATE_DC, 0)
+			 , DC_STRT_YMD
+			 , DC_END_YMD
+			 , NVL(DC_STD_CNT, 0)
+			 , NVL(REGER_ID, 'ADMIN')
+			 , NVL(CHGER_ID, 'ADMIN')
+			 , NVL(REG_DATE, SYSDATE)
+			 , NVL(CHG_DATE, SYSDATE)
+		  FROM GD_MGT_GOODS_DC
+		 WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<insert id="insertGoodsHistInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_HISTOR
+				 ( GOODS_CD
+				 , GOODS_DC_SEQ
+				 , GOODS_CHG_DATE
+				 , GOODS_STUS_CD
+				 , GOODS_CHG_REASN_CD
+				 , GOODS_CHG_REASN_CONT
+				 , APPR_PROC_CD
+				 , MD_APPR_REJCT_REASN
+				 , MD_ID
+				 , SELL_TYP_CD
+				 , SUPP_COMP_ID
+				 , GOODS_NM
+				 , GOODS_DESC
+				 , SRCH_GOODS_NM
+				 , EXTN_GOODS_NM
+				 , ERNC_GOODS_PRDLST_CD
+				 , SUPPO_RGIST_POCD
+				 , MATRL_NM_CNAMT
+				 , FUNC_INFO
+				 , NTR_INFO
+				 , INTK_INFO
+				 , SDEFCT_INFO
+				 , ETC_INFO
+				 , UNIT
+				 , UNIT_WGHT
+				 , UNIT_VOLM
+				 , OVERSEA_WGHT
+			     , OVERSEA_VOLM
+				 , STD_DIV_CD
+				 , STD_DIV_YN
+				 , STD
+				 , KIND_DIV_CD
+				 , MAKR
+				 , ORGPLCE_DIV_CD
+				 , ORGPLCE_DTAIL_DIV_CD
+				 , ORGPLCE_DTAIL_AREA_CHOICE_YN
+				 , ORGPLCE_DTAIL_AREA_CD
+				 , ORGPLCE
+				 , PRDCTN_TIM
+				 , KEEP_METH_ATPN
+				 , PRDT_VLD_TERM
+				 , PRDCTN_AREA_CD
+				 , EVRFRND_CRTFC_TALLY
+				 , POSTNET_CTGRY_CD
+				 , HS_CD
+				 , EDPS_CD
+				 , PRC_COMPAR_EXPSR_YN
+				 , IDTC_YN
+				 , EXCHG_RETRNGD_PSSB_YN
+				 , BUY_CNT_LIMIT_YN
+				 , MAX_BUY_CNT_LIMIT_YN
+				 , MIN_BUY_CNT
+				 , MAX_BUY_CNT
+				 , CRRGR_CARD_USE_YN
+				 , SEND_MSG_TYP_CD
+				 , GOODS_GUDE_DIV
+				 , TRDACL_GOODS_YN
+				 , TRDACL_CNT
+				 , BUYER_AGELIMIT_CD
+				 , COLAB_BUY_GOODS_YN
+				 , BUND_SEND_USE_YN
+				 , BUND_SEND_TYP_CD
+				 , WICKET_GOODS_DC_YN
+				 , WICKET_GOODS_DC_AMT
+				 , FIX_RESRV_GOODS_YN
+				 , EXTRA_GOODS_YN
+				 , EVENT_DC_YN
+				 , RGR_GOODS_YN
+				 , SHORT_MGT_YN
+				 , OVSEA_SEND_PSSB_YN
+				 , SMART_SHPBOX_PSSB_YN
+				 , GIFT_PSSB_YN
+				 , GOODS_OPTN_APPLY_YN
+				 , GOODS_PRSNT_APPLY_YN
+				 , CNSMR_PRC
+				 , STD_SELL_PRC
+				 , PUCHAS_PRC
+				 , DC_APPLY_PRC
+				 , DC_APPLY_STRT_YMD
+				 , DC_APPLY_END_YMD
+				 , VAT_RATE
+				 , GOODS_BASIC_FEE
+				 , PO_FEE_RATE
+				 , VAT_YN
+				 , TAXT_DIV_CD
+				 , NINTR_INSTLMT_YN
+				 , NINTR_STRT_AMT
+				 , NINTR_MNTH
+				 , ACCML_PNT_APPLY_YN
+				 , ACCML_PNT_DIV_CD
+				 , ACCML_PNT_FIXAMT
+				 , ACCML_PNT_FIXRATE
+				 , BASIC_DC_SET_YN
+				 , BASIC_DC_DIV_CD
+				 , BASIC_DC_RATE
+				 , BASIC_DC_AMT
+				 , OKCASH_SUPP_YN
+				 , OKCASH_SUPP_DIV_CD
+				 , OKCASH_SUPP_RATE
+				 , OKCASH_SUPP_AMT
+				 , STRT_SUPP_YMD
+				 , SUPP_BGIN_YMD
+				 , SUPP_END_YMD
+				 , SUPP_DSCNTC_STRT_YMD
+				 , SUPP_DSCNTC_END_YMD
+				 , SUPP_DSCNTC_STUS_CD
+				 , SUPP_DSCNTC_REASN
+				 , STOCK_VOLM
+				 , TOT_ACCUM_STOCK_VOLM
+				 , DD_SUPP_PSSB_VOLM
+				 , SUPP_PSSB_CNT
+				 , SAFE_STOCK_VOLM
+				 , ADD_STOCK_VOLM
+				 , STOCK_MGT_USE_YN
+				 , STOCK_MGT_STRT_YMD
+				 , STOCK_MGT_END_YMD
+				 , SEND_PRC
+				 , SEND_AREA_CD
+				 , SEND_MSG
+				 , SEND_TYP_CD
+				 , SEND_PSSB_AREA
+				 , TDAY_EXP_YN
+				 , DOM_EXP_YN
+				 , HDRYCO_CD
+				 , OTHER_SEND_COMP_REASN
+				 , PRCL_INMATL_CD
+				 , SET_GOODS_YN
+				 , SET_GOODS_CNT
+				 , REG_DATE
+				 , CHG_DATE
+		         , REGER_ID
+		         , CHGER_ID )
+		    SELECT GOODS_CD
+				 , (SELECT MAX(GOODS_DC_SEQ) FROM GD_GOODS_DC WHERE GOODS_CD = #goods_cd#)
+				 , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+				 , GOODS_STUS_CD
+				 , GOODS_CHG_REASN_CD
+				 , GOODS_CHG_REASN_CONT
+				 , APPR_PROC_CD
+				 , MD_APPR_REJCT_REASN
+				 , MD_ID
+				 , SELL_TYP_CD
+				 , SUPP_COMP_ID
+				 , GOODS_NM
+				 , GOODS_DESC
+				 , SRCH_GOODS_NM
+				 , EXTN_GOODS_NM
+				 , ERNC_GOODS_PRDLST_CD
+				 , SUPPO_RGIST_POCD
+				 , MATRL_NM_CNAMT
+				 , FUNC_INFO
+				 , NTR_INFO
+				 , INTK_INFO
+				 , SDEFCT_INFO
+				 , ETC_INFO
+				 , UNIT
+				 , UNIT_WGHT
+				 , UNIT_VOLM
+				 , OVERSEA_WGHT
+			     , OVERSEA_VOLM
+				 , STD_DIV_CD
+				 , NVL(STD_DIV_YN, 'N')
+				 , STD
+				 , KIND_DIV_CD
+				 , MAKR
+				 , ORGPLCE_DIV_CD
+				 , ORGPLCE_DTAIL_DIV_CD
+				 , NVL(ORGPLCE_DTAIL_AREA_CHOICE_YN, 'N')
+				 , ORGPLCE_DTAIL_AREA_CD
+				 , ORGPLCE
+				 , PRDCTN_TIM
+				 , KEEP_METH_ATPN
+				 , PRDT_VLD_TERM
+				 , PRDCTN_AREA_CD
+				 , EVRFRND_CRTFC_TALLY
+				 , POSTNET_CTGRY_CD
+				 , HS_CD
+				 , EDPS_CD
+				 , NVL(PRC_COMPAR_EXPSR_YN, 'N')
+				 , NVL(IDTC_YN, 'N')
+				 , NVL(EXCHG_RETRNGD_PSSB_YN, 'N')
+				 , NVL(BUY_CNT_LIMIT_YN, 'N')
+				 , NVL(MAX_BUY_CNT_LIMIT_YN, 'N')
+				 , NVL(MIN_BUY_CNT, 0)
+				 , NVL(MAX_BUY_CNT, 0)
+				 , NVL(CRRGR_CARD_USE_YN, 'N')
+				 , SEND_MSG_TYP_CD
+				 , GOODS_GUDE_DIV
+				 , NVL(TRDACL_GOODS_YN, 'N')
+				 , TRDACL_CNT
+				 , BUYER_AGELIMIT_CD
+				 , NVL(COLAB_BUY_GOODS_YN, 'N')
+				 , NVL(BUND_SEND_USE_YN, 'N')
+				 , BUND_SEND_TYP_CD
+				 , NVL(WICKET_GOODS_DC_YN, 'N')
+				 , NVL(WICKET_GOODS_DC_AMT, '0')
+				 , NVL(FIX_RESRV_GOODS_YN, 'N')
+				 , NVL(EXTRA_GOODS_YN, 'N')
+				 , NVL(EVENT_DC_YN, 'N')
+				 , NVL(RGR_GOODS_YN, 'N')
+				 , NVL(SHORT_MGT_YN, 'N')
+				 , NVL(OVSEA_SEND_PSSB_YN, 'N')
+				 , NVL(SMART_SHPBOX_PSSB_YN, 'N')
+				 , NVL(GIFT_PSSB_YN, 'N')
+				 , NVL(GOODS_OPTN_APPLY_YN, 'Y')
+				 , NVL(GOODS_PRSNT_APPLY_YN, 'N')
+				 , NVL(CNSMR_PRC, 0)
+				 , NVL(STD_SELL_PRC, 0)
+				 , NVL(PUCHAS_PRC, 0)
+				 , NVL(DC_APPLY_PRC, 0)
+				 , DC_APPLY_STRT_YMD
+				 , DC_APPLY_END_YMD
+				 , NVL(VAT_RATE, 10)
+				 , NVL(GOODS_BASIC_FEE, 0)
+				 , NVL(PO_FEE_RATE, 0)
+				 , NVL(VAT_YN, 'Y')
+				 , TAXT_DIV_CD
+				 , NVL(NINTR_INSTLMT_YN, 'N')
+				 , NVL(NINTR_STRT_AMT, 0)
+				 , NVL(NINTR_MNTH, 0)
+				 , NVL(ACCML_PNT_APPLY_YN, 'N')
+				 , ACCML_PNT_DIV_CD
+				 , NVL(ACCML_PNT_FIXAMT, 0)
+				 , NVL(ACCML_PNT_FIXRATE, 0)
+				 , NVL(BASIC_DC_SET_YN, 'N')
+				 , BASIC_DC_DIV_CD
+				 , NVL(BASIC_DC_RATE, 0)
+				 , NVL(BASIC_DC_AMT, 0)
+				 , NVL(OKCASH_SUPP_YN, 'N')
+				 , OKCASH_SUPP_DIV_CD
+				 , NVL(OKCASH_SUPP_RATE, 0)
+				 , NVL(OKCASH_SUPP_AMT, 0)
+				 , STRT_SUPP_YMD
+				 , SUPP_BGIN_YMD
+				 , SUPP_END_YMD
+				 , SUPP_DSCNTC_STRT_YMD
+				 , SUPP_DSCNTC_END_YMD
+				 , SUPP_DSCNTC_STUS_CD
+				 , SUPP_DSCNTC_REASN
+				 , NVL(STOCK_VOLM, 9999)
+				 , NVL(TOT_ACCUM_STOCK_VOLM, 9999)
+				 , NVL(DD_SUPP_PSSB_VOLM, 9999)
+				 , NVL(SUPP_PSSB_CNT, 9999)
+				 , NVL(SAFE_STOCK_VOLM, 9999)
+				 , NVL(ADD_STOCK_VOLM, 9999)
+				 , NVL(STOCK_MGT_USE_YN, 'Y')
+				 , STOCK_MGT_STRT_YMD
+				 , STOCK_MGT_END_YMD
+				 , NVL(SEND_PRC, 2500)
+				 , SEND_AREA_CD
+				 , SEND_MSG
+				 , SEND_TYP_CD
+				 , SEND_PSSB_AREA
+				 , NVL(TDAY_EXP_YN, 'N')
+				 , NVL(DOM_EXP_YN, 'N')
+				 , HDRYCO_CD
+				 , OTHER_SEND_COMP_REASN
+				 , PRCL_INMATL_CD
+				 , NVL(SET_GOODS_YN, 'N')
+				 , NVL(SET_GOODS_CNT, 1)
+				 , NVL(REG_DATE, SYSDATE)
+				 , NVL(CHG_DATE, SYSDATE)
+		         , NVL(REGER_ID, 'ADMIN')
+		         , NVL(CHGER_ID, 'ADMIN')
+		      FROM GD_GOODS_MAST
+		     WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<insert id="insertGoodsMgtHistInfo" parameterClass="java.util.HashMap">
+		INSERT INTO GD_MGT_GOODS_HISTOR
+				 ( GOODS_CD
+				 , GOODS_DC_SEQ
+				 , GOODS_CHG_DATE
+				 , GOODS_STUS_CD
+				 , GOODS_CHG_REASN_CD
+				 , GOODS_CHG_REASN_CONT
+				 , APPR_PROC_CD
+				 , MD_APPR_REJCT_REASN
+				 , MD_ID
+				 , SELL_TYP_CD
+				 , SUPP_COMP_ID
+				 , GOODS_NM
+				 , GOODS_DESC
+				 , SRCH_GOODS_NM
+				 , EXTN_GOODS_NM
+				 , ERNC_GOODS_PRDLST_CD
+				 , SUPPO_RGIST_POCD
+				 , MATRL_NM_CNAMT
+				 , FUNC_INFO
+				 , NTR_INFO
+				 , INTK_INFO
+				 , SDEFCT_INFO
+				 , ETC_INFO
+				 , UNIT
+				 , UNIT_WGHT
+				 , UNIT_VOLM
+				 , OVERSEA_WGHT
+			     , OVERSEA_VOLM
+				 , STD_DIV_CD
+				 , STD_DIV_YN
+				 , STD
+				 , KIND_DIV_CD
+				 , MAKR
+				 , ORGPLCE_DIV_CD
+				 , ORGPLCE_DTAIL_DIV_CD
+				 , ORGPLCE_DTAIL_AREA_CHOICE_YN
+				 , ORGPLCE_DTAIL_AREA_CD
+				 , ORGPLCE
+				 , PRDCTN_TIM
+				 , KEEP_METH_ATPN
+				 , PRDT_VLD_TERM
+				 , PRDCTN_AREA_CD
+				 , EVRFRND_CRTFC_TALLY
+				 , POSTNET_CTGRY_CD
+				 , HS_CD
+				 , EDPS_CD
+				 , PRC_COMPAR_EXPSR_YN
+				 , IDTC_YN
+				 , EXCHG_RETRNGD_PSSB_YN
+				 , BUY_CNT_LIMIT_YN
+				 , MAX_BUY_CNT_LIMIT_YN
+				 , MIN_BUY_CNT
+				 , MAX_BUY_CNT
+				 , CRRGR_CARD_USE_YN
+				 , SEND_MSG_TYP_CD
+				 , GOODS_GUDE_DIV
+				 , TRDACL_GOODS_YN
+				 , TRDACL_CNT
+				 , BUYER_AGELIMIT_CD
+				 , COLAB_BUY_GOODS_YN
+				 , BUND_SEND_USE_YN
+				 , BUND_SEND_TYP_CD
+				 , WICKET_GOODS_DC_YN
+				 , WICKET_GOODS_DC_AMT
+				 , FIX_RESRV_GOODS_YN
+				 , EXTRA_GOODS_YN
+				 , EVENT_DC_YN
+				 , RGR_GOODS_YN
+				 , SHORT_MGT_YN
+				 , OVSEA_SEND_PSSB_YN
+				 , SMART_SHPBOX_PSSB_YN
+				 , GIFT_PSSB_YN
+				 , GOODS_OPTN_APPLY_YN
+				 , GOODS_PRSNT_APPLY_YN
+				 , CNSMR_PRC
+				 , STD_SELL_PRC
+				 , PUCHAS_PRC
+				 , DC_APPLY_PRC
+				 , DC_APPLY_STRT_YMD
+				 , DC_APPLY_END_YMD
+				 , VAT_RATE
+				 , GOODS_BASIC_FEE
+				 , PO_FEE_RATE
+				 , VAT_YN
+				 , TAXT_DIV_CD
+				 , NINTR_INSTLMT_YN
+				 , NINTR_STRT_AMT
+				 , NINTR_MNTH
+				 , ACCML_PNT_APPLY_YN
+				 , ACCML_PNT_DIV_CD
+				 , ACCML_PNT_FIXAMT
+				 , ACCML_PNT_FIXRATE
+				 , BASIC_DC_SET_YN
+				 , BASIC_DC_DIV_CD
+				 , BASIC_DC_RATE
+				 , BASIC_DC_AMT
+				 , OKCASH_SUPP_YN
+				 , OKCASH_SUPP_DIV_CD
+				 , OKCASH_SUPP_RATE
+				 , OKCASH_SUPP_AMT
+				 , STRT_SUPP_YMD
+				 , SUPP_BGIN_YMD
+				 , SUPP_END_YMD
+				 , SUPP_DSCNTC_STRT_YMD
+				 , SUPP_DSCNTC_END_YMD
+				 , SUPP_DSCNTC_STUS_CD
+				 , SUPP_DSCNTC_REASN
+				 , STOCK_VOLM
+				 , TOT_ACCUM_STOCK_VOLM
+				 , DD_SUPP_PSSB_VOLM
+				 , SUPP_PSSB_CNT
+				 , SAFE_STOCK_VOLM
+				 , ADD_STOCK_VOLM
+				 , STOCK_MGT_USE_YN
+				 , STOCK_MGT_STRT_YMD
+				 , STOCK_MGT_END_YMD
+				 , SEND_PRC
+				 , SEND_AREA_CD
+				 , SEND_MSG
+				 , SEND_TYP_CD
+				 , SEND_PSSB_AREA
+				 , TDAY_EXP_YN
+				 , DOM_EXP_YN
+				 , HDRYCO_CD
+				 , OTHER_SEND_COMP_REASN
+				 , PRCL_INMATL_CD
+				 , SET_GOODS_YN
+				 , SET_GOODS_CNT
+				 , REG_DATE
+				 , CHG_DATE
+		         , REGER_ID
+		         , CHGER_ID )
+		    SELECT GOODS_CD
+				 , (SELECT MAX(GOODS_DC_SEQ) FROM GD_MGT_GOODS_DC WHERE GOODS_CD = #goods_cd#)
+				 , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+				 , GOODS_STUS_CD
+				 , GOODS_CHG_REASN_CD
+				 , GOODS_CHG_REASN_CONT
+				 , APPR_PROC_CD
+				 , MD_APPR_REJCT_REASN
+				 , MD_ID
+				 , SELL_TYP_CD
+				 , SUPP_COMP_ID
+				 , GOODS_NM
+				 , GOODS_DESC
+				 , SRCH_GOODS_NM
+				 , EXTN_GOODS_NM
+				 , ERNC_GOODS_PRDLST_CD
+				 , SUPPO_RGIST_POCD
+				 , MATRL_NM_CNAMT
+				 , FUNC_INFO
+				 , NTR_INFO
+				 , INTK_INFO
+				 , SDEFCT_INFO
+				 , ETC_INFO
+				 , UNIT
+				 , UNIT_WGHT
+				 , UNIT_VOLM
+				 , OVERSEA_WGHT
+			     , OVERSEA_VOLM
+				 , STD_DIV_CD
+				 , NVL(STD_DIV_YN, 'N')
+				 , STD
+				 , KIND_DIV_CD
+				 , MAKR
+				 , ORGPLCE_DIV_CD
+				 , ORGPLCE_DTAIL_DIV_CD
+				 , NVL(ORGPLCE_DTAIL_AREA_CHOICE_YN, 'N')
+				 , ORGPLCE_DTAIL_AREA_CD
+				 , ORGPLCE
+				 , PRDCTN_TIM
+				 , KEEP_METH_ATPN
+				 , PRDT_VLD_TERM
+				 , PRDCTN_AREA_CD
+				 , EVRFRND_CRTFC_TALLY
+				 , POSTNET_CTGRY_CD
+				 , HS_CD
+				 , EDPS_CD
+				 , NVL(PRC_COMPAR_EXPSR_YN, 'N')
+				 , NVL(IDTC_YN, 'N')
+				 , NVL(EXCHG_RETRNGD_PSSB_YN, 'N')
+				 , NVL(BUY_CNT_LIMIT_YN, 'N')
+				 , NVL(MAX_BUY_CNT_LIMIT_YN, 'N')
+				 , NVL(MIN_BUY_CNT, 0)
+				 , NVL(MAX_BUY_CNT, 0)
+				 , NVL(CRRGR_CARD_USE_YN, 'N')
+				 , SEND_MSG_TYP_CD
+				 , GOODS_GUDE_DIV
+				 , NVL(TRDACL_GOODS_YN, 'N')
+				 , TRDACL_CNT
+				 , BUYER_AGELIMIT_CD
+				 , NVL(COLAB_BUY_GOODS_YN, 'N')
+				 , NVL(BUND_SEND_USE_YN, 'N')
+				 , BUND_SEND_TYP_CD
+				 , NVL(WICKET_GOODS_DC_YN, 'N')
+				 , NVL(WICKET_GOODS_DC_AMT, '0')
+				 , NVL(FIX_RESRV_GOODS_YN, 'N')
+				 , NVL(EXTRA_GOODS_YN, 'N')
+				 , NVL(EVENT_DC_YN, 'N')
+				 , NVL(RGR_GOODS_YN, 'N')
+				 , NVL(SHORT_MGT_YN, 'N')
+				 , NVL(OVSEA_SEND_PSSB_YN, 'N')
+				 , NVL(SMART_SHPBOX_PSSB_YN, 'N')
+				 , NVL(GIFT_PSSB_YN, 'N')
+				 , NVL(GOODS_OPTN_APPLY_YN, 'Y')
+				 , NVL(GOODS_PRSNT_APPLY_YN, 'N')
+				 , NVL(CNSMR_PRC, 0)
+				 , NVL(STD_SELL_PRC, 0)
+				 , NVL(PUCHAS_PRC, 0)
+				 , NVL(DC_APPLY_PRC, 0)
+				 , DC_APPLY_STRT_YMD
+				 , DC_APPLY_END_YMD
+				 , NVL(VAT_RATE, 10)
+				 , NVL(GOODS_BASIC_FEE, 0)
+				 , NVL(PO_FEE_RATE, 0)
+				 , NVL(VAT_YN, 'Y')
+				 , TAXT_DIV_CD
+				 , NVL(NINTR_INSTLMT_YN, 'N')
+				 , NVL(NINTR_STRT_AMT, 0)
+				 , NVL(NINTR_MNTH, 0)
+				 , NVL(ACCML_PNT_APPLY_YN, 'N')
+				 , ACCML_PNT_DIV_CD
+				 , NVL(ACCML_PNT_FIXAMT, 0)
+				 , NVL(ACCML_PNT_FIXRATE, 0)
+				 , NVL(BASIC_DC_SET_YN, 'N')
+				 , BASIC_DC_DIV_CD
+				 , NVL(BASIC_DC_RATE, 0)
+				 , NVL(BASIC_DC_AMT, 0)
+				 , NVL(OKCASH_SUPP_YN, 'N')
+				 , OKCASH_SUPP_DIV_CD
+				 , NVL(OKCASH_SUPP_RATE, 0)
+				 , NVL(OKCASH_SUPP_AMT, 0)
+				 , STRT_SUPP_YMD
+				 , SUPP_BGIN_YMD
+				 , SUPP_END_YMD
+				 , SUPP_DSCNTC_STRT_YMD
+				 , SUPP_DSCNTC_END_YMD
+				 , SUPP_DSCNTC_STUS_CD
+				 , SUPP_DSCNTC_REASN
+				 , NVL(STOCK_VOLM, 9999)
+				 , NVL(TOT_ACCUM_STOCK_VOLM, 9999)
+				 , NVL(DD_SUPP_PSSB_VOLM, 9999)
+				 , NVL(SUPP_PSSB_CNT, 9999)
+				 , NVL(SAFE_STOCK_VOLM, 9999)
+				 , NVL(ADD_STOCK_VOLM, 9999)
+				 , NVL(STOCK_MGT_USE_YN, 'Y')
+				 , STOCK_MGT_STRT_YMD
+				 , STOCK_MGT_END_YMD
+				 , NVL(SEND_PRC, 2500)
+				 , SEND_AREA_CD
+				 , SEND_MSG
+				 , SEND_TYP_CD
+				 , SEND_PSSB_AREA
+				 , NVL(TDAY_EXP_YN, 'N')
+				 , NVL(DOM_EXP_YN, 'N')
+				 , HDRYCO_CD
+				 , OTHER_SEND_COMP_REASN
+				 , PRCL_INMATL_CD
+				 , NVL(SET_GOODS_YN, 'N')
+				 , NVL(SET_GOODS_CNT, '1')
+				 , NVL(REG_DATE, SYSDATE)
+				 , NVL(CHG_DATE, SYSDATE)
+		         , NVL(REGER_ID, 'ADMIN')
+		         , NVL(CHGER_ID, 'ADMIN')
+		      FROM GD_MGT_GOODS_MAST
+		     WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+	<insert id="insertGdGoodsSm" parameterClass="java.util.HashMap">
+		INSERT INTO GD_GOODS_SM
+			( GOODS_CD
+			, STD_SELL_PRC
+			, DC_APPLY_PRC
+			, PRC_AMOUNT
+			, SUPP_COMP_ID
+			, CTGRY_CD
+			, TOP_CTGRY_CD
+			, HRNK_CTGRY_CD
+			, CTGRY_LEVEL
+			, PAVLN_DIV_CD
+			, GOODS_DISP_TYPE_CD
+			, GOODS_DISP_TYPE_DTL_CD
+			, PREMI_GOODS_YN
+			, TOT_SELL_AMT
+			, TOT_ORDER_CNT
+			, TOT_ORDER_CANCEL_CNT
+			, ONEWK_SELL_AMT
+			, ONEWK_ORDER_CNT
+			, ONEWK_CANCEL_CNT
+			, ONEWK_US_SELL_AMT
+			, ONEWK_US_ORDER_CNT
+			, ONEWK_JP_SELL_AMT
+			, ONEWK_JP_ORDER_CNT
+			, ONEWK_CN_SELL_AMT
+			, ONEWK_CN_ORDER_CNT
+			, ONEWK_CA_SELL_AMT
+			, ONEWK_CA_ORDER_CNT
+			, TOT_GOODS_AEA
+			, TOT_GOODS_EVL
+			, TOT_WRAP_SCOR
+			, TOT_PRC_SCOR
+			, TOT_SEND_SCOR
+			, TOT_QUALITY_SCOR
+			, GOODS_AMT_RANK
+			, GOODS_CNT_RANK
+			, GOODS_AMT_OVERSEA_RANK
+			, GOODS_CNT_OVERSEA_RANK
+			, GOODS_AMT_OVERSEA_RANK1
+			, GOODS_CNT_OVERSEA_RANK1
+			, SATIS_COUNT
+			, GOODS_AMT_ALL_RANK
+			, GOODS_CNT_ALL_RANK
+			, GOODS_SUPP_YN
+			, REG_DATE
+			, CHG_DATE
+			, REGER_ID
+			, CHGER_ID )
+						SELECT TC.GOODS_CD
+						     , TC.STD_SELL_PRC
+						     , TC.STD_SELL_PRC AS DC_APPLY_PRC
+						     , TRUNC(TC.STD_SELL_PRC,-4) AS PRC_AMOUNT
+						     , TC.SUPP_COMP_ID
+						     , TC.CTGRY_CD
+						     , '' AS TOP_CTGRY_CD
+						     , NVL(TC.HRNK_CTGRY_CD,'') AS HRNK_CTGRY_CD
+						     , NVL(TC.CTGRY_LEVEL,'') AS CTGRY_LEVEL
+						     , TC.PAVLN_DIV_CD
+						     , '' AS GOODS_DISP_TYPE_CD
+						     , '' AS GOODS_DISP_TYPE_DTL_CD
+						     , 'N' AS PREMI_GOODS_YN
+						     , 0 AS TOT_SELL_AMT
+						     , 0 AS TOT_ORDER_CNT
+						     , 0 AS TOT_ORDER_CANCEL_CNT
+						     , NVL(TC.ONEWK_SELL_AMT,0) AS ONEWK_SELL_AMT
+						     , NVL(TC.ONEWK_ORDER_CNT,0) AS ONEWK_ORDER_CNT
+						     , NVL(TC.ONEWK_CANCEL_CNT,0) AS ONEWK_CANCEL_CNT
+						     , NVL(TC.ONEWK_US_SELL_AMT,0) AS ONEWK_US_SELL_AMT
+						     , NVL(TC.ONEWK_US_ORDER_CNT,0) AS ONEWK_US_ORDER_CNT
+						     , NVL(TC.ONEWK_JP_SELL_AMT,0) AS ONEWK_JP_SELL_AMT
+						     , NVL(TC.ONEWK_JP_ORDER_CNT,0) AS ONEWK_JP_ORDER_CNT
+						     , NVL(TC.ONEWK_CN_SELL_AMT,0) AS ONEWK_CN_SELL_AMT
+						     , NVL(TC.ONEWK_CN_ORDER_CNT,0) AS ONEWK_CN_ORDER_CNT
+						     , NVL(TC.ONEWK_CA_SELL_AMT,0) AS ONEWK_CA_SELL_AMT
+						     , NVL(TC.ONEWK_CA_ORDER_CNT,0) AS ONEWK_CA_ORDER_CNT
+						     , NVL(TC.GDEVL_COUNT,0) AS TOT_GOODS_AEA
+						     , NVL(TC.GDEVL_POINT,0) AS TOT_GOODS_EVL
+						     , NVL(TC.WRAP_POINT,0) AS TOT_WRAP_SCOR
+						     , NVL(TC.PRC_POINT,0) AS TOT_PRC_SCOR
+						     , NVL(TC.SEND_POINT,0) AS TOT_SEND_SCOR
+						     , NVL(TC.QUALITY_POINT,0) AS TOT_QUALITY_SCOR
+						     , 0 AS GOODS_AMT_RANK
+						     , 0 AS GOODS_CNT_RANK
+						     , 0 AS GOODS_AMT_OVERSEA_RANK
+						     , 0 AS GOODS_CNT_OVERSEA_RANK
+						     , 0 AS GOODS_AMT_OVERSEA_RANK1
+						     , 0 AS GOODS_CNT_OVERSEA_RANK1
+						     , 0 AS SATIS_COUNT
+						     , 0 AS GOODS_AMT_ALL_RANK
+						     , 0 AS GOODS_CNT_ALL_RANK
+						     , NVL(TC.GOODS_SUPP_YN,'N') AS GOODS_SUPP_YN
+						     , SYSDATE AS REG_DATE
+						     , SYSDATE AS CHG_DATE
+						     , 'BATCH' AS REGER_ID
+						     , 'BATCH' AS CHGER_ID
+						  FROM ( SELECT TG.*
+						              , FN_GOODS_SUPP_YN(TG.GOODS_CD) AS GOODS_SUPP_YN
+						              , TD.ONEWK_SELL_AMT
+						              , TD.ONEWK_ORDER_CNT
+						              , TD.ONEWK_CANCEL_CNT
+						              , TD.ONEWK_US_SELL_AMT
+						              , TD.ONEWK_US_ORDER_CNT
+						              , TD.ONEWK_JP_SELL_AMT
+						              , TD.ONEWK_JP_ORDER_CNT
+						              , TD.ONEWK_CN_SELL_AMT
+						              , TD.ONEWK_CN_ORDER_CNT
+						              , TD.ONEWK_CA_SELL_AMT
+						              , TD.ONEWK_CA_ORDER_CNT
+						              , TPP.GDEVL_COUNT
+						              , TPP.GDEVL_POINT
+						              , TPP.WRAP_POINT
+						              , TPP.PRC_POINT
+						              , TPP.SEND_POINT
+						              , TPP.QUALITY_POINT
+						           FROM ( SELECT A.GOODS_CD
+						                       , A.STD_SELL_PRC
+						                       , A.REG_DATE
+						                       , A.SUPP_COMP_ID
+						                       , B.PAVLN_DIV_CD
+						                       , B.CTGRY_CD
+						                       , B.HRNK_CTGRY_CD
+						                       , B.CTGRY_LEVEL
+						                    FROM GD_GOODS_MAST A
+						                       , ( SELECT T1.CTGRY_CD
+						                                , T1.HRNK_CTGRY_CD
+						                                , T2.GOODS_CD
+						                                , T2.PAVLN_DIV_CD
+						                                , T2.BASIC_CTGRY_YN
+						                                , T1.CTGRY_LEVEL
+						                             FROM GD_CTGRY_MAST T1
+						                                , GD_GOODS_CTGRY T2
+						                            WHERE T1.CTGRY_CD = T2.CTGRY_CD
+						                              AND T1.POSTNET_CTGRY_YN = 'N'
+						                              AND T1.USE_YN = 'Y'
+						                              AND T2.BASIC_CTGRY_YN = 'Y'
+						                              AND T2.USE_YN = 'Y'
+						                         ) B
+						                     WHERE A.GOODS_CD = B.GOODS_CD
+						                ) TG
+						                , ( SELECT TA.GOODS_CD
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') THEN TA.DC_APPLY_PRC
+						                                      ELSE 0
+						                                 END ) AS ONEWK_SELL_AMT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') THEN TA.REQ_CNT
+						                                      ELSE 0
+						                                 END ) AS ONEWK_ORDER_CNT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('O06') THEN TA.REQ_CNT
+						                                      ELSE 0
+						                                 END ) AS ONEWK_CANCEL_CNT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'US' THEN TA.DC_APPLY_PRC
+						                                      ELSE 0
+						                                 END ) AS ONEWK_US_SELL_AMT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'US' THEN TA.REQ_CNT
+						                                      ELSE 0
+						                                 END ) AS ONEWK_US_ORDER_CNT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'JP' THEN TA.DC_APPLY_PRC
+						                                      ELSE 0
+						                                 END ) AS ONEWK_JP_SELL_AMT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'JP' THEN TA.REQ_CNT
+						                                      ELSE 0
+						                                 END ) AS ONEWK_JP_ORDER_CNT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'CN' THEN TA.DC_APPLY_PRC
+						                                      ELSE 0
+						                                 END ) AS ONEWK_CN_SELL_AMT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'CN' THEN TA.REQ_CNT
+						                                      ELSE 0
+						                                 END ) AS ONEWK_CN_ORDER_CNT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'CA' THEN TA.DC_APPLY_PRC
+						                                      ELSE 0
+						                                 END ) AS ONEWK_CA_SELL_AMT
+						                         , SUM ( CASE WHEN TA.ORDER_STUS_CD IN ('D03','D04') AND TA.SEND_NATION_CD = 'CA' THEN TA.REQ_CNT
+						                                      ELSE 0
+						                                 END ) AS ONEWK_CA_ORDER_CNT
+						                     FROM ( SELECT T2.GOODS_CD
+						                                 , T2.ORDER_STUS_CD
+						                                 , T2.SEND_NATION_CD
+						                                 , SUM(T2.DC_APPLY_PRC+T2.OPTN_GOODS_APPLY_PRC) AS DC_APPLY_PRC
+						                                 , SUM(T2.REQ_CNT) AS REQ_CNT
+						                             FROM OD_ORDER_MAST T1, OD_ORDER_ITM T2
+						                            WHERE T1.ORDER_ID = T2.ORDER_ID
+						                              AND T1.ORDER_DATE BETWEEN SYSDATE-7 AND SYSDATE
+						                              AND T2.ORDER_STUS_CD IN ('D03','D04','O06') /* 배송완료(D03,D04),주문취소(O06) */
+						                            GROUP BY T2.GOODS_CD, T2.ORDER_STUS_CD, T2.SEND_NATION_CD
+						                          ) TA
+						                    GROUP BY TA.GOODS_CD
+						                ) TD
+						                , ( SELECT GOODS_CD
+						                         , GDEVL_COUNT
+						                         , ROUND(QUALITY_SCOR / GDEVL_COUNT, 0) AS QUALITY_POINT
+						                         , ROUND(PRC_SCOR / GDEVL_COUNT, 0) AS PRC_POINT
+						                         , ROUND(WRAP_SCOR / GDEVL_COUNT, 0) AS WRAP_POINT
+						                         , ROUND(SEND_SCOR / GDEVL_COUNT, 0) AS SEND_POINT
+						                         , ROUND(SUM_POINT / GDEVL_COUNT, 0) AS GDEVL_POINT
+						                      FROM ( SELECT /*+ HASH_SJ */ GOODS_CD
+						                                  , COUNT(GOODS_CD) AS GDEVL_COUNT
+						                                  , SUM(QUALITY_SCOR) AS QUALITY_SCOR
+						                                  , SUM(PRC_SCOR) AS PRC_SCOR
+						                                  , SUM(WRAP_SCOR) AS WRAP_SCOR
+						                                  , SUM(SEND_SCOR) AS SEND_SCOR
+						                                  , (SUM(QUALITY_SCOR * 10) + SUM(PRC_SCOR * 10) + SUM(WRAP_SCOR * 10) + SUM(SEND_SCOR * 10)) / 4 AS SUM_POINT
+						                               FROM GD_GOODS_EVL
+						                              WHERE GOODSEVL_REG_STUS_CD = '1'
+						                              GROUP BY GOODS_CD )
+						                ) TPP
+						            WHERE TG.GOODS_CD = TD.GOODS_CD(+)
+						              AND TG.GOODS_CD = TPP.GOODS_CD(+)
+						     ) TC
+				 WHERE TC.GOODS_CD = #goods_cd#
+	</insert>
+
+	<delete id="deleteGdGoodsSm" parameterClass="java.util.HashMap">
+		DELETE FROM GD_GOODS_SM
+		WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<!-- 공정위품목 -->
+	<delete id="deleteGdFtcPrdlst" parameterClass="java.util.HashMap">
+		DELETE FROM GD_FTC_PRDLST
+		WHERE GOODS_CD = #goods_cd#
+	</delete>
+
+	<insert id="insertGdFtcPrdlst" parameterClass="java.util.HashMap">
+		INSERT INTO GD_FTC_PRDLST
+			 ( GOODS_CD
+				, FTC_PRDLST_GRP_CD
+				, FTC_PRDLST_STD_CD
+				, GOODS_ITEM_CONT
+				, GOODS_ITEM_DESC
+				, SORT_ORDER
+				, REG_DATE
+				, CHG_DATE
+				, REGER_ID
+				, CHGER_ID )
+		SELECT
+				GOODS_CD
+				, FTC_PRDLST_GRP_CD
+				, FTC_PRDLST_STD_CD
+				, GOODS_ITEM_CONT
+				, GOODS_ITEM_DESC
+				, SORT_ORDER
+				, REG_DATE
+				, CHG_DATE
+				, REGER_ID
+				, CHGER_ID
+			FROM GD_MGT_FTC_PRDLST
+		WHERE GOODS_CD = #goods_cd#
+	</insert>
+
+</sqlMap>

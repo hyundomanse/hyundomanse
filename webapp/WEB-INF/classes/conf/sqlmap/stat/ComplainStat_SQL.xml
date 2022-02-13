@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.ComplainStat">
+
+	<select id="selectComplainStatList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT ROWNUM RNUM
+				, APEALTYPEDTAILCDNM
+				, APEALTYPEDTAILITEMCDNM
+				, OBJ
+				, TOTAL
+		FROM (
+			SELECT
+				APEALTYPEDTAILCDNM
+				, APEALTYPEDTAILITEMCDNM
+				, TO_CHAR(TO_DATE(APEALYMD,'YYYYMMDD'),'YYYY-MM-DD') OBJ
+				, COUNT(1) AS TOTAL
+			FROM IFR_PPCCT0010
+			WHERE 1=1
+			<isNotEmpty property="search_strt_ymd" prepend="AND">
+		  		<![CDATA[APEALYMD > REPLACE(#search_strt_ymd#,'-')]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_end_ymd" prepend="AND">
+		  		<![CDATA[APEALYMD < REPLACE(#search_end_ymd#,'-')]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_supp_comp_nm" prepend="AND">
+		 		<![CDATA[SUPPCOMPNM = #search_supp_comp_nm#]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_cp_type" prepend="AND">
+		  		<![CDATA[APEALTYPEDTAILCDNM = #search_cp_type#]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_cp_dtail_type" prepend="AND">
+		  		<![CDATA[APEALTYPEDTAILITEMCDNM = #search_cp_dtail_type#]]>
+			</isNotEmpty>
+			GROUP BY APEALTYPEDTAILCDNM, APEALTYPEDTAILITEMCDNM, APEALYMD
+		)
+	</select>
+
+	<select id="selectComplainStatList2" parameterClass="java.util.HashMap"	resultClass="java.util.HashMap">
+		SELECT ROWNUM RNUM
+				, APEALTYPEDTAILCDNM
+				, APEALTYPEDTAILITEMCDNM
+				, OBJ
+				, TOTAL
+		FROM (
+			SELECT
+				APEALTYPEDTAILCDNM
+				, APEALTYPEDTAILITEMCDNM
+				, NVL(SUPPCOMPNM, ' ') OBJ
+				, COUNT(1) AS TOTAL
+			FROM IFR_PPCCT0010
+			WHERE 1=1
+			<isNotEmpty property="search_strt_ymd" prepend="AND">
+		  		<![CDATA[APEALYMD > REPLACE(#search_strt_ymd#,'-')]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_end_ymd" prepend="AND">
+		  		<![CDATA[APEALYMD < REPLACE(#search_end_ymd#,'-')]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_supp_comp_nm" prepend="AND">
+		  		<![CDATA[SUPPCOMPNM = #search_supp_comp_nm#]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_cp_type" prepend="AND">
+		  		<![CDATA[APEALTYPEDTAILCDNM = #search_cp_type#]]>
+			</isNotEmpty>
+			<isNotEmpty property="search_cp_dtail_type" prepend="AND">
+		  		<![CDATA[APEALTYPEDTAILITEMCDNM = #search_cp_dtail_type#]]>
+			</isNotEmpty>
+			GROUP BY APEALTYPEDTAILCDNM, APEALTYPEDTAILITEMCDNM, SUPPCOMPNM
+		)
+	</select>
+
+	<select id="selectComplainStatdateList" parameterClass="java.util.HashMap"	resultClass="java.util.HashMap">
+		SELECT
+			TO_CHAR(TO_DATE(APEALYMD,'YYYYMMDD'),'YYYY-MM-DD') OBJ
+		FROM IFR_PPCCT0010
+		WHERE 1=1
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD > REPLACE(#search_strt_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_end_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD < REPLACE(#search_end_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_supp_comp_nm" prepend="AND">
+	  		<![CDATA[SUPPCOMPNM = #search_supp_comp_nm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_cp_type" prepend="AND">
+	  		<![CDATA[APEALTYPEDTAILCDNM = #search_cp_type#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_cp_dtail_type" prepend="AND">
+	  <![CDATA[APEALTYPEDTAILITEMCDNM = #search_cp_dtail_type#]]>
+		</isNotEmpty>
+		GROUP BY APEALYMD ORDER BY APEALYMD
+	</select>
+
+	<select id="selectComplainStatCompList" parameterClass="java.util.HashMap"	resultClass="java.util.HashMap">
+		SELECT
+			NVL(SUPPCOMPNM, ' ') OBJ
+		FROM IFR_PPCCT0010
+		WHERE 1=1
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD > REPLACE(#search_strt_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_end_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD < REPLACE(#search_end_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_supp_comp_nm" prepend="AND">
+	  		<![CDATA[SUPPCOMPNM = #search_supp_comp_nm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_cp_type" prepend="AND">
+	  		<![CDATA[APEALTYPEDTAILCDNM = #search_cp_type#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_cp_dtail_type" prepend="AND">
+	  		<![CDATA[APEALTYPEDTAILITEMCDNM = #search_cp_dtail_type#]]>
+		</isNotEmpty>
+		GROUP BY SUPPCOMPNM ORDER BY SUPPCOMPNM
+	</select>
+
+	<select id="selectComplainStatCount" parameterClass="java.util.HashMap"	resultClass="java.lang.Integer">
+		SELECT
+			COUNT(*) AS CNT
+		FROM IFR_PPCCT0010
+		WHERE 1=1
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD > REPLACE(#search_strt_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_end_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD < REPLACE(#search_end_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_supp_comp_nm" prepend="AND">
+	  		<![CDATA[SUPPCOMPNM = #search_supp_comp_nm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_cp_type" prepend="AND">
+	  		<![CDATA[APEALTYPEDTAILCDNM = #search_cp_type#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_cp_dtail_type" prepend="AND">
+	  		<![CDATA[APEALTYPEDTAILITEMCDNM = #search_cp_dtail_type#]]>
+		</isNotEmpty>
+	</select>
+
+
+	<select id="selectComplainStatViewCount" parameterClass="java.util.HashMap"	resultClass="java.lang.Integer">
+		SELECT
+			COUNT(*) AS CNT
+		FROM IFR_PPCCT0010
+		WHERE 1=1
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD > REPLACE(#search_strt_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_end_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD < REPLACE(#search_end_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="goods_code" prepend="AND">
+	  		<![CDATA[GOODSCD = #goods_code#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_custnm" prepend="AND">
+	  		<![CDATA[CUSTNM like #search_custnm# ||'%']]>
+		</isNotEmpty>
+		<isNotEmpty property="search_orderid" prepend="AND">
+	  		<![CDATA[RELSELLRECEVNO = #search_orderid#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_apealno" prepend="AND">
+	  		<![CDATA[APEALNO = #search_apealno#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_treatcdnm" prepend="AND">
+	  		<![CDATA[TREATCDNM = #search_treatcdnm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_apealtypecdnm" prepend="AND">
+	  		<![CDATA[APEALTYPEDTAILCDNM  = #search_apealtypecdnm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_prognm" prepend="AND">
+	  		<![CDATA[PROGNM  = #search_prognm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_supp_comp_nm" prepend="AND">
+	  		<![CDATA[SUPPCOMPNM  like #search_supp_comp_nm# ||'%']]>
+		</isNotEmpty>
+		<isNotEmpty property="search_treatporegipocdnm" prepend="AND">
+	  		<![CDATA[TREATPOREGIPOCDNM  like #search_treatporegipocdnm# ||'%']]>
+		</isNotEmpty>
+	</select>
+
+
+	<select id="selectComplainStatViewList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+
+	 	SELECT * FROM
+		( SELECT ROW_NUMBER () OVER (ORDER BY APEALYMD desc) RNUM , A.*
+		  FROM ( SELECT *
+				 FROM(
+					SELECT   APEALTYPEDTAILCDNM
+					        , APEALTYPEDTAILITEMCDNM
+							, APEALNO
+							, GOODSCD
+							, GOODSNM
+							, CUSTNM
+							, PROGPRSNIDNM
+							, PROGNM
+							, ADVCPRSNIDNM
+							, to_date(APEALYMD,'YYYY/MM/DD') as APEALYMD
+							, APEALHMS
+							, RELSELLRECEVNO
+							, RETRNGDDIVCDNM
+							, TREATPOREGIPOCDNM
+							, TREATCDNM
+							, TREATPRSNIDNM
+							, SUPPCOMPNM
+							, RETRNGDREQNO
+							, to_date(APEALCONFTIME,'YYYY/MM/DD HH24:MI:SS') as APEALCONFTIME
+							, to_date(TREATTIME,'YYYY/MM/DD HH24:MI:SS') as TREATTIME
+						FROM IFR_PPCCT0010
+					WHERE 1=1
+		<isNotEmpty property="search_strt_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD > REPLACE(#search_strt_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_end_ymd" prepend="AND">
+	  		<![CDATA[APEALYMD < REPLACE(#search_end_ymd#,'-')]]>
+		</isNotEmpty>
+		<isNotEmpty property="goods_code" prepend="AND">
+	  		<![CDATA[GOODSCD = #goods_code#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_custnm" prepend="AND">
+	  		<![CDATA[CUSTNM like #search_custnm# ||'%']]>
+		</isNotEmpty>
+		<isNotEmpty property="search_orderid" prepend="AND">
+	  		<![CDATA[RELSELLRECEVNO = #search_orderid#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_apealno" prepend="AND">
+	  		<![CDATA[APEALNO = #search_apealno#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_treatcdnm" prepend="AND">
+	  		<![CDATA[TREATCDNM = #search_treatcdnm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_apealtypecdnm" prepend="AND">
+	  		<![CDATA[APEALTYPEDTAILCDNM  = #search_apealtypecdnm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_prognm" prepend="AND">
+	  		<![CDATA[PROGNM  = #search_prognm#]]>
+		</isNotEmpty>
+		<isNotEmpty property="search_supp_comp_nm" prepend="AND">
+	  		<![CDATA[SUPPCOMPNM  like #search_supp_comp_nm# ||'%']]>
+		</isNotEmpty>
+		<isNotEmpty property="search_treatporegipocdnm" prepend="AND">
+	  		<![CDATA[TREATPOREGIPOCDNM  like #search_treatporegipocdnm# ||'%']]>
+		</isNotEmpty>
+						)
+					) A
+				) A
+			WHERE RNUM BETWEEN #firstIndex# AND #lastIndex#
+	</select>
+
+
+	<resultMap id="contentInfoMap" class="commMap">
+		<result property="TREATCONT"			column="TREATCONT"		/>
+		<result property="APEALCONT"			column="APEALCONT"		javaType="java.lang.String" jdbcType="CLOB"/>
+	</resultMap>
+	<select id="ComplainStatViewContent" parameterClass="java.util.HashMap" resultMap="contentInfoMap">
+		SELECT
+				APEALCONT
+		 	,	TREATCONT
+			FROM IFR_PPCCT0010
+		WHERE 1=1
+		<isNotEmpty property="complainId" prepend="AND">
+	  		<![CDATA[APEALNO = #complainId#]]>
+		</isNotEmpty>
+	</select>
+
+
+</sqlMap>

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchOverCountry">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="Select_Insert_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					purchase_id as sPurchase_Id,
+					fee_amount as dtot_fee_amount,
+					cancel_y as dtot_cancel_y,
+					fee_cancel_y1 as dtot_fee_cancel_y1,
+					cancel_n as dtot_cancel_n,
+					fee_cancel_n1 as dtot_fee_cancel_n1 
+			from (  
+				select purchase_id,
+					   sum(fee_amount) fee_amount,
+					   FLoor(sum(decode(cancel_state ,'Y',AMOUNT - (nvl(RM_AMOUNT,0) + nvl(RM_PEF_AMOUNT,0) + nvl(SP_AMOUNT,0) + nvl(SP_PEF_AMOUNT,0) + nvl(coupon_amount,0)  + nvl(AMOUNT_OKCASH,0) ) ,0 )) * max(fee_rate) ) cancel_y,
+					   sum(decode(cancel_state ,'Y',nvl(fee_amount,0),0)) fee_cancel_y1,
+					   FLoor(sum(decode(cancel_state ,'N',AMOUNT - (nvl(RM_AMOUNT,0) + nvl(RM_PEF_AMOUNT,0) + nvl(SP_AMOUNT,0) + nvl(SP_PEF_AMOUNT,0) + nvl(coupon_amount,0)  + nvl(AMOUNT_OKCASH,0) ) ,0 )) * max(fee_rate) ) cancel_n,
+					   sum(decode(cancel_state ,'N',nvl(fee_amount,0),0)) fee_cancel_n1
+				from txorder
+				where purchase_id in (  
+					SELECT distinct purchase_id 
+					FROM TXORDER
+					WHERE cancel_date >= to_char(sysdate - 7 ,'yyyymmdd') 
+					  and cancel_state = 'Y'
+					  and RECEV_PO_REGIPOCD IN ('89903','85414')
+					  and fee_rate >0
+				)	  
+				group by purchase_id
+		  )
+		  where cancel_n > 0 and cancel_n <> fee_cancel_n1
+		]]>	 
+	</select>
+	
+	<update id="update_TXORDER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER
+			SET FEE_AMOUNT = FEE_AMOUNT + ( #dtotcanceln# - #dtotfeecanceln1# )
+			where purchase_id = #sPurchaseId#
+			   and txorder_id = ( select max(txorder_id) 
+			                      From txorder
+			                      where purchase_id = #sPurchaseId#
+			                        and cancel_state = 'N')
+		]]>	 
+	</update>
+	
+	<select id="Select_Insert_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SUM(nvl(FEE_AMOUNT ,0))	as i_sum_fee_amt
+			FROM TXORDER
+			WHERE purchase_id   = #sPurchaseId#
+		]]>	 
+	</select>
+	
+	<update id="update_TXORDER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE TXORDER
+			SET FEE_AMOUNT = FEE_AMOUNT + ( #dtotcanceln# - #dtotfeecanceln1# )
+			where purchase_id = #sPurchaseId#
+			   and txorder_id = ( select max(txorder_id) 
+			                      From txorder
+			                      where purchase_id = #sPurchaseId#
+			                        and cancel_state = 'N')
+		]]>	 
+	</update>
+	
+	<select id="Select_Over_Insert_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select distinct  b.contact_id as sPurchase_Id
+			from txorder a , contact b
+			where a.ship_to_id = b.contact_id
+			  and a.complete_date >= to_char(sysdate - 7 ,'yyyymmdd') 
+			  and a.complete_date <= to_char(sysdate,'yyyymmdd') || '99999'
+			  and a.shop_id in ('5','6','7','10')
+			  and a.status not in ('1','9')
+			  and a.cancel_state = 'N' 
+			  and b.country is null
+		]]>	 
+	</select>
+	
+	<select id="Select_Over_Insert_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT d.code as sCode
+			FROM CONTACT C,
+			     nation_code d
+			WHERE  c.contact_id = #sPurchaseId#
+			  AND  c.country is null
+			  AND  D.en_name IN (  nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-4)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-5)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-6)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-7)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-8)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-9)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-10)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-11)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-12)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-13)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-15)))),C.ADDRESS_3),
+	                               nvl(ltrim(rtrim(substr(C.ADDRESS_3,instr(C.ADDRESS_3,' ',length(C.ADDRESS_3)-21)))),C.ADDRESS_3))
+		]]>	 
+	</select>
+	
+	<update id="update_contact_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			update contact
+			set country = #sCode#
+			where contact_id = #sPurchaseId#
+		]]>	 
+	</update>
+	
+</sqlMap>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchRMReduce30SendMail">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectDayList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  decode(to_char(sysdate,'dd'),'01',to_char(sysdate + 15 ,'mm'),to_char(add_months(sysdate ,1 ),'mm')) sToMonth,                     
+			        decode(to_char(sysdate,'dd'),'01',to_char(sysdate + 15 ,'yyyymmdd'),to_char(add_months(sysdate ,1 ),'yyyymm') || '01' ) sFromDay,  
+			        decode(to_char(sysdate,'dd'),'01',to_char(sysdate + 30 ,'yyyymmdd'),to_char(add_months(sysdate ,1 ),'yyyymm') || '15' ) sToDay      
+			FROM DUAL                                                                                                       
+		]]>	 
+	</select>
+	
+	<select id="selectRmHistoryList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT /*+ index( A IDX_RM_HISTORY_03 )*/       
+			    A.ACCESS_NAME,                              
+			    NVL(SUM(A.ACCU_POINT),0) iAccu_Point,        
+			    MIN(A.VALID_DATE)  sAppDate1                
+			FROM RM_HISTORY A                               
+			WHERE A.VALID_DATE  >= ? AND A.VALID_DATE <= ?  
+			  AND A.ACCU_POINT > 0                           
+			  AND A.STATUS = '1'                             
+			  AND A.POINT_APP_YN IS NULL                     
+			  AND NVL(A.POINT_APP_EX_YN,'Y') = 'Y'          
+			GROUP BY A.ACCESS_NAME                                                                                                                           
+		]]>	 
+	</select>
+	
+	<select id="selectRmMasterList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(CUR_POINT,0) iCur_Point  
+			FROM RM_MASTER                          
+			WHERE ACCESS_NAME  = ?                                                                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectRmHistoryList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(SUM(ACCU_POINT),0) iTot_Accu_Point               
+			      , NVL(MIN(REG_DATE),'99991231010101') sMinRegDate       
+			FROM RM_HISTORY                              
+			WHERE ACCESS_NAME  = ?                      
+			  AND VALID_DATE  >= ? AND VALID_DATE <= ?  
+			  AND TYPE_CD  IN ('A1','A3','A5')           
+			  AND ACCU_POINT > 0                        
+			  AND STATUS = '1'                                                                                                                                         
+		]]>	 
+	</select>
+	
+	<select id="selectRmHistoryList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(sum(use_point),0) iTot_Use_Point0  
+		    FROM RM_HISTORY                    
+		    WHERE ACCESS_NAME = ?               
+		      AND REG_DATE >= ?                  
+		      AND  type_cd in ('U1','U3','U5') 
+		      AND  use_point > 0               
+		      AND  status = '2'                                                                                                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectRmHistoryList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT nvl(sum(use_point),0) iTot_Use_Point1  
+			FROM RM_HISTORY                            
+			WHERE ACCESS_NAME = ?                       
+			  AND REG_DATE >= ? AND  REG_DATE <= ?       
+			  AND  type_cd = 'U4'                        
+			  AND  use_point > 0                       
+			  AND  status = '2'                                                                                                                                                                          
+		]]>	 
+	</select>
+	
+	<select id="selectMeminfoList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT EMAIL ,NAME , to_char(?*10,'999,999,999') sPoint , to_char(sysdate, 'yyyy') || '년' || to_char(sysdate, 'mm') || '월' || to_char(sysdate, 'dd') || '일' sStdDate
+			FROM MEMINFO           
+			WHERE access_name = ?                                                                                                                                                                     
+		]]>	 
+	</select>
+	
+	<select id="selectRmMasterList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT to_char( nvl(cur_point,0)*10 ,'999,999,999') sCurPoint
+			FROM RM_MASTER          
+			where access_name =  ?                                                                                                                                                                   
+		]]>	 
+	</select>
+	
+	<select id="selectMeminfoList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT DECODE(member_type, 2, ?,                                                     
+					   DECODE(FOREIGN_YN, 'Y', substr( ?,1,1) || '**' || substr(?,4,length(?)),      
+					                           substr( ?,1,1) || '*' || substr(?,3,length(?)))) billto_name 
+			FROM MEMINFO              
+			where access_name = ?                                                                                                                                                                       
+		]]>	 
+	</select>
+	
+	 	
+</sqlMap>

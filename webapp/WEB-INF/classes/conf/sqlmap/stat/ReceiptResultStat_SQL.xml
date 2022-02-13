@@ -1,0 +1,516 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.ReceiptResultStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT * 
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>	  
+	</sql>
+	
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+	
+	<!--접수실적통계조회 청 - PostNet    -->
+	<select id="retrieveRecevStat1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+	        SELECT
+				B.RCOCD CHUNG_CODE,
+				(SELECT F_GET_COMN_CD_NM('RCO_CD', B.RCOCD) FROM DUAL) CHUNG_NAME,
+				A.RECEV_DIV_CD,
+				CASE WHEN RECEV_DIV_CD IN('001', '011', '015', '008', '019', '020')
+		        	 THEN '프리미엄관'
+		        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+		        	 THEN '제철식품'
+		        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+		        	 THEN '꽃배달'
+		        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+		        	 THEN '생활마트'
+		        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+	        	 	 THEN '전통시장'
+		        	 WHEN RECEV_DIV_CD IN('006')
+		        	 THEN 'B2B'
+		        	 WHEN RECEV_DIV_CD IN('040', '041', '042')
+		        	 THEN '패션B2B'
+		        END RECEV_DIV_NAME,
+				A.SETL_TYPE_CD,
+				(SELECT F_GET_COMN_CD_NM('SETL_MEAN_CD', DECODE(A.SETL_TYPE_CD,'1','15','2','04','3','17','A','20','B','06','C','02','D','03','G','28','I','13','K','19','O','01','P','09','R','14','S','12', A.SETL_TYPE_CD)) FROM DUAL) SETL_TYPE_NAME,
+				NVL(SUM(A.RECEV_CNT), 0) RECEV_CNT,
+				NVL(SUM(A.GOODS_CNT-A.RETURN_GD_CNT), 0) GOODS_CNT,
+				NVL(SUM(A.SETL_AMT), 0) SETL_AMT,
+				NVL(SUM(A.MONEY_SETL_AMT), 0) MONEY_SETL_AMT,
+				NVL(SUM(A.CARD_SETL_AMT), 0) CARD_SETL_AMT,
+				NVL(SUM(A.CREDIT_CARD_FEE), 0) CREDIT_CARD_FEE,
+				NVL(SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE), 0) CSF_FEE,
+				NVL(SUM(DECODE(A.RECEV_DIV_CD,'2',A.FLWR_DELIV_FEE-A.RETURN_GD_ENT_FEE,0)), 0) FLWR_DELIV_FEE,
+				NVL(SUM(DECODE(A.RECEV_DIV_CD,'0',A.FLWR_DELIV_FEE-A.RETURN_GD_ENT_FEE,0)), 0) ENT_FEE,
+				NVL(SUM(A.DELIV_CERT_FEE), 0) DELIV_CERT_FEE,
+				NVL(SUM(A.CONG_CARD_FEE), 0) CONG_CARD_FEE,
+				NVL(SUM(A.RETURN_GD_CNT), 0) REFUND_CNT,
+				NVL(SUM(A.RETURN_GD_AMT), 0) REFUND_AMT,
+				NVL(SUM(A.RESERV_AMT - A.REFUND_RESERV_AMT), 0) RESERV_AMT,
+				NVL(SUM(A.CP_AMT - A.REFUND_CP_AMT + A.COMPCP_AMT - A.REFUND_COMP_CP_AMT), 0) CP_AMT,
+				NVL(SUM(A.SPOINT_AMT - A.REFUNDS_POINT_AMT), 0) SPOINT_AMT,
+				NVL(SUM(A.AMOUNT_OKCASH),0) AS AMOUNT_OKCASH
+			FROM PICMT0060 B,
+			]]> 
+			<isEqual property="search_term" compareValue="4">
+				<![CDATA[
+					MP_PBSDT0110 A
+				]]>	
+			</isEqual>
+			<isNotEqual property="search_term" compareValue="4">
+				<![CDATA[
+					MP_PBSDT0140 A
+				]]>	
+			</isNotEqual>
+			<![CDATA[	
+				WHERE A.RECEV_STUS_CD = 'O02'
+				AND A.RECEV_PO_REGIPOCD = B.REGIPOCD
+				AND B.USEYN='Y'
+			]]> 
+			<isNotEqual property="SearchRcode" compareValue="">
+				<isEqual property="SearchCode" compareValue="A">
+					<![CDATA[
+						AND B.RCOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+				<isEqual property="SearchCode" compareValue="B">
+					<![CDATA[
+						AND B.MPOREGIPOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+				<isEqual property="SearchCode" compareValue="C">
+					<![CDATA[
+						AND A.RECEV_PO_REGIPOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+			</isNotEqual>
+				
+			<isEqual property="recev_system" compareValue="1">
+				<![CDATA[
+					AND RECEV_PO_REGIPOCD NOT IN ('89903','85414')
+				]]>	
+			</isEqual>
+			<isEqual property="recev_system" compareValue="2">
+				<![CDATA[
+					AND RECEV_PO_REGIPOCD IN ('89903','85414')
+				]]>	
+			</isEqual>
+			
+			<isNotEqual property="shop_id" compareValue="">
+				<![CDATA[
+					AND DECODE(A.RECEV_DIV_CD,'001','01','011','01','015','01','008','01','019','01','020','01',
+											  '005','02','017','02','018','02',
+											  '002','04','012','04','016','04',
+											  '004','03','021','03','022','03','050','03','051','03','052','03',
+											  '014','05','031','05','032','05','060','05','061','05','062','05',
+											  '040','08','041','08','042','08',
+											  A.RECEV_DIV_CD) = #shop_id#
+				]]>	
+			</isNotEqual>
+			
+			<isNotEqual property="paymethod" compareValue="">
+				<isEqual property="paymethod" compareValue="K">
+					<![CDATA[
+						AND AMOUNT_OKCASH > 0
+					]]>	
+				</isEqual>
+				<isNotEqual property="paymethod" compareValue="K">
+					<![CDATA[
+						AND DECODE(A.SETL_TYPE_CD,'1','15','2','04','3','17','A','20','B','06','C','02','D','03','G','28','I','13','K','19','O','01','P','09','R','14','S','12', A.SETL_TYPE_CD) = #paymethod#
+					]]>	
+				</isNotEqual>
+			</isNotEqual>
+			
+			<isEqual property="search_term" compareValue="4">
+				<![CDATA[
+					AND SELL_CLOSE_YMD >= #search_strt_ymd# 
+					AND SELL_CLOSE_YMD <= #search_end_ymd#
+				]]>	
+			</isEqual>
+			<isNotEqual property="search_term" compareValue="4">
+				<![CDATA[
+					AND SELL_CLOSE_YM >= #search_strt_ym# 
+					AND SELL_CLOSE_YM <= #search_end_ym#
+				]]>		
+			</isNotEqual>
+			
+		<![CDATA[
+			GROUP BY B.RCOCD, A.RECEV_DIV_CD, A.SETL_TYPE_CD
+			ORDER BY B.RCOCD, A.RECEV_DIV_CD, A.SETL_TYPE_CD
+	    ]]>
+	</select>	
+	
+	<!--접수실적통계조회 총괄국 - PostNet  -->
+	<select id="retrieveRecevStat2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+	        SELECT
+				B.RCOCD CHUNG_CODE,
+				(SELECT F_GET_COMN_CD_NM('RCO_CD', B.RCOCD) FROM DUAL) CHUNG_NAME,
+	            (SELECT MAX(REGIPOCD) FROM PICMT0060 WHERE REGIPOCD = B.MPOREGIPOCD AND USEYN='Y') SERVER_RCODE,
+    	        (SELECT MAX(PONM) FROM PICMT0060 WHERE REGIPOCD = B.MPOREGIPOCD AND USEYN='Y') SERVER_NAME,
+				A.RECEV_DIV_CD,
+				CASE WHEN RECEV_DIV_CD IN('001', '011', '015', '008', '019', '020')
+		        	 THEN '프리미엄관'
+		        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+		        	 THEN '제철식품'
+		        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+		        	 THEN '꽃배달'
+		        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+		        	 THEN '생활마트'
+		        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+	        	 	 THEN '전통시장'
+		        	 WHEN RECEV_DIV_CD IN('006')
+		        	 THEN 'B2B'
+		        	 WHEN RECEV_DIV_CD IN('040', '041', '042')
+		        	 THEN '패션B2B'
+		        END RECEV_DIV_NAME,
+				A.SETL_TYPE_CD,
+				(SELECT F_GET_COMN_CD_NM('SETL_MEAN_CD', DECODE(A.SETL_TYPE_CD,'1','15','2','04','3','17','A','20','B','06','C','02','D','03','G','28','I','13','K','19','O','01','P','09','R','14','S','12', A.SETL_TYPE_CD)) FROM DUAL) SETL_TYPE_NAME,
+				NVL(SUM(A.RECEV_CNT), 0) RECEV_CNT,
+				NVL(SUM(A.GOODS_CNT-A.RETURN_GD_CNT), 0) GOODS_CNT,
+				NVL(SUM(A.SETL_AMT), 0) SETL_AMT,
+				NVL(SUM(A.MONEY_SETL_AMT), 0) MONEY_SETL_AMT,
+				NVL(SUM(A.CARD_SETL_AMT), 0) CARD_SETL_AMT,
+				NVL(SUM(A.CREDIT_CARD_FEE), 0) CREDIT_CARD_FEE,
+				NVL(SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE), 0) CSF_FEE,
+				NVL(SUM(DECODE(A.RECEV_DIV_CD,'2',A.FLWR_DELIV_FEE-A.RETURN_GD_ENT_FEE,0)), 0) FLWR_DELIV_FEE,
+				NVL(SUM(DECODE(A.RECEV_DIV_CD,'0',A.FLWR_DELIV_FEE-A.RETURN_GD_ENT_FEE,0)), 0) ENT_FEE,
+				NVL(SUM(A.DELIV_CERT_FEE), 0) DELIV_CERT_FEE,
+				NVL(SUM(A.CONG_CARD_FEE), 0) CONG_CARD_FEE,
+				NVL(SUM(A.RETURN_GD_CNT), 0) REFUND_CNT,
+				NVL(SUM(A.RETURN_GD_AMT), 0) REFUND_AMT,
+				NVL(SUM(A.RESERV_AMT - A.REFUND_RESERV_AMT), 0) RESERV_AMT,
+				NVL(SUM(A.CP_AMT - A.REFUND_CP_AMT + A.COMPCP_AMT - A.REFUND_COMP_CP_AMT), 0) CP_AMT,
+				NVL(SUM(A.SPOINT_AMT - A.REFUNDS_POINT_AMT), 0) SPOINT_AMT,
+				NVL(SUM(A.AMOUNT_OKCASH),0) AS AMOUNT_OKCASH
+			FROM PICMT0060 B,
+			]]> 
+			<isEqual property="search_term" compareValue="4">
+				<![CDATA[
+					MP_PBSDT0110 A
+				]]>	
+			</isEqual>
+			<isNotEqual property="search_term" compareValue="4">
+				<![CDATA[
+					MP_PBSDT0140 A
+				]]>	
+			</isNotEqual>
+			<![CDATA[	
+				WHERE A.RECEV_STUS_CD = 'O02'
+				AND A.RECEV_PO_REGIPOCD = B.REGIPOCD
+				AND B.USEYN='Y'
+			]]> 
+			<isNotEqual property="SearchRcode" compareValue="">
+				<isEqual property="SearchCode" compareValue="A">
+					<![CDATA[
+						AND B.RCOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+				<isEqual property="SearchCode" compareValue="B">
+					<![CDATA[
+						AND B.MPOREGIPOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+				<isEqual property="SearchCode" compareValue="C">
+					<![CDATA[
+						AND A.RECEV_PO_REGIPOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+			</isNotEqual>
+				
+			<isEqual property="recev_system" compareValue="1">
+				<![CDATA[
+					AND RECEV_PO_REGIPOCD != '89903'
+				]]>	
+			</isEqual>
+			<isEqual property="recev_system" compareValue="2">
+				<![CDATA[
+					AND RECEV_PO_REGIPOCD IN ('89903','85414')
+				]]>	
+			</isEqual>
+			
+			<isNotEqual property="shop_id" compareValue="">
+				<![CDATA[
+					AND DECODE(A.RECEV_DIV_CD,'001','01','011','01','015','01','008','01','019','01','020','01',
+											  '005','02','017','02','018','02',
+											  '002','04','012','04','016','04',
+											  '004','03','021','03','022','03','050','03','051','03','052','03',
+											  '014','05','031','05','032','05','060','05','061','05','062','05',
+											  '040','08','041','08','042','08',
+											  A.RECEV_DIV_CD) = #shop_id#
+				]]>	
+			</isNotEqual>
+			
+			<isNotEqual property="paymethod" compareValue="">
+				<isEqual property="paymethod" compareValue="K">
+					<![CDATA[
+						AND AMOUNT_OKCASH > 0
+					]]>	
+				</isEqual>
+				<isNotEqual property="paymethod" compareValue="K">
+					<![CDATA[
+						AND DECODE(A.SETL_TYPE_CD,'1','15','2','04','3','17','A','20','B','06','C','02','D','03','G','28','I','13','K','19','O','01','P','09','R','14','S','12', A.SETL_TYPE_CD) = #paymethod#
+					]]>	
+				</isNotEqual>
+			</isNotEqual>
+			
+			<isEqual property="search_term" compareValue="4">
+				<![CDATA[
+					AND SELL_CLOSE_YMD >= #search_strt_ymd# 
+					AND SELL_CLOSE_YMD <= #search_end_ymd#
+				]]>	
+			</isEqual>
+			<isNotEqual property="search_term" compareValue="4">
+				<![CDATA[
+					AND SELL_CLOSE_YM >= #search_strt_ym# 
+					AND SELL_CLOSE_YM <= #search_end_ym#
+				]]>		
+			</isNotEqual>
+			
+		<![CDATA[
+			GROUP BY B.RCOCD, B.MPOREGIPOCD, A.RECEV_DIV_CD, A.SETL_TYPE_CD
+        	ORDER BY B.RCOCD, B.MPOREGIPOCD, A.RECEV_DIV_CD, A.SETL_TYPE_CD
+	    ]]>
+	</select>	
+	
+	<!--접수실적통계조회 우체국 - PostNet  -->
+	<select id="retrieveRecevStat3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+	        SELECT
+	        
+		        B.RCOCD CHUNG_CODE,
+	            (SELECT F_GET_COMN_CD_NM('RCO_CD', B.RCOCD) FROM DUAL) CHUNG_NAME,
+	            (SELECT MAX(REGIPOCD) FROM PICMT0060 WHERE REGIPOCD = B.MPOREGIPOCD AND USEYN='Y') SERVER_RCODE,
+	            (SELECT MAX(PONM) FROM PICMT0060 WHERE REGIPOCD = B.MPOREGIPOCD AND USEYN='Y') SERVER_NAME,
+	            B.REGIPOCD POST_CODE,
+	            B.PONM POST_NAME,
+				A.RECEV_DIV_CD,
+				CASE WHEN RECEV_DIV_CD IN('001', '011', '015', '008', '019', '020')
+		        	 THEN '프리미엄관'
+		        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+		        	 THEN '제철식품'
+		        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+		        	 THEN '꽃배달'
+		        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+		        	 THEN '생활마트'
+		        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+	        	 	 THEN '전통시장'
+		        	 WHEN RECEV_DIV_CD IN('006')
+		        	 THEN 'B2B'
+		        	 WHEN RECEV_DIV_CD IN('040', '041', '042')
+		        	 THEN '패션B2B'
+		        END RECEV_DIV_NAME,
+				A.SETL_TYPE_CD,
+				(SELECT F_GET_COMN_CD_NM('SETL_MEAN_CD', DECODE(A.SETL_TYPE_CD,'1','15','2','04','3','17','A','20','B','06','C','02','D','03','G','28','I','13','K','19','O','01','P','09','R','14','S','12', A.SETL_TYPE_CD)) FROM DUAL) SETL_TYPE_NAME,
+				NVL(SUM(A.RECEV_CNT), 0) RECEV_CNT,
+				NVL(SUM(A.GOODS_CNT-A.RETURN_GD_CNT), 0) GOODS_CNT,
+				NVL(SUM(A.SETL_AMT), 0) SETL_AMT,
+				NVL(SUM(A.MONEY_SETL_AMT), 0) MONEY_SETL_AMT,
+				NVL(SUM(A.CARD_SETL_AMT), 0) CARD_SETL_AMT,
+				NVL(SUM(A.CREDIT_CARD_FEE), 0) CREDIT_CARD_FEE,
+				NVL(SUM(A.CSF_FEE-A.RETURN_GD_CSF_FEE), 0) CSF_FEE,
+				NVL(SUM(DECODE(A.RECEV_DIV_CD,'2',A.FLWR_DELIV_FEE-A.RETURN_GD_ENT_FEE,0)), 0) FLWR_DELIV_FEE,
+				NVL(SUM(DECODE(A.RECEV_DIV_CD,'0',A.FLWR_DELIV_FEE-A.RETURN_GD_ENT_FEE,0)), 0) ENT_FEE,
+				NVL(SUM(A.DELIV_CERT_FEE), 0) DELIV_CERT_FEE,
+				NVL(SUM(A.CONG_CARD_FEE), 0) CONG_CARD_FEE,
+				NVL(SUM(A.RETURN_GD_CNT), 0) REFUND_CNT,
+				NVL(SUM(A.RETURN_GD_AMT), 0) REFUND_AMT,
+				NVL(SUM(A.RESERV_AMT - A.REFUND_RESERV_AMT), 0) RESERV_AMT,
+				NVL(SUM(A.CP_AMT - A.REFUND_CP_AMT + A.COMPCP_AMT - A.REFUND_COMP_CP_AMT), 0) CP_AMT,
+				NVL(SUM(A.SPOINT_AMT - A.REFUNDS_POINT_AMT), 0) SPOINT_AMT,
+				NVL(SUM(A.AMOUNT_OKCASH),0) AS AMOUNT_OKCASH
+			FROM PICMT0060 B,
+			]]> 
+			<isEqual property="search_term" compareValue="4">
+				<![CDATA[
+					MP_PBSDT0110 A
+				]]>	
+			</isEqual>
+			<isNotEqual property="search_term" compareValue="4">
+				<![CDATA[
+					MP_PBSDT0140 A
+				]]>	
+			</isNotEqual>
+			<![CDATA[	
+				WHERE A.RECEV_STUS_CD = 'O02'
+				AND A.RECEV_PO_REGIPOCD = B.REGIPOCD
+				AND B.USEYN='Y'
+			]]> 
+			<isNotEqual property="SearchRcode" compareValue="">
+				<isEqual property="SearchCode" compareValue="A">
+					<![CDATA[
+						AND B.RCOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+				<isEqual property="SearchCode" compareValue="B">
+					<![CDATA[
+						AND B.MPOREGIPOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+				<isEqual property="SearchCode" compareValue="C">
+					<![CDATA[
+						AND A.RECEV_PO_REGIPOCD = #SearchRcode#
+					]]>	
+				</isEqual>
+			</isNotEqual>
+				
+			<isEqual property="recev_system" compareValue="1">
+				<![CDATA[
+					AND RECEV_PO_REGIPOCD != '89903'
+				]]>	
+			</isEqual>
+			<isEqual property="recev_system" compareValue="2">
+				<![CDATA[
+					AND RECEV_PO_REGIPOCD IN ('89903','85414')
+				]]>	
+			</isEqual>
+			
+			<isNotEqual property="shop_id" compareValue="">
+				<![CDATA[
+					AND DECODE(A.RECEV_DIV_CD,'001','01','011','01','015','01','008','01','019','01','020','01',
+											  '005','02','017','02','018','02',
+											  '002','04','012','04','016','04',
+											  '004','03','021','03','022','03','050','03','051','03','052','03',
+											  '014','05','031','05','032','05','060','05','061','05','062','05',
+											  '040','08','041','08','042','08',
+											  A.RECEV_DIV_CD) = #shop_id#
+				]]>	
+			</isNotEqual>
+			
+			<isNotEqual property="paymethod" compareValue="">
+				<isEqual property="paymethod" compareValue="K">
+					<![CDATA[
+						AND AMOUNT_OKCASH > 0
+					]]>	
+				</isEqual>
+				<isNotEqual property="paymethod" compareValue="K">
+					<![CDATA[
+						AND DECODE(A.SETL_TYPE_CD,'1','15','2','04','3','17','A','20','B','06','C','02','D','03','G','28','I','13','K','19','O','01','P','09','R','14','S','12', A.SETL_TYPE_CD) = #paymethod#
+					]]>	
+				</isNotEqual>
+			</isNotEqual>
+			
+			<isEqual property="search_term" compareValue="4">
+				<![CDATA[
+					AND SELL_CLOSE_YMD >= #search_strt_ymd# 
+					AND SELL_CLOSE_YMD <= #search_end_ymd#
+				]]>	
+			</isEqual>
+			<isNotEqual property="search_term" compareValue="4">
+				<![CDATA[
+					AND SELL_CLOSE_YM >= #search_strt_ym# 
+					AND SELL_CLOSE_YM <= #search_end_ym#
+				]]>		
+			</isNotEqual>
+			
+		<![CDATA[
+			GROUP BY B.RCOCD, B.MPOREGIPOCD, B.REGIPOCD, B.PONM, A.RECEV_DIV_CD, A.SETL_TYPE_CD
+        	ORDER BY B.RCOCD, B.MPOREGIPOCD, B.REGIPOCD, B.PONM, A.RECEV_DIV_CD, A.SETL_TYPE_CD
+	    ]]>
+	</select>
+
+	<!-- 공급국 목록 건수 -->
+	<select id="selectPostOffice1TotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT COUNT(*) 
+		FROM (
+			SELECT 	A.PONM NAME, A.EDPSCD ECODE, A.REGIPOCD PCODE, A.REGIPOCD RCODE
+	        FROM PICMT0060 A
+	        WHERE A.USEYN = 'Y'
+	        ]]>
+	        <isNotEmpty property="searchTxt">
+	        	AND	A.PONM LIKE '%'||#searchTxt#||'%' 
+	        </isNotEmpty>  
+	        <![CDATA[
+	        GROUP BY A.PONM, A.EDPSCD, A.REGIPOCD
+        )
+		]]>
+	</select>
+	
+	<!-- 공급국 목록 조회 -->
+	<select id="selectPostOffice1List" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT 	
+			A.PONM NAME, 
+			A.EDPSCD ECODE, 
+			A.REGIPOCD PCODE, 
+			A.REGIPOCD RCODE
+        FROM PICMT0060 A
+        WHERE 1 = 1
+        AND A.USEYN = 'Y'
+        ]]>
+        <isNotEmpty property="searchTxt">
+        	AND A.PONM LIKE '%'||#searchTxt#||'%' 
+        </isNotEmpty>  
+        <![CDATA[
+        GROUP BY A.PONM, A.EDPSCD, A.REGIPOCD
+        ORDER BY A.PONM
+		]]>
+		<include refid="pagingFooter"/>
+	</select>
+	
+	<!-- 공급국 목록 건수 -->
+	<select id="selectPostOffice2TotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT COUNT(*) 
+		FROM (
+			SELECT 
+				A.PONM NAME, 
+				A.EDPSCD ECODE, 
+				A.REGIPOCD PCODE, 
+				A.REGIPOCD RCODE
+	        FROM PICMT0060 A, PICMT0060 B
+	        WHERE 1 = 1
+	        AND A.USEYN = 'Y'
+	        AND A.REGIPOCD = B.HRNKORREGIPOCD
+	        AND B.USEYN = 'Y'
+        ]]>
+        <isNotEmpty property="searchTxt">
+        	AND A.PONM LIKE '%'||#searchTxt#||'%' 
+        </isNotEmpty>  
+        <![CDATA[
+	        GROUP BY A.PONM, A.EDPSCD, A.REGIPOCD
+        )
+		]]>
+	</select>
+	
+	<!-- 공급국 목록 조회 -->
+	<select id="selectPostOffice2List" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+			SELECT 
+				A.PONM NAME, 
+				A.EDPSCD ECODE, 
+				A.REGIPOCD PCODE, 
+				A.REGIPOCD RCODE
+	        FROM PICMT0060 A, PICMT0060 B
+	        WHERE 1 = 1
+	        AND A.USEYN = 'Y'
+	        AND A.REGIPOCD = B.HRNKORREGIPOCD
+	        AND B.USEYN = 'Y'
+        ]]>
+        <isNotEmpty property="searchTxt">
+        	AND A.PONM LIKE '%'||#searchTxt#||'%' 
+        </isNotEmpty>  
+        <![CDATA[
+	        GROUP BY A.PONM, A.EDPSCD, A.REGIPOCD
+	        ORDER BY A.PONM
+		]]>
+		<include refid="pagingFooter"/>
+	</select>
+</sqlMap>

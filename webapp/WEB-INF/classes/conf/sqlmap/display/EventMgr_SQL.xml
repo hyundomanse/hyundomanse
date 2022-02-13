@@ -1,0 +1,1543 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.EventMgr">
+
+	<sql id="event_list">
+		SELECT T2.DSPY_SEQ
+			 , T1.PAVLN_DIV_CD	/* 전시관 분류 */
+		     , T1.EVENT_ID		/* 이벤트 ID */
+		     , T2.TEMPL_SEQ     /* 템플릿 일련번호 */
+		     , T1.PSNSER
+			 , F_GET_COMN_CD_NM('PAVLN_DIV_CD', T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM
+		     , T1.EVENT_NM                                                                          	/*상설 이벤트 명*/
+		     , (SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ = T2.TEMPL_SEQ ) AS TEMPL_NM     	/*템플릿 명*/
+		     , DECODE(T2.USE_YN, 'Y','예','아니오') AS USE_YN_NM                                    	/*사용여부*/
+		     , TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') AS CHG_DATE                             	/*최종 수정일자*/
+		     , T1.CHGER_ID                                                                          	/*최종 수정 ID*/
+		     , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS EVENT_STRT_DATE                     /* 이벤트 시작일 */
+		     , TO_CHAR(T1.EVENT_END_DATE,  'YYYY-MM-DD HH24:MI') AS EVENT_END_DATE                      /* 이벤트 종료일 */
+		     , T3.DSPY_SPOT_CD                                                                      	/* 전시위치 */
+		     , T2.DSPY_STUS_CD                                                                          /* 진행상태코드 */
+		     , T4.GOODS_CNT
+		     , F_GET_COMN_CD_NM('DSPY_STUS_CD', T2.DSPY_STUS_CD) AS DSPY_STUS_NM
+		     , T1.LANG_CD
+		     , F_GET_COMN_CD_NM('LANG_CD', T1.LANG_CD) AS LANG_CD_NM
+		     , DECODE(T1.PLNBEF_MAIN_IMAGE_YN, 'Y', '예', '아니오') AS PLNBEF_MAIN_IMAGE_YN_NM
+		     , PAVLN_AREA_CD
+		     , F_GET_COMN_CD_NM('PAVLN_AREA_CD', T1.PAVLN_AREA_CD) AS PAVLN_AREA_CD_NM
+		  FROM EV_EVENT_MAST T1, /* 이벤트 마스터 */
+			   DP_DSPY_MAST T2,  /* 전시마스터 */
+			   DP_DSPY_DTAIL T3, /* 전시 상세 */
+			   (SELECT EVENT_ID, COUNT(*) AS GOODS_CNT FROM EV_EVENT_DC_GOODS GROUP BY EVENT_ID) T4
+		 WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+		   AND T1.DSPY_SEQ = T3.DSPY_SEQ
+           AND T1.EVENT_ID = T4.EVENT_ID(+)
+		   AND T1.DEL_YN = 'N'
+	   <isNotEmpty property="search_event_div_cd" prepend="AND">
+			T1.EVENT_DIV_CD = #search_event_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="event_id">
+					T1.EVENT_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="event_nm">
+					T1.EVENT_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="psnser">
+					T1.PSNSER LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				(T1.EVENT_ID LIKE '%'||#search_text#||'%'
+				 OR T1.EVENT_NM LIKE '%'||#search_text#||'%'
+				 OR T1.PSNSER LIKE '%'||#search_text#||'%')
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			T2.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_img_use_yn" prepend="AND">
+			T1.PLNBEF_MAIN_IMAGE_YN = #search_img_use_yn#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_lang_cd" prepend="AND">
+			T1.LANG_CD = #search_lang_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(REPLACE(#search_strt_ymd#, '-') BETWEEN TO_CHAR(T1.EVENT_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(T1.EVENT_END_DATE, 'YYYYMMDD')
+			OR REPLACE(#search_end_ymd#, '-') BETWEEN TO_CHAR(T1.EVENT_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(T1.EVENT_END_DATE, 'YYYYMMDD'))
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectEventDivList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY EVENT_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="event_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectEventDivCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="event_list" />)
+	</select>
+
+	<sql id="plnbef_list">
+		SELECT T2.DSPY_SEQ
+			 , T1.PLNBEF_DIV_CD /* 전시관 구분 */
+			 , T1.PAVLN_DIV_CD	/* 전시관 분류 */
+		     , T1.PLNBEF_ID		/* 기획전 ID */
+		     , T2.TEMPL_SEQ     /* 템플릿 일련번호 */
+		     , F_GET_COMN_CD_NM('PAVLN_DIV_CD', T1.PAVLN_DIV_CD) AS PAVLN_DIV_NM						/*전시관 명*/
+		     , T1.PLNBEF_NM                                                                          	/*기획전 명*/
+		     , (SELECT TEMPL_NM FROM DP_DSPY_TEMPL WHERE TEMPL_SEQ = T2.TEMPL_SEQ ) AS TEMPL_NM     	/*템플릿 명*/
+		     , DECODE(T2.USE_YN, 'Y','예','아니오') AS USE_YN_NM                                    	/*사용여부*/
+		     , TO_CHAR(T1.CHG_DATE,'YYYY-MM-DD HH24:MI:SS') AS CHG_DATE                             	/*최종 수정일자*/
+		     , T1.CHGER_ID                                                                          	/*최종 수정 ID*/
+		     , TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS PLNBEF_STRT_DATE                   /* 기획전 시작일 */
+		     , TO_CHAR(T1.PLNBEF_END_DATE,  'YYYY-MM-DD HH24:MI') AS PLNBEF_END_DATE                    /* 기획전 종료일 */
+		     , T3.DSPY_SPOT_CD                                                                      	/* 전시위치 */
+		     , T2.DSPY_STUS_CD                                                                          /* 진행상태코드 */
+		     , (SELECT COUNT(*) FROM EV_PLNBEF_GOODS WHERE PLNBEF_ID = T1.PLNBEF_ID ) AS GOODS_CNT
+			 , DECODE(T1.PLNBEF_MAIN_IMAGE_YN, 'Y', '예', '아니오') AS PLNBEF_MAIN_IMAGE_YN_NM
+		     , (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'DSPY_STUS_CD' AND COMN_CD_ID = T2.DSPY_STUS_CD ) AS DSPY_STUS_NM   /* 진행상태 */
+		     , PAVLN_AREA_CD
+		     , F_GET_COMN_CD_NM('PAVLN_AREA_CD', T1.PAVLN_AREA_CD) AS PAVLN_AREA_CD_NM
+		     , PAVLN_DTL_AREA_CD
+		     , PAVLN_DTL_AREA_CD.COMN_CD_NM AS PAVLN_DTL_AREA_CD_NM
+		     , NVL(T1.RECOM_PLNBEF_YN, 'N') AS RECOM_PLNBEF_YN
+		     , TO_CHAR(T1.RECOM_PLNBEF_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS RECOM_PLNBEF_STRT_DATE
+		     , TO_CHAR(T1.RECOM_PLNBEF_END_DATE,  'YYYY-MM-DD HH24:MI') AS RECOM_PLNBEF_END_DATE
+		     , NVL(DIST_GOODS_CNT,0) DIST_GOODS_CNT /*전시상품 수*/
+		  FROM EV_PLNBEF_MAST T1, /* 기획전 마스터 */
+			   DP_DSPY_MAST T2,  /* 전시마스터 */
+			   DP_DSPY_DTAIL T3, /* 전시 상세 */
+			   (SELECT A.PLNBEF_ID
+				     , SUM(NVL2(D.GOODS_CD,1,0)) DIST_GOODS_CNT
+				  FROM EV_PLNBEF_MAST A
+				     , EV_PLNBEF_GOODS B
+				     , GD_GOODS_MAST C
+				     , GD_GOODS_CTGRY D
+				     , GD_GOODS_SM SM
+				 WHERE 1=1
+				   AND A.PLNBEF_ID = B.PLNBEF_ID
+				   AND B.GOODS_CD  = C.GOODS_CD
+				   AND B.GOODS_CD  = D.GOODS_CD
+				   AND B.GOODS_CD  = SM.GOODS_CD
+				   AND A.DEL_YN = 'N'
+				   <isNotEmpty property="search_plnbef_div_cd" prepend="AND">
+				        A.PLNBEF_DIV_CD = #search_plnbef_div_cd#
+				   </isNotEmpty>
+				   <isNotEmpty property="search_plnbef_div_cd">
+						<isEqual property="search_plnbef_div_cd" compareValue="08">
+				        	AND D.PAVLN_DIV_CD(+) = #search_plnbef_div_cd#
+				        </isEqual>
+				   </isNotEmpty>
+				   AND D.USE_YN(+) = 'Y'
+				   AND D.BASIC_CTGRY_YN = 'Y'
+				   AND SM.GOODS_SUPP_YN = 'Y'
+				 GROUP BY A.PLNBEF_ID
+               ) T4,
+			   (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID IN ('B2B_PAVLN_AREA_CD') ) PAVLN_DTL_AREA_CD
+		 WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+		   AND T1.DSPY_SEQ = T3.DSPY_SEQ(+)
+           AND T1.PLNBEF_ID = T4.PLNBEF_ID(+)
+		   AND T1.PAVLN_DTL_AREA_CD = PAVLN_DTL_AREA_CD.COMN_CD_ID(+)
+		   AND T1.DEL_YN = 'N'
+	   <isNotEmpty property="search_plnbef_div_cd" prepend="AND">
+			T1.PLNBEF_DIV_CD = #search_plnbef_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="plnbef_id">
+					T1.PLNBEF_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="plnbef_nm">
+					T1.plnbef_nm LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( T1.PLNBEF_ID LIKE '%'||#search_text#||'%' OR T1.PLNBEF_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			T2.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_img_use_yn" prepend="AND">
+			T1.PLNBEF_MAIN_IMAGE_YN = #search_img_use_yn#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(REPLACE(#search_strt_ymd#, '-') BETWEEN TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(T1.PLNBEF_END_DATE, 'YYYYMMDD')
+			OR REPLACE(#search_end_ymd#, '-') BETWEEN TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(T1.PLNBEF_END_DATE, 'YYYYMMDD'))
+	   </isNotEmpty>
+	   <isNotEmpty property="recom_plnbef_yn" prepend="AND">
+			T1.RECOM_PLNBEF_YN = #recom_plnbef_yn#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectPlnbefDivList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY PLNBEF_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="plnbef_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectPlnbefDivCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="plnbef_list" />)
+	</select>
+
+	<!-- 언제나 최저가 관리 리스트 old -->
+	<sql id="eventToGoods_list_old">
+		SELECT T2.DSPY_SEQ
+			 , T1.EVENT_ID
+			 , T1.PAVLN_DIV_CD
+			 , T2.TEMPL_SEQ
+			 , T3.GOODS_CD
+			 , T4.GOODS_NM
+			 , T4.SUPP_COMP_ID
+			 , T4.GOODS_STUS_CD
+			 , (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = T4.SUPP_COMP_ID) AS BCNC_NM
+			 , T1.PSNSER
+			 , T1.EVENT_NM
+			 , DECODE(T2.USE_YN, 'Y','예','아니오') AS USE_YN_NM
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_EVENT_STRT_DATE
+			 , TO_CHAR(T1.EVENT_END_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_EVENT_END_DATE
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYYMMDD') AS EVENT_STRT_DATE
+			 , TO_CHAR(T1.EVENT_END_DATE, 'YYYYMMDD') AS EVENT_END_DATE
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'HH24') AS FR_TM
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'MI') AS FR_MN
+			 , TO_CHAR(T1.EVENT_END_DATE, 'HH24') AS TO_TM
+			 , TO_CHAR(T1.EVENT_END_DATE, 'MI') AS TO_MN
+			 , T2.DSPY_STUS_CD
+			 , F_GET_COMN_CD_NM('DSPY_STUS_CD', T2.DSPY_STUS_CD) AS DSPY_STUS_NM
+			 , F_GET_COMN_CD_NM('GOODS_STUS_CD', T4.GOODS_STUS_CD) AS GOODS_STUS_NM
+			 , T4.STD_SELL_PRC
+			 , T3.DC_APPLY_PRC
+			 , T3.USE_YN
+			 , NVL(T3.SORT_ORDER, 1) AS SORT_ORDER
+		  FROM EV_EVENT_MAST T1
+			 , DP_DSPY_MAST T2
+			 , EV_EVENT_DC_GOODS T3
+	 		 , GD_GOODS_MAST T4
+		 WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+		   AND T1.DSPY_SEQ = T3.DSPY_SEQ
+		   AND T3.GOODS_CD = T4.GOODS_CD
+		   AND T1.DEL_YN = 'N'
+		   AND T1.EVENT_DIV_CD = #event_div_cd#
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="event_id">
+					T1.EVENT_ID LIKE #search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_cd">
+					T3.GOODS_CD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					T4.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( T1.EVENT_ID LIKE #search_text#||'%' OR T3.GOODS_CD LIKE '%'||#search_text#||'%' OR T4.GOODS_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_pavln_div_cd" prepend="AND">
+			T1.PAVLN_DIV_CD = #search_pavln_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			T2.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(REPLACE(#search_strt_ymd#, '-') BETWEEN T1.EVENT_STRT_DATE AND T1.EVENT_END_DATE
+			OR REPLACE(#search_end_ymd#, '-') BETWEEN T1.EVENT_STRT_DATE AND T1.EVENT_END_DATE)
+	   </isNotEmpty>
+	   <isNotEmpty property="goods_cd" prepend="AND">
+			T3.GOODS_CD = #goods_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="event_id" prepend="AND">
+			T1.EVENT_ID = #event_id#
+	   </isNotEmpty>
+	</sql>
+
+
+	<!-- 언제나 최저가 관리 리스트 튜닝 -->
+	<sql id="eventToGoods_list">
+		SELECT /*+ no_merge  push_pred index_ffs(EV_EVENT_MAST_PK) */
+				T2.DSPY_SEQ
+			 , T1.EVENT_ID
+			 , T1.PAVLN_DIV_CD
+			 , T2.TEMPL_SEQ
+			 , T3.GOODS_CD
+			 , T4.GOODS_NM
+			 , T4.SUPP_COMP_ID
+			 , T4.GOODS_STUS_CD
+			 , (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = T4.SUPP_COMP_ID) AS BCNC_NM
+			 , T1.PSNSER
+			 , T1.EVENT_NM
+			 , DECODE(T2.USE_YN, 'Y','예','아니오') AS USE_YN_NM
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_EVENT_STRT_DATE
+			 , TO_CHAR(T1.EVENT_END_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_EVENT_END_DATE
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYYMMDD') AS EVENT_STRT_DATE
+			 , TO_CHAR(T1.EVENT_END_DATE, 'YYYYMMDD') AS EVENT_END_DATE
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'HH24') AS FR_TM
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'MI') AS FR_MN
+			 , TO_CHAR(T1.EVENT_END_DATE, 'HH24') AS TO_TM
+			 , TO_CHAR(T1.EVENT_END_DATE, 'MI') AS TO_MN
+			 , T2.DSPY_STUS_CD
+			 , F_GET_COMN_CD_NM('DSPY_STUS_CD', T2.DSPY_STUS_CD) AS DSPY_STUS_NM
+			 , F_GET_COMN_CD_NM('GOODS_STUS_CD', T4.GOODS_STUS_CD) AS GOODS_STUS_NM
+			 , T4.STD_SELL_PRC
+			 , T3.DC_APPLY_PRC
+			 , T3.USE_YN
+			 , NVL(T3.SORT_ORDER, 1) AS SORT_ORDER
+		  FROM EV_EVENT_MAST T1
+			 , DP_DSPY_MAST T2
+			 , EV_EVENT_DC_GOODS T3
+	 		 , GD_GOODS_MAST T4
+		 WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+		   AND T1.DSPY_SEQ = T3.DSPY_SEQ
+		   AND T3.GOODS_CD = T4.GOODS_CD
+		   AND T1.DEL_YN = 'N'
+		   AND T1.EVENT_DIV_CD = #event_div_cd#
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="event_id">
+					T1.EVENT_ID LIKE #search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_cd">
+					T3.GOODS_CD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					T4.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( T1.EVENT_ID LIKE #search_text#||'%' OR T3.GOODS_CD LIKE '%'||#search_text#||'%' OR T4.GOODS_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_pavln_div_cd" prepend="AND">
+			T1.PAVLN_DIV_CD = #search_pavln_div_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			T2.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(REPLACE(#search_strt_ymd#, '-') BETWEEN T1.EVENT_STRT_DATE AND T1.EVENT_END_DATE
+			OR REPLACE(#search_end_ymd#, '-') BETWEEN T1.EVENT_STRT_DATE AND T1.EVENT_END_DATE)
+	   </isNotEmpty>
+	   <isNotEmpty property="goods_cd" prepend="AND">
+			T3.GOODS_CD = #goods_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="event_id" prepend="AND">
+			T1.EVENT_ID = #event_id#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectEventToGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT /*+ no_merge  push_pred */ *
+			FROM ( SELECT /*+ no_merge  push_pred */
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY EVENT_ID DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT /*+ no_merge  push_pred */ *
+						FROM(
+						<include refid="eventToGoods_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectEventToGoodsCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="eventToGoods_list" />)
+	</select>
+
+	<insert id="insertEventGoodsInfo" parameterClass="java.util.HashMap">
+		MERGE INTO EV_EVENT_DC_GOODS
+			 USING DUAL
+				ON (EVENT_ID = #eventId# AND GOODS_CD = #goodsCd#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   DC_APPLY_PRC   = #dcApplyPrc#
+				 , USE_YN		  = #useYn#
+				 , SORT_ORDER	  = NVL(#sortOrder#, 1)
+		         , CHG_DATE		  = SYSDATE
+			<isNotEmpty property="chgerId">
+		         , CHGER_ID		  = #chgerId#
+			</isNotEmpty>
+		WHEN NOT MATCHED THEN
+			INSERT
+		         ( EVENT_ID
+		         , GOODS_CD
+		         , DSPY_SEQ
+		         , DC_APPLY_PRC
+		         , USE_YN
+		         , SELL_CNT
+		         , SORT_ORDER
+		         , REG_DATE
+		         , CHG_DATE
+			<isNotEmpty property="regerId">
+		         , REGER_ID
+			</isNotEmpty>
+			<isNotEmpty property="chgerId">
+		         , CHGER_ID
+            </isNotEmpty>
+		         )
+		  VALUES ( #eventId#
+                 , #goodsCd#
+                 , #dspySeq#
+                 , #dcApplyPrc#
+                 , #useYn#
+                 , '0'
+                 , NVL(#sortOrder#, 1)
+                 , SYSDATE
+                 , SYSDATE
+			<isNotEmpty property="regerId">
+                 , #regerId#
+			</isNotEmpty>
+			<isNotEmpty property="chgerId">
+                 , #chgerId#
+            </isNotEmpty>
+                  )
+	</insert>
+
+	<update id="updateEventDspyStusCd" parameterClass="java.util.HashMap">
+		UPDATE DP_DSPY_MAST
+		   SET DSPY_STUS_CD = '40'
+			<isNotEmpty property="login_usr_id">
+				, REGER_ID = #login_usr_id#
+			</isNotEmpty>
+		     , REG_DATE = SYSDATE
+		 WHERE DSPY_SEQ IN ( SELECT A.DSPY_SEQ FROM EV_EVENT_MAST A, EV_EVENT_DC_GOODS B
+		 					  WHERE A.EVENT_ID = B.EVENT_ID AND A.EVENT_DIV_CD = #eventDivCd# AND B.GOODS_CD = #goodsCd# )
+		   AND DSPY_STUS_CD = '20'
+		   AND TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI') &gt;= REPLACE(#calEventStrtDate#,'-')||#txFrTm#||#txFrMn#
+		   AND TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI') &lt; REPLACE(#calEventEndDate#,'-')||#txToTm#||#txToMn#
+	</update>
+
+	<sql id="mdMgr_list">
+        SELECT T2.DSPY_SEQ
+             , T1.PLNBEF_ID
+             , T2.TEMPL_SEQ
+             , T3.GOODS_CD
+             , T4.GOODS_NM
+             , T4.SUPP_COMP_ID
+             , T4.GOODS_STUS_CD
+             , (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = T4.SUPP_COMP_ID) AS BCNC_NM
+             , T1.PLNBEF_NM
+             , TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_PLNBEF_STRT_DATE
+             , TO_CHAR(T1.PLNBEF_END_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_PLNBEF_END_DATE
+             , TO_CHAR(T1.PLNBEF_STRT_DATE, 'YYYYMMDD') AS PLNBEF_STRT_DATE
+             , TO_CHAR(T1.PLNBEF_END_DATE, 'YYYYMMDD') AS PLNBEF_END_DATE
+             , TO_CHAR(T1.PLNBEF_STRT_DATE, 'HH24') AS FR_TM
+             , TO_CHAR(T1.PLNBEF_STRT_DATE, 'MI') AS FR_MN
+             , TO_CHAR(T1.PLNBEF_END_DATE, 'HH24') AS TO_TM
+             , TO_CHAR(T1.PLNBEF_END_DATE, 'MI') AS TO_MN
+             , T2.DSPY_STUS_CD
+             , F_GET_COMN_CD_NM('DSPY_STUS_CD', T2.DSPY_STUS_CD) AS DSPY_STUS_NM
+             , F_GET_COMN_CD_NM('GOODS_STUS_CD', T4.GOODS_STUS_CD) AS GOODS_STUS_NM
+             , T4.STD_SELL_PRC
+             , T3.DC_APPLY_PRC
+             , T3.USE_YN
+			 , T1.PAVLN_AREA_CD
+			 , F_GET_COMN_CD_NM('PAVLN_AREA_CD', T1.PAVLN_AREA_CD) AS PAVLN_AREA_CD_NM
+			 , T1.PAVLN_DTL_AREA_CD
+             , CASE
+             	WHEN PAVLN_AREA_CD = '05' THEN SIJANG_DTL_PAVLN_AREA_CD.COMN_CD_NM
+             	WHEN PAVLN_AREA_CD = '07' THEN DECODE(PAVLN_DTL_AREA_CD, 'KO', '국문', LANG_CD.COMN_CD_NM)
+             	WHEN PAVLN_AREA_CD = '09' THEN B2C_DTL_PAVLN_AREA_CD.COMN_CD_NM
+             	ELSE ''
+             	END PAVLN_DTL_AREA_CD_NM
+          FROM EV_PLNBEF_MAST T1
+             , DP_DSPY_MAST T2
+             , EV_PLNBEF_GOODS T3
+             , GD_GOODS_MAST T4
+             , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'SIJANG_DTL_PAVLN_AREA_CD') SIJANG_DTL_PAVLN_AREA_CD
+             , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'LANG_CD') LANG_CD
+             , (SELECT COMN_CD_ID, COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'B2C_DTL_PAVLN_AREA_CD') B2C_DTL_PAVLN_AREA_CD
+         WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+           AND T1.DSPY_SEQ = T3.DSPY_SEQ
+           AND T3.GOODS_CD = T4.GOODS_CD
+           AND T1.PAVLN_DTL_AREA_CD = SIJANG_DTL_PAVLN_AREA_CD.COMN_CD_ID(+)
+           AND T1.PAVLN_DTL_AREA_CD = LANG_CD.COMN_CD_ID(+)
+           AND T1.PAVLN_DTL_AREA_CD = B2C_DTL_PAVLN_AREA_CD.COMN_CD_ID(+)
+           AND T1.DEL_YN = 'N'
+           AND T1.PLNBEF_DIV_CD = '06'
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="goods_cd">
+					T3.GOODS_CD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					T4.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( T3.GOODS_CD LIKE '%'||#search_text#||'%' OR T4.GOODS_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			T2.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_pavln_area_cd" prepend="AND">
+			T1.PAVLN_AREA_CD = #search_pavln_area_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_pavln_dtl_area_cd" prepend="AND">
+			T1.PAVLN_DTL_AREA_CD = #search_pavln_dtl_area_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="pavln_area_cd" prepend="AND">
+			T1.PAVLN_AREA_CD = #pavln_area_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="pavln_dtl_area_cd" prepend="AND">
+			T1.PAVLN_DTL_AREA_CD = #pavln_dtl_area_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(#search_strt_ymd# BETWEEN T1.EVENT_STRT_DATE AND T1.EVENT_END_DATE
+			OR #search_end_ymd# BETWEEN T1.EVENT_STRT_DATE AND T1.EVENT_END_DATE)
+	   </isNotEmpty>
+	   <isNotEmpty property="goods_cd" prepend="AND">
+			T3.GOODS_CD = #goods_cd#
+			AND ROWNUM = 1
+	   </isNotEmpty>
+	   <isNotEmpty property="plnbef_id" prepend="AND">
+	   		T3.PLNBEF_ID = #plnbef_id#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectMdMgrList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY DSPY_SEQ DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="mdMgr_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectMdMgrCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer" remapResults="true">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="mdMgr_list" />)
+	</select>
+
+	<insert id="insertMdPlnbefGoodsInfo" parameterClass="java.util.HashMap">
+		MERGE INTO EV_PLNBEF_GOODS
+			 USING DUAL
+				ON (PLNBEF_ID = #plnbefId# AND GOODS_CD = #goodsCd#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   DC_APPLY_PRC   = NVL(#dcApplyPrc#, 0)
+				 , USE_YN		  = #useYn#
+		         , CHG_DATE		  = SYSDATE
+			<isNotEmpty property="chgerId">
+		         , CHGER_ID		  = #chgerId#
+			</isNotEmpty>
+		WHEN NOT MATCHED THEN
+			INSERT
+		         ( PLNBEF_ID
+		         , GOODS_CD
+		         , DSPY_SEQ
+		         <isNotEmpty property="dcApplyPrc">
+		         , DC_APPLY_PRC
+		         </isNotEmpty>
+		         , USE_YN
+		         , REG_DATE
+		         , CHG_DATE
+		         <isNotEmpty property="regerId">
+		         , REGER_ID
+		         </isNotEmpty>
+		         <isNotEmpty property="chgerId">
+		         , CHGER_ID
+		         </isNotEmpty>
+		         )
+		  VALUES ( #plnbefId#
+                 , #goodsCd#
+                 , #dspySeq#
+                 <isNotEmpty property="dcApplyPrc">
+                 , #dcApplyPrc#
+                 </isNotEmpty>
+                 , #useYn#
+                 , SYSDATE
+                 , SYSDATE
+                 <isNotEmpty property="regerId">
+                 , #regerId#
+                 </isNotEmpty>
+                 <isNotEmpty property="chgerId">
+                 , #chgerId#
+                 </isNotEmpty>
+                 )
+	</insert>
+
+	<sql id="przwin_list">
+        SELECT A.DSPY_SEQ
+        	 , A.PRZWIN_EVENT_ID
+        	 , A.EVENT_NM
+             , TO_CHAR(A.EVENT_STRT_DATE, 'YYYY-MM-DD') AS EVENT_STRT_DATE
+             , TO_CHAR(A.EVENT_STRT_DATE, 'HH24') AS FR_TM
+             , TO_CHAR(A.EVENT_STRT_DATE, 'MI') AS FR_MN
+             , TO_CHAR(A.EVENT_END_DATE, 'YYYY-MM-DD') AS EVENT_END_DATE
+             , TO_CHAR(A.EVENT_END_DATE, 'HH24') AS TO_TM
+             , TO_CHAR(A.EVENT_END_DATE, 'MI') AS TO_MN
+        	 , A.TEND_TRGT					/* 응모대상 */
+        	 , A.TEND_METH					/* 응모방법 */
+        	 , A.PRZWIN_PRSN				/* 당첨인원 */
+        	 , A.PRZWIN_EVENT_DIV_CD		/* 당첨이벤트 구분 코드 */
+        	 , A.PRZWIN_CUST_INFO			/* 당첨 고객 정보 */
+        	 , A.PRZWIN_APPLY_PGE			/* 당첨 적용 페이지 */
+        	 , A.EVENT_DTAIL_PGE			/* 이벤트 상세 페이지(url)*/
+        	 , A.PRZWIN_NOTIC_STRT_YMD		/* 당첨 공지 시작 일자 */
+        	 , A.PRZWIN_NOTIC_END_YMD		/* 당첨 공지 종료 일자 */
+        	 , A.EMAIL_SEND_YN				/* 메일 발송 여부 */
+        	 , A.CUST_BNEF					/* 고객 혜택 코드(01: 마일리지, 02 : 쿠폰, 03: 포인트, 99: 기타) */
+        	 , A.PRZWIN_NOTIC_CONT			/* 당첨 공지 내용 */
+        	 , A.PRZWIN_TYP_CD				/* 당첨 유형 코드(01: 즉시당첨, 02: 사후당첨, 99: 기타) */
+        	 , B.USE_YN
+        	 , B.DSPY_STUS_CD
+        	 , F_GET_COMN_CD_NM('DSPY_STUS_CD', B.DSPY_STUS_CD) AS DSPY_STUS_NM
+        	 , F_GET_COMN_CD_NM('PRZWIN_EVENT_DIV_CD', A.PRZWIN_EVENT_DIV_CD) AS PRZWIN_EVENT_DIV_NM
+        	 , F_GET_COMN_CD_NM('CUST_BNEF', A.CUST_BNEF) AS CUST_BNEF_NM
+        	 , F_GET_COMN_CD_NM('PRZWIN_TYP_CD', A.PRZWIN_TYP_CD) AS PRZWIN_TYP_NM
+        	 , A.MAIN_ATTCHFILE_ID
+        	 , A.LOGO_ATTCHFILE_ID
+        	 , A.PRZWIN_EVENT_DESC
+           	 , IMAGE.FILE_STRE_PATH || IMAGE.STRE_FILE_NM AS IMAGE_PATH
+           	 , IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM
+           	 , LOGOIMAGE.FILE_STRE_PATH || LOGOIMAGE.STRE_FILE_NM AS LOGO_IMAGE_PATH
+          	 , LOGOIMAGE.ORIG_FILE_NM AS LOGO_IMAGE_ORIG_NM
+           	 , MOBILEIMAGE.FILE_STRE_PATH || MOBILEIMAGE.STRE_FILE_NM AS MOBILE_IMAGE_PATH
+          	 , MOBILEIMAGE.ORIG_FILE_NM AS MOBILE_IMAGE_ORIG_NM
+          	 , MOBILE_URL
+          	 , NVL(C.CNT, 0) AS PRZWINER_CNT
+          	 , NVL(D.CNT, 0) AS ENTRY_CNT
+          	 , NVL(GOODS_CNT.CNT, 0) AS GOODS_CNT
+          FROM EV_EVENT_PRZWIN_MAST A
+             , DP_DSPY_MAST B
+             , (SELECT PRZWIN_EVENT_ID, COUNT(*) AS CNT FROM EV_EVENT_PRZWINER GROUP BY PRZWIN_EVENT_ID) C
+             , (SELECT PRZWIN_EVENT_ID, COUNT(*) AS CNT FROM EV_MALL_EVENT WHERE USEYN = 'Y' GROUP BY PRZWIN_EVENT_ID) D
+             , (SELECT PRZWIN_EVENT_ID, COUNT(*) AS CNT FROM EV_EVENT_PREMIEUM_GOODS WHERE USE_YN = 'Y' GROUP BY PRZWIN_EVENT_ID) GOODS_CNT
+             , CM_FILE_MGT IMAGE
+             , CM_FILE_MGT LOGOIMAGE
+             , CM_FILE_MGT MOBILEIMAGE
+         WHERE A.DSPY_SEQ = B.DSPY_SEQ
+           AND A.PRZWIN_EVENT_ID = C.PRZWIN_EVENT_ID(+)
+           AND A.PRZWIN_EVENT_ID = D.PRZWIN_EVENT_ID(+)
+           AND A.PRZWIN_EVENT_ID = GOODS_CNT.PRZWIN_EVENT_ID(+)
+           AND A.MAIN_ATTCHFILE_ID = IMAGE.ATTCHFILE_ID(+)
+           AND A.LOGO_ATTCHFILE_ID = LOGOIMAGE.ATTCHFILE_ID(+)
+           AND A.MOBILE_ATTCHFILE_ID = MOBILEIMAGE.ATTCHFILE_ID(+)
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="przwin_event_id">
+					A.PRZWIN_EVENT_ID LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="event_nm">
+					A.EVENT_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( A.PRZWIN_EVENT_ID LIKE '%'||#search_text#||'%' OR A.EVENT_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			(REPLACE(#search_strt_ymd#, '-') BETWEEN TO_CHAR(B.DSPY_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(B.DSPY_END_DATE, 'YYYYMMDD')
+			OR REPLACE(#search_end_ymd#, '-') BETWEEN TO_CHAR(B.DSPY_STRT_DATE, 'YYYYMMDD') AND TO_CHAR(B.DSPY_END_DATE, 'YYYYMMDD'))
+	   </isNotEmpty>
+	   <isNotEmpty property="search_cust_bnef" prepend="AND">
+			A.CUST_BNEF = #search_cust_bnef#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_przwin_typ_cd" prepend="AND">
+			A.PRZWIN_TYP_CD = #search_przwin_typ_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="przwin_event_id" prepend="AND">
+			A.PRZWIN_EVENT_ID = #przwin_event_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_dspy_stus_cd" prepend="AND">
+			B.DSPY_STUS_CD = #search_dspy_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_przwin_event_div_cd" prepend="AND">
+			A.PRZWIN_EVENT_DIV_CD = #search_przwin_event_div_cd#
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectEventPrzwinList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY DSPY_SEQ DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="przwin_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectEventPrzwinCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="przwin_list" />)
+	</select>
+
+	<select id="selectDspySeq" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT SEQ_DSPY_SEQ.NEXTVAL FROM DUAL
+	</select>
+
+	<insert id="insertDspyMastInfo" parameterClass="java.util.HashMap">
+		MERGE INTO DP_DSPY_MAST
+			 USING DUAL
+				ON (DSPY_SEQ = #dspy_seq#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   DSPY_STRT_DATE = TO_DATE(REPLACE(#event_strt_date#, '-') || #fr_tm# || #fr_mn#, 'YYYYMMDDHH24MI')
+				 , DSPY_END_DATE  = TO_DATE(REPLACE(#event_end_date#, '-') || #to_tm# || #to_mn#, 'YYYYMMDDHH24MI')
+			<isNotEmpty property="use_yn">
+				 , USE_YN         = #use_yn#
+			</isNotEmpty>
+				 , DSPY_NM        = #event_nm#
+				 , TEMPL_SEQ      = #templ_seq#
+				 , DSPY_STUS_CD   = #dspy_stus_cd#
+				 , CHG_DATE       = SYSDATE
+			<isNotEmpty property="login_usr_id">
+				 , CHGER_ID       = #login_usr_id#
+			</isNotEmpty>
+		       WHEN NOT MATCHED THEN
+			       INSERT(
+				       	    DSPY_SEQ
+			       	      , CONTS_DIV_CD
+			       	      , DSPY_TYP_CD
+                          , DSPY_STRT_DATE
+                          , DSPY_END_DATE
+                          , DSPY_STUS_CD
+                   <isNotEmpty property="use_yn">
+                          , USE_YN
+                   </isNotEmpty>
+                          , DSPY_NM
+                          , TEMPL_SEQ
+                          , REG_DATE
+                          , CHG_DATE
+					<isNotEmpty property="login_usr_id">
+                          , REGER_ID
+                          , CHGER_ID
+					</isNotEmpty>
+                          , DEL_YN
+			       )VALUES(
+			       		    #dspy_seq#
+			       		  , '2010'
+			       		  , '21'
+                          , TO_DATE(REPLACE(#event_strt_date#, '-') || #fr_tm# || #fr_mn#, 'YYYYMMDDHH24MI')
+                          , TO_DATE(REPLACE(#event_end_date#, '-') || #to_tm# || #to_mn#, 'YYYYMMDDHH24MI')
+                          , #dspy_stus_cd#
+					<isNotEmpty property="use_yn">
+                          , #use_yn#
+					</isNotEmpty>
+                          , #event_nm#
+                          , #templ_seq#
+                          , SYSDATE
+                          , SYSDATE
+					<isNotEmpty property="login_usr_id">
+                          , #login_usr_id#
+                          , #login_usr_id#
+					</isNotEmpty>
+                          , 'N' )
+	</insert>
+
+	<select id="selectEventPrzwinSeq" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT SEQ_PRZWIN_EVENT_ID.NEXTVAL FROM DUAL
+	</select>
+
+
+	<insert id="insertEventPrzwinInfo" parameterClass="java.util.HashMap">
+		MERGE INTO EV_EVENT_PRZWIN_MAST
+			 USING DUAL
+				ON (PRZWIN_EVENT_ID = #przwin_event_id#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   EVENT_NM					= #event_nm#
+				 , PRZWIN_EVENT_DIV_CD		= #przwin_event_div_cd#
+				 , EVENT_DTAIL_PGE			= #event_dtail_pge#
+				 , EVENT_STRT_DATE			= TO_DATE(REPLACE(#event_strt_date#, '-') || #fr_tm# || #fr_mn#, 'YYYYMMDDHH24MI')
+				 , EVENT_END_DATE			= TO_DATE(REPLACE(#event_end_date#, '-') || #to_tm# || #to_mn#, 'YYYYMMDDHH24MI')
+				 , TEND_TRGT				= #tend_trgt#
+				 , TEND_METH				= #tend_meth#
+				 , PRZWIN_PRSN				= #przwin_prsn#
+				 , CUST_BNEF				= #cust_bnef#
+				 , PRZWIN_TYP_CD			= #przwin_typ_cd#
+				 , PRZWIN_NOTIC_STRT_YMD	= REPLACE(#przwin_notic_strt_ymd#, '-')
+				 , PRZWIN_NOTIC_END_YMD		= REPLACE(#przwin_notic_end_ymd#, '-')
+		         , PRZWIN_NOTIC_CONT		= #przwin_notic_cont#
+				<isNotEmpty property="main_attchfile_id" prepend=",">
+					MAIN_ATTCHFILE_ID = #main_attchfile_id#
+				</isNotEmpty>
+				<isEmpty property="new_main_attchfile_id_yn">
+					<isEqual property="image_delyn" compareValue="Y" prepend=",">
+						MAIN_ATTCHFILE_ID = NULL
+					</isEqual>
+				</isEmpty>
+				<isNotEmpty property="logo_attchfile_id" prepend=",">
+					LOGO_ATTCHFILE_ID = #logo_attchfile_id#
+				</isNotEmpty>
+				<isEmpty property="new_logo_attchfile_id_yn">
+					<isEqual property="image_delyn" compareValue="Y" prepend=",">
+						LOGO_ATTCHFILE_ID = NULL
+					</isEqual>
+				</isEmpty>
+				<isNotEmpty property="mobile_attchfile_id" prepend=",">
+					MOBILE_ATTCHFILE_ID = #mobile_attchfile_id#
+				</isNotEmpty>
+				<isEmpty property="new_mobile_attchfile_id_yn">
+					<isEqual property="image_delyn" compareValue="Y" prepend=",">
+						MOBILE_ATTCHFILE_ID = NULL
+					</isEqual>
+				</isEmpty>
+		         , MOBILE_URL 		= #mobile_url#
+		         , PRZWIN_EVENT_DESC = #przwin_event_desc#
+		         , CHG_DATE			= SYSDATE
+		         , CHGER_ID			= #login_usr_id#
+		WHEN NOT MATCHED THEN
+			INSERT
+		         ( PRZWIN_EVENT_ID
+		         , PRZWIN_EVENT_DIV_CD
+		         , DSPY_SEQ
+				 , EVENT_NM
+				 , EVENT_DTAIL_PGE
+				 , EVENT_STRT_DATE
+				 , EVENT_END_DATE
+				 , TEND_TRGT
+				 , TEND_METH
+				 , PRZWIN_PRSN
+				 , CUST_BNEF
+				 , PRZWIN_TYP_CD
+				 , PRZWIN_NOTIC_STRT_YMD
+				 , PRZWIN_NOTIC_END_YMD
+		         , PRZWIN_NOTIC_CONT
+		         , MAIN_ATTCHFILE_ID
+		         , LOGO_ATTCHFILE_ID
+		         , MOBILE_ATTCHFILE_ID
+		         , MOBILE_URL
+		         , PRZWIN_EVENT_DESC
+		         , REG_DATE
+		         , CHG_DATE
+		         , REGER_ID
+		         , CHGER_ID )
+		  VALUES ( #przwin_event_id#
+		  		 , #przwin_event_div_cd#
+		         , #dspy_seq#
+				 , #event_nm#
+				 , #event_dtail_pge#
+				 , TO_DATE(REPLACE(#event_strt_date#, '-') || #fr_tm# || #fr_mn#, 'YYYYMMDDHH24MI')
+				 , TO_DATE(REPLACE(#event_end_date#, '-') || #to_tm# || #to_mn#, 'YYYYMMDDHH24MI')
+				 , #tend_trgt#
+				 , #tend_meth#
+				 , #przwin_prsn#
+				 , #cust_bnef#
+				 , #przwin_typ_cd#
+				 , REPLACE(#przwin_notic_strt_ymd#, '-')
+				 , REPLACE(#przwin_notic_end_ymd#, '-')
+		         , #przwin_notic_cont#
+		         , #main_attchfile_id#
+		         , #logo_attchfile_id#
+		         , #mobile_attchfile_id#
+		         , #mobile_url#
+		         , #przwin_event_desc#
+		         , SYSDATE
+		         , SYSDATE
+		         , NVL(#login_usr_id#, 'ADMIN')
+		         , NVL(#login_usr_id#, 'ADMIN')
+		         )
+	</insert>
+
+	<update id="updateEventPrzwinGoodsInfo" parameterClass="java.util.HashMap">
+		UPDATE EV_EVENT_PREMIEUM_GOODS
+		   SET USE_YN = 'N'
+		 WHERE PRZWIN_EVENT_ID = #przwin_event_id#
+		   AND PRZWIN_INDEX = #przwin_index#
+	</update>
+
+	<insert id="insertEventPrzwinGoodsInfo" parameterClass="java.util.HashMap">
+		MERGE INTO EV_EVENT_PREMIEUM_GOODS
+			 USING DUAL
+				ON (PRZWIN_EVENT_ID = #przwin_event_id# AND PRZWIN_INDEX = #przwin_index#)
+		WHEN MATCHED THEN
+			UPDATE SET
+				   PREMIEUM_PRZWINER	= #premieum_przwiner#
+				 , PREMIEUM_GOODS_NM	= #premieum_goods_nm#
+				<isNotEmpty property="premieum_goods_image_file_id" prepend=",">
+					PREMIEUM_GOODS_IMAGE_FILE_ID = #premieum_goods_image_file_id#
+				</isNotEmpty>
+				<isEmpty property="new_image_file_yn">
+					<isEqual property="img_del_yn" compareValue="Y" prepend=",">
+						PREMIEUM_GOODS_IMAGE_FILE_ID = NULL
+					</isEqual>
+				</isEmpty>
+				 , USE_YN				= #use_yn#
+				 , BASE_AMOUNT			= 0
+				 , IS_DELETE			= 'N'
+				 , PRICE_SALE			= 0
+		WHEN NOT MATCHED THEN
+			INSERT
+		         ( PRZWIN_EVENT_ID
+		         , PRZWIN_INDEX
+				 , PREMIEUM_PRZWINER
+				 , PREMIEUM_GOODS_NM
+				 , PREMIEUM_GOODS_IMAGE_FILE_ID
+				 , BASE_AMOUNT
+				 , IS_DELETE
+				 , PRICE_SALE
+				 , USE_YN )
+		  VALUES ( #przwin_event_id#
+		         , #przwin_index#
+				 , #premieum_przwiner#
+				 , #premieum_goods_nm#
+				 , #premieum_goods_image_file_id#
+				 , 0
+				 , 'N'
+				 , 0
+				 , #use_yn# )
+	</insert>
+
+	<select id="selectEventPrzwinGoodsInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT NVL(A.USE_YN, 'N') AS GOODS_USE_YN1
+			 , A.PREMIEUM_GOODS_NM AS PREMIEUM_GOODS_NM1
+			 , A.PREMIEUM_GOODS_IMAGE_FILE_ID AS PREMIEUM_GOODS_IMAGE_FILE_ID1
+			 , A.PREMIEUM_PRZWINER AS PREMIEUM_PRZWINER1
+		     , A_IMAGE.FILE_STRE_PATH || A_IMAGE.STRE_FILE_NM AS IMAGE_PATH1
+             , A_IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM1
+             , NVL(B.USE_YN, 'N') AS GOODS_USE_YN2
+			 , B.PREMIEUM_GOODS_NM AS PREMIEUM_GOODS_NM2
+			 , B.PREMIEUM_GOODS_IMAGE_FILE_ID AS PREMIEUM_GOODS_IMAGE_FILE_ID2
+			 , B.PREMIEUM_PRZWINER AS PREMIEUM_PRZWINER2
+		     , B_IMAGE.FILE_STRE_PATH || B_IMAGE.STRE_FILE_NM  AS IMAGE_PATH2
+             , B_IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM2
+             , NVL(C.USE_YN, 'N') AS GOODS_USE_YN3
+			 , C.PREMIEUM_GOODS_NM AS PREMIEUM_GOODS_NM3
+			 , C.PREMIEUM_GOODS_IMAGE_FILE_ID AS PREMIEUM_GOODS_IMAGE_FILE_ID3
+			 , C.PREMIEUM_PRZWINER AS PREMIEUM_PRZWINER3
+		     , C_IMAGE.FILE_STRE_PATH || C_IMAGE.STRE_FILE_NM  AS IMAGE_PATH3
+             , C_IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM3
+             , NVL(D.USE_YN, 'N') AS GOODS_USE_YN4
+			 , D.PREMIEUM_GOODS_NM AS PREMIEUM_GOODS_NM4
+			 , D.PREMIEUM_GOODS_IMAGE_FILE_ID AS PREMIEUM_GOODS_IMAGE_FILE_ID4
+			 , D.PREMIEUM_PRZWINER AS PREMIEUM_PRZWINER4
+		     , D_IMAGE.FILE_STRE_PATH || D_IMAGE.STRE_FILE_NM AS IMAGE_PATH4
+             , D_IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM4
+             , NVL(E.USE_YN, 'N') AS GOODS_USE_YN5
+			 , E.PREMIEUM_GOODS_NM AS PREMIEUM_GOODS_NM5
+			 , E.PREMIEUM_GOODS_IMAGE_FILE_ID AS PREMIEUM_GOODS_IMAGE_FILE_ID5
+			 , E.PREMIEUM_PRZWINER AS PREMIEUM_PRZWINER5
+		     , E_IMAGE.FILE_STRE_PATH || E_IMAGE.STRE_FILE_NM AS IMAGE_PATH5
+             , E_IMAGE.ORIG_FILE_NM AS IMAGE_ORIG_NM5
+		  FROM (SELECT * FROM EV_EVENT_PREMIEUM_GOODS WHERE PRZWIN_INDEX = 1) A
+		  	 , (SELECT * FROM EV_EVENT_PREMIEUM_GOODS WHERE PRZWIN_INDEX = 2) B
+		  	 , (SELECT * FROM EV_EVENT_PREMIEUM_GOODS WHERE PRZWIN_INDEX = 3) C
+		  	 , (SELECT * FROM EV_EVENT_PREMIEUM_GOODS WHERE PRZWIN_INDEX = 4) D
+		  	 , (SELECT * FROM EV_EVENT_PREMIEUM_GOODS WHERE PRZWIN_INDEX = 5) E
+		  	 , CM_FILE_MGT A_IMAGE
+		  	 , CM_FILE_MGT B_IMAGE
+		  	 , CM_FILE_MGT C_IMAGE
+		  	 , CM_FILE_MGT D_IMAGE
+		  	 , CM_FILE_MGT E_IMAGE
+		 WHERE A.PRZWIN_EVENT_ID = B.PRZWIN_EVENT_ID(+)
+		   AND A.PRZWIN_EVENT_ID = C.PRZWIN_EVENT_ID(+)
+		   AND A.PRZWIN_EVENT_ID = D.PRZWIN_EVENT_ID(+)
+		   AND A.PRZWIN_EVENT_ID = E.PRZWIN_EVENT_ID(+)
+		   AND A.PREMIEUM_GOODS_IMAGE_FILE_ID = A_IMAGE.ATTCHFILE_ID(+)
+		   AND B.PREMIEUM_GOODS_IMAGE_FILE_ID = B_IMAGE.ATTCHFILE_ID(+)
+		   AND C.PREMIEUM_GOODS_IMAGE_FILE_ID = C_IMAGE.ATTCHFILE_ID(+)
+		   AND D.PREMIEUM_GOODS_IMAGE_FILE_ID = D_IMAGE.ATTCHFILE_ID(+)
+		   AND E.PREMIEUM_GOODS_IMAGE_FILE_ID = E_IMAGE.ATTCHFILE_ID(+)
+		   AND A.PRZWIN_EVENT_ID = #przwin_event_id#
+	</select>
+
+	<select id="selectEventPrzwinGoodsList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.PRZWIN_EVENT_ID
+			 , A.PRZWIN_INDEX
+			 , A.PREMIEUM_GOODS_NM
+			 , NVL(A.PREMIEUM_PRZWINER, 0) AS PREMIEUM_PRZWINER
+			 , A.USE_YN
+			 , NVL(B.CNT, 0) AS ENTRY_CNT
+		  FROM EV_EVENT_PREMIEUM_GOODS A
+		  	 , (SELECT PRZWIN_EVENT_ID, PRZWIN_INDEX, COUNT(*) AS CNT FROM EV_MALL_EVENT WHERE USEYN = 'Y' GROUP BY PRZWIN_EVENT_ID, PRZWIN_INDEX) B
+		 WHERE A.PRZWIN_EVENT_ID = B.PRZWIN_EVENT_ID(+)
+		   AND A.PRZWIN_INDEX = B.PRZWIN_INDEX(+)
+		   AND A.USE_YN = 'Y'
+		   AND A.PRZWIN_EVENT_ID = #przwin_event_id#
+		 ORDER BY A.PRZWIN_EVENT_ID, A.PRZWIN_INDEX
+	</select>
+
+	<insert id="insertPrzwinerLottery" parameterClass="java.util.HashMap">
+		INSERT INTO EV_EVENT_PRZWINER
+			 ( PRZWIN_EVENT_ID
+			 , PRZWINER_ID
+			 , PRZWIN_APPLY_YN
+			 , MEM_NM
+			 , EMAIL
+			 , TEL_NO
+			 , HTEL_NO
+			 , ZIPCD
+			 , ADDR1
+			 , ADDR2
+			 , PRZWIN_INDEX
+			 , REG_DATE
+			 , CHG_DATE
+			 , REGER_ID
+			 , CHGER_ID )
+		SELECT * FROM
+		  ( SELECT A.PRZWIN_EVENT_ID
+				 , A.ACCESS_NAME AS PRZWINER_ID
+				 , 'Y' AS PRZWIN_APPLY_YN
+				 , B.NAME AS MEM_NM
+				 , B.EMAIL AS EMAIL
+				 , B.TELNO_1||'-'||B.TELNO_2||'-'||B.TELNO_3 AS TEL_NO
+				 , B.MOBILE_1||'-'||B.MOBILE_2||'-'||B.MOBILE_3 AS HTEL_NO
+				 , B.POSTAL_CODE AS ZIPCD
+				 , B.ADDRESS_1 AS ADDR1
+				 , B.ADDRESS_2 AS ADDR2
+				 , #przwin_index# AS PRZWIN_INDEX
+				 , SYSDATE AS REG_DATE
+				 , SYSDATE AS CHG_DATE
+				 , NVL(#login_usr_id#, 'ADMIN') AS REGER_ID
+				 , NVL(#login_usr_id#, 'ADMIN') AS CHGER_ID
+			  FROM EV_MALL_EVENT A, MEMINFO B
+			 WHERE A.ACCESS_NAME = B.ACCESS_NAME
+			   AND A.PRZWIN_EVENT_ID = #przwin_event_id#
+				<isNotEmpty property="przwin_index" prepend="AND">
+					A.PRZWIN_INDEX = #przwin_index#
+				</isNotEmpty>
+			   AND A.ACCESS_NAME NOT IN (SELECT PRZWINER_ID FROM EV_EVENT_PRZWINER WHERE PRZWIN_EVENT_ID = #przwin_event_id#)
+	         ORDER BY DBMS_RANDOM.VALUE )
+	     WHERE ROWNUM &lt;= #premieum_przwiner#
+	</insert>
+
+	<select id="selectEventPrzwinerList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.PRZWIN_EVENT_ID
+			 , A.PRZWINER_ID
+			 , A.PRZWIN_APPLY_YN
+			 , A.MEM_NM
+			 , A.EMAIL
+			 , A.TEL_NO
+			 , A.HTEL_NO
+			 , A.PRZWIN_INDEX
+			 , (SELECT PREMIEUM_GOODS_NM FROM EV_EVENT_PREMIEUM_GOODS WHERE PRZWIN_EVENT_ID = A.PRZWIN_EVENT_ID AND PRZWIN_INDEX = A.PRZWIN_INDEX) AS GOODS_NM
+		  FROM EV_EVENT_PRZWINER A
+		 WHERE A.PRZWIN_EVENT_ID = #przwin_event_id#
+		 ORDER BY A.PRZWIN_INDEX, A.PRZWINER_ID
+	</select>
+
+	<sql id="promotionReq_list">
+		SELECT T2.DSPY_SEQ
+			 , T1.PAVLN_DIV_CD
+			 , T1.EVENT_ID
+			 , T3.GOODS_CD
+			 , T4.GOODS_NM
+			 , T4.SUPP_COMP_ID
+			 , (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = T4.SUPP_COMP_ID) AS BCNC_NM
+			 , T1.EVENT_NM
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_EVENT_STRT_DATE
+			 , TO_CHAR(T1.EVENT_END_DATE, 'YYYY-MM-DD HH24:MI') AS ALL_EVENT_END_DATE
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'YYYYMMDD') AS EVENT_STRT_DATE
+			 , TO_CHAR(T1.EVENT_END_DATE, 'YYYYMMDD') AS EVENT_END_DATE
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'HH24') AS FR_TM
+			 , TO_CHAR(T1.EVENT_STRT_DATE, 'MI') AS FR_MN
+			 , TO_CHAR(T1.EVENT_END_DATE, 'HH24') AS TO_TM
+			 , TO_CHAR(T1.EVENT_END_DATE, 'MI') AS TO_MN
+			 , T2.DSPY_STUS_CD
+			 , F_GET_COMN_CD_NM('DSPY_STUS_CD', T2.DSPY_STUS_CD) AS DSPY_STUS_NM
+			 , F_GET_COMN_CD_NM('TODAYSALE_STUS_CD', T3.TODAYSALE_STUS_CD) AS TODAYSALE_STUS_NM
+			 , T4.STD_SELL_PRC
+			 , T3.DC_APPLY_PRC
+			 , T3.USE_YN
+			 , T3.TODAYSALE_ETC
+			 , T3.TODAYSALE_STUS_CD
+			 , T3.LIMIT_SELL_CNT
+			 , T3.TODAYSALE_SEND_PAY
+			 , T3.SELL_CNT
+			 , T1.CHG_DATE
+			 , T1.HOTDEAL_CD
+			 , T6.HOTDEAL_NM
+			 , T6.GOODS_QTY_LIMIT_YN
+			 , T6.GOODS_QTY_LIMIT_CNT
+			 , T6.GOODS_REQ_MAX_DATE_CNT
+			 , T6.GOODS_MIN_TERM
+			 , T6.GOODS_MAX_DC_RATE
+			 , T6.GOODS_MIN_DC_RATE
+			 , T6.HOTDEAL_STRT_YMD
+			 , T6.HOTDEAL_END_YMD
+			 , T6.HOTDEAL_NM||' (기간 : '||TO_CHAR(T6.HOTDEAL_STRT_YMD, 'YYYY-MM-DD')||'~'||TO_CHAR(T6.HOTDEAL_END_YMD, 'YYYY-MM-DD')||')' AS HOTDEAL_LONG_NM
+			 , NVL(T3.SORT_ORDER, 1) AS SORT_ORDER
+		  FROM EV_EVENT_MAST T1
+			 , DP_DSPY_MAST T2
+			 , EV_EVENT_DC_GOODS T3
+	 		 , GD_GOODS_MAST T4
+			 , EV_EVENT_HOTDEAL_MGT T6
+		 WHERE T1.DSPY_SEQ = T2.DSPY_SEQ
+		   AND T1.DSPY_SEQ = T3.DSPY_SEQ(+)
+		   AND T3.GOODS_CD = T4.GOODS_CD
+		   AND T1.HOTDEAL_CD = T6.HOTDEAL_CD(+)
+		   AND T1.DEL_YN = 'N'
+		   AND T1.EVENT_DIV_CD = #event_div_cd#
+	   <isNotEmpty property="search_text">
+			<isNotEmpty property="search_type" prepend="AND">
+				<isEqual property="search_type" compareValue="goods_cd">
+					T3.GOODS_CD LIKE '%'||#search_text#||'%'
+				</isEqual>
+				<isEqual property="search_type" compareValue="goods_nm">
+					T4.GOODS_NM LIKE '%'||#search_text#||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isEmpty property="search_type" prepend="AND">
+				( T3.GOODS_CD LIKE '%'||#search_text#||'%' OR T4.GOODS_NM LIKE '%'||#search_text#||'%' )
+			</isEmpty>
+	   </isNotEmpty>
+	   <isNotEmpty property="search_hotdeal_cd" prepend="AND">
+			T1.HOTDEAL_CD = #search_hotdeal_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_todaysale_stus_cd" prepend="AND">
+			T3.TODAYSALE_STUS_CD = #search_todaysale_stus_cd#
+	   </isNotEmpty>
+	   <isNotEmpty property="search_strt_ymd" prepend="AND">
+			TO_CHAR(T3.REG_DATE, 'YYYYMMDD') BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+	   </isNotEmpty>
+	   <isNotEmpty property="supp_comp_id" prepend="AND">
+			T4.SUPP_COMP_ID = #supp_comp_id#
+	   </isNotEmpty>
+	   <isNotEmpty property="hotdeal_div_cd" prepend="AND">
+			T6.HOTDEAL_DIV_CD = #hotdeal_div_cd# AND T1.HOTDEAL_CD IS NOT NULL
+	   </isNotEmpty>
+   	   <isNotEmpty property="event_id" prepend="AND">
+			T1.EVENT_ID = #event_id# AND T3.GOODS_CD = #goods_cd# AND ROWNUM = 1
+	   </isNotEmpty>
+	</sql>
+
+	<select id="selectPromotionReqList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					<isNotEmpty property="hotdeal_div_cd">
+						ROW_NUMBER () OVER (ORDER BY HOTDEAL_CD DESC, SORT_ORDER ASC) RNUM
+					</isNotEmpty>
+					<isEmpty property="hotdeal_div_cd">
+						ROW_NUMBER () OVER (ORDER BY CHG_DATE DESC) RNUM
+					</isEmpty>
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="promotionReq_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectPromotionReqCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="promotionReq_list" />)
+	</select>
+
+	<update id="updatePromotionAppr" parameterClass="java.util.HashMap">
+		UPDATE EV_EVENT_DC_GOODS
+		   SET TODAYSALE_STUS_CD	= #todaysale_stus_cd#
+			 , CHG_DATE				= SYSDATE
+			 , CHGER_ID				= #login_usr_id#
+		 WHERE EVENT_ID IN
+		 <isNotEmpty property="event_arr">
+			 <iterate property="event_arr" open="("  close=")" conjunction=",">
+				#event_arr[]#
+			</iterate>
+		</isNotEmpty>
+	</update>
+
+	<update id="updatePromotionDspyAppr" parameterClass="java.util.HashMap">
+		UPDATE DP_DSPY_MAST
+		   SET DSPY_STUS_CD = '20'
+			 , CHG_DATE		= SYSDATE
+			 , CHGER_ID		= #login_usr_id#
+		 WHERE DSPY_SEQ	IN ( SELECT DSPY_SEQ
+							   FROM EV_EVENT_MAST
+							  WHERE EVENT_ID IN
+							 <isNotEmpty property="event_arr">
+								 <iterate property="event_arr" open="("  close=")" conjunction=",">
+									#event_arr[]#
+								</iterate>
+							</isNotEmpty>
+		   					)
+	</update>
+
+	<update id="updatePromotionStop" parameterClass="java.util.HashMap">
+		UPDATE EV_EVENT_DC_GOODS
+		   SET TODAYSALE_STUS_CD	= '05'
+			 , CHG_DATE				= SYSDATE
+			 , CHGER_ID				= #login_usr_id#
+		 WHERE TODAYSALE_STUS_CD	= '04'
+		   AND GOODS_CD	IN ( SELECT GOODS_CD
+		   					   FROM EV_EVENT_MAST A, EV_EVENT_DC_GOODS B
+		   					  WHERE A.EVENT_ID = B.EVENT_ID
+		   					    AND A.EVENT_ID IN
+							 <isNotEmpty property="event_arr">
+								 <iterate property="event_arr" open="("  close=")" conjunction=",">
+									#event_arr[]#
+								</iterate>
+							</isNotEmpty>
+		   					)
+	</update>
+
+	<update id="updatePromotionDspyStop" parameterClass="java.util.HashMap">
+		UPDATE DP_DSPY_MAST
+		   SET DSPY_STUS_CD = '40'
+			 , CHG_DATE		= SYSDATE
+			 , CHGER_ID		= #login_usr_id#
+		 WHERE DSPY_STUS_CD	= '20'
+		   AND DSPY_SEQ	IN ( SELECT DSPY_SEQ
+							   FROM EV_EVENT_MAST
+							  WHERE EVENT_ID IN
+							 <isNotEmpty property="event_arr">
+								 <iterate property="event_arr" open="("  close=")" conjunction=",">
+									#event_arr[]#
+								</iterate>
+							</isNotEmpty>
+		   					)
+	</update>
+
+	<select id="selectPlnbefId" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT DISTINCT PLNBEF_ID
+		  FROM EV_PLNBEF_MAST
+		 WHERE DSPY_SEQ = #dspy_seq#
+	</select>
+
+	<select id="selectEventId" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT DISTINCT EVENT_ID
+		  FROM EV_EVENT_MAST
+		 WHERE DSPY_SEQ = #dspy_seq#
+	</select>
+
+	<delete id="deletePlnbefGoods" parameterClass="java.util.HashMap">
+		DELETE FROM EV_PLNBEF_GOODS
+		 WHERE DSPY_SEQ = #dspy_seq#
+	</delete>
+
+	<delete id="deleteEventGoods" parameterClass="java.util.HashMap">
+		DELETE FROM EV_EVENT_DC_GOODS
+		 WHERE DSPY_SEQ = #dspy_seq#
+	</delete>
+
+	<insert id="insertPlnbefGoods" parameterClass="java.util.HashMap">
+		INSERT INTO EV_PLNBEF_GOODS
+				  ( PLNBEF_ID
+				  , GOODS_CD
+				  , DSPY_SEQ
+				  , DSPY_REPLC_GOODS_NM
+				  , USE_YN
+				  , DC_APPLY_PRC
+				  , SORT_ORDER
+				  , REG_DATE
+				  , CHG_DATE
+				  , REGER_ID
+				  , CHGER_ID)
+			 SELECT #key#
+				  , GOODS_CD
+				  , #dspy_seq#
+				  , GOODS_NM
+				  , 'Y'
+				  , STD_SELL_PRC
+				  , #sort_order#
+				  , SYSDATE
+				  , SYSDATE
+				  , NVL(#login_usr_id#, 'ADMIN')
+				  , NVL(#login_usr_id#, 'ADMIN')
+			   FROM GD_GOODS_MAST
+			  WHERE GOODS_CD = TRIM(#goods_cd#)
+	</insert>
+
+	<insert id="insertEventGoods" parameterClass="java.util.HashMap">
+		INSERT INTO EV_EVENT_DC_GOODS
+				  ( EVENT_ID
+				  , GOODS_CD
+				  , DSPY_REPLC_GOODS_NM
+				  , DSPY_SEQ
+				  , PAVLN_DIV_CD
+				  , USE_YN
+				  , DC_APPLY_PRC
+				  , LIMIT_SELL_CNT
+				  , SELL_CNT
+				  , SORT_ORDER
+				  , REG_DATE
+				  , CHG_DATE
+				  , REGER_ID
+				  , CHGER_ID)
+			 SELECT #key#
+				  , GOODS_CD
+				  , GOODS_NM
+				  , #dspy_seq#
+				  , '99'
+				  , 'Y'
+				  , STD_SELL_PRC
+				  , 0
+				  , 0
+				  , #sort_order#
+				  , SYSDATE
+				  , SYSDATE
+				  , NVL(#login_usr_id#, 'ADMIN')
+				  , NVL(#login_usr_id#, 'ADMIN')
+			   FROM GD_GOODS_MAST
+			  WHERE GOODS_CD = TRIM(#goods_cd#)
+	</insert>
+
+	<select id="selectRecomPlnbefInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT A.PLNBEF_ID
+		     , A.PLNBEF_NM
+		     , TO_CHAR(A.RECOM_PLNBEF_STRT_DATE, 'YYYY-MM-DD HH24:MI') AS RECOM_PLNBEF_STRT_DATE
+		     , TO_CHAR(A.RECOM_PLNBEF_END_DATE,  'YYYY-MM-DD HH24:MI') AS RECOM_PLNBEF_END_DATE
+		     , A.LOGO_ATTCHFILE_ID
+		     , A.LOGO_TEXT
+           	 , LOGOIMAGE.FILE_STRE_PATH || LOGOIMAGE.STRE_FILE_NM AS LOGO_IMAGE_PATH
+          	 , LOGOIMAGE.ORIG_FILE_NM AS LOGO_IMAGE_ORIG_NM
+		  FROM EV_PLNBEF_MAST A, CM_FILE_MGT LOGOIMAGE
+		 WHERE A.LOGO_ATTCHFILE_ID = LOGOIMAGE.ATTCHFILE_ID(+)
+		   AND A.RECOM_PLNBEF_YN = 'Y'
+		   AND A.PLNBEF_ID = #plnbef_id#
+	</select>
+
+	<update id="updateRecomPlnbefInfo" parameterClass="java.util.HashMap">
+		UPDATE EV_PLNBEF_MAST
+		   SET RECOM_PLNBEF_YN		  = #recom_plnbef_yn#
+			 , LOGO_TEXT			  = #logo_text#
+			 , RECOM_PLNBEF_STRT_DATE = TO_DATE(REPLACE(#recom_plnbef_strt_date#, '-')||'000000', 'YYYYMMDDHH24MISS')
+			 , RECOM_PLNBEF_END_DATE  = TO_DATE(REPLACE(#recom_plnbef_end_date#, '-')||'000000', 'YYYYMMDDHH24MISS')
+			<isNotEmpty property="logo_attchfile_id" prepend=",">
+				LOGO_ATTCHFILE_ID = #logo_attchfile_id#
+			</isNotEmpty>
+			<isEmpty property="new_logo_attchfile_id_yn">
+				<isEqual property="logoImageDelyn" compareValue="Y" prepend=",">
+					LOGO_ATTCHFILE_ID = NULL
+				</isEqual>
+			</isEmpty>
+	         , CHG_DATE				 = SYSDATE
+	         , CHGER_ID				 = #login_usr_id#
+	     WHERE PLNBEF_ID = #plnbef_id#
+	</update>
+
+	<sql id="hotDeal_list">
+		SELECT A.HOTDEAL_CD
+			 , A.HOTDEAL_DIV_CD
+			 , A.HOTDEAL_NM
+			 , A.HOTDEAL_CD AS VALUE
+			 , A.HOTDEAL_NM||' (기간 : '||TO_CHAR(HOTDEAL_STRT_YMD, 'YYYY-MM-DD')||'~'||TO_CHAR(HOTDEAL_END_YMD, 'YYYY-MM-DD')||')' AS NAME
+			 , TO_CHAR(A.HOTDEAL_STRT_YMD, 'YYYY-MM-DD HH24:MI:SS') AS HOTDEAL_STRT_YMD
+			 , TO_CHAR(A.HOTDEAL_STRT_YMD, 'YYYYMMDD') AS HOTDEAL_STRT_YMD_DAY
+			 , TO_CHAR(A.HOTDEAL_STRT_YMD, 'HH24') AS HOTDEAL_STRT_YMD_TM
+			 , TO_CHAR(A.HOTDEAL_STRT_YMD, 'MI') AS HOTDEAL_STRT_YMD_MN
+			 , TO_CHAR(A.HOTDEAL_END_YMD, 'YYYY-MM-DD HH24:MI:SS') AS HOTDEAL_END_YMD
+			 , TO_CHAR(A.HOTDEAL_END_YMD, 'YYYYMMDD') AS HOTDEAL_END_YMD_DAY
+			 , TO_CHAR(A.HOTDEAL_END_YMD, 'HH24') AS HOTDEAL_END_YMD_TM
+			 , TO_CHAR(A.HOTDEAL_END_YMD, 'MI') AS HOTDEAL_END_YMD_MN
+			 , TO_CHAR(A.HOTDEAL_REQ_STRT_YMD, 'YYYY-MM-DD HH24:MI:SS') AS HOTDEAL_REQ_STRT_YMD
+			 , TO_CHAR(A.HOTDEAL_REQ_STRT_YMD, 'YYYYMMDD') AS HOTDEAL_REQ_STRT_YMD_DAY
+			 , TO_CHAR(A.HOTDEAL_REQ_STRT_YMD, 'HH24') AS HOTDEAL_REQ_STRT_YMD_TM
+			 , TO_CHAR(A.HOTDEAL_REQ_STRT_YMD, 'MI') AS HOTDEAL_REQ_STRT_YMD_MN
+			 , TO_CHAR(A.HOTDEAL_REQ_END_YMD, 'YYYY-MM-DD HH24:MI:SS') AS HOTDEAL_REQ_END_YMD
+			 , TO_CHAR(A.HOTDEAL_REQ_END_YMD, 'YYYYMMDD') AS HOTDEAL_REQ_END_YMD_DAY
+			 , TO_CHAR(A.HOTDEAL_REQ_END_YMD, 'HH24') AS HOTDEAL_REQ_END_YMD_TM
+			 , TO_CHAR(A.HOTDEAL_REQ_END_YMD, 'MI') AS HOTDEAL_REQ_END_YMD_MN
+			 , A.GOODS_QTY_LIMIT_YN
+			 , A.GOODS_QTY_LIMIT_CNT
+			 , A.GOODS_REQ_MAX_DATE_CNT
+			 , A.GOODS_MIN_TERM
+			 , A.GOODS_MAX_DC_RATE
+			 , A.GOODS_MIN_DC_RATE
+			 , A.REG_DATE
+			 , A.CHG_DATE
+			 , A.REGER_ID
+			 , A.CHGER_ID
+			 , F_GET_COMN_CD_NM('HOTDEAL_DIV_CD', A.HOTDEAL_DIV_CD) AS HOTDEAL_DIV_NM
+		  FROM EV_EVENT_HOTDEAL_MGT A
+		 WHERE 1=1
+		<isNotEmpty property="hotdeal_cd" prepend="AND">
+			A.HOTDEAL_CD = #hotdeal_cd#
+		</isNotEmpty>
+		<isNotEmpty property="hotdeal_div_cd" prepend="AND">
+			A.HOTDEAL_DIV_CD = #hotdeal_div_cd#
+		</isNotEmpty>
+		<isNotEmpty property="search_hotdeal_nm" prepend="AND">
+			A.HOTDEAL_NM LIKE #search_hotdeal_nm#||'%'
+		</isNotEmpty>
+		<isNotEmpty property="search_hotdeal_div_cd" prepend="AND">
+			A.HOTDEAL_DIV_CD = #search_hotdeal_div_cd#
+		</isNotEmpty>
+	</sql>
+
+	<select id="selectHotDealReqList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+			FROM ( SELECT
+				<isEmpty property="sidx">
+					ROW_NUMBER () OVER (ORDER BY HOTDEAL_CD DESC) RNUM
+				</isEmpty>
+				, A.*
+				FROM (
+					SELECT *
+						FROM(
+						<include refid="hotDeal_list" />
+						)
+					) A
+				) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+
+	<select id="selectHotDealReqCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="hotDeal_list" />)
+	</select>
+
+	<insert id="insertHotDealReqInfo" parameterClass="java.util.HashMap">
+		INSERT INTO EV_EVENT_HOTDEAL_MGT
+				  ( HOTDEAL_CD
+				  , HOTDEAL_DIV_CD
+				  , HOTDEAL_NM
+				  , HOTDEAL_STRT_YMD
+				  , HOTDEAL_END_YMD
+				  , HOTDEAL_REQ_STRT_YMD
+				  , HOTDEAL_REQ_END_YMD
+				  , GOODS_QTY_LIMIT_YN
+				  , GOODS_QTY_LIMIT_CNT
+				  , GOODS_REQ_MAX_DATE_CNT
+				  , GOODS_MIN_TERM
+				  , GOODS_MAX_DC_RATE
+				  , GOODS_MIN_DC_RATE
+				  , REG_DATE
+				  , CHG_DATE
+				  , REGER_ID
+				  , CHGER_ID )
+			 VALUES
+				  ( (SELECT NVL(MAX(TO_NUMBER(HOTDEAL_CD)), 0) +1 FROM EV_EVENT_HOTDEAL_MGT)
+				  , #hotdeal_div_cd#
+				  , #hotdeal_nm#
+				  , TO_DATE(REPLACE(#hotdeal_strt_ymd#, '-') || '000000','YYYYMMDDHH24MISS')
+				  , TO_DATE(REPLACE(#hotdeal_end_ymd#, '-') || '235900','YYYYMMDDHH24MISS')
+				  , TO_DATE(REPLACE(#hotdeal_req_strt_ymd#, '-') || '000000','YYYYMMDDHH24MISS')
+				  , TO_DATE(REPLACE(#hotdeal_req_end_ymd#, '-') || '235900','YYYYMMDDHH24MISS')
+				  , #goods_qty_limit_yn#
+				  , #goods_qty_limit_cnt#
+				  , #goods_req_max_date_cnt#
+				  , #goods_min_term#
+				  , #goods_max_dc_rate#
+				  , #goods_min_dc_rate#
+				  , SYSDATE
+				  , SYSDATE
+				  , NVL(#login_usr_id#, 'ADMIN')
+				  , NVL(#login_usr_id#, 'ADMIN')
+				  )
+	</insert>
+
+	<update id="updateHotDealReqInfo" parameterClass="java.util.HashMap">
+		UPDATE EV_EVENT_HOTDEAL_MGT
+		   SET HOTDEAL_DIV_CD			= #hotdeal_div_cd#
+		     , HOTDEAL_NM				= #hotdeal_nm#
+		     , HOTDEAL_STRT_YMD			= TO_DATE(REPLACE(#hotdeal_strt_ymd#, '-') ||'000000','YYYYMMDDHH24MISS')
+		     , HOTDEAL_END_YMD			= TO_DATE(REPLACE(#hotdeal_end_ymd#, '-') || '235900','YYYYMMDDHH24MISS')
+		     , HOTDEAL_REQ_STRT_YMD		= TO_DATE(REPLACE(#hotdeal_req_strt_ymd#, '-') ||'000000','YYYYMMDDHH24MISS')
+		     , HOTDEAL_REQ_END_YMD		= TO_DATE(REPLACE(#hotdeal_req_end_ymd#, '-') || '235900','YYYYMMDDHH24MISS')
+		     , GOODS_QTY_LIMIT_YN		= #goods_qty_limit_yn#
+		     , GOODS_QTY_LIMIT_CNT		= #goods_qty_limit_cnt#
+		     , GOODS_REQ_MAX_DATE_CNT	= #goods_req_max_date_cnt#
+		     , GOODS_MIN_TERM			= #goods_min_term#
+		     , GOODS_MAX_DC_RATE		= #goods_max_dc_rate#
+		     , GOODS_MIN_DC_RATE		= #goods_min_dc_rate#
+		     , CHG_DATE					= SYSDATE
+		     , CHGER_ID					= NVL(#login_usr_id#, 'ADMIN')
+		 WHERE HOTDEAL_CD				= #hotdeal_cd#
+	</update>
+
+	<select id="selectHotdealMgtList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT HOTDEAL_CD AS VALUE
+			 , HOTDEAL_NM||' (기간 : '||TO_CHAR(HOTDEAL_STRT_YMD, 'YYYY-MM-DD')||'~'||TO_CHAR(HOTDEAL_END_YMD, 'YYYY-MM-DD')||')' AS NAME
+			 , HOTDEAL_DIV_CD
+			 , TO_CHAR(HOTDEAL_STRT_YMD, 'YYYYMMDD') AS HOTDEAL_STRT_YMD
+			 , TO_CHAR(HOTDEAL_END_YMD, 'YYYYMMDD') AS HOTDEAL_END_YMD
+			 , TO_CHAR(HOTDEAL_REQ_STRT_YMD, 'YYYYMMDD') AS HOTDEAL_REQ_STRT_YMD
+			 , TO_CHAR(HOTDEAL_REQ_END_YMD, 'YYYYMMDD') AS HOTDEAL_REQ_END_YMD
+			 , GOODS_QTY_LIMIT_YN
+			 , GOODS_QTY_LIMIT_CNT
+			 , GOODS_REQ_MAX_DATE_CNT
+			 , GOODS_MIN_TERM
+			 , GOODS_MAX_DC_RATE
+			 , GOODS_MIN_DC_RATE
+		  FROM EV_EVENT_HOTDEAL_MGT
+		 WHERE HOTDEAL_DIV_CD = #hotdeal_div_cd#
+		   AND SYSDATE BETWEEN HOTDEAL_REQ_STRT_YMD AND HOTDEAL_REQ_END_YMD
+		<isNotEmpty property="hotdeal_cd" prepend="AND">
+			HOTDEAL_CD = #hotdeal_cd#
+		</isNotEmpty>
+	</select>
+
+	<update id="updateDspyStatEnd" parameterClass="java.util.HashMap">
+		UPDATE DP_DSPY_MAST
+		   SET DSPY_STUS_CD = '40'
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = NVL(#login_usr_id#, 'ADMIN')
+		 WHERE DSPY_SEQ = #dspy_seq#
+	</update>
+
+	<update id="updatePromotionStatEnd" parameterClass="java.util.HashMap">
+		UPDATE EV_EVENT_DC_GOODS
+		   SET TODAYSALE_STUS_CD = '05'
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = NVL(#login_usr_id#, 'ADMIN')
+		 WHERE EVENT_ID = #event_id#
+	</update>
+
+	<update id="updateEventGoodsSortOrder" parameterClass="java.util.HashMap">
+		UPDATE EV_EVENT_DC_GOODS
+		   SET SORT_ORDER = #sort_order#
+		     , CHG_DATE = SYSDATE
+		     , CHGER_ID = NVL(#login_usr_id#, 'ADMIN')
+		 WHERE EVENT_ID = #event_id#
+		   AND GOODS_CD = #goods_cd#
+	</update>
+
+</sqlMap>

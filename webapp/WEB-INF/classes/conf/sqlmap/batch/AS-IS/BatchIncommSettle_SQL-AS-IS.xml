@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchIncommSettle">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<delete id="deleteStAdjStatus" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM ADJ_STATUS
+			WHERE ADJ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')
+			AND ADJ_STATUS = 'D' 
+
+		]]>
+	</delete>	
+	
+	<update id="insertStAdjStatus" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ADJ_STATUS(
+										ADJ_DATE, 
+									   	ADJ_DATE_SEQ, 
+									   	ADJ_STATUS, 
+									   	USEYN, 
+									   	WORK_DATE
+									  )
+								VALUES(
+										TO_CHAR(SYSDATE, 'YYYYMMDD'), 
+										(SELECT NVL(MAX(ADJ_DATE_SEQ)+1, 0) FROM ADJ_STATUS WHERE ADJ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')), 
+										'D', 
+										'Y', 
+										SYSDATE
+									  )
+
+		]]>
+	</update>	
+	
+	<update id="insertStAdjStatusHistory" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO ADJ_STATUS_HISTORY(
+												ADJ_DATE, 
+												ADJ_DATE_SEQ, 
+												ADJ_STATUS, 
+												USEYN, 
+												WORK_DATE
+											  )
+									   VALUES(
+									   			TO_CHAR(SYSDATE, 'YYYYMMDD'), 
+									   			(SELECT NVL(MAX(ADJ_DATE_SEQ)+1, 0) FROM ADJ_STATUS_HISTORY WHERE ADJ_DATE = TO_CHAR(SYSDATE, 'YYYYMMDD')), 
+									   			'D', 
+									   			'Y', 
+									   			SYSDATE
+									   		  )
+
+		]]>
+	</update>	
+	
+	<select id="selectStHistoryAdjust" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 1
+			     , IS_TARGET_SETTLED
+			     , IS_SUPP_DAY_STR
+			     , LAST_SUPP_ADJ_FIN_DATE
+			     , ADJ_START_DAY
+			     , ADJ_END_DAY
+			     , ADJ_CONFIRM_DAY
+			     , NEW_NEXT_START_DAY
+			     , IS_CTRT_TRANSF_SUPP_ADJ
+			     , SUPP_ADJ_YN
+			FROM
+			(
+				  SELECT GBN
+				     , IS_TARGET_SETTLED
+				     , IS_SUPP_DAY_STR
+				     , LAST_SUPP_ADJ_FIN_DATE
+				     , ADJ_START_DAY
+				     , ADJ_END_DAY
+				     , ADJ_CONFIRM_DAY
+				     , NEW_NEXT_START_DAY
+				     , CASE WHEN TO_CHAR(TO_DATE(SUBSTR(TO_CHAR(ADD_MONTHS(TO_DATE(ADJ_START_DAY, 'YYYYMMDD'), 1), 'YYYYMMDD'), 1, 6)||01, 'YYYYMMDD') - 1, 'YYYYMMDD') BETWEEN ADJ_START_DAY AND ADJ_END_DAY THEN 'Y'
+				        ELSE 'N'
+				       END AS IS_CTRT_TRANSF_SUPP_ADJ
+				     , SUPP_ADJ_YN
+				  FROM
+					  (
+					    SELECT TO_CHAR(TO_DATE(LAST_SUPP_ADJ_FIN_DATE, 'YYYY/MM/DD'), 'YYYYMMDD') AS LAST_SUPP_ADJ_FIN_DATE
+					       , TO_CHAR(TO_DATE(LAST_SUPP_ADJ_FIN_DATE, 'YYYY/MM/DD') + 1, 'YYYYMMDD') AS ADJ_START_DAY
+					    FROM
+					    (
+					      SELECT MAX(END_DAY) AS LAST_SUPP_ADJ_FIN_DATE
+					      FROM HISTORY_ADJUST
+					      WHERE SUPP_ADJ_YN = 'Y'
+					    )
+					  ) A,
+					  (
+					    SELECT GBN
+					       , IS_TARGET_SETTLED
+					       , IS_SUPP_DAY_STR
+					       , ADJ_END_DAY
+					       , ADJ_CONFIRM_DAY
+					       , NEW_NEXT_START_DAY
+					       , SUPP_ADJ_YN
+					    FROM
+					    (
+					      SELECT GBN
+					         , IS_TARGET_SETTLED
+					         , IS_SUPP_DAY_STR
+					         , ADJ_END_DAY
+					         , ADJ_CONFIRM_DAY
+					         , NEW_NEXT_START_DAY
+					         , SUPP_ADJ_YN
+					      FROM
+					      (
+					      SELECT 1 AS GBN
+					         , 'Y' AS IS_TARGET_SETTLED
+					         , 'IS_SUPP_DAY_SETTLED' AS IS_SUPP_DAY_STR
+					         , TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD'), 'YYYYMMDD') AS ADJ_END_DAY
+					         , TO_CHAR(TO_DATE(CONFIRM_DAY, 'YYYY/MM/DD'), 'YYYYMMDD') AS ADJ_CONFIRM_DAY
+					         , TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD')+1, 'YYYYMMDD') AS NEW_NEXT_START_DAY
+					         , NVL(SUPP_ADJ_YN, 'B') AS SUPP_ADJ_YN
+					      FROM
+					      (
+					        SELECT CONFIRM_DAY, END_DAY, SUPP_ADJ_YN
+					        FROM HISTORY_ADJUST
+					        WHERE CONFIRM_DAY > (
+					        SELECT MAX(END_DAY) AS LAST_SUPP_ADJ_FIN_DATE
+					        FROM HISTORY_ADJUST
+					        WHERE SUPP_ADJ_YN = 'Y'
+					        )
+					        AND NVL(SUPP_ADJ_YN, 'S') NOT IN('C', 'Y')
+					        ORDER BY CONFIRM_DAY DESC, END_DAY DESC
+					      )
+					      WHERE ROWNUM <= 1
+					
+					      UNION ALL
+					      
+					      SELECT 2 AS GBN
+					         , 'N' AS IS_TARGET_SETTLED
+					         , 'NOT_SUPP_DAY_SETTLED' AS IS_SUPP_DAY_STR
+					         , '' AS ADJ_END_DAY
+					         , '' AS ADJ_CONFIRM_DAY
+					         , '' AS NEW_NEXT_START_DAY
+					         , '' AS SUPP_ADJ_YN
+					      FROM DUAL
+					      )
+					      ORDER BY GBN
+					     )
+					     WHERE ROWNUM <= 1
+					) B
+				)
+
+		]]>	 
+	</select>	
+	
+	<delete id="deleteStPaymethodAdjCompare1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE  PAYMETHOD_ADJ_COMPARE 
+			WHERE 1 = 1
+			AND COMPLETE_DATE BETWEEN #lastAdjDay# AND #yesterDay#
+			AND PAYMETHOD IN ('K', 'P', 'R', 'KM', 'PM', 'RM', 'CF', 'DF', 'OF', 'BF', 'G', 'GM', 'EM', 'E','AF','IF','I','IM') 
+			AND DEPOT_STUS_CD != '002' 
+		]]>
+	</delete>	
+	
+	<delete id="deleteStPaymethodAdjCompare2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE PAYMETHOD_ADJ_COMPARE
+			WHERE PAYMETHOD_ADJ_TRGT_YMD LIKE #yesterDay#||'%'
+		]]>
+	</delete>	
+	
+	<update id="insertStPaymethodAdjCompare1" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO PAYMETHOD_ADJ_COMPARE(
+													PAYMETHOD_ADJ_TRGT_YMD
+												  , PAYMETHOD
+												  , BUY_COMP_CD
+												  , MEMBER_NO
+												  , COMPLETE_DATE
+												  , RECEV_AMT
+												  , DD_CPMPAR_YMD
+												  , DD_CPMPAR_HMS
+												  , DEPOT_STUS_CD
+												  , DEPOT_TREAT_YMD
+												  , Y_TREAT_OCCUR_YN
+												  , STRT_REG_DATE
+												  , FEE_AMT
+												)
+												(
+												    SELECT PAYMETHOD_ADJ_TRGT_YMD
+												          , PAYMETHOD
+												          , BUY_COMP_CD
+												          , NVL(MEMBER_NO, '1') as member_no
+												          , NVL(PMT_DATE, '00000000') AS COMPLETE_DATE
+												          , DECODE(PAYMETHOD, 'BF', -RECEV_AMT, 'OF', -RECEV_AMT, 'CF', -RECEV_AMT, 'DF', -RECEV_AMT, 'AF',-RECEV_AMT, 'IF',-RECEV_AMT, RECEV_AMT) AS RECEV_AMT
+												          , DD_CPMPAR_YMD
+												          , DD_CPMPAR_HMS
+												          , DEPOT_STUS_CD
+												          , DEPOT_TREAT_YMD
+												          , Y_TREAT_OCCUR_YN
+												          , STRT_REG_DATE
+												          , DECODE(PAYMETHOD, 'BF', -FEE_AMT, 'OF', -FEE_AMT, 'CF', -FEE_AMT, 'DF', -FEE_AMT, 'AF',-FEE_AMT, 'IF',-FEE_AMT, FEE_AMT) AS FEE_AMT
+												    FROM
+												    (
+												
+														        SELECT
+														            SUBSTR(B.PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'GM', 'G') AS PAYMETHOD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'GM', 'G') AS BUY_COMP_CD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'GM', 'G') AS MEMBER_NO
+														          , SUBSTR(B.PMT_DATE, 1, 8) AS PMT_DATE
+														          , SUM(A.AMOUNT) AS RECEV_AMT
+														          , NULL AS DD_CPMPAR_YMD
+														          , NULL AS DD_CPMPAR_HMS
+														          , '001' AS DEPOT_STUS_CD
+														          , NULL AS DEPOT_TREAT_YMD
+														          , NULL AS Y_TREAT_OCCUR_YN
+														          , SYSDATE AS STRT_REG_DATE
+														          , 0 AS FEE_AMT
+														        FROM OKCASH_PAYMENT A, PMT_INSTRUCTION B
+														        WHERE B.PMT_DATE BETWEEN BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+														          AND B.USE_YN = 'Y'
+														          AND A.PURCHASE_ID = B.PURCHASE_ID
+														        GROUP BY DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'GM', 'G')
+														               , SUBSTR(B.PMT_DATE, 1, 8)
+														
+														        UNION ALL
+														
+														        SELECT
+														            SUBSTR(B.PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'PM', 'P') AS PAYMETHOD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'PM', 'P') AS BUY_COMP_CD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'PM', 'P') AS MEMBER_NO
+														          , SUBSTR(B.PMT_DATE, 1, 8) AS PMT_DATE
+														          , SUM(A.AMOUNT) AS RECEV_AMT
+														          , NULL AS DD_CPMPAR_YMD
+														          , NULL AS DD_CPMPAR_HMS
+														          , '001' AS DEPOT_STUS_CD
+														          , NULL AS DEPOT_TREAT_YMD
+														          , NULL AS Y_TREAT_OCCUR_YN
+														          , SYSDATE AS STRT_REG_DATE
+														          , 0 AS FEE_AMT
+														        FROM SP_PAYMENT A, PMT_INSTRUCTION B
+														        WHERE B.PMT_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+														          AND B.USE_YN = 'Y'
+														          AND A.PURCHASE_ID = B.PURCHASE_ID
+														        GROUP BY DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'PM', 'P')
+														               , SUBSTR(B.PMT_DATE, 1, 8)
+														
+														        UNION ALL
+														
+														        SELECT
+														            SUBSTR(B.PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'RM', 'R') AS PAYMETHOD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'RM', 'R') AS BUY_COMP_CD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'RM', 'R') AS MEMBER_NO
+														          , SUBSTR(B.PMT_DATE, 1, 8) AS PMT_DATE
+														          , SUM(A.AMOUNT) AS RECEV_AMT
+														          , NULL AS DD_CPMPAR_YMD
+														          , NULL AS DD_CPMPAR_HMS
+														          , '001' AS DEPOT_STUS_CD
+														          , NULL AS DEPOT_TREAT_YMD
+														          , NULL AS Y_TREAT_OCCUR_YN
+														          , SYSDATE AS STRT_REG_DATE
+														          , 0 AS FEE_AMT
+														        FROM RM_PAYMENT A, PMT_INSTRUCTION B
+														        WHERE B.PMT_DATE BETWEEN #yesterDay#||'000000' AND #yesterDay#||'999999'
+														          AND B.USE_YN = 'Y'
+														          AND A.PURCHASE_ID = B.PURCHASE_ID
+														        GROUP BY DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'RM', 'R')
+														               , SUBSTR(B.PMT_DATE, 1, 8)
+														
+														        UNION ALL
+														
+														        SELECT SUBSTR(ONLINEDATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'OM', 'O') AS PAYMETHOD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'OM', 'O') AS BUY_COMP_CD
+														          , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'OM', 'O') AS MEMBER_NO
+														          , SUBSTR(B.PMT_DATE, 1, 8) AS PMT_DATE
+														          --, SUM(A.AMOUNT) AS RECEV_AMT
+														          , SUM(T.AMOUNT - (T.SP_AMOUNT + NVL(T.SP_PEF_AMOUNT, 0)) - (T.RM_AMOUNT + NVL(T.RM_PEF_AMOUNT, 0)) - T.COUPON_AMOUNT-NVL(T.AMOUNT_OKCASH,0)) AS RECEV_AMT
+														          , NULL AS DD_CPMPAR_YMD
+														          , NULL AS DD_CPMPAR_HMS
+														          , '001' AS DEPOT_STUS_CD
+														          , NULL AS DEPOT_TREAT_YMD
+														          , NULL AS Y_TREAT_OCCUR_YN
+														          , SYSDATE AS STRT_REG_DATE
+														          , 0 AS FEE_AMT
+														        FROM ONLINE_PAYMENT A, PMT_INSTRUCTION B, TXORDER T
+														        WHERE ONLINEDATE BETWEEN ?||'000000' AND ?||'999999'
+														          AND B.USE_YN = 'Y'
+														          AND A.PURCHASE_ID = B.PURCHASE_ID
+														          AND A.PURCHASE_ID = T.PURCHASE_ID
+														          AND T.COMPLETE_DATE IS NOT NULL
+														        GROUP BY DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'OM', 'O')
+														               , SUBSTR(ONLINEDATE, 1, 8)
+														               , SUBSTR(B.PMT_DATE, 1, 8)
+														        HAVING SUM(A.AMOUNT) <> 0
+												
+												        UNION ALL
+												
+														SELECT PAYMETHOD_ADJ_TRGT_YMD
+														  , PAYMETHOD
+														  , BUY_COMP_CD
+														  , MEMBER_NO
+														  , PMT_DATE
+														  , SUM(RECEV_AMT) AS RECEV_AMT
+														  , NULL AS DD_CPMPAR_YMD
+														  , NULL AS DD_CPMPAR_HMS
+														  , '001' AS DEPOT_STUS_CD
+														  , NULL AS DEPOT_TREAT_YMD
+														  , NULL AS Y_TREAT_OCCUR_YN
+														  , SYSDATE AS STRT_REG_DATE
+														  , SUM(FEE_AMT) AS FEE_AMT
+														FROM
+														(
+														    SELECT SUBSTR(AUTH_TIME, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+														      , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'BM', 'B') AS PAYMETHOD
+														      , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'BM', 'B') AS BUY_COMP_CD
+														      , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'BM', 'B') AS MEMBER_NO
+														      , SUBSTR(B.PMT_DATE, 1, 8) AS PMT_DATE
+														      , PRICE AS RECEV_AMT
+														      , FLOOR(PRICE * 0.0128) + FLOOR(FLOOR(PRICE * 0.0128) * 0.1) AS FEE_AMT
+														    FROM BANKTOWN A, PMT_INSTRUCTION B
+														        WHERE AUTH_TIME BETWEEN #yesterDay#||'000000' AND #yesterDay#||'999999'
+														          AND B.USE_YN = 'Y'
+														          AND A.PURCHASE_ID = B.PURCHASE_ID
+														          AND (    B.CANCEL_DATE IS NULL
+														                OR SUBSTR(A.AUTH_TIME, 1, 8) != SUBSTR(B.CANCEL_DATE, 1, 8)
+														              )
+														    UNION ALL
+														    SELECT /*+ leading(B) index(B IDX_PMT_INSTRUCTION09) */SUBSTR(CANCEL_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+														      , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'BM', 'B') AS PAYMETHOD
+														      , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'BM', 'B') AS BUY_COMP_CD
+														      , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'BM', 'B') AS MEMBER_NO
+														      , SUBSTR(B.CANCEL_DATE, 1, 8) AS PMT_DATE
+														      , (PRICE * -1) AS RECEV_AMT
+														      , 0 AS FEE_AMT
+														    FROM BANKTOWN A, PMT_INSTRUCTION B
+														        WHERE A.AUTH_TIME BETWEEN TO_CHAR(TO_DATE(#yesterDay#, 'YYYYMMDD') - 31, 'YYYYMMDD')||'000000' AND #yesterDay#||'999999'
+														          AND B.CANCEL_DATE BETWEEN #yesterDay#||'000000' AND #yesterDay#||'999999'
+														          AND B.USE_YN = 'Y'
+														          AND A.PURCHASE_ID = B.PURCHASE_ID
+														          AND B.STATE IN('2999')
+														          AND SUBSTR(A.AUTH_TIME, 1, 8) != SUBSTR(B.CANCEL_DATE, 1, 8)
+														)
+														GROUP BY PAYMETHOD, BUY_COMP_CD, MEMBER_NO
+														       , PAYMETHOD_ADJ_TRGT_YMD
+														       , PMT_DATE
+														HAVING SUM(RECEV_AMT) <> 0 OR SUM(FEE_AMT) <> 0
+												
+												      UNION ALL
+												
+														SELECT BUYCOMPREQYMD AS PAYMETHOD_ADJ_TRGT_YMD
+														  , DECODE(SUBSTR(P.PURCHASE_ID, 1, 1), '8', 'CM', 'C')AS PAYMETHOD
+														  , A.ACQUIRE_CODE AS BUY_COMP_CD
+														  , TO_CHAR(TO_NUMBER(LPAD(A.MEMBER_NO, 15, '0'))) AS MEMBER_NO
+														  , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+														  , SUM(A.TOTAL_AMOUNT) AS RECEV_AMT
+														  , NULL AS DD_CPMPAR_YMD
+														  , NULL AS DD_CPMPAR_HMS
+														  , '001' AS DEPOT_STUS_CD
+														  , NULL AS DEPOT_TREAT_YMD
+														  , NULL AS Y_TREAT_OCCUR_YN
+														  , SYSDATE AS STRT_REG_DATE
+														  , SUM(FLOOR(A.TOTAL_AMOUNT * NVL(DECODE(NVL(A.RESERVED5,'N'),'Y',C.CHECK_FEE,C.CARD_FEE),1.3)/100 )) AS FEE_AMT
+														FROM KICC_CREDIT A, PMT_INSTRUCTION P, CARDFEES C 
+														WHERE A.BUYCOMPREQYMD BETWEEN #yesterDay# AND #yesterDay#
+														  AND A.PURCHASE_ID = P.PURCHASE_ID
+														  AND P.USE_YN = 'Y'
+														  AND C.SHOP_DIV  = '01' 
+														  AND A.MEMBER_NO = C.JOIN_NO 
+														  AND SUBSTR(P.PMT_DATE, 1, 8) BETWEEN START_DATE AND END_DATE
+														  AND P.STATE IN('2200')
+														  AND A.MEMBER_NO IS NOT NULL
+														  AND A.MEMBER_NO <> '00971011184'
+														GROUP BY DECODE(SUBSTR(P.PURCHASE_ID, 1, 1), '8', 'CM', 'C'), BUYCOMPREQYMD, SUBSTR(P.PMT_DATE, 1, 8), A.ACQUIRE_CODE, TO_NUMBER(LPAD(A.MEMBER_NO, 15, '0'))
+												
+														UNION ALL
+												
+														SELECT PAYMETHOD_ADJ_TRGT_YMD, 
+														       PAYMETHOD , 
+														       BUY_COMP_CD, 
+														       MEMBER_NO, 
+														       PMT_DATE, 
+														       SUM(RECEV_AMT) RECEV_AMT, 
+														       MAX(DD_CPMPAR_YMD) DD_CPMPAR_YMD, 
+														       MAX(DD_CPMPAR_HMS) DD_CPMPAR_HMS , 
+														       MAX(DEPOT_STUS_CD) DEPOT_STUS_CD, 
+														       MAX(DEPOT_TREAT_YMD) DEPOT_TREAT_YMD, 
+														       MAX(Y_TREAT_OCCUR_YN) Y_TREAT_OCCUR_YN, 
+														       MAX(STRT_REG_DATE) STRT_REG_DATE, 
+														       SUM(FEE_AMT) FEE_AMT 
+														FROM ( 
+														SELECT BUYCOMPREQYMD AS PAYMETHOD_ADJ_TRGT_YMD
+														  , DECODE(SUBSTR(P.PURCHASE_ID, 1, 1), '8', 'DM', 'D')AS PAYMETHOD
+														  , A.ACQUIRE_CODE AS BUY_COMP_CD
+														  , 'D' AS MEMBER_NO
+														  , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+														  , SUM(A.TOTAL_AMOUNT) AS RECEV_AMT
+														  , NULL AS DD_CPMPAR_YMD
+														  , NULL AS DD_CPMPAR_HMS
+														  , '001' AS DEPOT_STUS_CD
+														  , NULL AS DEPOT_TREAT_YMD
+														  , NULL AS Y_TREAT_OCCUR_YN
+														  , SYSDATE AS STRT_REG_DATE
+														  , SUM(FLOOR(A.TOTAL_AMOUNT * NVL(DECODE(NVL(A.RESERVED5,'N'),'Y',C.CHECK_FEE,C.CARD_FEE),2.5)/100 )) AS FEE_AMT
+														FROM KICC_CREDIT A, PMT_INSTRUCTION P, CARDFEES C
+														WHERE A.BUYCOMPREQYMD BETWEEN #yesterDay# AND #yesterDay#
+														  AND A.PURCHASE_ID = P.PURCHASE_ID
+														  AND P.USE_YN = 'Y'
+														  AND C.SHOP_DIV  = '01' 
+														  AND C.JOIN_NO   = '00971011184' 
+														  AND SUBSTR(P.PMT_DATE, 1, 8) BETWEEN START_DATE AND END_DATE
+														  AND P.STATE IN('2200')
+														  AND A.MEMBER_NO IS NULL
+														GROUP BY DECODE(SUBSTR(P.PURCHASE_ID, 1, 1), '8', 'DM', 'D'), BUYCOMPREQYMD,  SUBSTR(P.PMT_DATE, 1, 8), A.ACQUIRE_CODE
+												
+												        UNION ALL
+												
+														SELECT BUYCOMPREQYMD AS PAYMETHOD_ADJ_TRGT_YMD
+														  , DECODE(SUBSTR(P.PURCHASE_ID, 1, 1), '8', 'DM', 'D')AS PAYMETHOD
+														  , A.ACQUIRE_CODE AS BUY_COMP_CD
+														  , 'D' AS MEMBER_NO
+														  , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+														  , SUM(A.TOTAL_AMOUNT) AS RECEV_AMT
+														  , NULL AS DD_CPMPAR_YMD
+														  , NULL AS DD_CPMPAR_HMS
+														  , '001' AS DEPOT_STUS_CD
+														  , NULL AS DEPOT_TREAT_YMD
+														  , NULL AS Y_TREAT_OCCUR_YN
+														  , SYSDATE AS STRT_REG_DATE
+														  , SUM(FLOOR(A.TOTAL_AMOUNT * NVL(DECODE(NVL(A.RESERVED5,'N'),'Y',C.CHECK_FEE,C.CARD_FEE),2.5)/100 )) AS FEE_AMT
+														FROM KICC_CREDIT A, PMT_INSTRUCTION P, CARDFEES C
+														WHERE A.BUYCOMPREQYMD BETWEEN #yesterDay# AND #yesterDay#
+														  AND A.PURCHASE_ID = P.PURCHASE_ID
+														  AND P.USE_YN = 'Y'
+														  AND C.SHOP_DIV  = '01' 
+														  AND A.MEMBER_NO = C.JOIN_NO 
+														  AND SUBSTR(P.PMT_DATE, 1, 8) BETWEEN START_DATE AND END_DATE
+														  AND P.STATE IN('2200')
+														  AND A.MEMBER_NO = '00971011184'
+														GROUP BY DECODE(SUBSTR(P.PURCHASE_ID, 1, 1), '8', 'DM', 'D'), BUYCOMPREQYMD,  SUBSTR(P.PMT_DATE, 1, 8), A.ACQUIRE_CODE
+														) 
+														GROUP BY PAYMETHOD_ADJ_TRGT_YMD, PAYMETHOD , BUY_COMP_CD, MEMBER_NO, PMT_DATE
+												
+												        UNION ALL
+												
+												        SELECT BUYCOMPREQYMD AS PAYMETHOD_ADJ_TRGT_YMD
+												          , '2' AS PAYMETHOD
+												          , A.BUYCOMPCD AS BUY_COMP_CD
+												          , NVL(A.JOINNO, '0') AS MEMBER_NO
+												          , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+												          , SUM(DECODE(CARDDEALDIVCD, '1', A.DEALAMT, '2', A.DEALAMT, '0', -1 * A.DEALAMT)) AS RECEV_AMT
+												          , NULL AS DD_CPMPAR_YMD
+												          , NULL AS DD_CPMPAR_HMS
+												          , '001' AS DEPOT_STUS_CD
+												          , NULL AS DEPOT_TREAT_YMD
+												          , NULL AS Y_TREAT_OCCUR_YN
+												          , SYSDATE AS STRT_REG_DATE
+												          , SUM(DECODE(CARDDEALDIVCD, '1', FLOOR(A.DEALAMT * NVL(DECODE(NVL(E.CARD_DIV_CODE,'00'),'01',C.CHECK_FEE,C.CARD_FEE),1.3)/100 ), '2', FLOOR(A.DEALAMT * NVL(DECODE(NVL(E.CARD_DIV_CODE,'00'),'01',C.CHECK_FEE,C.CARD_FEE),1.3)/100 ), '0', FLOOR(A.DEALAMT * NVL(DECODE(NVL(E.CARD_DIV_CODE,'00'),'01',C.CHECK_FEE,C.CARD_FEE),1.3)/100 ) * -1)) AS FEE_AMT     
+												        FROM PRRWT0700 A, PMT_INSTRUCTION P, CARDFEES C , PCSS_TRANS E 
+												        WHERE A.BUYCOMPREQYMD BETWEEN #yesterDay# AND #yesterDay#
+												          AND SUBSTR(A.RECEVNO, 1, 19) = P.PURCHASE_ID
+												          AND A.RECEVNO  = E.ACCEPT_NUM 
+												          AND C.SHOP_DIV = '01' 
+												          AND P.USE_YN = 'Y'
+												          AND A.DEALSTUSCD='S'
+												          AND NVL(A.JOINNO,'734136347') = C.JOIN_NO 
+												          AND A.CREDITCARDAPPRNO = E.AGREE_NUM        
+												          AND SUBSTR(P.PMT_DATE, 1, 8) BETWEEN START_DATE AND END_DATE
+												        GROUP BY BUYCOMPREQYMD, SUBSTR(P.PMT_DATE, 1, 8), A.BUYCOMPCD, NVL(A.JOINNO, '0')
+												
+														UNION ALL
+												
+												        SELECT /*+ leading(P C A) use_nl(P A) */ SUBSTR(P.PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+												          , 'BF' AS PAYMETHOD
+												          , 'BF' AS BUY_COMP_CD
+												          , 'BF' AS MEMBER_NO
+												          , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+												          , SUM(C.REF_PRICE) AS RECEV_AMT
+												          , NULL AS DD_CPMPAR_YMD
+												          , NULL AS DD_CPMPAR_HMS
+												          , '001' AS DEPOT_STUS_CD
+												          , NULL AS DEPOT_TREAT_YMD
+												          , NULL AS Y_TREAT_OCCUR_YN
+												          , SYSDATE AS STRT_REG_DATE
+												          , 0 AS FEE_AMT
+												        FROM BANKTOWN A, ONLINE_EX_PRICE C, PMT_INSTRUCTION P, CREDIT_RATE R
+												        WHERE P.PMT_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+												          AND A.PURCHASE_ID = C.PURCHASE_ID
+												          AND A.PURCHASE_ID = P.PURCHASE_ID
+												          AND P.PURCHASE_ID = C.PURCHASE_ID
+												          AND P.USE_YN = 'Y'
+												          AND C.MODIFY_STATE NOT IN('18', '19')
+												      AND R.ACQUIRE_CODE = 'B00'
+												      AND SUBSTR(P.PMT_DATE, 1, 8) BETWEEN START_DATE AND END_DATE
+												        GROUP BY SUBSTR(P.PMT_DATE, 1, 8)
+												        HAVING SUM(C.REF_PRICE) <> 0
+												
+												        UNION ALL
+												
+												        SELECT /*+ leading(P C A) use_nl(P A) */ SUBSTR(P.PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+												          , 'OF' AS PAYMETHOD
+												          , 'OF' AS BUY_COMP_CD
+												          , 'OF' AS MEMBER_NO
+												          , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+												          , SUM(C.REF_PRICE) AS RECEV_AMT
+												          , NULL AS DD_CPMPAR_YMD
+												          , NULL AS DD_CPMPAR_HMS
+												          , '001' AS DEPOT_STUS_CD
+												          , NULL AS DEPOT_TREAT_YMD
+												          , NULL AS Y_TREAT_OCCUR_YN
+												          , SYSDATE AS STRT_REG_DATE
+												          , 0 AS FEE_AMT
+												        FROM ONLINE_PAYMENT A, ONLINE_EX_PRICE C, PMT_INSTRUCTION P
+												        WHERE P.PMT_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+												          AND A.PURCHASE_ID = C.PURCHASE_ID
+												          AND A.PURCHASE_ID = P.PURCHASE_ID
+												          AND P.PURCHASE_ID = C.PURCHASE_ID
+												          AND P.USE_YN = 'Y'
+												          AND C.MODIFY_STATE NOT IN('18', '19')
+												        GROUP BY SUBSTR(P.PMT_DATE, 1, 8)
+												        HAVING SUM(C.REF_PRICE) <> 0
+												
+												        UNION ALL
+												
+												        SELECT /*+ leading(P C A R) use_nl(P A) */ SUBSTR(PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+												          , DECODE(A.MEMBER_NO, NULL, 'DF', 'CF') AS PAYMETHOD
+												          , A.ACQUIRE_CODE AS BUY_COMP_CD
+												          , NVL(A.MEMBER_NO, '0') AS MEMBER_NO
+												          , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+												          , SUM(C.REF_PRICE) AS RECEV_AMT
+												          , NULL AS DD_CPMPAR_YMD
+												          , NULL AS DD_CPMPAR_HMS
+												          , '001' AS DEPOT_STUS_CD
+												          , NULL AS DEPOT_TREAT_YMD
+												          , NULL AS Y_TREAT_OCCUR_YN
+												          , SYSDATE AS STRT_REG_DATE
+												          , 0 AS FEE_AMT
+												        FROM KICC_CREDIT A, ONLINE_EX_PRICE C, PMT_INSTRUCTION P, CREDIT_RATE R
+												        WHERE P.PMT_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+												          AND A.PURCHASE_ID = C.PURCHASE_ID
+												          AND A.PURCHASE_ID = P.PURCHASE_ID
+												          AND P.PURCHASE_ID = C.PURCHASE_ID
+												          AND P.USE_YN = 'Y'
+												          AND C.MODIFY_STATE NOT IN('18', '19')
+												          AND DECODE(A.TERMINAL_ID, '1528646', '2', '1528793', '3', '1') = R.GBN
+												          AND A.ACQUIRE_CODE = R.ACQUIRE_CODE
+												          AND SUBSTR(P.PMT_DATE, 1, 8) BETWEEN START_DATE AND END_DATE
+												        GROUP BY DECODE(A.MEMBER_NO, NULL, 'DF', 'CF')
+												           , SUBSTR(P.PMT_DATE, 1, 8)
+												           , A.ACQUIRE_CODE
+												           , NVL(A.MEMBER_NO, '0')
+												        HAVING SUM(C.REF_PRICE) <> 0        
+												
+												
+												        UNION ALL
+												
+												
+												        SELECT
+												            SUBSTR(A.COMPLETE_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+												          , DECODE(A.SHOP_ID, '8', 'KM', 'K') AS PAYMETHOD
+												          , DECODE(A.SHOP_ID, '8', 'KM', 'K') AS BUY_COMP_CD
+												          , DECODE(A.SHOP_ID, '8', 'KM', 'K') AS MEMBER_NO
+												          , SUBSTR(A.COMPLETE_DATE, 1, 8) AS PMT_DATE
+												          , SUM(A.COUPON_AMOUNT) AS RECEV_AMT
+												          , NULL AS DD_CPMPAR_YMD
+												          , NULL AS DD_CPMPAR_HMS
+												          , '001' AS DEPOT_STUS_CD
+												          , NULL AS DEPOT_TREAT_YMD
+												          , NULL AS Y_TREAT_OCCUR_YN
+												          , SYSDATE AS STRT_REG_DATE
+												          , 0 AS FEE_AMT
+												        FROM TXORDER A
+												        WHERE 1=1
+												          AND A.COMPLETE_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+												          AND A.CANCEL_STATE = 'N'
+												          AND A.CP_CMP = '1'
+												        GROUP BY DECODE(A.SHOP_ID, '8', 'KM', 'K')
+												               , SUBSTR(A.COMPLETE_DATE, 1, 8)
+												        HAVING SUM(A.AMOUNT) <> 0
+												
+														UNION ALL 
+												
+														SELECT
+													            SUBSTR(EO.ORDER_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+													          , DECODE(A.SHOP_ID, '8', 'EM', 'E') AS PAYMETHOD
+													          , DECODE(A.SHOP_ID, '8', 'EM', 'E') AS BUY_COMP_CD
+													          , DECODE(A.SHOP_ID, '8', 'EM', 'E') AS MEMBER_NO
+													          , SUBSTR(A.COMPLETE_DATE, 1, 8) AS PMT_DATE
+													          , SUM(EO.TOTAL_COST) AS RECEV_AMT
+													          , NULL AS DD_CPMPAR_YMD
+													          , NULL AS DD_CPMPAR_HMS
+													          , '001' AS DEPOT_STUS_CD
+													          , NULL AS DEPOT_TREAT_YMD
+													          , NULL AS Y_TREAT_OCCUR_YN
+													          , SYSDATE AS STRT_REG_DATE
+													          , SUM(FLOOR(EO.TOTAL_COST * ROUND( EM.FEE_RATE / 100, 3))) AS FEE_AMT
+													        FROM TXORDER A, EXTERNAL_BIZ_ORDER EO, EXTERNAL_BIZ_MALL EM
+													        WHERE 1=1
+													          AND EO.ORDER_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+													          AND EO.ORDER_DATE BETWEEN EM.APPLY_START_DATE||'000000' AND EM.APPLY_END_DATE||'999999'
+													          AND EO.MALL_CODE = EM.MALL_CODE
+													          AND EO.PURCHASE_ID = A.PURCHASE_ID
+													          AND EO.EXT_BIZ_CODE = A.EXT_BIZ_CODE
+													          AND EO.EXT_BIZ_ORD_NO = A.EXT_BIZ_ORD_NO
+													          AND EO.EXT_BIZ_ORD_SEQ = A.EXT_BIZ_ORD_SEQ
+													          AND NOT EXISTS( SELECT 'X'
+													                          FROM EXTERNAL_BIZ_CLAME EC
+													                          WHERE EC.EXT_BIZ_CODE = EO.EXT_BIZ_CODE
+													                            AND EC.EXT_BIZ_ORD_NO = EO.EXT_BIZ_ORD_NO
+													                            AND EC.CLAME_PROC_STATUS NOT IN('CC25', 'CR25', 'CE10')
+													                        )
+													        GROUP BY DECODE(A.SHOP_ID, '8', 'EM', 'E')
+													               , SUBSTR(EO.ORDER_DATE, 1, 8)
+													               , SUBSTR(A.COMPLETE_DATE, 1, 8)
+													        HAVING SUM(EO.TOTAL_COST) <> 0
+													    )
+												        
+												        UNION ALL
+														
+														 SELECT PAYMETHOD_ADJ_TRGT_YMD  
+																	    , PAYMETHOD  
+																	    , BUY_COMP_CD  
+																	    , MEMBER_NO  
+																	    , PMT_DATE  
+																	    , SUM(RECEV_AMT) AS RECEV_AMT  
+																	    , NULL AS DD_CPMPAR_YMD  
+																	    , NULL AS DD_CPMPAR_HMS  
+																	    , '001' AS DEPOT_STUS_CD  
+																	    , NULL AS DEPOT_TREAT_YMD  
+																	    , NULL AS Y_TREAT_OCCUR_YN  
+																	    , SYSDATE AS STRT_REG_DATE  
+																	    , SUM(FEE_AMT) AS FEE_AMT  
+																	  FROM  
+																	  (  
+														
+																      SELECT BUYCOMPREQYMD AS PAYMETHOD_ADJ_TRGT_YMD    
+																	  			        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'AM', 'A') AS PAYMETHOD    
+																	  			        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'AM', 'A') AS BUY_COMP_CD    
+																	  			        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'AM', 'A') AS MEMBER_NO    
+																	  			        , SUBSTR(B.PMT_DATE, 1, 8) AS PMT_DATE     
+																	  			        , SUM(AMT) AS RECEV_AMT                    
+																	  			        , SUM(FLOOR(AMT * C.RATE00)) AS FEE_AMT    
+														              FROM KAKAO_PAYMENT A, PMT_INSTRUCTION B, ( SELECT RATE00 FROM CREDIT_RATE WHERE GBN = '1' and ACQUIRE_CODE = 'A00') C   
+																	  WHERE A.BUYCOMPREQYMD BETWEEN #yesterDay# AND #yesterDay#       
+																	  	AND B.USE_YN = 'Y'                  
+																	  	AND B.STATE IN('2200')              
+																	  	AND A.PURCHASE_ID = B.PURCHASE_ID     
+																	  GROUP BY DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'AM', 'A') 
+																	  			,A.BUYCOMPREQYMD, SUBSTR(B.PMT_DATE, 1, 8) 
+																	  )   
+																	  GROUP BY PAYMETHOD, BUY_COMP_CD, MEMBER_NO   
+																	         , PAYMETHOD_ADJ_TRGT_YMD  
+																	         , PMT_DATE  
+																	  HAVING SUM(RECEV_AMT) <> 0 OR SUM(FEE_AMT) <> 0  
+												
+												
+												        UNION ALL
+												
+												        SELECT /*+ leading(P C A) use_nl(P A) */ SUBSTR(P.PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+												          , 'AF' AS PAYMETHOD
+												          , 'AF' AS BUY_COMP_CD
+												          , 'AF' AS MEMBER_NO
+												          , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+												          , SUM(C.REF_PRICE) AS RECEV_AMT
+												          , NULL AS DD_CPMPAR_YMD
+												          , NULL AS DD_CPMPAR_HMS
+												          , '001' AS DEPOT_STUS_CD
+												          , NULL AS DEPOT_TREAT_YMD
+												          , NULL AS Y_TREAT_OCCUR_YN
+												          , SYSDATE AS STRT_REG_DATE
+												          , 0 AS FEE_AMT
+												        FROM KAKAO_PAYMENT A, ONLINE_EX_PRICE C, PMT_INSTRUCTION P
+												        WHERE P.PMT_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+												          AND A.PURCHASE_ID = C.PURCHASE_ID
+												          AND A.PURCHASE_ID = P.PURCHASE_ID
+												          AND P.PURCHASE_ID = C.PURCHASE_ID
+												          AND P.USE_YN = 'Y'
+												          AND C.MODIFY_STATE NOT IN('18', '19')
+												        GROUP BY SUBSTR(P.PMT_DATE, 1, 8)
+												        HAVING SUM(C.REF_PRICE) <> 0
+												
+												        UNION ALL
+												
+												  		SELECT PAYMETHOD_ADJ_TRGT_YMD   
+												 			    , PAYMETHOD   
+												 			    , BUY_COMP_CD   
+												 			    , MEMBER_NO   
+												 			    , PMT_DATE   
+												 			    , SUM(RECEV_AMT) AS RECEV_AMT   
+												 			    , NULL AS DD_CPMPAR_YMD   
+												 			    , NULL AS DD_CPMPAR_HMS   
+												 			    , '001' AS DEPOT_STUS_CD   
+												 			    , NULL AS DEPOT_TREAT_YMD   
+												 			    , NULL AS Y_TREAT_OCCUR_YN   
+												 			    , SYSDATE AS STRT_REG_DATE   
+												 			    , SUM(FEE_AMT) AS FEE_AMT   
+												 			  FROM   
+												 			  (   
+												 			      SELECT SUBSTR(APPTIME, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD   
+												 			        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'IM', 'I') AS PAYMETHOD   
+												 			        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'IM', 'I') AS BUY_COMP_CD   
+												 			        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'IM', 'I') AS MEMBER_NO   
+												 			        , SUBSTR(B.PMT_DATE, 1, 8) AS PMT_DATE   
+															        , A.AMOUNT AS RECEV_AMT   
+															        , FLOOR(A.AMOUNT * C.RATE00) AS FEE_AMT   
+															      FROM MOBILE_PAYMENT A, PMT_INSTRUCTION B ,( SELECT RATE00 FROM CREDIT_RATE WHERE GBN = '1' and ACQUIRE_CODE = 'I00') C  
+															          WHERE APPTIME BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'  
+															            AND B.USE_YN = 'Y'   
+															            AND A.PURCHASE_ID = B.PURCHASE_ID   
+															            AND (    B.CANCEL_DATE IS NULL   
+															                  OR SUBSTR(A.APPTIME, 1, 8) != SUBSTR(B.CANCEL_DATE, 1, 8)   
+															                )   
+															      UNION ALL   
+															      SELECT SUBSTR(B.CANCEL_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD   
+															        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'IM', 'I') AS PAYMETHOD   
+															        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'IM', 'I') AS BUY_COMP_CD   
+															        , DECODE(SUBSTR(B.PURCHASE_ID, 1, 1), '8', 'IM', 'I') AS MEMBER_NO   
+															        , SUBSTR(B.CANCEL_DATE, 1, 8) AS PMT_DATE   
+															        , (A.AMOUNT * -1) AS RECEV_AMT   
+															        , 0 AS FEE_AMT   
+															      FROM MOBILE_PAYMENT A, PMT_INSTRUCTION B   
+															          WHERE A.APPTIME BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999' 
+															            AND B.CANCEL_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999' 
+															            AND B.USE_YN = 'Y'   
+															            AND A.PURCHASE_ID = B.PURCHASE_ID    
+															            AND B.STATE IN('2999')   
+															            AND SUBSTR(A.APPTIME, 1, 8) != SUBSTR(B.CANCEL_DATE, 1, 8)   
+															  )   
+															  GROUP BY PAYMETHOD, BUY_COMP_CD, MEMBER_NO   
+															         , PAYMETHOD_ADJ_TRGT_YMD   
+															         , PMT_DATE   
+															  HAVING SUM(RECEV_AMT) <> 0 OR SUM(FEE_AMT) <> 0   
+												
+												        UNION ALL
+												
+												        SELECT /*+ leading(P C A) use_nl(P A) */ SUBSTR(P.PMT_DATE, 1, 8) AS PAYMETHOD_ADJ_TRGT_YMD
+												          , 'IF' AS PAYMETHOD
+												          , 'IF' AS BUY_COMP_CD
+												          , 'IF' AS MEMBER_NO
+												          , SUBSTR(P.PMT_DATE, 1, 8) AS PMT_DATE
+												          , SUM(C.REF_PRICE) AS RECEV_AMT
+												          , NULL AS DD_CPMPAR_YMD
+												          , NULL AS DD_CPMPAR_HMS
+												          , '001' AS DEPOT_STUS_CD
+												          , NULL AS DEPOT_TREAT_YMD
+												          , NULL AS Y_TREAT_OCCUR_YN
+												          , SYSDATE AS STRT_REG_DATE
+												          , 0 AS FEE_AMT
+												        FROM MOBILE_PAYMENT A, ONLINE_EX_PRICE C, PMT_INSTRUCTION P
+												        WHERE P.PMT_DATE BETWEEN #lastAdjDay#||'000000' AND #yesterDay#||'999999'
+												          AND A.PURCHASE_ID = C.PURCHASE_ID
+												          AND A.PURCHASE_ID = P.PURCHASE_ID
+												          AND P.PURCHASE_ID = C.PURCHASE_ID
+												          AND P.USE_YN = 'Y'
+												          AND C.MODIFY_STATE NOT IN('18', '19')
+												        GROUP BY SUBSTR(P.PMT_DATE, 1, 8)
+												        HAVING SUM(C.REF_PRICE) <> 0
+												)
+		]]>	 
+	</update>	
+
+	<select id="selectStPaymethodAdjCompare" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 1
+				, 1 AS PAYMETHOD_ADJ_TRGT_YMD
+				, PAYMETHOD
+				, BUY_COMP_CD
+				, MEMBER_NO
+				, COMPLETE_DATE
+				, SUM(RECEV_AMT) AS RECEV_AMT 
+				, 1 AS DD_CPMPAR_YMD
+				, 1 AS DD_CPMPAR_HMS
+				, '001' AS DEPOT_STUS_CD
+				, NULL AS DEPOT_TREAT_YMD
+				, NULL AS Y_TREAT_OCCUR_YN
+				, 1 AS STRT_REG_DATE
+				, SUM(FEE_AMT) AS FEE_AMT 
+			FROM ST_PAYMETHOD_ADJ_COMPARE
+			WHERE 1=1
+			AND PAYMETHOD IN('K', 'P', 'R' , 'G' , 'CF', 'DF', 'BF', 'OF', 'KM', 'PM', 'RM' , 'GM','AF','IF')
+			AND DEPOT_STUS_CD != '002' 
+			AND COMPLETE_DATE BETWEEN #adjStartDay# AND #adjEndDay#
+			GROUP BY PAYMETHOD, BUY_COMP_CD, MEMBER_NO, COMPLETE_DATE 
+		]]>	 
+	</select>	
+	
+	<delete id="deleteStPaymethodAdjCompare3" parameterClass="java.util.HashMap">
+		<![CDATA[
+			DELETE ST_PAYMETHOD_ADJ_COMPARE
+			WHERE 1 = 1
+			AND PAYMETHOD IN('K', 'P', 'R', 'G' , 'CF', 'DF', 'BF', 'OF', 'KM', 'PM', 'RM' , 'GM' ,'AF','IF')
+			AND COMPLETE_DATE BETWEEN #adjStartDay# AND #adjEndDay#
+		]]>
+	</delete>	
+	 
+	<update id="insertStPaymethodAdjCompare2" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO PAYMETHOD_ADJ_COMPARE
+												(
+												      PAYMETHOD_ADJ_TRGT_YMD
+												    , PAYMETHOD
+												    , BUY_COMP_CD
+												    , MEMBER_NO
+												    , COMPLETE_DATE
+												    , RECEV_AMT
+												    , DD_CPMPAR_YMD
+												    , DD_CPMPAR_HMS
+												    , DEPOT_STUS_CD
+												    , DEPOT_TREAT_YMD
+												    , Y_TREAT_OCCUR_YN
+												    , STRT_REG_DATE
+												    , FEE_AMT
+												)
+										VALUES
+												(
+												      #adjEndDay#
+												    , #paymethod#
+												    , #buyCompCd#
+												    , #memberNo#
+												    , #completeDate#
+												    , #recevAmt#
+												    , NULL
+												    , NULL
+												    , #depotStusCd#
+												    , #depotTreatYmd#
+												    , NULL
+												    , SYSDATE
+												    , #feeAmt#
+												)
+		]]>
+	</update>	
+	<update id="updateStHistoryAdjust" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_HISTORY_ADJUST
+				SET SUPP_ADJ_YN = 'S' 
+			WHERE 1 = 1
+			AND END_DAY = TO_CHAR(TO_DATE(#adjEndDay#, 'YYYYMMDD'), 'YYYY/MM/DD')
+		]]>
+	</update>	
+	
+</sqlMap>

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.EpostShopSpFeeStat">
+
+	<select id="selectEpostShopSpFeeStatList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" remapResults="true">
+		SELECT CHUNGCODE
+	         , CHUNGNAME
+	         <isEqual property="search_type" compareValue="02">
+	         	, SERVERCODE
+	         	, SERVERNAME
+	         </isEqual>
+	         <isEqual property="search_type" compareValue="03">
+	         	, SERVERCODE
+	         	, SERVERNAME
+	         	, POSTCODE
+	         	, POSTNAME
+	         </isEqual>
+	         , TO_CHAR(SUM(NVL(MALLORDER,0)), 'FM999,999,999,999') CNT
+	         , TO_CHAR(SUM(NVL(MALLSALE,0)), 'FM999,999,999,999')  AMT
+	         , TO_CHAR(SUM(NVL(POSTAGE,0)), 'FM999,999,999,999')   POSTAGE
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'01',MALLORDER,0)), 'FM999,999,999,999') CNT1
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'01',MALLSALE,0)), 'FM999,999,999,999')  AMT1
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'01',POSTAGE,0)), 'FM999,999,999,999')   POSTAGE1
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'02',MALLORDER,0)), 'FM999,999,999,999') CNT2
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'02',MALLSALE,0)), 'FM999,999,999,999')  AMT2
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'02',POSTAGE,0)), 'FM999,999,999,999')   POSTAGE2
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'03',MALLORDER,0)), 'FM999,999,999,999') CNT3
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'03',MALLSALE ,0)), 'FM999,999,999,999') AMT3
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'03',POSTAGE  ,0)), 'FM999,999,999,999') POSTAGE3
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'05',MALLORDER,0)), 'FM999,999,999,999') CNT5
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'05',MALLSALE,0)), 'FM999,999,999,999')  AMT5
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'05',MALLSALE,0)), 'FM999,999,999,999')  AMT5
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'07',MALLORDER,0)), 'FM999,999,999,999') CNT7
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'07',MALLSALE,0)), 'FM999,999,999,999')  AMT7
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'07',POSTAGE,0)), 'FM999,999,999,999')   POSTAGE7
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'08',MALLORDER,0)), 'FM999,999,999,999') CNT8
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'08',MALLSALE ,0)), 'FM999,999,999,999') AMT8
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'08',POSTAGE  ,0)), 'FM999,999,999,999') POSTAGE8
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'09',MALLORDER,0)), 'FM999,999,999,999') CNT9
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'09',MALLSALE ,0)), 'FM999,999,999,999') AMT9
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'09',POSTAGE  ,0)), 'FM999,999,999,999') POSTAGE9
+		  FROM MP_POSTAGE_RESULTS_DAY
+		  WHERE CHUNGCODE LIKE '0'||#chung_code#||'%'
+		    AND DAYS BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		    AND SERVERCODE  = SERVERCODE
+		    AND SHOP_ID &lt; '10'
+		    <isNotEmpty property="server_ecode" prepend="AND">
+		    	SERVERCODE = #server_ecode#
+		    </isNotEmpty>
+		  GROUP BY CHUNGCODE, CHUNGNAME
+         <isEqual property="search_type" compareValue="02">
+         	, SERVERCODE, SERVERNAME
+         </isEqual>
+         <isEqual property="search_type" compareValue="03">
+         	, SERVERCODE, SERVERNAME, POSTCODE, POSTNAME
+         </isEqual>
+		  ORDER BY CHUNGCODE, CHUNGNAME
+         <isEqual property="search_type" compareValue="02">
+         	, SERVERCODE, SERVERNAME
+         </isEqual>
+         <isEqual property="search_type" compareValue="03">
+         	, SERVERCODE, SERVERNAME, POSTCODE, POSTNAME
+         </isEqual>
+	</select>
+	
+	<select id="selectEpostShopSpFeeStatTotal" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	    SELECT TO_CHAR(SUM(NVL(MALLORDER,0)), 'FM999,999,999,999') CNT
+	         , TO_CHAR(SUM(NVL(MALLSALE,0)), 'FM999,999,999,999')  AMT
+	         , TO_CHAR(SUM(NVL(POSTAGE,0)), 'FM999,999,999,999')   POSTAGE
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'01',MALLORDER,0)), 'FM999,999,999,999') CNT1
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'01',MALLSALE,0)), 'FM999,999,999,999')  AMT1
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'01',POSTAGE,0)), 'FM999,999,999,999')   POSTAGE1
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'02',MALLORDER,0)), 'FM999,999,999,999') CNT2
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'02',MALLSALE,0)), 'FM999,999,999,999')  AMT2
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'02',POSTAGE,0)), 'FM999,999,999,999')   POSTAGE2
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'03',MALLORDER,0)), 'FM999,999,999,999') CNT3
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'03',MALLSALE ,0)), 'FM999,999,999,999') AMT3
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'03',POSTAGE  ,0)), 'FM999,999,999,999') POSTAGE3
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'05',MALLORDER,0)), 'FM999,999,999,999') CNT5
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'05',MALLSALE,0)), 'FM999,999,999,999')  AMT5
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'05',MALLSALE,0)), 'FM999,999,999,999')  AMT5
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'07',MALLORDER,0)), 'FM999,999,999,999') CNT7
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'07',MALLSALE,0)), 'FM999,999,999,999')  AMT7
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'07',POSTAGE,0)), 'FM999,999,999,999')   POSTAGE7
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'08',MALLORDER,0)), 'FM999,999,999,999') CNT8
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'08',MALLSALE ,0)), 'FM999,999,999,999') AMT8
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'08',POSTAGE  ,0)), 'FM999,999,999,999') POSTAGE8
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'09',MALLORDER,0)), 'FM999,999,999,999') CNT9
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'09',MALLSALE ,0)), 'FM999,999,999,999') AMT9
+	         , TO_CHAR(SUM(DECODE(SHOP_ID,'09',POSTAGE  ,0)), 'FM999,999,999,999') POSTAGE9
+		  FROM MP_POSTAGE_RESULTS_DAY
+		  WHERE CHUNGCODE LIKE '0'||#chung_code#||'%'
+		    AND DAYS BETWEEN REPLACE(#search_strt_ymd#, '-') AND REPLACE(#search_end_ymd#, '-')
+		    AND SERVERCODE  = SERVERCODE
+		    AND SHOP_ID &lt; '10'
+	    <isNotEmpty property="server_ecode" prepend="AND">
+	    	SERVERCODE = #server_ecode#
+	    </isNotEmpty>
+	</select>
+	
+	<select id="selectServerEcodeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT EDPSCD AS VALUE
+		     , PONM AS NAME 
+		  FROM PICMT0060
+	     WHERE USEYN = 'Y'
+	       AND PODIVCD = '06'
+	       AND RCOCD = #rcocd#
+	    ORDER BY REGIPOCD
+	</select>
+</sqlMap>

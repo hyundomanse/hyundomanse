@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.PostSaleDivResult">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectPicmt0060List" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT TOTYM                                                                                                                                                                                               
+			    ,REGIPOCD                                                                                                                                                                                              
+			    ,WNDINTDIVCD                                                                                                                                                                                           
+			    ,EXPREGIPOCD                                                                                                                                                                                           
+			    ,AGNCDIVCD                                                                                                                                                                                             
+			    ,SUM(RECEVPRCLAMT) AS RECEVPRCLAMT                                                                                                                                                                     
+			    ,SUM(DELIVPRCLAMT) AS DELIVPRCLAMT                                                                                                                                                                     
+			    ,SUM(SHOPPRCLAMT)  AS SHOPPRCLAMT                                                                                                                                                                      
+			    ,SUM(RECEVPRCLAMT + DELIVPRCLAMT)  AS DISTPRCLAMT                                                                                                                                                      
+			    ,SUM(NRECPRCLAMT)  AS NRECPRCLAMT                                                                                                                                                                      
+			    ,SYSDATE           AS SYSDATE1                                                                                                                                                                         
+			    ,'1400'||SUBSTR(TO_CHAR(ADD_MONTHS( SYSDATE, -1), 'YYYYMM'),3,4)||'00'||SUBSTR(TO_CHAR(ADD_MONTHS( SYSDATE, -1), 'YYYYMM'),3,4)||'00'||TO_CHAR(SYSDATE,'HH24MISS')||'PMDW' AS TRAN_ID                  
+			    ,'N'               AS LINK_STAT_CD                                                                                                                                                                     
+			    ,SYSDATE           AS LINK_DEAL_DTM                                                                                                                                                                    
+			    ,TOTYM             AS CUD_KEY                                                                                                                                                                          
+			    ,SELLRECEVDIVCD                                                                                                                                                                                        
+			FROM(                                                                                                                                                                                                      
+			    SELECT                                                                                                                                                                                                 
+			          'RECEV_SPC+ABR' AS GBN                                                                                                                                                     
+			        , SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                    
+			        , B.REGIPOCD                                                                                                                                                                              
+			        , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS WNDINTDIVCD                                                                                                   
+			        , B.MPOREGIPOCD AS EXPREGIPOCD                                                                                                                                                            
+			        , (CASE WHEN B.PODIVCD='08' THEN '1' ELSE '0' END) AS AGNCDIVCD                                                                                                                       
+			        , ROUND(SUM(A.PRCLAMT) *  0.8) AS RECEVPRCLAMT                                                                                                                          
+			        , 0 AS DELIVPRCLAMT                                                                                                                                                     
+			        , 0 AS SHOPPRCLAMT                                                                                                                                                        
+			        , 0 AS DISTPRCLAMT                                                                                                                                                           
+			        , 0 AS NRECPRCLAMT                                                                                                                                                                    
+			        , DECODE(A.SELLRECEVDIVCD, '011', '001', '012', '002', A.SELLRECEVDIVCD ) AS SELLRECEVDIVCD                                                
+			    FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                          
+			    WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                          
+			      AND B.ltupdcd = 'Y'                                                                                                                                                                                  
+			      AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                                   
+			      AND A.SHOPDIVCD NOT IN('009', '010', '011', '012', '013')                                                                                                        
+			    GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, SELLRECEVDIVCD, A.SHOPDIVCD                                                                                                 
+			    UNION ALL                                                                                                                                                                                              
+			    SELECT                                                                                                                                                                                                 
+			          'RECEV_-ABR' AS GBN                                                                                                                        
+			        , SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                              
+			        , B.REGIPOCD                                                                                                                                                                                       
+			        , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS WNDINTDIVCD                                                                                                                      
+			        , B.MPOREGIPOCD AS EXPREGIPOCD                                                                                                                                                                     
+			        , (CASE WHEN B.PODIVCD='08' THEN '1' ELSE '0' END) AS AGNCDIVCD                                                                                                                                    
+			        , -ROUND(SUM(A.PRCLAMT) *  0.8) AS RECEVPRCLAMT                                                                                                                                                    
+			        , 0 AS DELIVPRCLAMT                                                                                                                                                                                
+			        , 0 AS SHOPPRCLAMT                                                                                                                                                                                 
+			        , 0 AS DISTPRCLAMT                                                                                                                                                                                 
+			        , 0 AS NRECPRCLAMT                                                                                                                                                                   
+			        , '001' AS SELLRECEVDIVCD                                                                                                                 
+			    FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                          
+			    WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                          
+			      AND B.ltupdcd = 'Y'                                                                                                                                                                                  
+			      AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                                   
+			      AND A.SELLRECEVDIVCD IN('008')                                                                                                                                                                       
+			      AND A.SHOPDIVCD NOT IN('009', '010', '011', '012', '013')                                                                                                        
+			    GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, SELLRECEVDIVCD, A.SHOPDIVCD                                                                                                 
+			    UNION ALL                                                                                                                                                                                              
+			   SELECT                                                                                                                                                                                                  
+			          'NREC_SPC+ABR' AS GBN                                                                                                                                                        
+			        , SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                     
+			        , B.REGIPOCD                                                                                                                                                                              
+			        , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS WNDINTDIVCD                                                                                                  
+			        , B.MPOREGIPOCD AS EXPREGIPOCD                                                                                                                                                            
+			        , (CASE WHEN B.PODIVCD='08' THEN '1' ELSE '0' END) AS AGNCDIVCD                                                                                                                       
+			        , 0 AS RECEVPRCLAMT                                                                                                                                                     
+			        , 0 AS DELIVPRCLAMT                                                                                                                                                   
+			        , 0 AS SHOPPRCLAMT                                                                                                                                                      
+			        , 0 AS DISTPRCLAMT                                                                                                                                                           
+			        , SUM(A.PRCLAMT)  AS NRECPRCLAMT                                                                                                                                                      
+			        , DECODE(A.SELLRECEVDIVCD, '011', '001', '012', '002', A.SELLRECEVDIVCD ) AS SELLRECEVDIVCD                                                 
+			    FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                          
+			    WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                          
+			      AND B.ltupdcd = 'Y'                                                                                                                                                                                  
+			      AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                                   
+			      AND A.SHOPDIVCD  IN('009', '010', '011', '012', '013')                                                                                                           
+			    GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, SELLRECEVDIVCD, A.SHOPDIVCD                                                                                                 
+			    UNION ALL                                                                                                                                                                                              
+			    SELECT                                                                                                                                                                                                 
+			          'NREC_-ABR' AS GBN                                                                                                                            
+			        , SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                              
+			        , B.REGIPOCD                                                                                                                                                                                       
+			        , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS WNDINTDIVCD                                                                                                                      
+			        , B.MPOREGIPOCD AS EXPREGIPOCD                                                                                                                                                                     
+			        , (CASE WHEN B.PODIVCD='08' THEN '1' ELSE '0' END) AS AGNCDIVCD                                                                                                                                    
+			        , 0 AS RECEVPRCLAMT                                                                                                                                                                                
+			        , 0 AS DELIVPRCLAMT                                                                                                                                                                                
+			        , 0 AS SHOPPRCLAMT                                                                                                                                                                                 
+			        , 0 AS DISTPRCLAMT                                                                                                                                                                                 
+			        , -SUM(A.PRCLAMT)  AS NRECPRCLAMT                                                                                                                                                     
+			        , '001' AS SELLRECEVDIVCD                                                                                                                    
+			    FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                          
+			    WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                          
+			      AND B.ltupdcd = 'Y'                                                                                                                                                                                  
+			      AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                                   
+			      AND A.SELLRECEVDIVCD IN('008')                                                                                                                                                                       
+			      AND A.SHOPDIVCD  IN('009', '010', '011', '012', '013')                                                                                                                                               
+			    GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, SELLRECEVDIVCD, A.SHOPDIVCD                                                                                                 
+			    UNION ALL                                                                                                                                                                                              
+			    SELECT                                                                                                                                                                                                 
+			          'SUPP_SPC+ABR' AS GBN                                                                                                                                                      
+			        , SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                              
+			        , DECODE(A.SHOPDIVCD, '009', '89903', '010', '89903', '011', '89903', '012', '89903', '013', '89903', B.REGIPOCD) AS REGIPOCD                           
+			        , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS AGNCDIVCD                                                                                                                        
+			        , DECODE(A.SHOPDIVCD, '009', '89903', '010', '89903', '011', '89903', '012', '89903', '013', '89903', B.MPOREGIPOCD) AS EXPREGIPOCD                                                                
+			        , DECODE(A.SHOPDIVCD, '009', '0', '010', '0', '011', '0', '012', '0', '013', '0', (CASE WHEN B.PODIVCD='08' THEN '1' ELSE '0' END)) AS PODIVCD                                                     
+			        , 0 AS RECEVPRCLAMT                                                                                                                                                                                
+			        , ROUND(SUM(A.PRCLAMT) * 0.2) AS DELIVPRCLAMT                                                                                                                            
+			        , SUM(A.PRCLAMT) AS SHOPPRCLAMT                                                                                                                                            
+			        , 0 AS DISTPRCLAMT                                                                                                                                                                                 
+			        , 0 AS NRECPRCLAMT                                                                                                                                                                      
+			        , DECODE(A.SELLRECEVDIVCD, '011', '001', '012', '002', A.SELLRECEVDIVCD ) AS SELLRECEVDIVCD                                                                                                        
+			    FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                          
+			    WHERE A.SUPPPOREGIPOCD = B.REGIPOCD                                                                                                                                                                    
+			      AND B.ltupdcd = 'Y'                                                                                                                                                                                  
+			      AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                                   
+			    GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, SELLRECEVDIVCD, A.SHOPDIVCD                                                                                                 
+			    UNION ALL                                                                                                                                                                                              
+			    SELECT                                                                                                                                                                                                 
+			          'SUPP_-ABR' AS GBN                                                                                                                            
+			        , SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                              
+			        , DECODE(A.SHOPDIVCD, '009', '89903', '010', '89903', '011', '89903', '012', '89903', '013', '89903', B.REGIPOCD) AS REGIPOCD                                                                      
+			        , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS AGNCDIVCD                                                                                                                        
+			        , DECODE(A.SHOPDIVCD, '009', '89903', '010', '89903', '011', '89903', '012', '89903', '013', '89903', B.MPOREGIPOCD) AS EXPREGIPOCD                                                                
+			        , DECODE(A.SHOPDIVCD, '009', '0', '010', '0', '011', '0', '012', '0', '013', '0', (CASE WHEN B.PODIVCD='08' THEN '1' ELSE '0' END)) AS PODIVCD                                                     
+			        , 0 AS RECEVPRCLAMT                                                                                                                                                                                
+			        , -ROUND(SUM(A.PRCLAMT) * 0.2) AS DELIVPRCLAMT                                                                                                                           
+			        , -SUM(A.PRCLAMT) AS SHOPPRCLAMT                                                                                                                                           
+			        , 0 AS DISTPRCLAMT                                                                                                                                                                                 
+			        , 0 AS NRECPRCLAMT                                                                                                                                                                      
+			        , '001' AS SELLRECEVDIVCD                                                                                                                                                                          
+			    FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                          
+			    WHERE A.SUPPPOREGIPOCD = B.REGIPOCD                                                                                                                                                                    
+			      AND B.ltupdcd = 'Y'                                                                                                                                                                                  
+			      AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                                   
+			      AND A.SELLRECEVDIVCD IN('008')                                                                                                                                                                       
+			    GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, SELLRECEVDIVCD, A.SHOPDIVCD                                                                                                 
+			    UNION ALL                                                                                                                                                                                              
+			    SELECT 'DIST_SPC+ABR' AS GBN                                                                                                                                                    
+			          , TOTYM                                                                                                                                                                                          
+			          , REGIPOCD                                                                                                                                                                                       
+			          , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS WINDINTDIVCD                                                                                                                   
+			          , MPOREGIPOCD EXPREGIPOCD                                                                                                                                                                        
+			          , DECODE(A.SHOPDIVCD, '009', '0', '010', '0', '011', '0', '012', '0', '013', '0', (CASE WHEN A.PODIVCD='08' THEN '1' ELSE '0' END)) AS AGNCDIVCD                                                 
+			          , 0 AS RECEVPRCLAMT                                                                                                                                                                              
+			          , 0 AS DELIVPRCLAMT                                                                                                                                                                              
+			          , 0 AS SHOPPRCLAMT                                                                                                                                                                               
+			          , SUM(NVL(SELFAMT,0)+NVL(RECEVAMT,0)+NVL(SUPPAMT,0)) DISTPRCLAMT                                                                                                                                 
+			          , 0 AS NRECPRCLAMT                                                                                                                                                                    
+			          , DECODE(A.SELLRECEVDIVCD, '011', '001', '012', '002', A.SELLRECEVDIVCD ) AS SELLRECEVDIVCD                                                                                                      
+			      FROM (                                                                                                                                                                                               
+			        SELECT SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                         
+			             , B.REGIPOCD                 AS REGIPOCD                                                                                                                                                      
+			             , B.MPOREGIPOCD              AS MPOREGIPOCD                                                                                                                                                   
+			             , B.PODIVCD                  AS PODIVCD                                                                                                                                                       
+			             , A.SELLRECEVDIVCD           AS SELLRECEVDIVCD                                                                                                                                                
+			             , A.SHOPDIVCD                AS SHOPDIVCD                                                                                                                                                     
+			             , ROUND(SUM(A.PRCLAMT) * 0.8) AS SELFAMT                                                                                                                                                      
+			             , 0 AS RECEVAMT                                                                                                                                                                               
+			             , 0 AS SUPPAMT                                                                                                                                                                                
+			          FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                    
+			         WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                     
+			           AND A.REGIPOCD = A.SUPPPOREGIPOCD                                                                                                                                                               
+			           AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                              
+			           AND A.SELLRECEVDIVCD NOT IN ('002', '012')                                                                                                                                                      
+			           AND B.LTUPDCD = 'Y'                                                                                                                                                                             
+			         GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, A.SHOPDIVCD,A.SELLRECEVDIVCD                                                                                           
+			         UNION ALL                                                                                                                                                                                         
+			        SELECT SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                         
+			             , B.REGIPOCD                 AS REGIPOCD                                                                                                                                                      
+			             , B.MPOREGIPOCD              AS MPOREGIPOCD                                                                                                                                                   
+			             , B.PODIVCD                  AS PODIVCD                                                                                                                                                       
+			             , A.SELLRECEVDIVCD           AS SELLRECEVDIVCD                                                                                                                                                
+			             , A.SHOPDIVCD                AS SHOPDIVCD                                                                                                                                                     
+			             , 0 AS SELFAMT                                                                                                                                                                                
+			             , ROUND(SUM(A.PRCLAMT) *  0.8, 0) AS RECEVAMT                                                                                                                                                 
+			             , 0 AS SUPPAMT                                                                                                                                                                                
+			          FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                    
+			         WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                     
+			           AND A.REGIPOCD <> A.SUPPPOREGIPOCD                                                                                                                                                              
+			           AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                              
+			           AND A.SELLRECEVDIVCD NOT IN ('002', '012')                                                                                                                                                      
+			           AND B.LTUPDCD = 'Y'                                                                                                                                                                             
+			         GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, A.SHOPDIVCD,A.SELLRECEVDIVCD                                                                                           
+			         UNION ALL                                                                                                                                                                                         
+			        SELECT SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                         
+			             , B.REGIPOCD                 AS REGIPOCD                                                                                                                                                      
+			             , B.MPOREGIPOCD              AS MPOREGIPOCD                                                                                                                                                   
+			             , B.PODIVCD                  AS PODIVCD                                                                                                                                                       
+			             , A.SELLRECEVDIVCD           AS SELLRECEVDIVCD                                                                                                                                                
+			             , A.SHOPDIVCD                AS SHOPDIVCD                                                                                                                                                     
+			             , 0 AS SELFAMT                                                                                                                                                                                
+			             , 0 AS RECEVAMT                                                                                                                                                                               
+			             , ROUND(SUM(A.PRCLAMT) * 0.2, 0) AS SUPPAMT                                                                                                                                                   
+			          FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                    
+			         WHERE A.SUPPPOREGIPOCD = B.REGIPOCD                                                                                                                                                               
+			           AND A.REGIPOCD <> A.SUPPPOREGIPOCD                                                                                                                                                              
+			           AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                              
+			           AND A.SELLRECEVDIVCD NOT IN ('002', '012')                                                                                                                                                      
+			           AND B.LTUPDCD = 'Y'                                                                                                                                                                             
+			         GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, A.SHOPDIVCD,A.SELLRECEVDIVCD                                                                                           
+			     ) A                                                                                                                                                                                                   
+			     GROUP BY  A.TOTYM, A.REGIPOCD, A.MPOREGIPOCD, A.PODIVCD, A.SELLRECEVDIVCD, A.SHOPDIVCD                                                                                                                
+			     UNION ALL                                                                                                                                                                                             
+			     SELECT 'DIST_-ABR' AS GBN                                                                                                                                                    
+			          , TOTYM                                                                                                                                                                                          
+			          , REGIPOCD                                                                                                                                                                                       
+			          , DECODE(A.SHOPDIVCD, '006', '1', '007', '1', '008', '1', '2') AS WINDINTDIVCD                                                                                                                   
+			          , MPOREGIPOCD EXPREGIPOCD                                                                                                                                                                        
+			          , DECODE(A.SHOPDIVCD, '009', '0', '010', '0', '011', '0', '012', '0', '013', '0', (CASE WHEN A.PODIVCD='08' THEN '1' ELSE '0' END)) AS AGNCDIVCD                                                 
+			          , 0 AS RECEVPRCLAMT                                                                                                                                                                              
+			          , 0 AS DELIVPRCLAMT                                                                                                                                                                              
+			          , 0 AS SHOPPRCLAMT                                                                                                                                                                               
+			          , SUM(NVL(SELFAMT,0)+NVL(RECEVAMT,0)+NVL(SUPPAMT,0)) DISTPRCLAMT                                                                                                                                 
+			          , 0 AS NRECPRCLAMT                                                                                                                                                                    
+			          , '001' AS SELLRECEVDIVCD                                                                                                                                                                        
+			      FROM (                                                                                                                                                                                               
+			        SELECT SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                         
+			             , B.REGIPOCD                 AS REGIPOCD                                                                                                                                                      
+			             , B.MPOREGIPOCD              AS MPOREGIPOCD                                                                                                                                                   
+			             , B.PODIVCD                  AS PODIVCD                                                                                                                                                       
+			             , A.SELLRECEVDIVCD           AS SELLRECEVDIVCD                                                                                                                                                
+			             , A.SHOPDIVCD                AS SHOPDIVCD                                                                                                                                                     
+			             , - ROUND(SUM(A.PRCLAMT) * 0.8) AS SELFAMT                                                                                                                                                    
+			             , 0 AS RECEVAMT                                                                                                                                                                               
+			             , 0 AS SUPPAMT                                                                                                                                                                                
+			          FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                    
+			         WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                     
+			           AND A.REGIPOCD = A.SUPPPOREGIPOCD                                                                                                                                                               
+			           AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                              
+			           AND A.SELLRECEVDIVCD = '008'                                                                                                                                                                    
+			           AND B.LTUPDCD = 'Y'                                                                                                                                                                             
+			         GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, A.SHOPDIVCD,A.SELLRECEVDIVCD                                                                                           
+			         UNION ALL                                                                                                                                                                                         
+			        SELECT SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                         
+			             , B.REGIPOCD                 AS REGIPOCD                                                                                                                                                      
+			             , B.MPOREGIPOCD              AS MPOREGIPOCD                                                                                                                                                   
+			             , B.PODIVCD                  AS PODIVCD                                                                                                                                                       
+			             , A.SELLRECEVDIVCD           AS SELLRECEVDIVCD                                                                                                                                                
+			             , A.SHOPDIVCD                AS SHOPDIVCD                                                                                                                                                     
+			             , 0 AS SELFAMT                                                                                                                                                                                
+			             , -ROUND(SUM(A.PRCLAMT) * 0.8, 0) AS RECEVAMT                                                                                                                                                 
+			             , 0 AS SUPPAMT                                                                                                                                                                                
+			          FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                    
+			         WHERE A.REGIPOCD = B.REGIPOCD                                                                                                                                                                     
+			           AND A.REGIPOCD <> A.SUPPPOREGIPOCD                                                                                                                                                              
+			           AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                              
+			           AND A.SELLRECEVDIVCD = '008'                                                                                                                                                                    
+			           AND B.LTUPDCD = 'Y'                                                                                                                                                                             
+			         GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, A.SHOPDIVCD,A.SELLRECEVDIVCD                                                                                           
+			         UNION ALL                                                                                                                                                                                         
+			         SELECT SUBSTR(A.SELLRECEVYMD,0,6) AS TOTYM                                                                                                                                                        
+			             , B.REGIPOCD                 AS REGIPOCD                                                                                                                                                      
+			             , B.MPOREGIPOCD              AS MPOREGIPOCD                                                                                                                                                   
+			             , B.PODIVCD                  AS PODIVCD                                                                                                                                                       
+			             , A.SELLRECEVDIVCD           AS SELLRECEVDIVCD                                                                                                                                                
+			             , A.SHOPDIVCD                AS SHOPDIVCD                                                                                                                                                     
+			             , 0 AS SELFAMT                                                                                                                                                                                
+			             , 0 AS RECEVAMT                                                                                                                                                                               
+			             , -ROUND(SUM(A.PRCLAMT) * 0.2, 0) AS SUPPAMT                                                                                                                                                  
+			          FROM PBSDT0160 A, PICMT0060 B                                                                                                                                                                    
+			         WHERE A.SUPPPOREGIPOCD = B.REGIPOCD                                                                                                                                                               
+			           AND A.REGIPOCD <> A.SUPPPOREGIPOCD                                                                                                                                                              
+			           AND A.SELLRECEVYMD BETWEEN TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'01' AND TO_CHAR(ADD_MONTHS( SYSDATE, -1) ,'YYYYMM')||'31'                                                              
+			           AND A.SELLRECEVDIVCD = '008'                                                                                                                                                                    
+			           AND B.LTUPDCD = 'Y'                                                                                                                                                                             
+			         GROUP BY SUBSTR(A.SELLRECEVYMD,0,6), B.REGIPOCD, B.MPOREGIPOCD, B.PODIVCD, A.SHOPDIVCD,A.SELLRECEVDIVCD                                                                                           
+			       )A                                                                                                                                                                                                  
+			       GROUP BY A.TOTYM, A.REGIPOCD, A.MPOREGIPOCD, A.PODIVCD, A.SHOPDIVCD, A.SELLRECEVDIVCD                                                                                                               
+			   )                                                                                                                                                                                                       
+			   GROUP BY TOTYM,WNDINTDIVCD,REGIPOCD,EXPREGIPOCD,AGNCDIVCD, SELLRECEVDIVCD                                                                                                                               
+			   ORDER BY TOTYM,WNDINTDIVCD,REGIPOCD,EXPREGIPOCD,AGNCDIVCD, SELLRECEVDIVCD                                                                                                                               
+		]]>	 
+	</select>
+	
+	
+	<delete id="deletePostSaleDivResult" parameterClass="java.util.HashMap">
+		<![CDATA[
+			Delete From POST_SALE_DIV_RESULT
+			Where  TOTYM Like TO_CHAR(ADD_MONTHS( SYSDATE, -1), 'YYYYMM') || '%' 
+		]]>
+	</delete>	
+	 	
+	<update id="insertPostSaleDivResult" parameterClass="java.util.HashMap">
+		<![CDATA[
+			Insert into POST_SALE_DIV_RESULT ( TOTYM, REGIPOCD, WNDINTDIVCD,  EXPREGIPOCD,  AGNCDIVCD, SELLRECEVDIVCD,RECEVPRCLAMT,DELIVPRCLAMT,SHOPPRCLAMT,DISTPRCLAMT,NRECPRCLAMT, 
+			TRAN_ID,LINK_STAT_CD,LINK_DEAL_DTM) VALUES ( ?,?,?,?,?,?,?,?,?,?, ?, 
+			'1400'||SUBSTR(TO_CHAR(ADD_MONTHS( SYSDATE, -1), 'YYYYMM'),3,4)||'00'||SUBSTR(TO_CHAR(ADD_MONTHS( SYSDATE, -1), 'YYYYMM'),3,4)|| LPAD(?, 8, '0') ||'PMDW' ,'N',sysdate ) 
+		]]>
+	</update>	
+	 	
+</sqlMap>

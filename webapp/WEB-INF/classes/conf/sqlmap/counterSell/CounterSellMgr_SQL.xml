@@ -1,0 +1,4590 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.CounterSell">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS CNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE CNUM >= #firstIndex#
+		]]>
+	</sql>
+
+<!-- 창구판매_업체연계 리스트 조회(우체국) -->
+	<select id="selectCounterSellCompLinkList" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		<include refid="pagingHeader"/>
+		SELECT	BIZ_CODE
+				,BIZ_NAME
+				,TMNL_ID
+				,BOSS_NAME
+				,REGISTER_NO
+				,BUSINESS_COND
+				,BUSINESS_CATE
+				,TELEPHONE
+				,SUBSTR(INIT_TIME,0,4)||'-'||SUBSTR(INIT_TIME,5,2)||'-'||SUBSTR(INIT_TIME,7,2)||' '||SUBSTR(INIT_TIME,9,2)||':'||SUBSTR(INIT_TIME,11,2)||':'||SUBSTR(INIT_TIME,13,2) INIT_TIME
+				,WRK_GBN
+				,TX_ID
+		FROM	IF_BIZCODE
+		WHERE	1=1
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue="00">
+			AND (BIZ_CODE LIKE '%'||#searchWord#||'%' OR BIZ_NAME LIKE '%'||#searchWord#||'%' OR TMNL_ID LIKE '%'||#searchWord#||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="01">
+			AND 	BIZ_CODE LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="02">
+			AND 	BIZ_NAME LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="03">
+			AND 	TMNL_ID LIKE '%'||#searchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+		<include refid="pagingFooter"/>
+	</select>
+	<!-- 창구판매_업체연계 리스트 카운트 (우체국) -->
+	<select id="selectCounterSellCompLinkCount" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT	COUNT(*)
+		FROM	IF_BIZCODE
+		WHERE	1=1
+		<isNotEmpty property="searchWord">
+			<isEqual property="searchIndex" compareValue="00">
+			AND (BIZ_CODE LIKE '%'||#searchWord#||'%' OR BIZ_NAME LIKE '%'||#searchWord#||'%' OR TMNL_ID LIKE '%'||#searchWord#||'%')
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="01">
+			AND 	BIZ_CODE LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="02">
+			AND 	BIZ_NAME LIKE '%'||#searchWord#||'%'
+			</isEqual>
+			<isEqual property="searchIndex" compareValue="03">
+			AND 	TMNL_ID LIKE '%'||#searchWord#||'%'
+			</isEqual>
+		</isNotEmpty>
+	</select>
+
+
+	<!-- 우정청 리스트 조회 -->
+	<select id="selectPostOffice1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	PONM,RCOCD,MPOREGIPOCD,REGIPOCD
+		FROM 	PICMT0060
+		WHERE 	USEYN	='Y'
+		AND 	DSCDPOYN='N'
+		AND 	PODIVCD	='02'
+		ORDER BY PONM
+	</select>
+
+	<!-- 총괄국 리스트 조회 -->
+	<select id="selectPostOffice2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT	PONM, RCOCD, MPOREGIPOCD, REGIPOCD
+		FROM 	PICMT0060
+		WHERE 	USEYN='Y'
+		AND 	DSCDPOYN='N'
+		AND 	PODIVCD IN ('05', '06', '10', '18')
+		AND 	RCOCD = #searchRcoCd#
+		ORDER BY PONM
+	</select>
+
+	<!-- 판매국 리스트 조회 -->
+	<select id="selectPostOffice3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT 	PONM, RCOCD, MPOREGIPOCD, REGIPOCD
+		FROM 	PICMT0060
+		WHERE 	USEYN='Y'
+		AND 	DSCDPOYN='N'
+		AND  	PODIVCD IN ('06', '07', '08', '09', '12', '13')
+		AND 	MPOREGIPOCD = #searchMporegipocd#
+		ORDER BY PONM
+	</select>
+
+
+	<!-- 창구판매_판매현황 카운트 (우체국) -->
+	<select id="selectSellGoodsTotCnt1" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT COUNT(*) AS TOTCNT
+
+	FROM(
+		    SELECT /*+ leading(POST) use_hash(M) */
+		           1 SDIV,
+		           POST.RCOCD,
+		           POST.MPOREGIPOCD,
+		           POST.REGIPOCD,
+		           POST.RCONM,
+		           NVL(POST.MPONM,' ') MPONM,
+		           POST.PONM,
+		           TO_CHAR(TO_DATE(SELLRECEVYMD,'YYYYMMDD'),'YYYYMMDD') SELLRECEVYMD,
+
+					NVL((SELECT MAX(BCNC_NM)
+	                       FROM CO_SUPP_COMP_MAST
+	                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+	                       FROM IFR_PBSET0510
+	                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+	                   ), ' ') BIZNAME,
+
+		           TPPRMGOODSCD,
+		           (SELECT TPPRMGOODSNM
+		              FROM IFR_PBSET0510
+		             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+		           SELLCNT,
+		           SELLAMT,
+		           DECODE((SELECT SETLTYPECD
+		                     FROM IFR_PBSAT0510
+		                    WHERE SELLRECEVNO = M.SELLRECEVNO),'001','현금','002','카드',' ') setlTypeCd,
+		           NVL(FEERATE,0) feeRate,
+		           NVL(FEEAMT,0) feeAmt
+		      FROM IFR_PBSAT0520 M,
+		           (SELECT RCOCD,
+		                   DECODE(RCOCD,'00','본부',
+		                                '10','서울청',
+		                                '15','경인청',
+		                                '20','부산청',
+		                                '30','충청청',
+		                                '40','전남청',
+		                                '50','경북청',
+		                                '60','전북청',
+		                                '70','강원청',
+		                                '80','제주청') RCONM,
+		                   MPOREGIPOCD,
+		                   (SELECT PONM
+		                      FROM PICMT0060
+		                     WHERE REGIPOCD = P.MPOREGIPOCD
+		                       AND USEYN = 'Y') MPONM,
+		                   REGIPOCD,
+		                   PONM
+		              FROM PICMT0060 P
+		             WHERE USEYN ='Y'
+
+						<isNotEmpty property="searchPost1">
+							AND RCOCD LIKE '%' || #searchPost1# || '%'
+						</isNotEmpty>
+
+						<isNotEmpty property="searchPost2">
+							AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+						</isNotEmpty>
+
+						<isNotEmpty property="searchPost3">
+							AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+						</isNotEmpty>
+
+		               ) POST
+			WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+			  AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+			<isNotEmpty property="suppCompId">
+		   	  AND (SELECT SUBCOMPCD
+		             FROM IFR_PBSET0510
+		         	WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+						= #suppCompId#
+			</isNotEmpty>
+		   	  AND (SELECT ACTIVYN
+		             FROM IFR_PBSAT0510
+		            WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+
+			UNION ALL
+			SELECT /*+ leading(POST) use_hash(M) */
+			       2 SDIV,
+			       RCOCD,
+			       MPOREGIPOCD,
+			       REGIPOCD,
+			       '소 계' RCONM,
+			       ' ' MPONM,
+			       ' ' PONM,
+			       ' ' SELLRECEVYMD,
+			       ' ' BIZNAME,
+			       ' ' TPPRMGOODSCD,
+			       ' ' TPPRMGOODSNM,
+			       SUM(SELLCNT) SELLCNT,
+			       SUM(SELLAMT) SELLAMT,
+			       ' ' setlTypeCd,
+			       AVG(NVL(FEERATE,0)) feeRate,
+			       SUM(NVL(FEEAMT,0)) feeAmt
+			  FROM IFR_PBSAT0520 M,
+			       (SELECT RCOCD,
+			               MPOREGIPOCD,
+			               REGIPOCD,
+			               PONM
+			         FROM PICMT0060 P
+			        WHERE USEYN ='Y'
+
+					<isNotEmpty property="searchPost1">
+						AND RCOCD LIKE '%' || #searchPost1# || '%'
+					</isNotEmpty>
+
+					<isNotEmpty property="searchPost2">
+						AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+					</isNotEmpty>
+
+					<isNotEmpty property="searchPost3">
+						AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+					</isNotEmpty>
+			          ) POST
+
+			 WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+
+			   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+			<isNotEmpty property="suppCompId">
+			   AND (SELECT SUBCOMPCD
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+						= #suppCompId#
+			</isNotEmpty>
+
+			   AND (SELECT ACTIVYN
+			          FROM IFR_PBSAT0510
+			         WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+			 GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD
+
+			 UNION ALL
+			 SELECT /*+ leading(POST) use_hash(M) */
+			       3 SDIV,
+			       'ZZ' RCOCD,
+			       ' ' MPOREGIPOCD,
+			       ' ' REGIPOCD,
+			       '합 계' RCONM,
+			       ' ' MPONM,
+			       ' ' PONM,
+			       ' ' SELLRECEVYMD,
+			       ' ' BIZNAME,
+			       ' ' TPPRMGOODSCD,
+			       ' ' TPPRMGOODSNM,
+			       SUM(SELLCNT) SELLCNT,
+			       SUM(SELLAMT) SELLAMT,
+			       ' ' setlTypeCd,
+			       AVG(NVL(FEERATE,0)) feeRate,
+			       SUM(NVL(FEEAMT,0)) feeAmt
+			  FROM IFR_PBSAT0520 M,
+		           (SELECT RCOCD,
+		                   MPOREGIPOCD,
+		                   REGIPOCD,
+		                   PONM
+		              FROM PICMT0060 P
+		             WHERE USEYN ='Y'
+
+						<isNotEmpty property="searchPost1">
+							AND RCOCD LIKE '%' || #searchPost1# || '%'
+						</isNotEmpty>
+
+						<isNotEmpty property="searchPost2">
+							AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+						</isNotEmpty>
+
+						<isNotEmpty property="searchPost3">
+							AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+						</isNotEmpty>
+
+		               ) POST
+
+			 WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+
+			   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+			<isNotEmpty property="suppCompId">
+			   AND (SELECT SUBCOMPCD
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+						= #suppCompId#
+			</isNotEmpty>
+
+			   AND (SELECT ACTIVYN
+			          FROM IFR_PBSAT0510
+			         WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+			 ORDER BY RCOCD
+					 ,MPOREGIPOCD
+					 ,REGIPOCD
+					 ,SDIV
+					 ,SELLRECEVYMD
+					 ,TPPRMGOODSCD
+   	) T1
+	</select>
+
+	<!-- 창구판매_판매현황 리스트 조회(우체국) -->
+	<select id="selectSellGoodsList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT T2.ONUM
+         , T2.SDIV
+         , T2.RCOCD
+         , T2.MPOREGIPOCD
+         , T2.REGIPOCD
+         , T2.RCONM
+         , T2.MPONM
+         , T2.PONM
+         , T2.SELLRECEVYMD
+         , T2.BIZNAME
+         , T2.TPPRMGOODSCD
+         , T2.TPPRMGOODSNM
+         , T2.SELLCNT
+         , T2.SELLAMT
+         , T2.SETLTYPECD
+         , T2.FEERATE
+         , T2.FEEAMT
+
+	FROM(
+			SELECT ROWNUM AS ONUM
+	             , T1.SDIV
+	             , T1.RCOCD
+	             , T1.MPOREGIPOCD
+	             , T1.REGIPOCD
+	             , T1.RCONM
+	             , T1.MPONM
+	             , T1.PONM
+	             , T1.SELLRECEVYMD
+	             , T1.BIZNAME
+	             , T1.TPPRMGOODSCD
+	             , T1.TPPRMGOODSNM
+	             , T1.SELLCNT
+	             , T1.SELLAMT
+	             , T1.SETLTYPECD
+	             , T1.FEERATE
+	             , T1.FEEAMT
+
+			FROM(
+				    SELECT /*+ leading(POST) use_hash(M) */
+				           1 SDIV,
+				           POST.RCOCD,
+				           POST.MPOREGIPOCD,
+				           POST.REGIPOCD,
+				           POST.RCONM,
+				           NVL(POST.MPONM,' ') MPONM,
+				           POST.PONM,
+				           TO_CHAR(TO_DATE(SELLRECEVYMD,'YYYYMMDD'),'YYYYMMDD') SELLRECEVYMD,
+
+							NVL((SELECT MAX(BCNC_NM)
+		                    	   FROM CO_SUPP_COMP_MAST
+		                      	  WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                       							  FROM IFR_PBSET0510
+		                      							 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+		                   ), ' ') BIZNAME,
+
+				           TPPRMGOODSCD,
+				           (SELECT TPPRMGOODSNM
+				              FROM IFR_PBSET0510
+				             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+				           SELLCNT,
+				           SELLAMT,
+				           DECODE((SELECT SETLTYPECD
+				                     FROM IFR_PBSAT0510
+				                    WHERE SELLRECEVNO = M.SELLRECEVNO),'001','현금','002','카드',' ') setlTypeCd,
+				           NVL(FEERATE,0) feeRate,
+				           NVL(FEEAMT,0) feeAmt
+				      FROM IFR_PBSAT0520 M,
+				           (SELECT RCOCD,
+				                   DECODE(RCOCD,'00','본부',
+				                                '10','서울청',
+				                                '15','경인청',
+				                                '20','부산청',
+				                                '30','충청청',
+				                                '40','전남청',
+				                                '50','경북청',
+				                                '60','전북청',
+				                                '70','강원청',
+				                                '80','제주청') RCONM,
+				                   MPOREGIPOCD,
+				                   (SELECT PONM
+				                      FROM PICMT0060
+				                     WHERE REGIPOCD = P.MPOREGIPOCD
+				                       AND USEYN = 'Y') MPONM,
+				                   REGIPOCD,
+				                   PONM
+				              FROM PICMT0060 P
+				             WHERE USEYN ='Y'
+
+								<isNotEmpty property="searchPost1">
+									AND RCOCD LIKE '%' || #searchPost1# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost2">
+									AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost3">
+									AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+								</isNotEmpty>
+
+				               ) POST
+					WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+					  AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+					<isNotEmpty property="suppCompId">
+						AND (SELECT SUBCOMPCD
+						FROM IFR_PBSET0510
+						WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) = #suppCompId#
+					</isNotEmpty>
+				   	  AND (SELECT ACTIVYN
+				             FROM IFR_PBSAT0510
+				            WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+
+					UNION ALL
+					SELECT /*+ leading(POST) use_hash(M) */
+					       2 SDIV,
+					       RCOCD,
+					       MPOREGIPOCD,
+					       REGIPOCD,
+					       '소 계' RCONM,
+					       ' ' MPONM,
+					       ' ' PONM,
+					       ' ' SELLRECEVYMD,
+					       ' ' BIZNAME,
+					       ' ' TPPRMGOODSCD,
+					       ' ' TPPRMGOODSNM,
+					       SUM(SELLCNT) SELLCNT,
+					       SUM(SELLAMT) SELLAMT,
+					       ' ' setlTypeCd,
+					       AVG(NVL(FEERATE,0)) feeRate,
+					       SUM(NVL(FEEAMT,0)) feeAmt
+					  FROM IFR_PBSAT0520 M,
+					       (SELECT RCOCD,
+					               MPOREGIPOCD,
+					               REGIPOCD,
+					               PONM
+					         FROM PICMT0060 P
+					        WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+					          ) POST
+
+					 WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+
+					   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+					<isNotEmpty property="suppCompId">
+					   AND (SELECT SUBCOMPCD
+					          FROM IFR_PBSET0510
+					         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+								= #suppCompId#
+					</isNotEmpty>
+
+					   AND (SELECT ACTIVYN
+					          FROM IFR_PBSAT0510
+					         WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+					 GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD
+
+					 UNION ALL
+					 SELECT /*+ leading(POST) use_hash(M) */
+					       3 SDIV,
+					       'ZZ' RCOCD,
+					       ' ' MPOREGIPOCD,
+					       ' ' REGIPOCD,
+					       '합 계' RCONM,
+					       ' ' MPONM,
+					       ' ' PONM,
+					       ' ' SELLRECEVYMD,
+					       ' ' BIZNAME,
+					       ' ' TPPRMGOODSCD,
+					       ' ' TPPRMGOODSNM,
+					       SUM(SELLCNT) SELLCNT,
+					       SUM(SELLAMT) SELLAMT,
+					       ' ' setlTypeCd,
+					       AVG(NVL(FEERATE,0)) feeRate,
+					       SUM(NVL(FEEAMT,0)) feeAmt
+					  FROM IFR_PBSAT0520 M,
+				           (SELECT RCOCD,
+				                   MPOREGIPOCD,
+				                   REGIPOCD,
+				                   PONM
+				              FROM PICMT0060 P
+				             WHERE USEYN ='Y'
+
+								<isNotEmpty property="searchPost1">
+									AND RCOCD LIKE '%' || #searchPost1# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost2">
+									AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost3">
+									AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+								</isNotEmpty>
+
+				               ) POST
+
+					 WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+
+					   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+					<isNotEmpty property="suppCompId">
+					   AND (SELECT SUBCOMPCD
+					          FROM IFR_PBSET0510
+					         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+								= #suppCompId#
+					</isNotEmpty>
+
+					   AND (SELECT ACTIVYN
+					          FROM IFR_PBSAT0510
+					         WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+					 ORDER BY RCOCD
+							 ,MPOREGIPOCD
+							 ,REGIPOCD
+							 ,SDIV
+							 ,SELLRECEVYMD
+							 ,TPPRMGOODSCD
+	    	) T1
+	)T2
+
+	WHERE 1=1
+	<isNotNull property="firstIndex">
+		<isNotNull property="lastIndex">
+    		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+    	</isNotNull>
+    </isNotNull>
+ 	</select>
+
+	<!-- 창구판매_판매현황 카운트 (공급업체) -->
+	<select id="selectSellGoodsTotCnt2" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT COUNT(*) AS TOTCNT
+
+	FROM(
+		SELECT /*+ leading(POST) use_hash(M) */
+				1 SDIV,
+
+                NVL((SELECT MAX(SUPP_COMP_ID)
+                       FROM CO_SUPP_COMP_MAST
+                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                                              FROM IFR_PBSET0510
+                                             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)),'YY') BIZCODE,
+
+				NVL((SELECT MAX(BCNC_NM)
+                       FROM CO_SUPP_COMP_MAST
+                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                       						  FROM IFR_PBSET0510
+                      						 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)), ' ') BIZNAME,
+
+		       	TPPRMGOODSCD,
+		       	(SELECT TPPRMGOODSNM
+		           FROM IFR_PBSET0510
+		          WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+		       	TO_CHAR(TO_DATE(SELLRECEVYMD,'YYYYMMDD'),'YYYY-MM-DD') SELLRECEVYMD,
+		       	SELLCNT,
+		       	SELLAMT,
+		       	POST.PONM,
+		       	DECODE((SELECT SETLTYPECD
+		                  FROM IFR_PBSAT0510
+		                 WHERE SELLRECEVNO = M.SELLRECEVNO),'001','현금','002','카드',' ') setlTypeCd
+		   FROM IFR_PBSAT0520 M,
+				(SELECT RCOCD,
+		              	DECODE(RCOCD,'00','본부',
+		                	         '10','서울청',
+									 '15','경인청',
+									 '20','부산청',
+									 '30','충청청',
+									 '40','전남청',
+									 '50','경북청',
+									 '60','전북청',
+									 '70','강원청',
+									 '80','제주청') RCONM,
+		              	MPOREGIPOCD,
+		              	(SELECT PONM
+		                   FROM PICMT0060
+		                  WHERE REGIPOCD = P.MPOREGIPOCD
+		                    AND USEYN = 'Y') MPONM,
+		              	REGIPOCD,
+		              	PONM
+		           FROM PICMT0060 P
+		          WHERE USEYN ='Y'
+
+					<isNotEmpty property="searchPost1">
+						AND RCOCD LIKE '%' || #searchPost1# || '%'
+					</isNotEmpty>
+
+					<isNotEmpty property="searchPost2">
+						AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+					</isNotEmpty>
+
+					<isNotEmpty property="searchPost3">
+						AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+					</isNotEmpty>
+
+		            ) POST
+
+		 WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+		   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+		<isNotEmpty property="suppCompId">
+		   AND (SELECT SUBCOMPCD
+		          FROM IFR_PBSET0510
+		         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+						= #suppCompId#
+		</isNotEmpty>
+
+		   AND (SELECT ACTIVYN
+		          FROM IFR_PBSAT0510
+		         WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+
+		UNION ALL
+		SELECT /*+ leading(POST) use_hash(M) */
+		       2 SDIV,
+		       NVL(BIZCODE,'YY') BIZCODE,
+		       '소 계' BIZNAME,
+		       ' ' TPPRMGOODSCD,
+		       ' ' TPPRMGOODSNM,
+		       ' ' SELLRECEVYMD,
+		       SUM(SELLCNT) SELLCNT,
+		       SUM(SELLAMT) SELLAMT,
+		       ' ' PONM,
+		       ' ' setlTypeCd
+		  FROM (SELECT (
+
+                		SELECT MAX(SUPP_COMP_ID)
+                       	  FROM CO_SUPP_COMP_MAST
+                      	 WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                                                 FROM IFR_PBSET0510
+                                                WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)) BIZCODE,
+
+		               TPPRMGOODSCD,
+		               SELLCNT,
+		               SELLAMT
+		          FROM IFR_PBSAT0520 M,
+		               (SELECT RCOCD,
+		                       MPOREGIPOCD,
+		                       REGIPOCD
+		                  FROM PICMT0060 P
+		                 WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+		                  ) POST
+
+		         WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+		           AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+				<isNotEmpty property="suppCompId">
+		           AND (SELECT SUBCOMPCD
+		                  FROM IFR_PBSET0510
+		                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+							= #suppCompId#
+				</isNotEmpty>
+
+		           AND (SELECT ACTIVYN
+		                  FROM IFR_PBSAT0510
+		                 WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y' )
+		GROUP BY BIZCODE
+
+		UNION ALL
+		SELECT /*+ leading(POST) use_hash(M) */
+		       3 SDIV,
+		       'ZZ' BIZCODE,
+		       '합 계' BIZNAME,
+		       ' ' TPPRMGOODSCD,
+		       ' ' TPPRMGOODSNM,
+		       ' ' SELLRECEVYMD,
+		       SUM(SELLCNT) SELLCNT,
+		       SUM(SELLAMT) SELLAMT,
+		       ' ' PONM,
+		       ' ' setlTypeCd
+		  FROM (SELECT (
+
+                		SELECT MAX(SUPP_COMP_ID)
+                       	  FROM CO_SUPP_COMP_MAST
+                      	 WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                                                 FROM IFR_PBSET0510
+                                                WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)) BIZCODE,
+
+		               TPPRMGOODSCD,
+		               SELLCNT,
+		               SELLAMT
+		          FROM IFR_PBSAT0520 M,
+		               (SELECT RCOCD,
+		                       MPOREGIPOCD,
+		                       REGIPOCD
+		                  FROM PICMT0060 P
+		                 WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+		                  ) POST
+
+		         WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+		           AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+				<isNotEmpty property="suppCompId">
+		           AND (SELECT SUBCOMPCD
+		                  FROM IFR_PBSET0510
+		                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+							= #suppCompId#
+				</isNotEmpty>
+
+		           AND (SELECT ACTIVYN
+		                  FROM IFR_PBSAT0510
+		                 WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y' )
+		 ORDER BY BIZCODE
+		 		, SDIV
+		 		, SELLRECEVYMD
+   	) T1
+	</select>
+
+	<!-- 창구판매_판매현황 리스트 조회(공급업체) -->
+	<select id="selectSellGoodsList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT T2.ONUM
+         , T2.SDIV
+         , T2.BIZCODE
+         , T2.BIZNAME
+         , T2.TPPRMGOODSCD
+         , T2.TPPRMGOODSNM
+         , T2.SELLRECEVYMD
+         , T2.SELLCNT
+         , T2.SELLAMT
+         , T2.PONM
+         , T2.SETLTYPECD
+
+	FROM(
+			SELECT ROWNUM AS ONUM
+	             , T1.SDIV
+	             , T1.BIZCODE
+	             , T1.BIZNAME
+	             , T1.TPPRMGOODSCD
+	             , T1.TPPRMGOODSNM
+	             , T1.SELLRECEVYMD
+	             , T1.SELLCNT
+	             , T1.SELLAMT
+	             , T1.PONM
+	             , T1.SETLTYPECD
+
+			FROM(
+
+				SELECT /*+ leading(POST) use_hash(M) */
+						1 SDIV,
+
+                		NVL((SELECT MAX(SUPP_COMP_ID)
+                       		   FROM CO_SUPP_COMP_MAST
+                      		  WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                              			              FROM IFR_PBSET0510
+                                        		     WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)),'YY') BIZCODE,
+
+						NVL((SELECT MAX(BCNC_NM)
+		                       FROM CO_SUPP_COMP_MAST
+		                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                       FROM IFR_PBSET0510
+		                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+		                   ), ' ') BIZNAME,
+
+				       	TPPRMGOODSCD,
+				       	(SELECT TPPRMGOODSNM
+				           FROM IFR_PBSET0510
+				          WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+				       	TO_CHAR(TO_DATE(SELLRECEVYMD,'YYYYMMDD'),'YYYY-MM-DD') SELLRECEVYMD,
+				       	SELLCNT,
+				       	SELLAMT,
+				       	POST.PONM,
+				       	DECODE((SELECT SETLTYPECD
+				                  FROM IFR_PBSAT0510
+				                 WHERE SELLRECEVNO = M.SELLRECEVNO),'001','현금','002','카드',' ') SETLTYPECD
+				   FROM IFR_PBSAT0520 M,
+						(SELECT RCOCD,
+				              	DECODE(RCOCD,'00','본부',
+				                	         '10','서울청',
+											 '15','경인청',
+											 '20','부산청',
+											 '30','충청청',
+											 '40','전남청',
+											 '50','경북청',
+											 '60','전북청',
+											 '70','강원청',
+											 '80','제주청') RCONM,
+				              	MPOREGIPOCD,
+				              	(SELECT PONM
+				                   FROM PICMT0060
+				                  WHERE REGIPOCD = P.MPOREGIPOCD
+				                    AND USEYN = 'Y') MPONM,
+				              	REGIPOCD,
+				              	PONM
+				           FROM PICMT0060 P
+				          WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+				            ) POST
+
+				 WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+				   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+				<isNotEmpty property="suppCompId">
+		           AND (SELECT SUBCOMPCD
+		                  FROM IFR_PBSET0510
+		                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+							= #suppCompId#
+				</isNotEmpty>
+
+				   AND (SELECT ACTIVYN
+				          FROM IFR_PBSAT0510
+				         WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+
+				UNION ALL
+				SELECT /*+ leading(POST) use_hash(M) */
+				       2 SDIV,
+				       NVL(BIZCODE,'YY') BIZCODE,
+				       '소 계' BIZNAME,
+				       ' ' TPPRMGOODSCD,
+				       ' ' TPPRMGOODSNM,
+				       ' ' SELLRECEVYMD,
+				       SUM(SELLCNT) SELLCNT,
+				       SUM(SELLAMT) SELLAMT,
+				       ' ' PONM,
+				       ' ' setlTypeCd
+				  FROM (SELECT (
+
+				                SELECT MAX(SUPP_COMP_ID)
+				                  FROM CO_SUPP_COMP_MAST
+				                 WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+				                                         FROM IFR_PBSET0510
+                                             			WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)) BIZCODE,
+
+				               TPPRMGOODSCD,
+				               SELLCNT,
+				               SELLAMT
+				          FROM IFR_PBSAT0520 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+				                  ) POST
+
+				         WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+						<isNotEmpty property="suppCompId">
+				           AND (SELECT SUBCOMPCD
+				                  FROM IFR_PBSET0510
+				                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+									= #suppCompId#
+						</isNotEmpty>
+				           AND (SELECT ACTIVYN
+				                  FROM IFR_PBSAT0510
+				                 WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y' )
+				GROUP BY BIZCODE
+
+				UNION ALL
+				SELECT /*+ leading(POST) use_hash(M) */
+				       3 SDIV,
+				       'ZZ' BIZCODE,
+				       '합 계' BIZNAME,
+				       ' ' TPPRMGOODSCD,
+				       ' ' TPPRMGOODSNM,
+				       ' ' SELLRECEVYMD,
+				       SUM(SELLCNT) SELLCNT,
+				       SUM(SELLAMT) SELLAMT,
+				       ' ' PONM,
+				       ' ' setlTypeCd
+				  FROM (SELECT (
+
+				                SELECT MAX(SUPP_COMP_ID)
+				                  FROM CO_SUPP_COMP_MAST
+				                 WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+				                                         FROM IFR_PBSET0510
+                                             			WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)) BIZCODE,
+
+				               TPPRMGOODSCD,
+				               SELLCNT,
+				               SELLAMT
+				          FROM IFR_PBSAT0520 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+				                  ) POST
+
+				         WHERE M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+						<isNotEmpty property="suppCompId">
+				           AND (SELECT SUBCOMPCD
+				                  FROM IFR_PBSET0510
+				                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+									= #suppCompId#
+						</isNotEmpty>
+
+				           AND (SELECT ACTIVYN
+				                  FROM IFR_PBSAT0510
+				                 WHERE SELLRECEVNO = M.SELLRECEVNO) = 'Y' )
+				 ORDER BY BIZCODE
+				 		, SDIV
+				 		, SELLRECEVYMD
+
+	    	) T1
+	)T2
+
+	WHERE 1=1
+	<isNotNull property="firstIndex">
+		<isNotNull property="lastIndex">
+    		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+    	</isNotNull>
+    </isNotNull>
+ 	</select>
+
+	<!-- 창구판매_판매현황 합계 조회 -->
+	<select id="selectSellGoodsSummary" parameterClass ="java.util.HashMap" resultClass="commMap">
+    <![CDATA[
+		 SELECT	NVL(SUM(SELLCNT), 0) SELLCNT,
+		        NVL(SUM(SELLAMT), 0) SELLAMT
+		 FROM 	IFR_PBSAT0520 M,
+		       	(SELECT	REGIPOCD
+		         FROM 	PICMT0060 P
+		         WHERE	USEYN ='Y'
+		         AND 	RCOCD LIKE #searchRcoCd# || '%'
+	             AND 	MPOREGIPOCD LIKE #searchMporegipocd# || '%'
+	             AND 	REGIPOCD LIKE #searchRegipocd# || '%') POST
+		 WHERE 	M.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+		 AND	M.RECEVPOREGIPOCD = POST.REGIPOCD
+		 AND 	(SELECT SUBCOMPCD
+		         FROM 	IFR_PBSET0510
+		         WHERE 	TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE #searchSupplierCode# || '%'
+		 AND 	(SELECT ACTIVYN
+		         FROM 	IFR_PBSAT0510
+		         WHERE 	SELLRECEVNO = M.SELLRECEVNO) = 'Y'
+     ]]>
+	</select>
+
+	<!-- 창구판매_재고현황 카운트(우체국상세) -->
+	<select id="selectStockGoodsTotCnt1" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT COUNT(*) AS TOTCNT
+
+	FROM(
+	    SELECT /*+ leading(POST) use_hash(M) */
+	           1 SDIV,
+	           POST.RCOCD,
+	           POST.MPOREGIPOCD,
+	           POST.REGIPOCD,
+	           POST.RCONM,
+	           NVL(POST.MPONM,' ') MPONM,
+	           POST.PONM,
+	           TO_CHAR(TO_DATE(CLPMYMD,'YYYYMMDD'),'YYYY-MM-DD') CLPMYMD,
+
+				NVL((SELECT MAX(BCNC_NM)
+                       FROM CO_SUPP_COMP_MAST
+                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                       FROM IFR_PBSET0510
+                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+                   ), ' ') BIZNAME,
+
+	           TPPRMGOODSCD,
+	           (SELECT TPPRMGOODSNM
+	              FROM IFR_PBSET0510
+	             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+	           DECODE(CLPMKINDCD,'001','청구등록','002','입고','003','반납','004','판매','005','반품','006','반품')  CLPMKINDNM,
+	           CLPMCNT,
+	           NVL(CLPMMONEYAMT,0) + NVL(CLPMCREDITCARDAMT,0) CLPMAMT,
+	           CNTERREMDCNT,
+	           REGDATE
+	      FROM IFR_PBSAT0590 M,
+	           (SELECT RCOCD,
+	                   DECODE(RCOCD,'00','본부',
+	                                '10','서울청',
+	                                '15','경인청',
+	                                '20','부산청',
+	                                '30','충청청',
+	                                '40','전남청',
+	                                '50','경북청',
+	                                '60','전북청',
+	                                '70','강원청',
+	                                '80','제주청') RCONM,
+	                   MPOREGIPOCD,
+	                   (SELECT PONM
+	                      FROM PICMT0060
+	                     WHERE REGIPOCD = P.MPOREGIPOCD
+	                       AND USEYN = 'Y') MPONM,
+	                   REGIPOCD,
+	                   PONM
+	              FROM PICMT0060 P
+	             WHERE USEYN ='Y'
+
+				<isNotEmpty property="searchPost1">
+					AND RCOCD LIKE '%' || #searchPost1# || '%'
+				</isNotEmpty>
+
+				<isNotEmpty property="searchPost2">
+					AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+				</isNotEmpty>
+
+				<isNotEmpty property="searchPost3">
+					AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+				</isNotEmpty>
+
+                         ) POST
+           WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+             AND M.REGIPOCD = POST.REGIPOCD
+						<isNotEmpty property="suppCompId">
+				           AND (SELECT SUBCOMPCD
+				                  FROM IFR_PBSET0510
+				                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+									= #suppCompId#
+						</isNotEmpty>
+             AND ACTIVYN = 'Y'
+             AND CLPMKINDCD IN ('002','003','004','005')
+
+           UNION ALL
+          SELECT /*+ leading(POST) use_hash(M) */
+                 2 SDIV,
+                 RCOCD,
+                 MPOREGIPOCD,
+                 REGIPOCD,
+                 '소 계' RCONM,
+                 ' ' MPONM,
+                 ' ' PONM,
+                 ' ' CLPMYMD,
+                 ' ' BIZNAME,
+                 TPPRMGOODSCD,
+                 ' ' TPPRMGOODSNM,
+                 ' ' CLPMKINDNM,
+                 CLPMCNT,
+                 CLPMAMT,
+                 (SELECT MIN(CNTERREMDCNT)
+                    FROM IFR_PBSAT0590
+                   WHERE REGIPOCD     = ST.REGIPOCD
+                     AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+                     AND REGDATE      = ST.REGDATE) CNTERREMDCNT,
+                 REGDATE
+            FROM (SELECT POST.RCOCD,
+                         POST.MPOREGIPOCD,
+                         POST.REGIPOCD,
+                         SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+                         SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+                         TPPRMGOODSCD,
+                         MAX(REGDATE) REGDATE
+                    FROM IFR_PBSAT0590 M,
+                         (SELECT RCOCD,
+                                 MPOREGIPOCD,
+                                 REGIPOCD
+                            FROM PICMT0060 P
+                           WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+                             ) POST
+                   WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+
+                     AND M.REGIPOCD = POST.REGIPOCD
+					<isNotEmpty property="suppCompId">
+			           AND (SELECT SUBCOMPCD
+			                  FROM IFR_PBSET0510
+			                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+								= #suppCompId#
+					</isNotEmpty>
+
+                     AND ACTIVYN = 'Y'
+                     AND CLPMKINDCD IN ('002','003','004','005')
+                   GROUP BY POST.RCOCD
+                           ,POST.MPOREGIPOCD
+                           ,POST.REGIPOCD
+                           ,TPPRMGOODSCD ) ST
+
+           UNION ALL
+          SELECT /*+ leading(POST) use_hash(M) */
+                 3 SDIV,
+                 'ZZ' RCOCD,
+                 ' ' MPOREGIPOCD,
+                 ' ' REGIPOCD,
+                 '합 계' RCONM,
+                 ' ' MPONM,
+                 ' ' PONM,
+                 ' ' CLPMYMD,
+                 ' ' BIZNAME,
+                 ' ' TPPRMGOODSCD,
+                 ' ' TPPRMGOODSNM,
+                 ' ' CLPMKINDNM,
+                 SUM(CLPMCNT) CLPMCNT,
+                 SUM(CLPMAMT) CLPMAMT,
+                 SUM((SELECT MIN(CNTERREMDCNT)
+                        FROM IFR_PBSAT0590
+                       WHERE REGIPOCD     = ST.REGIPOCD
+                         AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+                         AND REGDATE      = ST.REGDATE)) CNTERREMDCNT,
+                 SYSDATE
+            FROM (SELECT POST.RCOCD,
+                         POST.MPOREGIPOCD,
+                         POST.REGIPOCD,
+                         SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+                         SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+                         TPPRMGOODSCD,
+                         MAX(REGDATE) REGDATE
+                    FROM IFR_PBSAT0590 M,
+                         (SELECT RCOCD,
+                                 MPOREGIPOCD,
+                                 REGIPOCD
+                            FROM PICMT0060 P
+                           WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+                             ) POST
+
+                   WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                     AND M.REGIPOCD = POST.REGIPOCD
+					<isNotEmpty property="suppCompId">
+                     AND (SELECT SUBCOMPCD
+                            FROM IFR_PBSET0510
+                           WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+								LIKE '%' ||#suppCompId#|| '%'
+					</isNotEmpty>
+                     AND ACTIVYN = 'Y'
+                     AND CLPMKINDCD IN ('002','003','004','005')
+                   GROUP BY POST.RCOCD
+                            ,POST.MPOREGIPOCD
+                            ,POST.REGIPOCD
+                            ,TPPRMGOODSCD  ) ST
+           ORDER BY RCOCD
+                    ,MPOREGIPOCD
+                    ,REGIPOCD
+                    ,TPPRMGOODSCD
+                    ,SDIV
+                    ,CLPMYMD
+                    ,REGDATE
+   	) T1
+ 	</select>
+
+	<!-- 창구판매_재고현황 리스트 조회(우체국상세) -->
+	<select id="selectStockGoodsList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT T2.ONUM
+         , T2.SDIV
+         , T2.RCOCD
+         , T2.MPOREGIPOCD
+         , T2.REGIPOCD
+         , T2.RCONM
+         , T2.MPONM
+         , T2.PONM
+         , T2.CLPMYMD
+         , T2.BIZNAME
+         , T2.TPPRMGOODSCD
+         , T2.TPPRMGOODSNM
+         , T2.CLPMKINDNM
+         , T2.CLPMCNT
+         , T2.CLPMAMT
+         , T2.CNTERREMDCNT
+         , T2.REGDATE
+
+	FROM(
+			SELECT ROWNUM AS ONUM
+                 , T1.SDIV
+                 , T1.RCOCD
+                 , T1.MPOREGIPOCD
+                 , T1.REGIPOCD
+                 , T1.RCONM
+                 , T1.MPONM
+                 , T1.PONM
+                 , T1.CLPMYMD
+                 , T1.BIZNAME
+                 , T1.TPPRMGOODSCD
+                 , T1.TPPRMGOODSNM
+                 , T1.CLPMKINDNM
+                 , T1.CLPMCNT
+                 , T1.CLPMAMT
+                 , T1.CNTERREMDCNT
+                 , T1.REGDATE
+
+			FROM(
+                    SELECT /*+ leading(POST) use_hash(M) */
+                           1 SDIV,
+                           POST.RCOCD,
+                           POST.MPOREGIPOCD,
+                           POST.REGIPOCD,
+                           POST.RCONM,
+                           NVL(POST.MPONM,' ') MPONM,
+                           POST.PONM,
+                           TO_CHAR(TO_DATE(CLPMYMD,'YYYYMMDD'),'YYYY-MM-DD') CLPMYMD,
+
+							NVL((SELECT MAX(BCNC_NM)
+			                       FROM CO_SUPP_COMP_MAST
+			                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+			                       FROM IFR_PBSET0510
+			                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+			                   ), ' ') BIZNAME,
+
+                           TPPRMGOODSCD,
+                           (SELECT TPPRMGOODSNM
+                              FROM IFR_PBSET0510
+                             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+                           DECODE(CLPMKINDCD,'001','청구등록','002','입고','003','반납','004','판매','005','반품','006','반품')  CLPMKINDNM,
+                           CLPMCNT,
+                           NVL(CLPMMONEYAMT,0) + NVL(CLPMCREDITCARDAMT,0) CLPMAMT,
+                           CNTERREMDCNT,
+                           REGDATE
+                      FROM IFR_PBSAT0590 M,
+                           (SELECT RCOCD,
+                                   DECODE(RCOCD,'00','본부',
+                                                '10','서울청',
+                                                '15','경인청',
+                                                '20','부산청',
+                                                '30','충청청',
+                                                '40','전남청',
+                                                '50','경북청',
+                                                '60','전북청',
+                                                '70','강원청',
+                                                '80','제주청') RCONM,
+                                   MPOREGIPOCD,
+                                   (SELECT PONM
+                                      FROM PICMT0060
+                                     WHERE REGIPOCD = P.MPOREGIPOCD
+                                       AND USEYN = 'Y') MPONM,
+                                   REGIPOCD,
+                                   PONM
+                              FROM PICMT0060 P
+                             WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+                               ) POST
+
+                 WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                   AND M.REGIPOCD = POST.REGIPOCD
+				<isNotEmpty property="suppCompId">
+                   AND (SELECT SUBCOMPCD
+                          FROM IFR_PBSET0510
+                         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )
+							= #suppCompId#
+				</isNotEmpty>
+                   AND ACTIVYN = 'Y'
+                   AND CLPMKINDCD IN ('002','003','004','005')
+
+                 UNION ALL
+                SELECT /*+ leading(POST) use_hash(M) */
+                       2 SDIV,
+                       RCOCD,
+                       MPOREGIPOCD,
+                       REGIPOCD,
+                       '소 계' RCONM,
+                       ' ' MPONM,
+                       ' ' PONM,
+                       ' ' CLPMYMD,
+                       ' ' BIZNAME,
+                       TPPRMGOODSCD,
+                       ' ' TPPRMGOODSNM,
+                       ' ' CLPMKINDNM,
+                       CLPMCNT,
+                       CLPMAMT,
+                       (SELECT MIN(CNTERREMDCNT)
+                          FROM IFR_PBSAT0590
+                         WHERE REGIPOCD     = ST.REGIPOCD
+                           AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+                           AND REGDATE      = ST.REGDATE) CNTERREMDCNT,
+                       REGDATE
+                  FROM (SELECT POST.RCOCD,
+                               POST.MPOREGIPOCD,
+                               POST.REGIPOCD,
+                               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+                               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+                               TPPRMGOODSCD,
+                               MAX(REGDATE) REGDATE
+                          FROM IFR_PBSAT0590 M,
+                               (SELECT RCOCD,
+                                       MPOREGIPOCD,
+                                       REGIPOCD
+                                  FROM PICMT0060 P
+                                 WHERE USEYN ='Y'
+
+								<isNotEmpty property="searchPost1">
+									AND RCOCD LIKE '%' || #searchPost1# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost2">
+									AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost3">
+									AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+								</isNotEmpty>
+
+                                   ) POST
+
+                         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                           AND M.REGIPOCD = POST.REGIPOCD
+						<isNotEmpty property="suppCompId">
+							AND (SELECT SUBCOMPCD
+							FROM IFR_PBSET0510
+							WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+						</isNotEmpty>
+                           AND ACTIVYN = 'Y'
+                           AND CLPMKINDCD IN ('002','003','004','005')
+                         GROUP BY POST.RCOCD
+                                 ,POST.MPOREGIPOCD
+                                 ,POST.REGIPOCD
+                                 ,TPPRMGOODSCD ) ST
+                 UNION ALL
+                SELECT /*+ leading(POST) use_hash(M) */
+                       3 SDIV,
+                       'ZZ' RCOCD,
+                       ' ' MPOREGIPOCD,
+                       ' ' REGIPOCD,
+                       '합 계' RCONM,
+                       ' ' MPONM,
+                       ' ' PONM,
+                       ' ' CLPMYMD,
+                       ' ' BIZNAME,
+                       ' ' TPPRMGOODSCD,
+                       ' ' TPPRMGOODSNM,
+                       ' ' CLPMKINDNM,
+                       SUM(CLPMCNT) CLPMCNT,
+                       SUM(CLPMAMT) CLPMAMT,
+                       SUM((SELECT MIN(CNTERREMDCNT)
+                              FROM IFR_PBSAT0590
+                             WHERE REGIPOCD     = ST.REGIPOCD
+                               AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+                               AND REGDATE      = ST.REGDATE)) CNTERREMDCNT,
+                       SYSDATE
+                  FROM (SELECT POST.RCOCD,
+                               POST.MPOREGIPOCD,
+                               POST.REGIPOCD,
+                               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+                               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+                               TPPRMGOODSCD,
+                               MAX(REGDATE) REGDATE
+                          FROM IFR_PBSAT0590 M,
+                               (SELECT RCOCD,
+                                       MPOREGIPOCD,
+                                       REGIPOCD
+                                  FROM PICMT0060 P
+                                 WHERE USEYN ='Y'
+
+								<isNotEmpty property="searchPost1">
+									AND RCOCD LIKE '%' || #searchPost1# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost2">
+									AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost3">
+									AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+								</isNotEmpty>
+
+                                   ) POST
+
+                         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                           AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+
+                           AND ACTIVYN = 'Y'
+                           AND CLPMKINDCD IN ('002','003','004','005')
+                         GROUP BY POST.RCOCD
+                                  ,POST.MPOREGIPOCD
+                                  ,POST.REGIPOCD
+                                  ,TPPRMGOODSCD  ) ST
+                 ORDER BY RCOCD
+                          ,MPOREGIPOCD
+                          ,REGIPOCD
+                          ,TPPRMGOODSCD
+                          ,SDIV
+                          ,CLPMYMD
+                          ,REGDATE
+	    	) T1
+	)T2
+
+	WHERE 1=1
+	<isNotNull property="firstIndex">
+		<isNotNull property="lastIndex">
+    		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+    	</isNotNull>
+    </isNotNull>
+ 	</select>
+
+	<!-- 창구판매_재고현황 카운트(우체국집계) -->
+	<select id="selectStockGoodsTotCnt2" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT COUNT(*) AS TOTCNT
+
+	FROM(
+                  SELECT /*+ leading(POST) use_hash(M) */
+                        1 SDIV,
+                        RCOCD,
+                        MPOREGIPOCD,
+                        REGIPOCD,
+                        DECODE(RCOCD,'00','본부',
+                                     '10','서울청',
+                                     '15','경인청',
+                                     '20','부산청',
+                                     '30','충청청',
+                                     '40','전남청',
+                                     '50','경북청',
+                                     '60','전북청',
+                                     '70','강원청',
+                                     '80','제주청') RCONM,
+                        (SELECT PONM
+                           FROM PICMT0060
+                          WHERE REGIPOCD = M.MPOREGIPOCD
+                            AND USEYN = 'Y') MPONM,
+                        PONM,
+
+						NVL((SELECT MAX(BCNC_NM)
+		                       FROM CO_SUPP_COMP_MAST
+		                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                       FROM IFR_PBSET0510
+		                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+		                   ), ' ') BIZNAME,
+
+
+                        TPPRMGOODSCD,
+                        (SELECT TPPRMGOODSNM
+                           FROM IFR_PBSET0510
+                          WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+                        KCNT1,
+                        KCNT2,
+                        KCNT3,
+                        KCNT4,
+                        (SELECT MIN(CNTERREMDCNT)
+                           FROM IFR_PBSAT0590
+                          WHERE REGIPOCD     = M.REGIPOCD
+                            AND TPPRMGOODSCD = M.TPPRMGOODSCD
+                            AND REGDATE      = M.REGDATE) CNTERREMDCNT
+                 FROM (SELECT POST.RCOCD,
+                              POST.MPOREGIPOCD,
+                              POST.REGIPOCD,
+                              POST.PONM,
+                              TPPRMGOODSCD,
+                              SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+                              SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+                              SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+                              SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+                              MAX(REGDATE) REGDATE
+                         FROM IFR_PBSAT0590 M,
+                              (SELECT RCOCD,
+                                      MPOREGIPOCD,
+                                      REGIPOCD,
+                                      PONM
+                                 FROM PICMT0060 P
+                                WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+                                  ) POST
+
+                        WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                          AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+                          AND ACTIVYN = 'Y'
+                          AND CLPMKINDCD IN ('002','003','004','005')
+                      GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD,POST.PONM,TPPRMGOODSCD ) M
+                UNION ALL
+                SELECT /*+ leading(POST) use_hash(M) */
+                       2 SDIV,
+                       ' ' RCOCD,
+                       ' ' MPOREGIPOCD,
+                       ' ' REGIPOCD,
+                       '합 계' RCONM,
+                       ' ' MPONM,
+                       ' ' PONM,
+                       ' ' BIZNAME,
+                       ' ' TPPRMGOODSCD,
+                       ' ' TPPRMGOODSNM,
+                       SUM(KCNT1) KCNT1,
+                       SUM(KCNT2) KCNT2,
+                       SUM(KCNT3) KCNT3,
+                       SUM(KCNT4) KCNT4,
+                       SUM((SELECT MIN(CNTERREMDCNT)
+                              FROM IFR_PBSAT0590
+                             WHERE REGIPOCD     = M.REGIPOCD
+                               AND TPPRMGOODSCD = M.TPPRMGOODSCD
+                               AND REGDATE      = M.REGDATE)) CNTERREMDCNT
+                 FROM (SELECT POST.RCOCD,
+                              POST.MPOREGIPOCD,
+                              POST.REGIPOCD,
+                              POST.PONM,
+                              TPPRMGOODSCD,
+                              SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+                              SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+                              SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+                              SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+                              MAX(REGDATE) REGDATE
+                         FROM IFR_PBSAT0590 M,
+                              (SELECT RCOCD,
+                                      MPOREGIPOCD,
+                                      REGIPOCD,
+                                      PONM
+                                 FROM PICMT0060 P
+                                WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+                                  ) POST
+
+                        WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                          AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+                          AND ACTIVYN = 'Y'
+                          AND CLPMKINDCD IN ('002','003','004','005')
+                      GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD,POST.PONM,TPPRMGOODSCD ) M
+                ORDER BY SDIV
+                		 ,RCOCD
+                		 ,MPOREGIPOCD
+                		 ,REGIPOCD
+                		 ,TPPRMGOODSCD
+   	) T1
+ 	</select>
+
+	<!-- 창구판매_재고현황 리스트 조회(우체국집계) -->
+	<select id="selectStockGoodsList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT T2.ONUM
+         , T2.SDIV
+         , T2.RCOCD
+         , T2.MPOREGIPOCD
+         , T2.REGIPOCD
+         , T2.RCONM
+         , T2.MPONM
+         , T2.PONM
+         , T2.BIZNAME
+         , T2.TPPRMGOODSCD
+         , T2.TPPRMGOODSNM
+         , T2.KCNT1
+         , T2.KCNT2
+         , T2.KCNT3
+         , T2.KCNT4
+         , T2.CNTERREMDCNT
+
+	FROM(
+			SELECT ROWNUM AS ONUM
+                 , T1.SDIV
+                 , T1.RCOCD
+                 , T1.MPOREGIPOCD
+                 , T1.REGIPOCD
+                 , T1.RCONM
+                 , T1.MPONM
+                 , T1.PONM
+                 , T1.BIZNAME
+                 , T1.TPPRMGOODSCD
+                 , T1.TPPRMGOODSNM
+                 , T1.KCNT1
+                 , T1.KCNT2
+                 , T1.KCNT3
+                 , T1.KCNT4
+                 , T1.CNTERREMDCNT
+
+			FROM(
+                  SELECT /*+ leading(POST) use_hash(M) */
+                        1 SDIV,
+                        RCOCD,
+                        MPOREGIPOCD,
+                        REGIPOCD,
+                        DECODE(RCOCD,'00','본부',
+                                     '10','서울청',
+                                     '15','경인청',
+                                     '20','부산청',
+                                     '30','충청청',
+                                     '40','전남청',
+                                     '50','경북청',
+                                     '60','전북청',
+                                     '70','강원청',
+                                     '80','제주청') RCONM,
+                        (SELECT PONM
+                           FROM PICMT0060
+                          WHERE REGIPOCD = M.MPOREGIPOCD
+                            AND USEYN = 'Y') MPONM,
+                        PONM,
+
+						NVL((SELECT MAX(BCNC_NM)
+		                       FROM CO_SUPP_COMP_MAST
+		                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                       FROM IFR_PBSET0510
+		                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+		                   ), ' ') BIZNAME,
+
+                        TPPRMGOODSCD,
+                        (SELECT TPPRMGOODSNM
+                           FROM IFR_PBSET0510
+                          WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+                        KCNT1,
+                        KCNT2,
+                        KCNT3,
+                        KCNT4,
+                        (SELECT MIN(CNTERREMDCNT)
+                           FROM IFR_PBSAT0590
+                          WHERE REGIPOCD     = M.REGIPOCD
+                            AND TPPRMGOODSCD = M.TPPRMGOODSCD
+                            AND REGDATE      = M.REGDATE) CNTERREMDCNT
+                 FROM (SELECT POST.RCOCD,
+                              POST.MPOREGIPOCD,
+                              POST.REGIPOCD,
+                              POST.PONM,
+                              TPPRMGOODSCD,
+                              SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+                              SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+                              SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+                              SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+                              MAX(REGDATE) REGDATE
+                         FROM IFR_PBSAT0590 M,
+                              (SELECT RCOCD,
+                                      MPOREGIPOCD,
+                                      REGIPOCD,
+                                      PONM
+                                 FROM PICMT0060 P
+                                WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+                                  ) POST
+
+                        WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                          AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+                          AND ACTIVYN = 'Y'
+                          AND CLPMKINDCD IN ('002','003','004','005')
+                      GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD,POST.PONM,TPPRMGOODSCD ) M
+                UNION ALL
+                SELECT /*+ leading(POST) use_hash(M) */
+                       2 SDIV,
+                       ' ' RCOCD,
+                       ' ' MPOREGIPOCD,
+                       ' ' REGIPOCD,
+                       '합 계' RCONM,
+                       ' ' MPONM,
+                       ' ' PONM,
+                       ' ' BIZNAME,
+                       ' ' TPPRMGOODSCD,
+                       ' ' TPPRMGOODSNM,
+                       SUM(KCNT1) KCNT1,
+                       SUM(KCNT2) KCNT2,
+                       SUM(KCNT3) KCNT3,
+                       SUM(KCNT4) KCNT4,
+                       SUM((SELECT MIN(CNTERREMDCNT)
+                              FROM IFR_PBSAT0590
+                             WHERE REGIPOCD     = M.REGIPOCD
+                               AND TPPRMGOODSCD = M.TPPRMGOODSCD
+                               AND REGDATE      = M.REGDATE)) CNTERREMDCNT
+                 FROM (SELECT POST.RCOCD,
+                              POST.MPOREGIPOCD,
+                              POST.REGIPOCD,
+                              POST.PONM,
+                              TPPRMGOODSCD,
+                              SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+                              SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+                              SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+                              SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+                              MAX(REGDATE) REGDATE
+                         FROM IFR_PBSAT0590 M,
+                              (SELECT RCOCD,
+                                      MPOREGIPOCD,
+                                      REGIPOCD,
+                                      PONM
+                                 FROM PICMT0060 P
+                                WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+                                  ) POST
+
+                        WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+                          AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+                          AND ACTIVYN = 'Y'
+                          AND CLPMKINDCD IN ('002','003','004','005')
+                      GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD,POST.PONM,TPPRMGOODSCD ) M
+                ORDER BY SDIV
+                		 ,RCOCD
+                		 ,MPOREGIPOCD
+                		 ,REGIPOCD
+                		 ,TPPRMGOODSCD
+	    	) T1
+	)T2
+
+	WHERE 1=1
+	<isNotNull property="firstIndex">
+		<isNotNull property="lastIndex">
+    		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+    	</isNotNull>
+    </isNotNull>
+ 	</select>
+
+	<!-- 창구판매_재고현황 카운트(공급업체집계) -->
+	<select id="selectStockGoodsTotCnt3" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT COUNT(*) AS TOTCNT
+
+	FROM(
+	    SELECT /*+ leading(POST) use_hash(M) */
+	           1 SDIV,
+	           POST.RCOCD,
+	           POST.MPOREGIPOCD,
+	           POST.REGIPOCD,
+	           POST.RCONM,
+	           NVL(POST.MPONM,' ') MPONM,
+	           POST.PONM,
+	           TO_CHAR(TO_DATE(CLPMYMD,'YYYYMMDD'),'YYYY-MM-DD') CLPMYMD,
+
+				NVL((SELECT MAX(BCNC_NM)
+	                      FROM CO_SUPP_COMP_MAST
+	                     WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+	                      FROM IFR_PBSET0510
+	                     WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+	                  ), ' ') BIZNAME,
+
+	           TPPRMGOODSCD,
+	           (SELECT TPPRMGOODSNM
+	              FROM IFR_PBSET0510
+	             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+	           DECODE(CLPMKINDCD,'001','청구등록','002','입고','003','반납','004','판매','005','반품','006','반품')  CLPMKINDNM,
+	           CLPMCNT,
+	           NVL(CLPMMONEYAMT,0) + NVL(CLPMCREDITCARDAMT,0) CLPMAMT,
+	           CNTERREMDCNT,
+	           REGDATE
+	      FROM IFR_PBSAT0590 M,
+	           (SELECT RCOCD,
+	                   DECODE(RCOCD,'00','본부',
+	                                '10','서울청',
+	                                '15','경인청',
+	                                '20','부산청',
+	                                '30','충청청',
+	                                '40','전남청',
+	                                '50','경북청',
+	                                '60','전북청',
+	                                '70','강원청',
+	                                '80','제주청') RCONM,
+	                   MPOREGIPOCD,
+	                   (SELECT PONM
+	                      FROM PICMT0060
+	                     WHERE REGIPOCD = P.MPOREGIPOCD
+	                       AND USEYN = 'Y') MPONM,
+	                   REGIPOCD,
+	                   PONM
+	              FROM PICMT0060 P
+	             WHERE USEYN ='Y'
+					<isNotEmpty property="searchPost1">
+						AND RCOCD LIKE '%' || #searchPost1# || '%'
+					</isNotEmpty>
+
+					<isNotEmpty property="searchPost2">
+						AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+					</isNotEmpty>
+
+					<isNotEmpty property="searchPost3">
+						AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+					</isNotEmpty>
+
+	               ) POST
+
+	 	WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+		  AND M.REGIPOCD = POST.REGIPOCD
+			<isNotEmpty property="suppCompId">
+				AND (SELECT SUBCOMPCD
+				FROM IFR_PBSET0510
+				WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+			</isNotEmpty>
+		  AND ACTIVYN = 'Y'
+		  AND CLPMKINDCD IN ('002','003','004','005')
+
+		UNION ALL
+	   SELECT /*+ leading(POST) use_hash(M) */
+		       2 SDIV,
+		       RCOCD,
+		       MPOREGIPOCD,
+		       REGIPOCD,
+		       ' ' RCONM,
+		       ' ' MPONM,
+		       ' ' PONM,
+		       ' ' CLPMYMD,
+		       '소 계' BIZNAME,
+		       TPPRMGOODSCD,
+		       ' ' tpprmGoodsNm,
+		       ' ' CLPMKINDNM,
+		       CLPMCNT,
+		       CLPMAMT,
+		       (SELECT MIN(CNTERREMDCNT)
+		          FROM IFR_PBSAT0590
+		         WHERE REGIPOCD     = ST.REGIPOCD
+		           AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+		           AND REGDATE      = ST.REGDATE) CNTERREMDCNT,
+		       REGDATE
+		  FROM (SELECT POST.RCOCD,
+		               POST.MPOREGIPOCD,
+		               POST.REGIPOCD,
+		               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+		               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+		               TPPRMGOODSCD,
+		               MAX(REGDATE) REGDATE
+		          FROM IFR_PBSAT0590 M,
+		               (SELECT RCOCD,
+		                       MPOREGIPOCD,
+		                       REGIPOCD
+		                  FROM PICMT0060 P
+		                 WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+		                   ) POST
+
+		         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+		           AND M.REGIPOCD = POST.REGIPOCD
+					<isNotEmpty property="suppCompId">
+						AND (SELECT SUBCOMPCD
+						FROM IFR_PBSET0510
+						WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+					</isNotEmpty>
+		           AND ACTIVYN = 'Y'
+		           AND CLPMKINDCD IN ('002','003','004','005')
+		         GROUP BY POST.RCOCD
+		         		 ,POST.MPOREGIPOCD
+		         		 ,POST.REGIPOCD
+		         		 ,TPPRMGOODSCD ) ST
+
+		 UNION ALL
+		SELECT /*+ leading(POST) use_hash(M) */
+		       3 SDIV,
+		       ' ' RCOCD,
+		       ' ' MPOREGIPOCD,
+		       ' ' REGIPOCD,
+		       ' ' RCONM,
+		       ' ' MPONM,
+		       ' ' PONM,
+		       ' ' CLPMYMD,
+		       '합 계' BIZNAME,
+		       ' ' TPPRMGOODSCD,
+		       ' ' tpprmGoodsNm,
+		       ' ' CLPMKINDNM,
+		       SUM(CLPMCNT) CLPMCNT,
+		       SUM(CLPMAMT) CLPMAMT,
+		       SUM((SELECT MIN(CNTERREMDCNT)
+		              FROM IFR_PBSAT0590
+		             WHERE REGIPOCD     = ST.REGIPOCD
+		               AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+		               AND REGDATE      = ST.REGDATE)) CNTERREMDCNT,
+		       SYSDATE
+		  FROM (SELECT POST.RCOCD,
+		               POST.MPOREGIPOCD,
+		               POST.REGIPOCD,
+		               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+		               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+		               TPPRMGOODSCD,
+		               MAX(REGDATE) REGDATE
+		          FROM IFR_PBSAT0590 M,
+		               (SELECT RCOCD,
+		                       MPOREGIPOCD,
+		                       REGIPOCD
+		                  FROM PICMT0060 P
+		                 WHERE USEYN ='Y'
+
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+		                   ) POST
+
+		         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+		           AND M.REGIPOCD = POST.REGIPOCD
+						<isNotEmpty property="suppCompId">
+							AND (SELECT SUBCOMPCD
+							FROM IFR_PBSET0510
+							WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+						</isNotEmpty>
+		           AND ACTIVYN = 'Y'
+		           AND CLPMKINDCD IN ('002','003','004','005')
+		         GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD,TPPRMGOODSCD ) ST
+		 ORDER BY TPPRMGOODSCD
+		 		 ,REGIPOCD
+		 		 ,SDIV
+		 		 ,CLPMYMD
+		 		 ,REGDATE
+   	) T1
+ 	</select>
+
+	<!-- 창구판매_재고현황 리스트 조회(공급업체집계) -->
+	<select id="selectStockGoodsList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT T2.ONUM
+         , T2.SDIV
+         , T2.RCOCD
+         , T2.MPOREGIPOCD
+         , T2.REGIPOCD
+         , T2.RCONM
+         , T2.MPONM
+         , T2.PONM
+         , T2.CLPMYMD
+         , T2.BIZNAME
+         , T2.TPPRMGOODSCD
+         , T2.TPPRMGOODSNM
+         , T2.CLPMKINDNM
+         , T2.CLPMCNT
+         , T2.CLPMAMT
+         , T2.CNTERREMDCNT
+         , T2.REGDATE
+
+	FROM(
+			SELECT ROWNUM AS ONUM
+                 , T1.SDIV
+                 , T1.RCOCD
+                 , T1.MPOREGIPOCD
+                 , T1.REGIPOCD
+                 , T1.RCONM
+                 , T1.MPONM
+                 , T1.PONM
+                 , T1.CLPMYMD
+                 , T1.BIZNAME
+                 , T1.TPPRMGOODSCD
+                 , T1.TPPRMGOODSNM
+                 , T1.CLPMKINDNM
+                 , T1.CLPMCNT
+                 , T1.CLPMAMT
+                 , T1.CNTERREMDCNT
+                 , T1.REGDATE
+
+			FROM(
+			    SELECT /*+ leading(POST) use_hash(M) */
+			           1 SDIV,
+			           POST.RCOCD,
+			           POST.MPOREGIPOCD,
+			           POST.REGIPOCD,
+			           POST.RCONM,
+			           NVL(POST.MPONM,' ') MPONM,
+			           POST.PONM,
+			           TO_CHAR(TO_DATE(CLPMYMD,'YYYYMMDD'),'YYYY-MM-DD') CLPMYMD,
+
+						NVL((SELECT MAX(BCNC_NM)
+		                       FROM CO_SUPP_COMP_MAST
+		                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                       FROM IFR_PBSET0510
+		                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+		                   ), ' ') BIZNAME,
+
+			           TPPRMGOODSCD,
+			           (SELECT TPPRMGOODSNM
+			              FROM IFR_PBSET0510
+			             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+			           DECODE(CLPMKINDCD,'001','청구등록','002','입고','003','반납','004','판매','005','반품','006','반품')  CLPMKINDNM,
+			           CLPMCNT,
+			           NVL(CLPMMONEYAMT,0) + NVL(CLPMCREDITCARDAMT,0) CLPMAMT,
+			           CNTERREMDCNT,
+			           REGDATE
+			      FROM IFR_PBSAT0590 M,
+			           (SELECT RCOCD,
+			                   DECODE(RCOCD,'00','본부',
+			                                '10','서울청',
+			                                '15','경인청',
+			                                '20','부산청',
+			                                '30','충청청',
+			                                '40','전남청',
+			                                '50','경북청',
+			                                '60','전북청',
+			                                '70','강원청',
+			                                '80','제주청') RCONM,
+			                   MPOREGIPOCD,
+			                   (SELECT PONM
+			                      FROM PICMT0060
+			                     WHERE REGIPOCD = P.MPOREGIPOCD
+			                       AND USEYN = 'Y') MPONM,
+			                   REGIPOCD,
+			                   PONM
+			              FROM PICMT0060 P
+			             WHERE USEYN ='Y'
+							<isNotEmpty property="searchPost1">
+								AND RCOCD LIKE '%' || #searchPost1# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost2">
+								AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+							</isNotEmpty>
+
+							<isNotEmpty property="searchPost3">
+								AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+							</isNotEmpty>
+
+			               ) POST
+
+			 	WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+				  AND M.REGIPOCD = POST.REGIPOCD
+					<isNotEmpty property="suppCompId">
+						AND (SELECT SUBCOMPCD
+						FROM IFR_PBSET0510
+						WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+					</isNotEmpty>
+				  AND ACTIVYN = 'Y'
+				  AND CLPMKINDCD IN ('002','003','004','005')
+
+				UNION ALL
+			   SELECT /*+ leading(POST) use_hash(M) */
+				       2 SDIV,
+				       RCOCD,
+				       MPOREGIPOCD,
+				       REGIPOCD,
+				       ' ' RCONM,
+				       ' ' MPONM,
+				       ' ' PONM,
+				       ' ' CLPMYMD,
+				       '소 계' BIZNAME,
+				       TPPRMGOODSCD,
+				       ' ' tpprmGoodsNm,
+				       ' ' CLPMKINDNM,
+				       CLPMCNT,
+				       CLPMAMT,
+				       (SELECT MIN(CNTERREMDCNT)
+				          FROM IFR_PBSAT0590
+				         WHERE REGIPOCD     = ST.REGIPOCD
+				           AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+				           AND REGDATE      = ST.REGDATE) CNTERREMDCNT,
+				       REGDATE
+				  FROM (SELECT POST.RCOCD,
+				               POST.MPOREGIPOCD,
+				               POST.REGIPOCD,
+				               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+				               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+				               TPPRMGOODSCD,
+				               MAX(REGDATE) REGDATE
+				          FROM IFR_PBSAT0590 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+				                   ) POST
+
+				         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+
+				           AND ACTIVYN = 'Y'
+				           AND CLPMKINDCD IN ('002','003','004','005')
+				         GROUP BY POST.RCOCD
+				         		 ,POST.MPOREGIPOCD
+				         		 ,POST.REGIPOCD
+				         		 ,TPPRMGOODSCD ) ST
+
+				 UNION ALL
+				SELECT /*+ leading(POST) use_hash(M) */
+				       3 SDIV,
+				       ' ' RCOCD,
+				       ' ' MPOREGIPOCD,
+				       ' ' REGIPOCD,
+				       ' ' RCONM,
+				       ' ' MPONM,
+				       ' ' PONM,
+				       ' ' CLPMYMD,
+				       '합 계' BIZNAME,
+				       'ZZZZ' TPPRMGOODSCD,
+				       ' ' tpprmGoodsNm,
+				       ' ' CLPMKINDNM,
+				       SUM(CLPMCNT) CLPMCNT,
+				       SUM(CLPMAMT) CLPMAMT,
+				       SUM((SELECT MIN(CNTERREMDCNT)
+				              FROM IFR_PBSAT0590
+				             WHERE REGIPOCD     = ST.REGIPOCD
+				               AND TPPRMGOODSCD = ST.TPPRMGOODSCD
+				               AND REGDATE      = ST.REGDATE)) CNTERREMDCNT,
+				       SYSDATE
+				  FROM (SELECT POST.RCOCD,
+				               POST.MPOREGIPOCD,
+				               POST.REGIPOCD,
+				               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+				               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+				               TPPRMGOODSCD,
+				               MAX(REGDATE) REGDATE
+				          FROM IFR_PBSAT0590 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+				                   ) POST
+
+				         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+
+				           AND ACTIVYN = 'Y'
+				           AND CLPMKINDCD IN ('002','003','004','005')
+				         GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD,TPPRMGOODSCD ) ST
+				 ORDER BY TPPRMGOODSCD
+				 		 ,REGIPOCD
+				 		 ,SDIV
+				 		 ,CLPMYMD
+				 		 ,REGDATE
+	    	) T1
+	)T2
+
+	WHERE 1=1
+	<isNotNull property="firstIndex">
+		<isNotNull property="lastIndex">
+    		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+    	</isNotNull>
+    </isNotNull>
+ 	</select>
+
+	<!-- 창구판매_재고현황 카운트(공급업체상세) -->
+	<select id="selectStockGoodsTotCnt4" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT COUNT(*) AS TOTCNT
+
+	FROM(
+				 SELECT /*+ leading(POST) use_hash(M) */
+				        1 SDIV,
+				        RCOCD,
+				        MPOREGIPOCD,
+				        REGIPOCD,
+				        DECODE(RCOCD,'00','본부',
+				                     '10','서울청',
+				                     '15','경인청',
+				                     '20','부산청',
+				                     '30','충청청',
+				                     '40','전남청',
+				                     '50','경북청',
+				                     '60','전북청',
+				                     '70','강원청',
+				                     '80','제주청') RCONM,
+				        (SELECT PONM
+				           FROM PICMT0060
+				          WHERE REGIPOCD = M.MPOREGIPOCD
+				            AND USEYN = 'Y') MPONM,
+				        PONM,
+
+						NVL((SELECT MAX(BCNC_NM)
+		                       FROM CO_SUPP_COMP_MAST
+		                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                       FROM IFR_PBSET0510
+		                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+		                   ), ' ') BIZNAME,
+
+				        TPPRMGOODSCD,
+				        (SELECT TPPRMGOODSNM
+				           FROM IFR_PBSET0510
+				          WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+				        KCNT1,
+				        KCNT2,
+				        KCNT3,
+				        KCNT4,
+				        (SELECT MIN(CNTERREMDCNT)
+				           FROM IFR_PBSAT0590
+				          WHERE REGIPOCD     = M.REGIPOCD
+				            AND TPPRMGOODSCD = M.TPPRMGOODSCD
+				            AND REGDATE      = M.REGDATE) CNTERREMDCNT
+				  FROM (SELECT POST.RCOCD,
+				               POST.MPOREGIPOCD,
+				               POST.REGIPOCD,
+				               POST.PONM,
+				               TPPRMGOODSCD,
+				               SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+				               SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+				               SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+				               SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+				               MAX(REGDATE) REGDATE
+				          FROM IFR_PBSAT0590 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD,
+				                       PONM
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+				                   ) POST
+
+				         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+
+				           AND ACTIVYN = 'Y'
+				           AND CLPMKINDCD IN ('002','003','004','005')
+				          GROUP BY POST.RCOCD
+				                  ,POST.MPOREGIPOCD
+				                  ,POST.REGIPOCD
+				                  ,POST.PONM
+				                  ,TPPRMGOODSCD  ) M
+				 UNION ALL
+				 SELECT /*+ leading(POST) use_hash(M) */
+				        2 SDIV,
+				        ' ' RCOCD,
+				        ' ' MPOREGIPOCD,
+				        ' ' REGIPOCD,
+				        ' ' RCONM,
+				        ' ' MPONM,
+				        ' ' PONM,
+				        ' ' BIZNAME,
+				        ' ' TPPRMGOODSCD,
+				        '합 계' tpprmGoodsNm,
+				        SUM(KCNT1) KCNT1,
+				        SUM(KCNT2) KCNT2,
+				        SUM(KCNT3) KCNT3,
+				        SUM(KCNT4) KCNT4,
+				        SUM((SELECT MIN(CNTERREMDCNT)
+				               FROM IFR_PBSAT0590
+				              WHERE REGIPOCD     = M.REGIPOCD
+				                AND TPPRMGOODSCD = M.TPPRMGOODSCD
+				                AND REGDATE      = M.REGDATE)) CNTERREMDCNT
+				  FROM (SELECT POST.RCOCD,
+				               POST.MPOREGIPOCD,
+				               POST.REGIPOCD,
+				               POST.PONM,
+				               TPPRMGOODSCD,
+				               SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+				               SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+				               SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+				               SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+				               MAX(REGDATE) REGDATE
+				          FROM IFR_PBSAT0590 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD,
+				                       PONM
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+								<isNotEmpty property="searchPost1">
+									AND RCOCD LIKE '%' || #searchPost1# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost2">
+									AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost3">
+									AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+								</isNotEmpty>
+
+				                   ) POST
+
+				         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+
+				           AND ACTIVYN = 'Y'
+				           AND CLPMKINDCD IN ('002','003','004','005')
+				          GROUP BY POST.RCOCD
+				                  ,POST.MPOREGIPOCD
+				                  ,POST.REGIPOCD
+				                  ,POST.PONM
+				                  ,TPPRMGOODSCD  ) M
+				 ORDER BY SDIV
+				 		 ,TPPRMGOODSCD
+				 		 ,RCOCD
+				 		 ,MPOREGIPOCD
+				 		 ,REGIPOCD
+   	) T1
+ 	</select>
+
+	<!-- 창구판매_재고현황 리스트 조회(공급업체상세) -->
+	<select id="selectStockGoodsList4" parameterClass ="java.util.HashMap" resultClass="commMap">
+	SELECT T2.ONUM
+         , T2.SDIV
+         , T2.RCOCD
+         , T2.MPOREGIPOCD
+         , T2.REGIPOCD
+         , T2.RCONM
+         , T2.MPONM
+         , T2.PONM
+         , T2.BIZNAME
+         , T2.TPPRMGOODSCD
+         , T2.TPPRMGOODSNM
+         , T2.KCNT1
+         , T2.KCNT2
+         , T2.KCNT3
+         , T2.KCNT4
+         , T2.CNTERREMDCNT
+
+	FROM(
+			SELECT ROWNUM AS ONUM
+                 , T1.SDIV
+                 , T1.RCOCD
+                 , T1.MPOREGIPOCD
+                 , T1.REGIPOCD
+                 , T1.RCONM
+                 , T1.MPONM
+                 , T1.PONM
+                 , T1.BIZNAME
+                 , T1.TPPRMGOODSCD
+                 , T1.TPPRMGOODSNM
+                 , T1.KCNT1
+                 , T1.KCNT2
+                 , T1.KCNT3
+                 , T1.KCNT4
+                 , T1.CNTERREMDCNT
+
+			FROM(
+				 SELECT /*+ leading(POST) use_hash(M) */
+				        1 SDIV,
+				        RCOCD,
+				        MPOREGIPOCD,
+				        REGIPOCD,
+				        DECODE(RCOCD,'00','본부',
+				                     '10','서울청',
+				                     '15','경인청',
+				                     '20','부산청',
+				                     '30','충청청',
+				                     '40','전남청',
+				                     '50','경북청',
+				                     '60','전북청',
+				                     '70','강원청',
+				                     '80','제주청') RCONM,
+				        (SELECT PONM
+				           FROM PICMT0060
+				          WHERE REGIPOCD = M.MPOREGIPOCD
+				            AND USEYN = 'Y') MPONM,
+				        PONM,
+
+						NVL((SELECT MAX(BCNC_NM)
+		                       FROM CO_SUPP_COMP_MAST
+		                      WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                       FROM IFR_PBSET0510
+		                      WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+		                   ), ' ') BIZNAME,
+
+				        TPPRMGOODSCD,
+				        (SELECT TPPRMGOODSNM
+				           FROM IFR_PBSET0510
+				          WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+				        KCNT1,
+				        KCNT2,
+				        KCNT3,
+				        KCNT4,
+				        (SELECT MIN(CNTERREMDCNT)
+				           FROM IFR_PBSAT0590
+				          WHERE REGIPOCD     = M.REGIPOCD
+				            AND TPPRMGOODSCD = M.TPPRMGOODSCD
+				            AND REGDATE      = M.REGDATE) CNTERREMDCNT
+				  FROM (SELECT POST.RCOCD,
+				               POST.MPOREGIPOCD,
+				               POST.REGIPOCD,
+				               POST.PONM,
+				               TPPRMGOODSCD,
+				               SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+				               SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+				               SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+				               SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+				               MAX(REGDATE) REGDATE
+				          FROM IFR_PBSAT0590 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD,
+				                       PONM
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+									<isNotEmpty property="searchPost1">
+										AND RCOCD LIKE '%' || #searchPost1# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost2">
+										AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+									</isNotEmpty>
+
+									<isNotEmpty property="searchPost3">
+										AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+									</isNotEmpty>
+
+				                   ) POST
+
+				         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+
+				           AND ACTIVYN = 'Y'
+				           AND CLPMKINDCD IN ('002','003','004','005')
+				          GROUP BY POST.RCOCD
+				                  ,POST.MPOREGIPOCD
+				                  ,POST.REGIPOCD
+				                  ,POST.PONM
+				                  ,TPPRMGOODSCD  ) M
+				 UNION ALL
+				 SELECT /*+ leading(POST) use_hash(M) */
+				        2 SDIV,
+				        ' ' RCOCD,
+				        ' ' MPOREGIPOCD,
+				        ' ' REGIPOCD,
+				        ' ' RCONM,
+				        ' ' MPONM,
+				        ' ' PONM,
+				        ' ' BIZNAME,
+				        ' ' TPPRMGOODSCD,
+				        '합 계' tpprmGoodsNm,
+				        SUM(KCNT1) KCNT1,
+				        SUM(KCNT2) KCNT2,
+				        SUM(KCNT3) KCNT3,
+				        SUM(KCNT4) KCNT4,
+				        SUM((SELECT MIN(CNTERREMDCNT)
+				               FROM IFR_PBSAT0590
+				              WHERE REGIPOCD     = M.REGIPOCD
+				                AND TPPRMGOODSCD = M.TPPRMGOODSCD
+				                AND REGDATE      = M.REGDATE)) CNTERREMDCNT
+				  FROM (SELECT POST.RCOCD,
+				               POST.MPOREGIPOCD,
+				               POST.REGIPOCD,
+				               POST.PONM,
+				               TPPRMGOODSCD,
+				               SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) KCNT1,
+				               SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) KCNT2,
+				               SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) KCNT3,
+				               SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) KCNT4,
+				               MAX(REGDATE) REGDATE
+				          FROM IFR_PBSAT0590 M,
+				               (SELECT RCOCD,
+				                       MPOREGIPOCD,
+				                       REGIPOCD,
+				                       PONM
+				                  FROM PICMT0060 P
+				                 WHERE USEYN ='Y'
+
+								<isNotEmpty property="searchPost1">
+									AND RCOCD LIKE '%' || #searchPost1# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost2">
+									AND MPOREGIPOCD LIKE '%' || #searchPost2# || '%'
+								</isNotEmpty>
+
+								<isNotEmpty property="searchPost3">
+									AND REGIPOCD LIKE '%' || #searchPost3# || '%'
+								</isNotEmpty>
+
+				                   ) POST
+
+				         WHERE M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+				           AND M.REGIPOCD = POST.REGIPOCD
+							<isNotEmpty property="suppCompId">
+								AND (SELECT SUBCOMPCD
+								FROM IFR_PBSET0510
+								WHERE TPPRMGOODSCD = M.TPPRMGOODSCD )= #suppCompId#
+							</isNotEmpty>
+
+				           AND ACTIVYN = 'Y'
+				           AND CLPMKINDCD IN ('002','003','004','005')
+				          GROUP BY POST.RCOCD
+				                  ,POST.MPOREGIPOCD
+				                  ,POST.REGIPOCD
+				                  ,POST.PONM
+				                  ,TPPRMGOODSCD  ) M
+				 ORDER BY SDIV
+				 		 ,TPPRMGOODSCD
+				 		 ,RCOCD
+				 		 ,MPOREGIPOCD
+				 		 ,REGIPOCD
+	    	) T1
+	)T2
+
+	WHERE 1=1
+	<isNotNull property="firstIndex">
+		<isNotNull property="lastIndex">
+    		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+    	</isNotNull>
+    </isNotNull>
+ 	</select>
+
+	<!-- 창구판매_재고현황 합계 -->
+	<select id="selectStockGoodsSummary" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT 	NVL(SUM(CLPMCNT), 0) CLPMCNT,
+				NVL(SUM(CLPMAMT), 0) CLPMAMT,
+				NVL(SUM((SELECT MIN(CNTERREMDCNT)
+					FROM 	IFR_PBSAT0590
+					WHERE 	REGIPOCD     = ST.REGIPOCD
+					AND 	TPPRMGOODSCD = ST.TPPRMGOODSCD
+					AND 	REGDATE      = ST.REGDATE)), 0) CNTERREMDCNT
+		FROM 	(SELECT	POST.RCOCD,
+						POST.MPOREGIPOCD,
+						POST.REGIPOCD,
+						SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) CLPMCNT,
+						SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) + DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) CLPMAMT,
+						TPPRMGOODSCD,
+						MAX(REGDATE) REGDATE
+				FROM 	IFR_PBSAT0590 M,
+						(SELECT RCOCD,
+								MPOREGIPOCD,
+								REGIPOCD
+						FROM 	PICMT0060 P
+						WHERE 	USEYN ='Y'
+						AND 	RCOCD LIKE #searchRcoCd# || '%'
+	             AND 	MPOREGIPOCD LIKE #searchMporegipocd# || '%'
+	             AND 	REGIPOCD LIKE #searchRegipocd# || '%') POST
+		WHERE 	M.CLPMYMD BETWEEN #searchFromDt# AND #searchToDt#
+		AND 	M.REGIPOCD = POST.REGIPOCD
+		AND 	(SELECT SUBCOMPCD FROM IFR_PBSET0510 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE #searchSupplierCode# || '%'
+		AND 	ACTIVYN = 'Y'
+		AND 	CLPMKINDCD IN ('002','003','004','005')
+		GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD,TPPRMGOODSCD  ) ST
+	</select>
+ 		<!-- 지방우정청코드 -->
+	<select id="selectRegnPstCdList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT PONM, RCOCD, MPOREGIPOCD, REGIPOCD
+		  FROM PICMT0060
+		 WHERE USEYN = 'Y'
+		   AND DSCDPOYN = 'N'
+		<isEmpty property="depth">
+		   AND PODIVCD = '02'								/* 체신청 */
+		</isEmpty>
+		<isEqual property="depth" compareValue="01">
+		   AND PODIVCD IN ('05', '06', '10', '18')			/* 집중국, 총괄국, 국제우체국, 물류센터 */
+		   AND RCOCD = (SELECT RCOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchPstGrcCd#)
+		</isEqual>
+		<isEqual property="depth" compareValue="02">
+		   AND PODIVCD IN ('07', '08', '09', '12', '13', '17', '18')	/* 우체국, 취급국, 군사우체국, 출장소, 별정우체국, 군사우편출장소, 물류센터 */
+		   AND MPOREGIPOCD = (SELECT MPOREGIPOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchSmrizeBuraCd#)
+		</isEqual>
+		 ORDER BY RCOCD
+	</select>
+	<!-- 창구 정산현황 -->
+	<sql id="selectCounterSellPostAdj">
+			   SELECT /*+ leading(POST) use_hash(M) */
+			       '1' SDIV,
+			       RECEVPOREGIPOCD,
+			       POST.RCONM,
+			       POST.MPONM,
+			       POST.PONM,
+			       M.SUBCOMPCD,
+
+                   NVL((SELECT MAX(BCNC_NM)
+                          FROM CO_SUPP_COMP_MAST
+                         WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                          FROM IFR_PBSET0510
+                         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+                      ), ' ') BIZNAME,
+
+			       TPPRMGOODSCD,
+			       (SELECT TPPRMGOODSNM
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+			       NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0) AMT,
+			       MONEYAMT,
+			       CREDITCARDAMT,
+			       SELLTAXINAMT,
+			       FLOOR((NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) * 6.05 / 1000) * 10 FEE,
+			       FLOOR(NVL(CREDITCARDAMT,0) * 0.013) CARDFEE,
+			       NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0) - NVL(SELLTAXINAMT,0) - FLOOR((NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) * 6.05 / 1000) * 10 - FLOOR(NVL(CREDITCARDAMT,0) * 0.013)  PRICE
+			  FROM IFR_PBSBT0512 M,
+			       (SELECT RCOCD,
+			                   DECODE(RCOCD,'00','본부',
+			                                '10','서울청',
+			                                '15','경인청',
+			                                '20','부산청',
+			                                '30','충청청',
+			                                '40','전남청',
+			                                '50','경북청',
+			                                '60','전북청',
+			                                '70','강원청',
+			                                '80','제주청') RCONM,
+			                   MPOREGIPOCD,
+			                   (SELECT PONM
+			                      FROM PICMT0060
+			                     WHERE REGIPOCD = P.MPOREGIPOCD
+			                       AND USEYN = 'Y') MPONM,
+			                   REGIPOCD,
+			                   PONM
+			              FROM PICMT0060 P
+			             WHERE USEYN ='Y'
+		               <isNotEmpty property="searchPstGrcCd" >
+		             	 AND RCOCD =  (SELECT RCOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchPstGrcCd#)
+		             </isNotEmpty>
+		             <isNotEmpty property="searchSmrizeBuraCd" >
+		             	 AND MPOREGIPOCD  = (SELECT MPOREGIPOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchSmrizeBuraCd#)
+		             </isNotEmpty>
+		             <isNotEmpty property="searchSuplyBuraCd" >
+		                 AND REGIPOCD LIKE '%' ||  #searchSuplyBuraCd# || '%'
+		             </isNotEmpty>) POST
+			 WHERE M.ACTIVYN = 'Y'
+			   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+			  <isNotEmpty property="searchFromDt" >
+			   AND M.SELLCLOSESTRYMD = #searchFromDt# || '01'
+			   </isNotEmpty>
+			   <isNotEmpty property="searchToDt">
+			   AND M.SELLCLOSEENDYMD = TO_CHAR(LAST_DAY(TO_DATE(#searchToDt#,'YYYY-MM')),'YYYYMMDD')
+			   </isNotEmpty>
+			   <isNotEmpty property="search_supp_comp_id">
+			   AND M.SUBCOMPCD = #search_supp_comp_id#
+			   </isNotEmpty>
+			 UNION ALL
+			 SELECT /*+ leading(POST) use_hash(M) */
+			       '2' SDIV,
+			        M.RECEVPOREGIPOCD,
+			       '소 계' RCONM,
+			       ' ' MPONM,
+			       ' ' PONM,
+			       ' ' SUBCOMPCD,
+			       ' ' BIZNAME,
+			       ' ' TPPRMGOODSCD,
+			       ' ' tpprmGoodsNm,
+			       SUM(NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) AMT,
+			       SUM(MONEYAMT) MONEYAMT,
+			       SUM(CREDITCARDAMT) CREDITCARDAMT,
+			       SUM(SELLTAXINAMT) SELLTAXINAMT,
+			       SUM(FLOOR((NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) * 6.05 / 1000) * 10) FEE,
+			       SUM(FLOOR(NVL(CREDITCARDAMT,0) * 0.013)) CARDFEE,
+			       SUM(NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0) - NVL(SELLTAXINAMT,0) - FLOOR((NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) * 6.05 / 1000) * 10 - FLOOR(NVL(CREDITCARDAMT,0) * 0.013)) PRICE
+			  FROM IFR_PBSBT0512 M,
+			      (SELECT RCOCD,
+			                   DECODE(RCOCD,'00','본부',
+			                                '10','서울청',
+			                                '15','경인청',
+			                                '20','부산청',
+			                                '30','충청청',
+			                                '40','전남청',
+			                                '50','경북청',
+			                                '60','전북청',
+			                                '70','강원청',
+			                                '80','제주청') RCONM,
+			                   MPOREGIPOCD,
+			                   (SELECT PONM
+			                      FROM PICMT0060
+			                     WHERE REGIPOCD = P.MPOREGIPOCD
+			                       AND USEYN = 'Y') MPONM,
+			                   REGIPOCD,
+			                   PONM
+			              FROM PICMT0060 P
+			             WHERE USEYN ='Y'
+			         <isNotEmpty property="searchPstGrcCd" >
+		             	 AND RCOCD =  (SELECT RCOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchPstGrcCd#)
+		             </isNotEmpty>
+		             <isNotEmpty property="searchSmrizeBuraCd" >
+		             	 AND MPOREGIPOCD  = (SELECT MPOREGIPOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchSmrizeBuraCd#)
+		             </isNotEmpty>
+		             <isNotEmpty property="searchSuplyBuraCd" >
+		                 AND REGIPOCD LIKE '%' ||  #searchSuplyBuraCd# || '%'
+		             </isNotEmpty>) POST
+			 WHERE M.ACTIVYN = 'Y'
+			   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+			  <isNotEmpty property="searchFromDt" >
+			   AND M.SELLCLOSESTRYMD = #searchFromDt# || '01'
+			   </isNotEmpty>
+			   <isNotEmpty property="searchToDt">
+			   AND M.SELLCLOSEENDYMD = TO_CHAR(LAST_DAY(TO_DATE(#searchToDt#,'YYYY-MM')),'YYYYMMDD')
+			   </isNotEmpty>
+			   <isNotEmpty property="search_supp_comp_id">
+			   AND M.SUBCOMPCD = #search_supp_comp_id#
+			   </isNotEmpty>
+			 GROUP BY M.RECEVPOREGIPOCD
+	</sql>
+	<select id="selectCounterSellPostAdjList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY RECEVPOREGIPOCD,SDIV) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectCounterSellPostAdj" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			<isNotNull property="lastIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+			</isNotNull>
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCounterSellPostAdjListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectCounterSellPostAdj" />)
+	</select>
+	<select id="selectCounterSellPostAdjSum" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT SUM(NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) AMT,
+		       SUM(MONEYAMT) MONEYAMT,
+		       SUM(CREDITCARDAMT) CREDITCARDAMT,
+		       SUM(SELLTAXINAMT) SELLTAXINAMT,
+		       SUM(FLOOR((NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) * 6.05 / 1000) * 10) FEE,
+		       SUM(FLOOR(NVL(CREDITCARDAMT,0) * 0.013)) CARDFEE,
+		       SUM(NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0) - NVL(SELLTAXINAMT,0) - FLOOR((NVL(MONEYAMT,0) + NVL(CREDITCARDAMT,0)) * 6.05 / 1000) * 10 - FLOOR(NVL(CREDITCARDAMT,0) * 0.013)) PRICE
+		  FROM IFR_PBSBT0512 M,
+		      (SELECT RCOCD,
+		                   DECODE(RCOCD,'00','본부',
+		                                '10','서울청',
+		                                '15','경인청',
+		                                '20','부산청',
+		                                '30','충청청',
+		                                '40','전남청',
+		                                '50','경북청',
+		                                '60','전북청',
+		                                '70','강원청',
+		                                '80','제주청') RCONM,
+		                   MPOREGIPOCD,
+		                   (SELECT PONM
+		                      FROM PICMT0060
+		                     WHERE REGIPOCD = P.MPOREGIPOCD
+		                       AND USEYN = 'Y') MPONM,
+		                   REGIPOCD,
+		                   PONM
+		              FROM PICMT0060 P
+		             WHERE USEYN ='Y'
+		              <isNotEmpty property="searchPstGrcCd" >
+		             	 AND RCOCD =  (SELECT RCOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchPstGrcCd#)
+		             </isNotEmpty>
+		             <isNotEmpty property="searchSmrizeBuraCd" >
+		             	 AND MPOREGIPOCD  = (SELECT MPOREGIPOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchSmrizeBuraCd#)
+		             </isNotEmpty>
+		             <isNotEmpty property="searchSuplyBuraCd" >
+		                 AND REGIPOCD LIKE '%' ||  #searchSuplyBuraCd# || '%'
+		             </isNotEmpty>) POST
+		 WHERE M.ACTIVYN = 'Y'
+		   AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+		   <isNotEmpty property="searchFromDt" >
+		   AND M.SELLCLOSESTRYMD = #searchFromDt# || '01'
+		   </isNotEmpty>
+		   <isNotEmpty property="searchToDt">
+		   AND M.SELLCLOSEENDYMD = TO_CHAR(LAST_DAY(TO_DATE(#searchToDt#,'YYYY-MM')),'YYYYMMDD')
+		   </isNotEmpty>
+		   <isNotEmpty property="search_supp_comp_id">
+		   AND M.SUBCOMPCD = #search_supp_comp_id#
+		   </isNotEmpty>
+	</select>
+
+
+	<sql id="selectCounterSellBizAdj">
+		SELECT M.RECEVPOREGIPOCD,
+	        (SELECT BCNC_NM FROM CO_SUPP_COMP_MAST WHERE SUPP_COMP_ID = #search_supp_comp_id#) AS BIZNAME,
+          (SELECT PONM
+             FROM PICMT0060
+            WHERE REGIPOCD = M.RECEVPOREGIPOCD
+              AND USEYN    = 'Y') PONM,
+          M.TPPRMGOODSCD,
+          (SELECT TPPRMGOODSNM
+             FROM IFR_PBSET0510
+            WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+          NVL(A.AMT,0) + NVL(B.AMT,0) AMT,
+          NVL(A.AMT,0) MONEYAMT,
+          NVL(B.AMT,0) CREDITCARDAMT,
+          NVL(A.TAX,0) + NVL(B.TAX,0) SELLTAXINAMT,
+          NVL(A.FEE,0) + NVL(B.FEE,0) FEE,
+          NVL(B.CARDFEE,0) CARDFEE,
+          NVL(A.AMT,0) + NVL(B.AMT,0) - NVL(A.TAX,0) - NVL(B.TAX,0) - NVL(A.FEE,0) - NVL(B.FEE,0) - NVL(B.CARDFEE,0) GAMT,
+          DECODE(NVL((SELECT MAX(TRANSF_DATA_FRWD_STUS_CD)
+                        FROM ST_POST_FEE_TRANSF
+                       WHERE 1=1
+                       <isNotEmpty property="searchToDt">
+                       AND ADJ_PERIOD_YM = #searchToDt#
+                       </isNotEmpty> ),'00'),'01','정산','02','이체','00','미정산','04','이체완료','기타') JSTA
+     FROM (SELECT RECEVPOREGIPOCD,TPPRMGOODSCD
+             FROM IFR_PBSAT0520
+            WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                    FROM IFR_PBSAT0510
+                                   WHERE 1=1
+                                   <isNotEmpty property="searchToDt">
+                                    AND SELLRECEVYMD LIKE #searchToDt# || '%'
+                                   </isNotEmpty>
+                                    AND ACTIVYN = 'Y')
+              AND TPPRMGOODSCD IN (SELECT TPPRMGOODSCD
+                                     FROM IFR_PBSET0510
+                                    WHERE SUBCOMPCD = #search_supp_comp_id#
+                                    )
+       GROUP BY RECEVPOREGIPOCD,TPPRMGOODSCD                  ) M,
+          (SELECT RECEVPOREGIPOCD,
+                  TPPRMGOODSCD,
+                  SUM(SELLAMT) AMT,
+                  SUM(SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC)) TAX,
+                  SUM(FLOOR(SELLAMT * 6.05 / 1000) * 10) FEE
+             FROM IFR_PBSAT0520
+            WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                    FROM IFR_PBSAT0510
+                                    WHERE 1=1
+	                               <isNotEmpty property="searchToDt">
+	                                 AND SELLRECEVYMD LIKE #searchToDt# || '%'
+	                               </isNotEmpty>
+                                     AND ACTIVYN = 'Y'
+                                     AND SETLTYPECD = '001')
+              AND TPPRMGOODSCD IN (SELECT TPPRMGOODSCD
+                                     FROM IFR_PBSET0510
+                                    WHERE SUBCOMPCD = #search_supp_comp_id#
+                                    )
+            GROUP BY RECEVPOREGIPOCD,TPPRMGOODSCD                         ) A,
+          (SELECT RECEVPOREGIPOCD,
+                  TPPRMGOODSCD,
+                  SUM(SELLAMT) AMT,
+                  SUM(SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC)) TAX,
+                  SUM(FLOOR(SELLAMT * 6.05 / 1000) * 10) FEE,
+                  SUM(FLOOR(SELLAMT *
+                            NVL((SELECT DECODE(B.CARD_DIV_CODE,'01',CHECK_FEE,CARD_FEE)
+                                   FROM OD_CARDFEES A,
+                                        IFR_EPOSTCARD B
+                                  WHERE A.SITE_DIV_CD   = '01'
+                                    AND B.ACCEPT_NUM = IFR_PBSAT0520.SELLRECEVNO
+                                    AND A.JOIN_NO    = B.SHOP_NUM
+                                    AND B.TRADE_FLAG = '1'
+                                    AND TO_CHAR(B.TRADE_DATE,'YYYYMMDD')   BETWEEN A.START_DATE AND A.END_DATE) / 100,0.013))) CARDFEE
+             FROM IFR_PBSAT0520
+            WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                    FROM IFR_PBSAT0510
+                                   WHERE 1=1
+	                              <isNotEmpty property="searchToDt">
+	                                AND SELLRECEVYMD LIKE #searchToDt# || '%'
+	                              </isNotEmpty>
+                                    AND ACTIVYN = 'Y'
+                                    AND SETLTYPECD = '002')
+              AND TPPRMGOODSCD IN (SELECT TPPRMGOODSCD
+                                     FROM IFR_PBSET0510
+                                    WHERE SUBCOMPCD = #search_supp_comp_id#
+                                   )
+            GROUP BY RECEVPOREGIPOCD,TPPRMGOODSCD                          ) B,
+            (SELECT RCOCD,
+                           DECODE(RCOCD,'00','본부',
+                                        '10','서울청',
+                                        '15','경인청',
+                                        '20','부산청',
+                                        '30','충청청',
+                                        '40','전남청',
+                                        '50','경북청',
+                                        '60','전북청',
+                                        '70','강원청',
+                                        '80','제주청') RCONM,
+                           MPOREGIPOCD,
+                           (SELECT PONM
+                              FROM PICMT0060
+                             WHERE REGIPOCD = P.MPOREGIPOCD
+                               AND USEYN = 'Y') MPONM,
+                           REGIPOCD,
+                           PONM
+                      FROM PICMT0060 P
+                     WHERE USEYN ='Y'
+                      <isNotEmpty property="searchPstGrcCd" >
+                          AND RCOCD =  (SELECT RCOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchPstGrcCd#)
+                     </isNotEmpty>
+                     <isNotEmpty property="searchSmrizeBuraCd" >
+                          AND MPOREGIPOCD  = (SELECT MPOREGIPOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchSmrizeBuraCd#)
+                     </isNotEmpty>
+                     <isNotEmpty property="searchSuplyBuraCd" >
+                         AND REGIPOCD LIKE '%' ||  #searchSuplyBuraCd# || '%'
+                     </isNotEmpty>) POST
+    WHERE M.RECEVPOREGIPOCD = A.RECEVPOREGIPOCD(+)
+      AND M.TPPRMGOODSCD    = A.TPPRMGOODSCD(+)
+      AND M.RECEVPOREGIPOCD = B.RECEVPOREGIPOCD(+)
+      AND M.TPPRMGOODSCD    = B.TPPRMGOODSCD(+)
+      AND M.RECEVPOREGIPOCD = POST.REGIPOCD
+	</sql>
+	<select id="selectCounterSellBizAdjList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+			SELECT *
+				FROM ( SELECT
+					<isEmpty property="sidx">
+						ROW_NUMBER () OVER (ORDER BY PONM) RNUM
+					</isEmpty>
+					, A.*
+					FROM (
+						SELECT *
+							FROM(
+							<include refid="selectCounterSellBizAdj" />
+							)
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			<isNotNull property="lastIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+			</isNotNull>
+		</isNotEmpty>
+	</select>
+
+	<select id="selectCounterSellBizAdjListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectCounterSellBizAdj" />)
+	</select>
+	<!-- 창구정산현황 -->
+	<select id="selectCounterSellBizAdjSum" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+	SELECT NVL(A.AMT,0) + NVL(B.AMT,0) AMT,
+          NVL(A.AMT,0) MONEYAMT,
+          NVL(B.AMT,0) CREDITCARDAMT,
+          NVL(A.TAX,0) + NVL(B.TAX,0) SELLTAXINAMT,
+          NVL(A.FEE,0) + NVL(B.FEE,0) FEE,
+          NVL(B.CARDFEE,0) CARDFEE,
+          NVL(A.AMT,0) + NVL(B.AMT,0) - NVL(A.TAX,0) - NVL(B.TAX,0) - NVL(A.FEE,0) - NVL(B.FEE,0) - NVL(B.CARDFEE,0) GAMT
+     FROM (SELECT SUM(SELLAMT) AMT,
+                  SUM(SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC)) TAX,
+                  SUM(FLOOR(SELLAMT * 6.05 / 1000) * 10) FEE
+             FROM IFR_PBSAT0520
+            WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                    FROM IFR_PBSAT0510
+                                   WHERE 1=1
+	                               <isNotEmpty property="searchToDt">
+	                                 AND SELLRECEVYMD LIKE '%' || #searchToDt# || '%'
+	                               </isNotEmpty>
+                                     AND ACTIVYN = 'Y'
+                                     AND SETLTYPECD = '001')
+              AND TPPRMGOODSCD IN (SELECT TPPRMGOODSCD
+                                     FROM IFR_PBSET0510
+                                    <isNotEmpty property="search_supp_comp_id">
+                                    	WHERE SUBCOMPCD = #search_supp_comp_id#
+                                    </isNotEmpty>
+                                     )                ) A,
+          (SELECT SUM(SELLAMT) AMT,
+                  SUM(SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC) ) TAX,
+                  SUM(FLOOR(SELLAMT * 6.05 / 1000) * 10) FEE,
+                  SUM(FLOOR(SELLAMT *
+                            NVL((SELECT DECODE(B.CARD_DIV_CODE,'01',CHECK_FEE,CARD_FEE)
+                                   FROM OD_CARDFEES A,
+                                        IFR_EPOSTCARD B
+                                  WHERE A.SITE_DIV_CD   = '01'
+                                    AND B.ACCEPT_NUM = IFR_PBSAT0520.SELLRECEVNO
+                                    AND A.JOIN_NO    = B.SHOP_NUM
+                                    AND B.TRADE_FLAG = '1'
+                                    AND TO_CHAR(B.TRADE_DATE,'YYYYMMDD')   BETWEEN A.START_DATE AND A.END_DATE) / 100,0.013))) CARDFEE
+             FROM IFR_PBSAT0520
+            WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                    FROM IFR_PBSAT0510
+                                   WHERE 1=1
+	                               <isNotEmpty property="searchToDt">
+	                                AND SELLRECEVYMD LIKE '%' || #searchToDt# || '%'
+	                               </isNotEmpty>
+                                    AND ACTIVYN = 'Y'
+                                    AND SETLTYPECD = '002')
+              AND TPPRMGOODSCD IN (SELECT TPPRMGOODSCD
+                                     FROM IFR_PBSET0510
+                                     <isNotEmpty property="search_supp_comp_id">
+                                    	WHERE SUBCOMPCD = #search_supp_comp_id#
+                                   	</isNotEmpty>
+                                    )                 ) B
+	</select>
+	<sql id="selectCounterSellGoodsAppl">
+				 SELECT POST.RCONM,
+				       POST.MPONM,
+				       POST.PONM,
+				       POST.RCOCD,
+				       POST.MPOREGIPOCD,
+				       M.REGIPOCD,
+				       (SELECT SUBCOMPCD
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPCD,
+				       (SELECT SUBCOMPNM
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPNM,
+				       TO_CHAR(TO_DATE(M.REQ_DATE,'YYYYMMDD'),'YYYY-MM-DD') REQDATE,
+				       M.REQ_DATE RDATE,
+				       M.TPPRMGOODSCD,
+				       (SELECT TPPRMGOODSNM
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) TPPRMGOODSNM,
+				       M.REQ_QTY REQQTY,
+				       NVL(M.REQ_CONT,' ') REQCONT,
+				       M.REQ_STATUS REQSTATUS,
+				       DECODE(M.REQ_STATUS,'01','상품신청','02','신청확인','03','업체확인','04','입고확인','11','신청취소') REQSNM,
+				       REQ_DATETIME REQDATETIME
+				  FROM GD_CONSIGNMENT_GOODS M,
+				       (SELECT RCOCD,
+				               DECODE(RCOCD,'00','본부',
+				                            '10','서울청',
+				                            '15','경인청',
+				                            '20','부산청',
+				                            '30','충청청',
+				                            '40','전남청',
+				                            '50','경북청',
+				                            '60','전북청',
+				                            '70','강원청',
+				                            '80','제주청') RCONM,
+				               MPOREGIPOCD,
+				               (SELECT PONM
+				                  FROM PICMT0060
+				                 WHERE REGIPOCD = P.MPOREGIPOCD
+				                   AND USEYN = 'Y') MPONM,
+				               REGIPOCD,
+				               PONM
+				          FROM PICMT0060 P
+				         WHERE USEYN ='Y'
+			             <isNotEmpty property="searchPstGrcCd" >
+			             	 AND RCOCD =  (SELECT RCOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchPstGrcCd#)
+			             </isNotEmpty>
+			             <isNotEmpty property="searchSmrizeBuraCd" >
+			             	 AND MPOREGIPOCD  = (SELECT MPOREGIPOCD FROM PICMT0060 WHERE USEYN = 'Y' AND DSCDPOYN = 'N' AND REGIPOCD = #searchSmrizeBuraCd#)
+			             </isNotEmpty>
+			             <isNotEmpty property="searchSuplyBuraCd" >
+			                 AND REGIPOCD LIKE '%' ||  #searchSuplyBuraCd# || '%'
+			             </isNotEmpty>) POST
+				 WHERE 1=1
+			<isNotEmpty property="searchFromDt" >
+				 <isNotEmpty property="searchToDt" >
+			 	   AND TO_DATE(M.REQ_DATE,'YYYYMMDDHH24MISS') BETWEEN TO_DATE(#searchFromDt# || '00000','YYYYMMDDHH24MISS')
+			 	   												 AND  TO_DATE(#searchToDt#,'YYYYMMDD')+.99999
+			 	  </isNotEmpty>
+			</isNotEmpty>
+				   AND M.REGIPOCD = POST.REGIPOCD
+	   <![CDATA[   AND M.REQ_STATUS <> '11']]>
+	   			   <isNotEmpty property="searchReqStatus" >
+				   AND M.REQ_STATUS =#searchReqStatus#
+				    </isNotEmpty>
+				    <isNotEmpty property="search_supp_comp_id">
+				   AND (SELECT SUBCOMPCD
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) = #search_supp_comp_id#
+				     </isNotEmpty>
+	</sql>
+	<select id="selectCounterSellGoodsApplList"  parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+				SELECT *
+				FROM ( SELECT
+						<isEmpty property="sidx">
+							<isEqual property ="searchGubun" compareValue="R">
+								ROW_NUMBER () OVER (ORDER BY RCOCD,MPOREGIPOCD,REGIPOCD,REQDATE DESC) RNUM
+							</isEqual>
+							<isEqual property ="searchGubun" compareValue="B">
+								ROW_NUMBER () OVER (ORDER BY SUBCOMPCD,REQDATE DESC) RNUM
+							</isEqual>
+						</isEmpty>
+						, A.*
+						FROM (
+							SELECT *
+								FROM(
+								<include refid="selectCounterSellGoodsAppl" />
+								)
+							) A
+						) A
+			<isNotEmpty property="firstIndex">
+				<isNotNull property="lastIndex">
+				WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+				</isNotNull>
+			</isNotEmpty>
+	</select>
+	<select id="selectCounterSellGoodsApplListCount" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM (<include refid="selectCounterSellGoodsAppl" />)
+	</select>
+
+	<update id="modifyCounterSellGoodsApplStatus" parameterClass="java.util.HashMap">
+		 UPDATE GD_CONSIGNMENT_GOODS
+		 	<isEqual property="REQSTATUS" compareValue="01">
+		      SET REQ_STATUS   = '02'
+		    </isEqual>
+		    <isEqual property="REQSTATUS" compareValue="02">
+		      SET REQ_STATUS   = '01'
+		    </isEqual>
+		    WHERE REQ_DATE     = SUBSTR(#REQDATETIME#,1,8)
+		      AND REGIPOCD     = #REGIPOCD#
+		      AND TPPRMGOODSCD = #TPPRMGOODSCD#
+		      AND REQ_DATETIME = #REQDATETIME#
+		      AND REQ_STATUS   =  #REQSTATUS#
+	</update>
+
+	<!-- 업체정보연계 등록 -->
+	<insert id="insertSuppCompLinkInfo" parameterClass="java.util.HashMap">
+		 INSERT
+		  INTO IF_BIZCODE(BIZ_CODE,
+		                  BIZ_NAME,
+		                  TMNL_ID,
+		                  BOSS_NAME,
+		                  REGISTER_NO,
+		                  BUSINESS_COND,
+		                  BUSINESS_CATE,
+		                  TELEPHONE,
+		                  FAX,
+		                  POSTAL_CODE,
+		                  ADDRESS_1,
+		                  ADDRESS_2,
+		                  RAISE_SEQ,
+		                  IF_ID,
+		                  INIT_TIME,
+		                  DEAL_STATE,
+		                  WRK_GBN)
+		SELECT SUPP_COMP_ID
+		          , BCNC_NM
+		          , TRMNL_ID
+		          , NVL(PRSDT_NM,' ')
+		          , NVL(COMPREG_NO,' ')
+		          , INDUTY
+		          , ENTRPS
+		          , SUBSTR(TELNO,1,21)
+		          , FAXNO
+		          , ZIPCD
+		          , ADDR1
+		          , ADDR2
+		          , (SELECT NVL(MAX(RAISE_SEQ),0) + 1 FROM IF_BIZCODE)
+		          , 'IF-ESHPSH-033-P01I'
+		          , TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+		          , 'N'
+		          , CASE WHEN (SELECT COUNT(*)
+		                    FROM IF_BIZCODE
+		                   WHERE BIZ_CODE = #srchSuppCompId# ) > 0 THEN '2' ELSE '1' END
+		  FROM CO_SUPP_COMP_MAST
+		 WHERE  SUPP_COMP_ID = #srchSuppCompId#
+	</insert>
+
+	<select id="selectSuppCompLinkedList" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT ROWNUM,M.*
+         FROM (
+		       SELECT  SUPP_COMP_ID
+		            ,  BCNC_NM
+		            ,  TRMNL_ID
+		            ,  NVL(PRSDT_NM,' ') PRSDT_NM
+		            ,  NVL(COMPREG_NO,' ') COMPREG_NO
+		            ,  CASE WHEN (SELECT COUNT(*)
+		                                     FROM IF_BIZCODE
+		                                   WHERE BIZ_CODE = T1.SUPP_COMP_ID) > 0 THEN '연계' ELSE '미연계' END IFDIV
+		         FROM CO_SUPP_COMP_MAST T1, CO_PAVLN_MGT T2
+		        WHERE TRMNL_ID IS NOT NULL
+		        AND		T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+		        AND 	T2.SUPP_COMP_STUS_CD IN ('01','02')) M
+        ORDER BY IFDIV DESC
+	</select>
+
+	<select id="selectStockClose1TotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(*) CNT FROM (
+				SELECT '1' SDIV,
+				       POST.RCOCD,
+				       POST.MPOREGIPOCD,
+				       POST.REGIPOCD,
+				       DECODE(POST.RCOCD,'00','본부',
+				                         '10','서울청',
+				                         '15','경인청',
+				                         '20','부산청',
+				                         '30','충청청',
+				                         '40','전남청',
+				                         '50','경북청',
+				                         '60','전북청',
+				                         '70','강원청',
+				                         '80','제주청') RCONM,
+				       (SELECT PONM
+				          FROM PICMT0060
+				         WHERE REGIPOCD = POST.MPOREGIPOCD
+				           AND USEYN = 'Y') MPONM,
+				       (SELECT PONM
+				          FROM PICMT0060
+				         WHERE REGIPOCD = POST.REGIPOCD
+				           AND USEYN = 'Y') PONM,
+				       (SELECT SUBCOMPCD
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPCD,
+
+                        NVL((SELECT MAX(BCNC_NM)
+                               FROM CO_SUPP_COMP_MAST
+                              WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                               FROM IFR_PBSET0510
+                              WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)
+                           ), ' ') BIZNAME,
+
+				       TPPRMGOODSCD,
+				           (SELECT TPPRMGOODSNM
+				              FROM IFR_PBSET0510
+				             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+				       OLDQTY,
+				       OLDAMT,
+				       QTY1,
+				       AMT1,
+				       QTY2,
+				       AMT2,
+				       QTY3,
+				       AMT3,
+				       QTY4,
+				       AMT4,
+				       STOCKQTY,
+				       STOCKAMT
+				  FROM ST_STOCK_CLOSE M,
+				       (SELECT RCOCD,
+				               MPOREGIPOCD,
+				               REGIPOCD,
+				               PONM
+				          FROM PICMT0060 P
+				         WHERE USEYN ='Y'
+				           AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%'
+				         ) POST
+				 WHERE CLOSEYM = #srchCloseYear# || #srchCloseMonth#
+				   AND M.REGIPOCD = POST.REGIPOCD
+				   AND (SELECT SUBCOMPCD
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' ||  '%'
+				UNION ALL
+				SELECT '2' SDIV,
+				       POST.RCOCD,
+				       POST.MPOREGIPOCD,
+				       POST.REGIPOCD,
+				       ' '  RCONM,
+				       ' '  MPONM,
+				       '소 계' PONM,
+				       ' '  SUBCOMPCD,
+				       ' '  BIZNAME,
+				       ' '  TPPRMGOODSCD,
+				       ' '  tpprmGoodsNm,
+				       SUM(OLDQTY) OLDQTY,
+				       SUM(OLDAMT) OLDAMT,
+				       SUM(QTY1) QTY1,
+				       SUM(AMT1) AMT1,
+				       SUM(QTY2) QTY2,
+				       SUM(AMT2) AMT2,
+				       SUM(QTY3) QTY3,
+				       SUM(AMT3) AMT3,
+				       SUM(QTY4) QTY4,
+				       SUM(AMT4) AMT4,
+				       SUM(STOCKQTY) STOCKQTY,
+				       SUM(STOCKAMT) STOCKAMT
+				  FROM ST_STOCK_CLOSE M,
+				       (SELECT RCOCD,
+				               MPOREGIPOCD,
+				               REGIPOCD,
+				               PONM
+				          FROM PICMT0060 P
+				         WHERE USEYN ='Y'
+				           AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%'
+				         ) POST
+				 WHERE CLOSEYM = #srchCloseYear# || #srchCloseMonth#
+				   AND M.REGIPOCD = POST.REGIPOCD
+				   AND (SELECT SUBCOMPCD
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'
+				 GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD
+				) A
+		 ]]>
+	</select>
+
+	<select id="selectStockClose2TotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+		SELECT COUNT(*) AS CNT
+		  FROM (
+			SELECT '1' SDIV,
+		       POST.REGIPOCD,
+		       (SELECT PONM
+		          FROM PICMT0060
+		         WHERE REGIPOCD = POST.REGIPOCD
+		           AND USEYN = 'Y') PONM,
+		       (SELECT SUBCOMPCD
+		          FROM IFR_PBSET0510
+		         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPCD,
+
+               NVL((SELECT MAX(BCNC_NM)
+                      FROM CO_SUPP_COMP_MAST
+                     WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                      						 FROM IFR_PBSET0510
+                     						WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)), ' ') BIZNAME,
+
+		       TPPRMGOODSCD,
+		           (SELECT TPPRMGOODSNM
+		              FROM IFR_PBSET0510
+		             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+		       OLDQTY,
+		       OLDAMT,
+		       QTY1,
+		       AMT1,
+		       QTY2,
+		       AMT2,
+		       QTY3,
+		       AMT3,
+		       QTY4,
+		       AMT4,
+		       STOCKQTY,
+		       STOCKAMT
+		  FROM ST_STOCK_CLOSE M,
+		       (SELECT RCOCD,
+		               MPOREGIPOCD,
+		               REGIPOCD,
+		               PONM
+		          FROM PICMT0060 P
+		         WHERE USEYN ='Y'
+		           AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+		 WHERE CLOSEYM = #srchCloseYear# || #srchCloseMonth#
+		   AND M.REGIPOCD = POST.REGIPOCD
+		   AND (SELECT SUBCOMPCD
+		          FROM IFR_PBSET0510
+		         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'
+		UNION ALL
+		SELECT '2'  SDIV,
+		       ' '  REGIPOCD,
+		       ' '  PONM,
+		       SUBCOMPCD,
+		       '소 계'  BIZNAME,
+		       ' '  TPPRMGOODSCD,
+		       ' '  tpprmGoodsNm,
+		       SUM(OLDQTY) OLDQTY,
+		       SUM(OLDAMT) OLDAMT,
+		       SUM(QTY1) QTY1,
+		       SUM(AMT1) AMT1,
+		       SUM(QTY2) QTY2,
+		       SUM(AMT2) AMT2,
+		       SUM(QTY3) QTY3,
+		       SUM(AMT3) AMT3,
+		       SUM(QTY4) QTY4,
+		       SUM(AMT4) AMT4,
+		       SUM(STOCKQTY) STOCKQTY,
+		       SUM(STOCKAMT) STOCKAMT
+		  FROM (SELECT (SELECT SUBCOMPCD
+		                  FROM IFR_PBSET0510
+		                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPCD,
+		               OLDQTY,
+		               OLDAMT,
+		               QTY1,
+		               AMT1,
+		               QTY2,
+		               AMT2,
+		               QTY3,
+		               AMT3,
+		               QTY4,
+		               AMT4,
+		               STOCKQTY,
+		               STOCKAMT
+		          FROM ST_STOCK_CLOSE M,
+		               (SELECT RCOCD,
+		                       MPOREGIPOCD,
+		                       REGIPOCD,
+		                       PONM
+		                  FROM PICMT0060 P
+		                 WHERE USEYN ='Y'
+		                  AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+		         WHERE CLOSEYM = #srchCloseYear# || #srchCloseMonth#
+		           AND M.REGIPOCD = POST.REGIPOCD
+		           AND (SELECT SUBCOMPCD
+		                  FROM IFR_PBSET0510
+		                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'  ) A
+		 GROUP BY SUBCOMPCD
+		) A
+		 ]]>
+	</select>
+
+	<!-- 상품수불부 조회( 검색구분: 우체국 ) -->
+	<select id="selectStockCloseList1" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT * FROM (
+			SELECT '1' SDIV,
+			       POST.RCOCD,
+			       POST.MPOREGIPOCD,
+			       POST.REGIPOCD,
+			       DECODE(POST.RCOCD,'00','본부',
+			                         '10','서울청',
+			                         '15','경인청',
+			                         '20','부산청',
+			                         '30','충청청',
+			                         '40','전남청',
+			                         '50','경북청',
+			                         '60','전북청',
+			                         '70','강원청',
+			                         '80','제주청') RCONM,
+			       (SELECT PONM
+			          FROM PICMT0060
+			         WHERE REGIPOCD = POST.MPOREGIPOCD
+			           AND USEYN = 'Y') MPONM,
+			       (SELECT PONM
+			          FROM PICMT0060
+			         WHERE REGIPOCD = POST.REGIPOCD
+			           AND USEYN = 'Y') PONM,
+			       (SELECT SUBCOMPCD
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPCD,
+
+               		NVL((SELECT MAX(BCNC_NM)
+                      	   FROM CO_SUPP_COMP_MAST
+                     	  WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                      			 				  FROM IFR_PBSET0510
+                     						     WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)), ' ') BIZNAME,
+
+			       TPPRMGOODSCD,
+			           (SELECT TPPRMGOODSNM
+			              FROM IFR_PBSET0510
+			             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+			       TRIM( TO_CHAR(OLDQTY, '9,999,999,999')) AS OLDQTY,
+			       OLDAMT,
+			       TRIM( TO_CHAR(QTY1, '9,999,999,999')) AS QTY1,
+			       AMT1,
+			       TRIM( TO_CHAR(QTY2, '9,999,999,999')) AS QTY2,
+			       AMT2,
+			       TRIM( TO_CHAR(QTY3, '9,999,999,999')) AS QTY3,
+			       AMT3,
+			       TRIM( TO_CHAR(QTY4, '9,999,999,999')) AS QTY4,
+			       AMT4,
+			       TRIM( TO_CHAR(STOCKQTY, '9,999,999,999')) AS STOCKQTY,
+			       TRIM( TO_CHAR(STOCKAMT, '9,999,999,999')) AS STOCKAMT
+			  FROM ST_STOCK_CLOSE M,
+			       (SELECT RCOCD,
+			               MPOREGIPOCD,
+			               REGIPOCD,
+			               PONM
+			          FROM PICMT0060 P
+			         WHERE USEYN ='Y'
+			           AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+			 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+			   AND M.REGIPOCD = POST.REGIPOCD
+			   AND (SELECT SUBCOMPCD
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'
+			UNION ALL
+			SELECT '2' SDIV,
+			       POST.RCOCD,
+			       POST.MPOREGIPOCD,
+			       POST.REGIPOCD,
+			       ' '  RCONM,
+			       ' '  MPONM,
+			       '소 계' PONM,
+			       ' '  SUBCOMPCD,
+			       ' '  BIZNAME,
+			       ' '  TPPRMGOODSCD,
+			       ' '  tpprmGoodsNm,
+			       TRIM(TO_CHAR(SUM(OLDQTY), '9,999,999,999')) OLDQTY,
+			       SUM(OLDAMT) OLDAMT,
+			       TRIM(TO_CHAR(SUM(QTY1), '9,999,999,999')) QTY1,
+			       SUM(AMT1) AMT1,
+			       TRIM(TO_CHAR(SUM(QTY2), '9,999,999,999')) QTY2,
+			       SUM(AMT2) AMT2,
+			       TRIM(TO_CHAR(SUM(QTY3), '9,999,999,999')) QTY3,
+			       SUM(AMT3) AMT3,
+			       TRIM(TO_CHAR(SUM(QTY4), '9,999,999,999')) QTY4,
+			       SUM(AMT4) AMT4,
+			       TRIM(TO_CHAR(SUM(STOCKQTY), '9,999,999,999')) STOCKQTY,
+			       TRIM( TO_CHAR(SUM(STOCKAMT), '9,999,999,999'))  AS STOCKAMT
+			  FROM ST_STOCK_CLOSE M,
+			       (SELECT RCOCD,
+			               MPOREGIPOCD,
+			               REGIPOCD,
+			               PONM
+			          FROM PICMT0060 P
+			         WHERE USEYN ='Y'
+			          AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+			 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+			   AND M.REGIPOCD = POST.REGIPOCD
+			   AND (SELECT SUBCOMPCD
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'
+			 GROUP BY POST.RCOCD,POST.MPOREGIPOCD,POST.REGIPOCD
+			 ORDER BY RCOCD,MPOREGIPOCD,REGIPOCD,SDIV
+			 )
+			 UNION ALL
+			 SELECT '' AS SDIV
+			     , '' AS RCOCD
+			     , '' AS MPOREGIPOCD
+			     , '' AS REGIPOCD
+			     , '합 계' AS RCONM
+			     , '' AS MPONM
+			     , '' AS PONM
+			     , '' AS SUBCOMPCD
+			     , '' AS BIZNAME
+			     , '' AS TPPRMGOODSCD
+			     , '' AS TPPRMGOODSNM
+			     , TRIM(TO_CHAR(SUM(OLDQTY), '9,999,999,999')) AS OLDQTY
+			     , SUM(OLDAMT) AS OLDAMT
+			     , TRIM(TO_CHAR(SUM(QTY1), '9,999,999,999')) AS QTY1
+			     , SUM(AMT1) AS AMT1
+			     , TRIM(TO_CHAR(SUM(QTY2), '9,999,999,999')) AS QTY2
+			     , SUM(AMT2) AS AMT2
+			     , TRIM(TO_CHAR(SUM(QTY3), '9,999,999,999')) AS QTY3
+			     , SUM(AMT3) AS AMT3
+			     , TRIM(TO_CHAR(SUM(QTY4), '9,999,999,999')) AS QTY4
+			     , SUM(AMT4) AS AMT4
+			     , TRIM(TO_CHAR(SUM(STOCKQTY), '9,999,999,999')) AS STOCKQTY
+			     , TRIM(TO_CHAR(SUM(STOCKAMT), '9,999,999,999')) AS STOCKAMT
+			  FROM ST_STOCK_CLOSE M,
+			       (SELECT RCOCD,
+			               MPOREGIPOCD,
+			               REGIPOCD,
+			               PONM
+			          FROM PICMT0060 P
+			         WHERE USEYN ='Y'
+			           AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+			 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+			   AND M.REGIPOCD = POST.REGIPOCD
+			   AND (SELECT SUBCOMPCD
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'
+		]]>
+	</select>
+
+	<!-- 상품수불부 조회( 검색구분: 협력업체 ) -->
+	<select id="selectStockCloseList2" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT * FROM (
+		SELECT '1' SDIV,
+		       POST.REGIPOCD,
+		       (SELECT PONM
+		          FROM PICMT0060
+		         WHERE REGIPOCD = POST.REGIPOCD
+		           AND USEYN = 'Y') PONM,
+		       (SELECT SUBCOMPCD
+		          FROM IFR_PBSET0510
+		         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPCD,
+
+               NVL((SELECT MAX(BCNC_NM)
+                      FROM CO_SUPP_COMP_MAST
+                     WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                      						 FROM IFR_PBSET0510
+                     						WHERE TPPRMGOODSCD = M.TPPRMGOODSCD)), ' ') BIZNAME,
+
+		       TPPRMGOODSCD,
+		           (SELECT TPPRMGOODSNM
+		              FROM IFR_PBSET0510
+		             WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) tpprmGoodsNm,
+		       TRIM(TO_CHAR(OLDQTY, '9,999,999,999')) AS OLDQTY,
+		       OLDAMT,
+		       TRIM(TO_CHAR(QTY1, '9,999,999,999')) AS QTY1,
+		       AMT1,
+		       TRIM(TO_CHAR(QTY2, '9,999,999,999')) AS QTY2,
+		       AMT2,
+		       TRIM(TO_CHAR(QTY3, '9,999,999,999')) AS QTY3,
+		       AMT3,
+		       TRIM(TO_CHAR(QTY4, '9,999,999,999')) AS QTY4,
+		       AMT4,
+		       TRIM(TO_CHAR(STOCKQTY, '9,999,999,999')) As STOCKQTY,
+		       TRIM( TO_CHAR(STOCKAMT, '9,999,999,999'))  AS STOCKAMT
+		  FROM ST_STOCK_CLOSE M,
+		       (SELECT RCOCD,
+		               MPOREGIPOCD,
+		               REGIPOCD,
+		               PONM
+		          FROM PICMT0060 P
+		         WHERE USEYN ='Y'
+		           AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+		 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+		   AND M.REGIPOCD = POST.REGIPOCD
+		   AND (SELECT SUBCOMPCD
+		          FROM IFR_PBSET0510
+		         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'
+		UNION ALL
+		SELECT '2'  SDIV,
+		       ' '  REGIPOCD,
+		       ' '  PONM,
+		       SUBCOMPCD,
+		       '소 계'  BIZNAME,
+		       ' '  TPPRMGOODSCD,
+		       ' '  tpprmGoodsNm,
+		       TRIM(TO_CHAR(SUM(OLDQTY), '9,999,999,999') ) OLDQTY,
+		       SUM(OLDAMT) OLDAMT,
+		       TRIM(TO_CHAR(SUM(QTY1), '9,999,999,999') ) QTY1,
+		       SUM(AMT1) AMT1,
+		       TRIM(TO_CHAR(SUM(QTY2), '9,999,999,999') ) QTY2,
+		       SUM(AMT2) AMT2,
+		       TRIM(TO_CHAR(SUM(QTY3), '9,999,999,999') ) QTY3,
+		       SUM(AMT3) AMT3,
+		       TRIM(TO_CHAR(SUM(QTY4), '9,999,999,999') ) QTY4,
+		       SUM(AMT4) AMT4,
+		       TRIM(TO_CHAR(SUM(STOCKQTY), '9,999,999,999') ) AS  STOCKQTY,
+		       TRIM( TO_CHAR(SUM(STOCKAMT), '9,999,999,999') ) AS  STOCKAMT
+		  FROM (SELECT (SELECT SUBCOMPCD
+		                  FROM IFR_PBSET0510
+		                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD) SUBCOMPCD,
+		               OLDQTY,
+		               OLDAMT,
+		               QTY1,
+		               AMT1,
+		               QTY2,
+		               AMT2,
+		               QTY3,
+		               AMT3,
+		               QTY4,
+		               AMT4,
+		               STOCKQTY,
+		               STOCKAMT AS STOCKAMT
+		          FROM ST_STOCK_CLOSE M,
+		               (SELECT RCOCD,
+		                       MPOREGIPOCD,
+		                       REGIPOCD,
+		                       PONM
+		                  FROM PICMT0060 P
+		                 WHERE USEYN ='Y'
+		                   AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+		         WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+		           AND M.REGIPOCD = POST.REGIPOCD
+		           AND (SELECT SUBCOMPCD
+		                  FROM IFR_PBSET0510
+		                 WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'  ) A
+		 GROUP BY SUBCOMPCD
+		 ORDER BY SUBCOMPCD,SDIV
+		 )
+		 UNION ALL
+			 SELECT '' AS SDIV
+			     , '' AS REGIPOCD
+			     , '' AS PONM
+			     , '' AS SUBCOMPCD
+			     , '합 계' AS BIZNAME
+			     , '' AS TPPRMGOODSCD
+			     , '' AS TPPRMGOODSNM
+			     , TRIM(TO_CHAR(SUM(OLDQTY), '9,999,999,999')) AS OLDQTY
+			     , SUM(OLDAMT) AS OLDAMT
+			     , TRIM(TO_CHAR(SUM(QTY1), '9,999,999,999')) AS QTY1
+			     , SUM(AMT1) AS AMT1
+			     , TRIM(TO_CHAR(SUM(QTY2), '9,999,999,999')) AS QTY2
+			     , SUM(AMT2) AS AMT2
+			     , TRIM(TO_CHAR(SUM(QTY3), '9,999,999,999')) AS QTY3
+			     , SUM(AMT3) AS AMT3
+			     , TRIM(TO_CHAR(SUM(QTY4), '9,999,999,999')) AS QTY4
+			     , SUM(AMT4) AS AMT4
+			     , TRIM(TO_CHAR(SUM(STOCKQTY), '9,999,999,999')) AS STOCKQTY
+			     , TRIM(TO_CHAR(SUM(STOCKAMT), '9,999,999,999')) AS STOCKAMT
+			  FROM ST_STOCK_CLOSE M,
+			       (SELECT RCOCD,
+			               MPOREGIPOCD,
+			               REGIPOCD,
+			               PONM
+			          FROM PICMT0060 P
+			         WHERE USEYN ='Y'
+			           AND RCOCD LIKE  '%' || NVL( #searchRcoCd# ,'') ||'%'
+			           AND MPOREGIPOCD LIKE  '%' || NVL(#searchMporegipocd# , '') || '%'
+			           AND REGIPOCD LIKE  '%' || NVL( #searchRegipocd# , '') || '%') POST
+			 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+			   AND M.REGIPOCD = POST.REGIPOCD
+			   AND (SELECT SUBCOMPCD
+			          FROM IFR_PBSET0510
+			         WHERE TPPRMGOODSCD = M.TPPRMGOODSCD ) LIKE '%' || #srchSuppCompId# || '%'
+	</select>
+
+	<select id="selectRetrieveStockClose" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT A.*,B.*
+			  FROM (SELECT NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'01',1,0)),0) A1,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'02',1,0)),0) A2,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'03',1,0)),0) A3,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'04',1,0)),0) A4,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'05',1,0)),0) A5,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'06',1,0)),0) A6,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'07',1,0)),0) A7,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'08',1,0)),0) A8,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'09',1,0)),0) A9,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'10',1,0)),0) A10,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'11',1,0)),0) A11,
+			               NVL(SUM(DECODE(SUBSTR(CLOSEYM,5,2),'12',1,0)),0) A12
+			          FROM ST_STOCK_CLOSE
+			         WHERE CLOSEYM LIKE NVL( #srchYear# ,TO_CHAR(SYSDATE,'YYYY')) || '%') A,
+			       (SELECT NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'01',1,0)),0) B1,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'02',1,0)),0) B2,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'03',1,0)),0) B3,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'04',1,0)),0) B4,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'05',1,0)),0) B5,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'06',1,0)),0) B6,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'07',1,0)),0) B7,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'08',1,0)),0) B8,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'09',1,0)),0) B9,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'10',1,0)),0) B10,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'11',1,0)),0) B11,
+			               NVL(SUM(DECODE(SUBSTR(CLPMYMD,5,2),'12',1,0)),0) B12
+			          FROM IFR_PBSAT0590
+			         WHERE CLPMYMD LIKE  NVL( #srchYear# ,TO_CHAR(SYSDATE,'YYYY')) || '%' ) B
+		]]>
+	</select>
+
+	<select id="selectRetrieveStockCloseYm" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT NVL(MAX(CLOSEYM),'^^') MAXYM,
+		       TO_CHAR(ADD_MONTHS(TO_DATE(NVL(MAX(CLOSEYM),'201506'),'YYYYMM'),1),'YYYYMM') CLOSEYM
+		  FROM ST_STOCK_CLOSE
+		]]>
+	</select>
+
+	<select id="selectRetrieveRecevSysCodeList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT *
+		      FROM SYSTEM_CODE
+		     WHERE CLASS = 'P24'
+		]]>
+	</select>
+
+	<insert id="createStockClose" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT
+			  INTO ST_STOCK_CLOSE(CLOSEYM,
+			                  REGIPOCD,
+			                  TPPRMGOODSCD,
+			                  OLDQTY,
+			                  QTY1,
+			                  QTY2,
+			                  QTY3,
+			                  QTY4,
+			                  STOCKQTY,
+			                  OLDAMT,
+			                  AMT1,
+			                  AMT2,
+			                  AMT3,
+			                  AMT4,
+			                  STOCKAMT)
+			SELECT  #closeym#  CLOSEYM,
+			       REGIPOCD,
+			       TPPRMGOODSCD,
+			       NVL((SELECT STOCKQTY
+			              FROM ST_STOCK_CLOSE
+			             WHERE CLOSEYM      = TO_CHAR(ADD_MONTHS(TO_DATE( #closeym# ,'YYYYMM'),-1),'YYYYMM')
+			               AND REGIPOCD     = M.REGIPOCD
+			               AND TPPRMGOODSCD = M.TPPRMGOODSCD),0) OLDQTY,
+			       Q1,Q2,Q3,Q4,
+			       NVL((SELECT STOCKQTY
+			              FROM ST_STOCK_CLOSE
+			             WHERE CLOSEYM      = TO_CHAR(ADD_MONTHS(TO_DATE( #closeym# ,'YYYYMM'),-1),'YYYYMM')
+			               AND REGIPOCD     = M.REGIPOCD
+			               AND TPPRMGOODSCD = M.TPPRMGOODSCD),0) + STOCKQTY STOCKQTY,
+			       NVL((SELECT STOCKAMT
+			              FROM ST_STOCK_CLOSE
+			             WHERE CLOSEYM      = TO_CHAR(ADD_MONTHS(TO_DATE( #closeym# ,'YYYYMM'),-1),'YYYYMM')
+			               AND REGIPOCD     = M.REGIPOCD
+			               AND TPPRMGOODSCD = M.TPPRMGOODSCD),0) OLDAMT,
+			       A1,A2,A3,A4,
+			       NVL((SELECT STOCKAMT
+			              FROM ST_STOCK_CLOSE
+			             WHERE CLOSEYM      = TO_CHAR(ADD_MONTHS(TO_DATE( #closeym# ,'YYYYMM'),-1),'YYYYMM')
+			               AND REGIPOCD     = M.REGIPOCD
+			               AND TPPRMGOODSCD = M.TPPRMGOODSCD),0) + STOCKAMT STOCKAMT
+			  FROM (SELECT REGIPOCD,
+			               TPPRMGOODSCD,
+			               SUM(DECODE(CLPMKINDCD,'002',CLPMCNT,0)) Q1,
+			               SUM(DECODE(CLPMKINDCD,'003',CLPMCNT,0)) Q2,
+			               SUM(DECODE(CLPMKINDCD,'004',CLPMCNT,0)) Q3,
+			               SUM(DECODE(CLPMKINDCD,'005',CLPMCNT,0)) Q4,
+			               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',1) * CLPMCNT) STOCKQTY,
+			               SUM(DECODE(CLPMKINDCD,'002',CLPMMONEYAMT+CLPMCREDITCARDAMT,0)) A1,
+			               SUM(DECODE(CLPMKINDCD,'003',CLPMMONEYAMT+CLPMCREDITCARDAMT,0)) A2,
+			               SUM(DECODE(CLPMKINDCD,'004',CLPMMONEYAMT+CLPMCREDITCARDAMT,0)) A3,
+			               SUM(DECODE(CLPMKINDCD,'005',-1 * (CLPMMONEYAMT+CLPMCREDITCARDAMT),0)) A4,
+			               SUM(DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMMONEYAMT,0) +
+			                   DECODE(CLPMKINDCD,'002',1,'003',-1,'004',-1,'005',-1) * NVL(CLPMCREDITCARDAMT,0)) STOCKAMT
+			          FROM IFR_PBSAT0590
+			         WHERE CLPMYMD LIKE  #closeym#  || '%'
+			           AND ACTIVYN = 'Y'
+			           AND CLPMKINDCD IN ('002','003','004','005')
+			         GROUP BY REGIPOCD,TPPRMGOODSCD ) M
+			UNION ALL
+			SELECT  #closeym#  CLOSEYM,
+			       REGIPOCD,
+			       TPPRMGOODSCD,
+			       STOCKQTY,
+			       0 Q1,0 Q2, 0 Q3, 0 Q4,
+			       STOCKQTY,
+			       STOCKAMT,
+			       0 A1, 0 A2, 0 A3, 0 A4,
+			       STOCKAMT
+			  FROM ST_STOCK_CLOSE
+			 WHERE CLOSEYM  = TO_CHAR(ADD_MONTHS(TO_DATE( #closeym# ,'YYYYMM'),-1),'YYYYMM')
+			   AND (REGIPOCD,TPPRMGOODSCD) NOT IN (SELECT REGIPOCD,TPPRMGOODSCD
+			                                         FROM IFR_PBSAT0590
+			                                        WHERE CLPMYMD LIKE  #closeym#  || '%'
+			                                          AND ACTIVYN = 'Y'
+			                                          AND CLPMKINDCD IN ('002','003','004','005')
+			                                        GROUP BY REGIPOCD,TPPRMGOODSCD)
+			   AND STOCKQTY <> 0
+		  ]]>
+	</insert>
+
+	<insert id="deleteStockClose" parameterClass="java.util.HashMap">
+		<![CDATA[
+		   DELETE
+		     FROM ST_STOCK_CLOSE
+		    WHERE CLOSEYM = #closeym#
+		  ]]>
+	</insert>
+
+	<select id="selectRetrieveStockCloseList1" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT '1' SDIV,
+				       REGIPOCD,
+				       (SELECT PONM
+				          FROM PICMT0060
+				         WHERE REGIPOCD = ST_STOCK_CLOSE.REGIPOCD
+				           AND USEYN = 'Y') PONM,
+
+		               NVL((SELECT MAX(BCNC_NM)
+		                      FROM CO_SUPP_COMP_MAST
+		                     WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+		                      						 FROM IFR_PBSET0510
+		                     						WHERE TPPRMGOODSCD = ST_STOCK_CLOSE.TPPRMGOODSCD)), ' ') BIZNAME,
+
+				       TPPRMGOODSCD,
+				           (SELECT TPPRMGOODSNM
+				              FROM IFR_PBSET0510
+				             WHERE TPPRMGOODSCD = ST_STOCK_CLOSE.TPPRMGOODSCD) tpprmGoodsNm,
+				       TRIM(TO_CHAR(OLDQTY,'9,999,999,999')) AS OLDQTY,
+				       TRIM(TO_CHAR(QTY1,'9,999,999,999')) AS QTY1,
+				       TRIM(TO_CHAR(QTY2,'9,999,999,999')) AS QTY2,
+				       TRIM(TO_CHAR(QTY3,'9,999,999,999')) AS QTY3,
+				       TRIM(TO_CHAR(QTY4,'9,999,999,999')) AS QTY4,
+				       TRIM(TO_CHAR(STOCKQTY,'9,999,999,999'))  AS STOCKQTY
+				  FROM ST_STOCK_CLOSE
+				 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+				 UNION ALL
+				 SELECT '2' SDIV,
+				       REGIPOCD,
+				       '소 계' PONM,
+				       ' ' BIZNAME,
+				       ' ' TPPRMGOODSCD,
+				       ' ' tpprmGoodsNm,
+				       TRIM(TO_CHAR(SUM(OLDQTY),'9,999,999,999')) OLDQTY,
+				       TRIM(TO_CHAR(SUM(QTY1),'9,999,999,999')) QTY1,
+				       TRIM(TO_CHAR(SUM(QTY2),'9,999,999,999')) QTY2,
+				       TRIM(TO_CHAR(SUM(QTY3),'9,999,999,999')) QTY3,
+				       TRIM(TO_CHAR(SUM(QTY4),'9,999,999,999')) QTY4,
+				       TRIM(TO_CHAR(SUM(STOCKQTY),'9,999,999,999')) STOCKQTY
+				  FROM ST_STOCK_CLOSE
+				 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+				 GROUP BY REGIPOCD
+				 ORDER BY REGIPOCD,SDIV
+				 )UNION ALL
+				 SELECT  ''  AS SDIV
+			          ,  ''  AS REGIPOCD
+			          ,  '합 계'  AS PONM
+			          ,  ''  AS BIZNAME
+			          ,  ''  AS TPPRMGOODSCD
+			          ,  ''  AS TPPRMGOODSNM
+			          ,  TRIM(TO_CHAR(SUM(OLDQTY),'9,999,999,999')) OLDQTY
+			          ,  TRIM(TO_CHAR(SUM(QTY1),'9,999,999,999')) QTY1
+			          ,  TRIM(TO_CHAR(SUM(QTY2),'9,999,999,999')) QTY2
+			          ,  TRIM(TO_CHAR(SUM(QTY3),'9,999,999,999')) QTY3
+			          ,  TRIM(TO_CHAR(SUM(QTY4),'9,999,999,999')) QTY4
+			          ,  TRIM(TO_CHAR(SUM(STOCKQTY),'9,999,999,999')) STOCKQTY
+			  FROM ST_STOCK_CLOSE
+			 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+		  ]]>
+	</select>
+
+	<select id="selectRetrieveStockCloseList2" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT '1' SDIV,
+				       REGIPOCD,
+				       (SELECT PONM
+				          FROM PICMT0060
+				         WHERE REGIPOCD = ST_STOCK_CLOSE.REGIPOCD
+				           AND USEYN = 'Y') PONM,
+				       (SELECT SUBCOMPCD
+				          FROM IFR_PBSET0510
+				         WHERE TPPRMGOODSCD = ST_STOCK_CLOSE.TPPRMGOODSCD) SUBCOMPCD,
+
+               			NVL((SELECT MAX(BCNC_NM)
+                      		   FROM CO_SUPP_COMP_MAST
+                     		  WHERE SUPP_COMP_ID = (SELECT SUBCOMPCD
+                      			 		 			  FROM IFR_PBSET0510
+                     								  WHERE TPPRMGOODSCD = ST_STOCK_CLOSE.TPPRMGOODSCD)), ' ') BIZNAME,
+
+				       TPPRMGOODSCD,
+				           (SELECT TPPRMGOODSNM
+				              FROM IFR_PBSET0510
+				             WHERE TPPRMGOODSCD = ST_STOCK_CLOSE.TPPRMGOODSCD) tpprmGoodsNm,
+				       TRIM(TO_CHAR(OLDQTY,'9,999,999,999')) AS OLDQTY,
+				       TRIM(TO_CHAR(QTY1,'9,999,999,999')) AS QTY1,
+				       TRIM(TO_CHAR(QTY2,'9,999,999,999')) AS QTY2,
+				       TRIM(TO_CHAR(QTY3,'9,999,999,999')) AS QTY3,
+				       TRIM(TO_CHAR(QTY4,'9,999,999,999')) AS QTY4,
+				       TRIM(TO_CHAR(STOCKQTY,'9,999,999,999')) AS  STOCKQTY
+				  FROM ST_STOCK_CLOSE
+				 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+				 UNION ALL
+				SELECT '2' SDIV,
+				       ' ' REGIPOCD,
+				       ' ' PONM,
+				       SUBCOMPCD,
+				       '소 계' BIZNAME,
+				       ' ' TPPRMGOODSCD,
+				       ' ' tpprmGoodsNm,
+				       TRIM(TO_CHAR(SUM(OLDQTY),'9,999,999,999')) OLDQTY,
+				       TRIM(TO_CHAR(SUM(QTY1),'9,999,999,999')) QTY1,
+				       TRIM(TO_CHAR(SUM(QTY2),'9,999,999,999')) QTY2,
+				       TRIM(TO_CHAR(SUM(QTY3),'9,999,999,999')) QTY3,
+				       TRIM(TO_CHAR(SUM(QTY4),'9,999,999,999')) QTY4,
+				       TRIM(TO_CHAR(SUM(STOCKQTY),'9,999,999,999')) STOCKQTY
+				  FROM (SELECT (SELECT SUBCOMPCD
+				                  FROM IFR_PBSET0510
+				                 WHERE TPPRMGOODSCD = ST_STOCK_CLOSE.TPPRMGOODSCD) SUBCOMPCD,
+				               OLDQTY,
+				               QTY1,
+				               QTY2,
+				               QTY3,
+				               QTY4,
+				               STOCKQTY
+				          FROM ST_STOCK_CLOSE
+				         WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0'))
+				 GROUP BY SUBCOMPCD
+				 ORDER BY SUBCOMPCD,SDIV
+				 )UNION ALL
+				 SELECT  ''  AS SDIV
+			          ,  ''  AS REGIPOCD
+			          ,  '합 계'  AS PONM
+			          ,  ''  AS SUBCOMPCD
+			          ,  ''  AS BIZNAME
+			          ,  ''  AS TPPRMGOODSCD
+			          ,  ''  AS TPPRMGOODSNM
+			          ,  TRIM(TO_CHAR(SUM(OLDQTY),'9,999,999,999')) AS OLDQTY
+			          ,  TRIM(TO_CHAR(SUM(QTY1),'9,999,999,999')) AS QTY1
+			          ,  TRIM(TO_CHAR(SUM(QTY2),'9,999,999,999')) AS QTY2
+			          ,  TRIM(TO_CHAR(SUM(QTY3),'9,999,999,999')) AS QTY3
+			          ,  TRIM(TO_CHAR(SUM(QTY4),'9,999,999,999')) AS QTY4
+			          ,  TRIM(TO_CHAR(SUM(STOCKQTY),'9,999,999,999')) AS STOCKQTY
+			  FROM ST_STOCK_CLOSE
+			 WHERE CLOSEYM = #srchCloseYear# || LPAD(#srchCloseMonth#, 2, '0')
+		  ]]>
+	 </select>
+
+	<!-- 정산/이체자료생성 : 조회기간 -->
+	<select id="selectSearchTerm" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+			SELECT /* 파일명[파일설명] : CounterSellMgr_SQL.xml[정산/이체자료생성 : 조회기간] SQL ID : selectSearchTerm */
+				 TO_CHAR(TO_DATE(SELLCLOSESTRYMD,'YYYYMMDD'),'YYYY.MM.DD') || ' ~ ' || TO_CHAR(TO_DATE(SELLCLOSEENDYMD,'YYYYMMDD'),'YYYY.MM.DD') NAME,
+		         SELLCLOSESTRYMD || SELLCLOSEENDYMD AS VALUE
+		    FROM (SELECT DISTINCT SELLCLOSESTRYMD,SELLCLOSEENDYMD
+		            FROM IFR_PBSBT0512
+		           WHERE ACTIVYN = 'Y'
+		             AND SELLCLOSESTRYMD LIKE #searchYear# || '%'
+		             AND SELLCLOSEENDYMD LIKE #searchYear# || '%')
+		    ORDER BY SELLCLOSESTRYMD DESC
+    	]]>
+	</select>
+
+	<!-- 정산및이체자료생성 : 합계금액조회 -->
+	<select id="retrieveCalculateAmt" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+    	SELECT  /* 파일명[파일설명] : CounterSellMgr_SQL.xml[정산및이체자료생성 : 합계금액조회] SQL ID : retrieveCalculateAmt */
+				AMT,
+				HAMT,
+				CAMT,
+				TAX,
+				ATAX,
+				BTAX,
+				GAMT,
+				FEE,
+				CARDFEE,
+				HAMT - ATAX + CAMT - CARDFEE TAMT,
+				CAMT - CARDFEE JAMT,
+				JSTA
+		FROM (
+				SELECT NVL(A.AMT,0) + NVL(B.AMT,0) AMT,
+						A.AMT HAMT,
+						B.AMT CAMT,
+						NVL(A.TAX,0) + NVL(B.TAX,0) TAX,
+						A.TAX ATAX,
+						B.TAX BTAX,
+						NVL(A.AMT,0) + NVL(B.AMT,0) - NVL(A.TAX,0) - NVL(B.TAX,0) - NVL(A.FEE,0) - NVL(B.FEE,0) - NVL(B.CARDFEE,0) GAMT,
+						NVL(A.FEE,0) + NVL(B.FEE,0) FEE,
+						B.CARDFEE CARDFEE,
+						DECODE(NVL((SELECT MAX(TRANSF_DATA_FRWD_STUS_CD)
+									FROM ST_POST_FEE_TRANSF
+									WHERE ADJ_PERIOD_YM = SUBSTR(#sDate#,1,6)),'00'),'01','정산','02','이체','00','미정산','04','이체완료','기타') JSTA
+				FROM	(SELECT SUM(SELLAMT) AMT,
+								SUM(SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC)) TAX,
+								SUM(FLOOR(SELLAMT * 6.05 / 1000) * 10) FEE
+						FROM IFR_PBSAT0520
+						WHERE SELLRECEVNO IN (	SELECT	SELLRECEVNO
+												FROM	IFR_PBSAT0510
+												WHERE	SELLRECEVYMD BETWEEN #sDate# AND #eDate#
+												AND 	ACTIVYN = 'Y'
+												AND 	SETLTYPECD = '001') ) A,
+						(SELECT SUM(SELLAMT) AMT,
+								SUM(SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC)) TAX,
+								SUM(FLOOR(SELLAMT * 6.05 / 1000) * 10) FEE,
+								SUM(FLOOR(SELLAMT *
+								NVL((SELECT DECODE(B.CARD_DIV_CODE,'01',CHECK_FEE,CARD_FEE)
+									FROM	OD_CARDFEES A,
+											IFR_EPOSTCARD B
+									WHERE	A.SITE_DIV_CD   = '01'
+									AND 	B.ACCEPT_NUM = IFR_PBSAT0520.SELLRECEVNO
+									AND 	A.JOIN_NO    = B.SHOP_NUM
+									AND 	B.TRADE_FLAG = '1'
+									AND 	TO_CHAR(B.TRADE_DATE,'YYYYMMDD')   BETWEEN A.START_DATE AND A.END_DATE) / 100,0.013)) ) CARDFEE
+						FROM IFR_PBSAT0520
+						WHERE SELLRECEVNO IN (	SELECT SELLRECEVNO
+												FROM IFR_PBSAT0510
+												WHERE SELLRECEVYMD BETWEEN #sDate# AND #eDate#
+												AND ACTIVYN = 'Y'
+												AND SETLTYPECD = '002') ) B)
+                                  ]]>
+	</select>
+
+	<!-- 정산및이체자료생성 : 기간별 데이터 조회 -->
+	<select id="retrieveCalculateRslt" parameterClass ="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+		       SELECT    /* 파일명[파일설명] : CounterSellMgr_SQL.xml[정산및이체자료생성 : 기간별 데이터 조회] SQL ID : retrieveCalculateRslt */
+						  SUPP_COMP_ID,
+				          DECODE(SUPP_COMP_ID,'99999999','진흥원수수료',
+				          NVL((SELECT MAX(BCNC_NM)
+				                 FROM CO_SUPP_COMP_MAST
+				                WHERE SUPP_COMP_ID = ST_POST_FEE_TRANSF.SUPP_COMP_ID
+				                 AND NATION_CD= 'KO'),' ')) AS BIZNAME,
+				          TRANSF_AMT AS AMT,
+				          NVL(SUPP_PO_ACC_SEED_NO,'') AS SEEDNO,
+				          TO_CHAR(TO_DATE(TRANSF_REQ_YMD,'YYYYMMDD'),'YYYY-MM-DD') AS REQYMD,
+				          NVL(TRANSF_RSLT_CONT,'') AS RSLTCONT,
+				          DECODE(TRANSF_DATA_FRWD_STUS_CD,'01','요청','02','완료','') AS STUS
+		     	FROM      ST_POST_FEE_TRANSF
+		       WHERE      ADJ_PERIOD_YM = #adj_period_ym#
+		       ORDER BY   DECODE(SUPP_COMP_ID,'99999999','0',SUPP_COMP_ID),REQYMD
+    	]]>
+	</select>
+
+
+	<insert id="insertCalculateRslt" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		 /* 파일명[파일설명] : CounterSellMgr_SQL.xml[정산취소] SQL ID : insertCalculateRslt */
+			 INSERT
+  INTO ST_POST_FEE_TRANSF(SUPP_COMP_ID,
+                       TRANSF_REQ_YMD,
+                       TRANSF_DATA_SEQ,
+                       TRANSF_AMT,
+                       TRANSF_DATA_DIV_CD,
+                       TRANSF_DATA_FRWD_STUS_CD,
+                       ADJ_PERIOD_YM,
+                       LAST_REG_DATE,
+                       SUPP_PO_ACC_SEED_NO)
+	SELECT SUBCOMPCD,
+       SDATE,
+       NVL((SELECT MAX(TRANSF_DATA_SEQ)
+              FROM ST_POST_FEE_TRANSF
+             WHERE TRANSF_REQ_YMD = TO_CHAR(SYSDATE,'YYYYMMDD')),0)  + ROWNUM,
+       AMT,
+       TDIV,
+       STUS,
+       #adj_period_ym#,
+       SYSDATE,
+       SEED_ACCOUNT
+  FROM (SELECT '99999999' SUBCOMPCD,
+               TO_CHAR(SYSDATE,'YYYYMMDD') SDATE,
+               SUM(FLOOR(SELLAMT * 6.05 / 1000) * 10) AMT,
+               '01' TDIV,
+               '01' STUS,
+               'dPvJKbTOVipClXTmqgweZQ==' SEED_ACCOUNT
+          FROM IFR_PBSAT0520
+         WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                 FROM IFR_PBSAT0510
+                                WHERE    SUBSTR(SELLRECEVYMD,1,6) = #adj_period_ym#
+                                  AND ACTIVYN ='Y')
+         UNION ALL
+        SELECT SUBCOMPCD,
+               TO_CHAR(SYSDATE,'YYYYMMDD') SDATE,
+               SUM(NVL(SELLAMT,0) - NVL(SELLTAXINAMT,0) - NVL(FEE,0) - NVL(CARDFEE,0)) AMT,
+               '01' TDIV,
+               '01' STUS,
+               (SELECT ADJ_ACC_NO
+                  FROM CO_SUPP_COMP_MAST
+                 WHERE SUPP_COMP_ID = M.SUBCOMPCD
+                   ) SEED_ACCOUNT
+          FROM (SELECT (SELECT SUBCOMPCD
+                          FROM IFR_PBSET0510
+                         WHERE TPPRMGOODSCD = IFR_PBSAT0520.TPPRMGOODSCD) SUBCOMPCD,
+                       SELLAMT,
+                       (SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC)) SELLTAXINAMT,
+                       FLOOR(SELLAMT * 6.05 / 1000) * 10 FEE,
+                       FLOOR(SELLAMT *
+                             NVL((SELECT DECODE(B.CARD_DIV_CODE,'01',CHECK_FEE,CARD_FEE)
+                                    FROM OD_CARDFEES A,
+                                         IFR_EPOSTCARD B
+                                    WHERE A.SITE_DIV_CD   = '01'
+                                      AND B.ACCEPT_NUM = IFR_PBSAT0520.SELLRECEVNO
+                                      AND A.JOIN_NO    = B.SHOP_NUM
+                                      AND B.TRADE_FLAG = '1'
+                                      AND TO_CHAR(B.TRADE_DATE,'YYYYMMDD')   BETWEEN A.START_DATE AND A.END_DATE) / 100,0.013)) CARDFEE
+                  FROM IFR_PBSAT0520
+                 WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                         FROM IFR_PBSAT0510
+                                        WHERE SUBSTR(SELLRECEVYMD,1,6) = #adj_period_ym#
+                                          AND ACTIVYN ='Y'
+                                          AND SETLTYPECD = '002')
+                 UNION ALL
+                SELECT (SELECT SUBCOMPCD
+                          FROM IFR_PBSET0510
+                         WHERE TPPRMGOODSCD = IFR_PBSAT0520.TPPRMGOODSCD) SUBCOMPCD,
+                       SELLAMT,
+                       (SELLTAXINAMT + (SELLCNT * TREATPOSELLPRC)) SELLTAXINAMT,
+                       FLOOR(SELLAMT * 6.05 / 1000) * 10 FEE,
+                       0 CARDFEE
+                  FROM IFR_PBSAT0520
+                 WHERE SELLRECEVNO IN (SELECT SELLRECEVNO
+                                         FROM IFR_PBSAT0510
+                                        WHERE SUBSTR(SELLRECEVYMD,1,6) = #adj_period_ym#
+                                          AND ACTIVYN ='Y'
+                                          AND SETLTYPECD = '001') ) M
+         WHERE SUBCOMPCD IS NOT NULL
+         GROUP BY SUBCOMPCD                  )
+	   ]]>
+	</insert>
+	<delete id="deleteCalculateRslt" parameterClass ="java.util.HashMap">
+		<![CDATA[
+		   DELETE /* 파일명[파일설명] : CounterSellMgr_SQL.xml[정산취소] SQL ID : deleteCalculate */
+		     FROM ST_POST_FEE_TRANSF
+		    WHERE ADJ_PERIOD_YM = #adj_period_ym#
+		      AND TRANSF_DATA_FRWD_STUS_CD = '01'
+	   ]]>
+	</delete>
+
+	<!-- 창구판매수수료 세금계산서 검색조건 검색조건-->
+	<sql id="taxMgrListQry1Condition">
+										<isNotEmpty property="searchFromDt">
+											<isNotEmpty property="searchToDt">
+											AND A.SELLRECEVYMD BETWEEN #searchFromDt# AND #searchToDt#
+											</isNotEmpty>
+										</isNotEmpty>
+
+										<!-- 업체코드 -->
+										<isNotEmpty property="searchSuppCompId">
+											AND D.SUPP_COMP_ID = #searchSuppCompId#
+										</isNotEmpty>
+
+										<!-- 일괄발행시 -->
+										<isNotEmpty property="bizCode">
+											AND D.SUPP_COMP_ID = #bizCode#
+										</isNotEmpty>
+										<isNotEmpty property="orderId">
+											AND  SUBSTR(A.SELLRECEVYMD,1,6) || '99' = #orderId#
+										</isNotEmpty>
+										<!-- 일괄발행시 -->
+	</sql>
+	<!-- 창구판매수수료 세금계산서 검색조건 END -->
+
+	<!-- 창구판매수수료 리스트 쿼리 -->
+	<sql id="taxMgrListQry1">
+        SELECT SUBSTR(A.SELLRECEVYMD,1,6) DAYS
+                , SUBSTR(A.SELLRECEVYMD,1,6) || '99' ORDER_ID
+                , D.SUPP_COMP_ID
+                , '' TAXGBN
+                , '' GOODS_CODE
+                , '99' SHOP_ID
+                , '' ACCESS_NAME
+                , '' GOODS_NAME
+                , ' ' UNIT
+                , MAX(D.SUPP_COMP_ID) AS BIZ_CODE
+                , MAX(D.COMPREG_NO)   REGISTER_NO
+                , SUBSTRB(MAX(D.TAX_CALDOC_COMP_NM),1,60)   BIZ_NAME
+                , SUBSTRB(MAX(D.PRSDT_NM),1,60)  PRSDT_NM
+                , SUBSTRB(MAX(D.INDUTY),1,60) INDUTY /*업태 */
+                , SUBSTRB(MAX(D.ENTRPS),1,60) ENTRPS    /*업종 */
+                , SUBSTRB(MAX(D.SEND_ADDR||D.SEND_DTAIL_ADDR),1,100) ADDRESS
+                , SUBSTRB(MAX(D.TELNO),1,20) TELNO
+                , SUBSTRB(MAX(D.EMAIL),1,100)    EMAIL
+                , ' '   TAX_STATE
+                , SUM(B.SELLAMT)  GOODS_AMT
+                , SUM(B.SELLCNT)  GOODS_CNT
+                /* , MAX(SUBSTR(B.CLPMYMD,1,8)) COM_DATE */
+                , TO_CHAR( LAST_DAY( to_date(substr( MAX(SUBSTR(B.CLPMYMD,1,8)) , '1', '6'),'yyyymm')),'yyyymmdd') AS COM_DATE
+                , NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10 ) - SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10  - ROUND((  FLOOR(((B.SELLAMT) * 0.0605)/10)*10  / 1.1),0)),0) SUPTOTAMT
+                , NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10  - ROUND((  FLOOR(((B.SELLAMT) * 0.0605)/10)*10  / 1.1),0)),0)    SURTAX
+                , NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10 ),0)    SUMAMT
+                , NVL(SUM(SELLTAXINAMT),0)    EPOST_FEE
+                , TO_CHAR(NVL(SUM(B.SELLAMT),0),'999,999,999,999,999') S_GOODS_AMT
+                , TO_CHAR(NVL(SUM(B.SELLCNT),0),'999,999,999,999,999') S_GOODS_CNT
+                , TO_CHAR(NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10 ) - SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10  - ROUND((  FLOOR(((B.SELLAMT) * 0.0605)/10)*10  / 1.1),0)),0),'999,999,999,999,999') S_SUPTOTAMT
+                , TO_CHAR(NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10  - ROUND((  FLOOR(((B.SELLAMT) * 0.0605)/10)*10  / 1.1),0)),0),'999,999,999,999,999') S_SURTAX
+                , TO_CHAR(NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10 ),0),'999,999,999,999,999') S_SUMAMT
+                , TO_CHAR(NVL(SUM(SELLTAXINAMT),0),'999,999,999,999,999') S_EPOST_SUMAMT
+                , MIN(XIT.INVDATE) AS INVDATE
+                , MAX(XIT.ATTR02) AS ATTR02
+                , MAX(XIT.INVSEQ) AS INVSEQ
+                , MAX(XIT.SEND_DATE) AS SEND_DATE
+                , MAX(NVL(XIT.PROCFLAG, '00')) AS PROCFLAG
+                , MAX(XIT.PROCDATE) AS PROCDATE
+                , MIN(NVL(TOT.SUM_GOODS_CNT, 0)) AS SUM_GOODS_CNT
+                , MIN( NVL(TOT.SUM_GOODS_AMT, 0) ) AS SUM_GOODS_AMT
+                , MIN( NVL(TOT.SUM_SUPTOTAMT, 0)) AS SUM_SUPTOTAMT
+                , MIN( NVL(TOT.SUM_SURTAX, 0)) AS SUM_SURTAX
+                , MIN( NVL(TOT.SUM_SUAMT, 0)) AS SUM_SUAMT
+                , MIN( NVL(TOT.SUM_EPOST_SUMAMT, 0)) AS SUM_EPOST_FEE
+                , MAX(XII.SUPREGNUM) AS SUPREGNUM                /* 발급자사업자등록번호 */
+                , MAX(XII. SUPCMPNAME) AS SUPCMPNAME           /* 발급 업체명 */
+                , MAX(XII.SUPOWNER) AS SUPOWNER                   /* 발급 대표자 */
+                , MAX(XII.SUPADDRESS) AS SUPADDRESS                   /* 발급 주소 */
+                , MAX(XII.SUPBIZKIND) AS SUPBIZKIND     /* 종목 */
+                , MAX(XII.SUPBIZTYPE) AS SUPBIZTYPE     /* 업태 */
+                , MAX(XII.SNDUSRNAME) AS SNDUSRNAME     /* 담당자명 */
+                , MAX(XII.SNDEMAIL) AS SNDEMAIL      /* 담당자 메일 */
+                , MAX(XII.SNDTEL) AS SNDTEL                     /* 발급  전화번호 */
+                , MAX( NVL(XIT.PROCFLAG, 'T0') ) AS REQ_FLAG
+			FROM IFR_PBSAT0510 A
+				, IFR_PBSAT0520 B
+				, IFR_PBSET0510 C
+				, CO_SUPP_COMP_MAST D
+                ,
+                (
+                    SELECT B.ATTR02
+                            , B.ATTR03
+                            , B.ATTR06
+                            , B.SEND_DATE
+                            , B.INVDATE
+                            , B.INVSEQ
+                            , B.SUPREGNUM
+                            , REPLACE(DEMREGNUM, '-', '') AS DEMREGNUM
+                            , B.AGNCMPNAME
+                            , B.PROCFLAG
+                            , B.PROCDATE
+                        FROM X_INVOICE_TBL B
+                    WHERE 1=1
+                            AND B.ATTR03 = 'csf'
+                ) XIT
+                ,
+                (
+                SELECT REGNUM AS SUPREGNUM                  /* 사업자등록번호 */
+                    , CMPNAME AS SUPCMPNAME           /* 사업장명 */
+                    , OWNER AS SUPOWNER            /* 대표자명 */
+                    , BIZTYPE AS SUPBIZTYPE            /* 업태 */
+                    , BIZKIND AS SUPBIZKIND          /* 종목 */
+                    , ADDRESS AS SUPADDRESS            /* 주소 */
+                    , REG_NAME AS SNDUSRNAME         /* 담당자명 */
+                    , REG_EMAIL AS SNDEMAIL      /* 담당자 메일 */
+                    , REG_TEL AS SNDTEL         /* 담당자 연락처 */
+                FROM X_INVOICE_INFO
+                    WHERE 1=1
+                            AND ACCESS_NAME = 'csf'
+                ) XII
+                ,
+                (
+                    SELECT SUM(GOODS_CNT) AS SUM_GOODS_CNT
+                    		, SUM(GOODS_AMT) AS SUM_GOODS_AMT
+							, SUM(SUPTOTAMT) AS SUM_SUPTOTAMT
+		                    , SUM(SURTAX) AS SUM_SURTAX
+		                    , SUM(SUMAMT) AS SUM_SUAMT
+		                    , SUM(EPOST_SUMAMT) AS SUM_EPOST_SUMAMT
+                    	FROM
+                    		(
+		                    SELECT SUM(NVL(B.SELLCNT, 0))  GOODS_CNT
+		                    		, SUM(NVL(B.SELLAMT, 0))  GOODS_AMT
+		                    		, NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10 ) - SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10  - ROUND((  FLOOR(((B.SELLAMT) * 0.0605)/10)*10  / 1.1),0)),0) SUPTOTAMT /*공급가액 */
+		                    		, NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10  - ROUND((  FLOOR(((B.SELLAMT) * 0.0605)/10)*10  / 1.1),0)),0)    SURTAX  /* 부가세 */
+		                    		, NVL(SUM(FLOOR(((B.SELLAMT) * 0.0605)/10)*10 ),0)    SUMAMT    /* 판매수수료 */
+		                    		, NVL(SUM(SELLTAXINAMT),0)    EPOST_SUMAMT              /* 우본수수료 */
+		                    	FROM IFR_PBSAT0510 A
+		                    		, IFR_PBSAT0520 B
+		                    		, IFR_PBSET0510 C
+		                    		, CO_SUPP_COMP_MAST D
+		                    WHERE  1=1
+		                    		AND A.SELLRECEVNO  = B.SELLRECEVNO
+				                    AND B.TPPRMGOODSCD = C.TPPRMGOODSCD
+				                    AND C.SUBCOMPCD    = D.SUPP_COMP_ID
+									<include refid="taxMgrListQry1Condition"/> /* 검색조건 */
+				                    /* AND D.NATION_CD     = 'KO' */
+				                    AND A.ACTIVYN      = 'Y'
+				                    AND B.ACTIVYN = 'Y'
+		                    	GROUP BY  SUBSTR(A.SELLRECEVYMD,1,6), D.SUPP_COMP_ID
+                    		)
+                        ) TOT
+		WHERE  1=1
+				AND A.SELLRECEVNO  = B.SELLRECEVNO
+				AND B.TPPRMGOODSCD = C.TPPRMGOODSCD
+				AND C.SUBCOMPCD    = D.SUPP_COMP_ID
+                AND XIT.ATTR02(+) = SUBSTR(#searchFromDt#, 1, 6)||'99'
+                AND REPLACE(D.COMPREG_NO, '-', '') = XIT.DEMREGNUM(+)
+				<include refid="taxMgrListQry1Condition"/> /* 검색조건 */
+				/* AND D.NATION_CD     = 'KO' */
+				AND A.ACTIVYN      = 'Y'
+				AND B.ACTIVYN = 'Y'
+				GROUP BY  SUBSTR(A.SELLRECEVYMD,1,6), D.SUPP_COMP_ID
+				ORDER BY  SUBSTR(A.SELLRECEVYMD,1,6), D.SUPP_COMP_ID
+	</sql>
+	<!-- 창구판매수수료 리스트 쿼리 end-->
+
+	<!-- 창구판매 수수료 세금계산서 리스트 카운트 -->
+	<select id="selectTaxMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS TOTCNT
+		FROM
+			(
+			<!-- 창구판매 수수료 세금계산서 -->
+			<include refid="taxMgrListQry1"/> /* 수수료 리스트 쿼리 */
+			) T
+	</select>
+
+	<!-- 창구판매 수수료 세금계산서 리스트 조회 -->
+	<select id="selectTaxMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+
+		<include refid="pagingHeader"/>
+			<!-- 창구판매수수료 세금계산서 -->
+       SELECT T.ORDER_ID
+       			, SUBSTR(T.DAYS, 1,4)||'/'||SUBSTR(T.DAYS, 5,2) AS DAYS
+                , T.BIZ_CODE
+                , T.BIZ_NAME
+                , T.REGISTER_NO
+                , T.PRSDT_NM    /* 대표자명 */
+                , T.ENTRPS  /*업태 */
+                , T.INDUTY  /* 업종 */
+                , T.ADDRESS /*주소 */
+                , T.TELNO    /*전화번호 */
+                , T.EMAIL    /*이메일 */
+                /* , T.PROCFLAG
+                , (SELECT CM.COMN_CD_NM FROM CM_COMN_CD CM WHERE CM.CD_GRP_ID = 'TAX_STATE' AND T.PROCFLAG = CM.COMN_CD_ID) AS REQ_FLAG_NM
+                */
+                , NVL((
+                        SELECT DISTINCT NVL(AA.PROCFLAG, 'T0')  FROM X_INVOICE_TBL AA WHERE AA.ATTR02 = T.ORDER_ID AND AA.DEMREGNUM = T.REGISTER_NO
+                ), 'T0') AS REQ_FLAG
+                , NVL((
+                        SELECT DISTINCT NVL(AA.PROCFLAG, 'T0')  FROM X_INVOICE_TBL AA WHERE AA.ATTR02 = T.ORDER_ID AND AA.DEMREGNUM = T.REGISTER_NO
+                ), 'T0') AS PROCFLAG
+                ,
+                 (
+                    SELECT CM.COMN_CD_NM FROM CM_COMN_CD CM WHERE CM.CD_GRP_ID = 'TAX_STATE' AND CM.COMN_CD_ID = NVL(
+                        (
+                        SELECT DISTINCT NVL(AA.PROCFLAG, 'T0') AS PROCFLAG  FROM X_INVOICE_TBL AA WHERE AA.ATTR02 = T.ORDER_ID AND AA.DEMREGNUM = T.REGISTER_NO
+                        )
+                        , 'T0')
+                ) AS REQ_FLAG_NM
+                , DECODE(T.PROCDATE, NULL, TO_DATE(T.COM_DATE, 'YYYYMMDD'), TO_DATE(T.PROCDATE,'YYYYMMDDHH24MISS')) AS REG_DATE
+                , '' AS ITEMSTD1        /*규격 */
+                /* , T.COM_DATE */
+                , TO_CHAR(LAST_DAY( TO_DATE( SUBSTR(T.DAYS,1,6),'yyyymm')),'yyyymmdd')  AS COM_DATE
+                , T.ACCESS_NAME
+                , T.GOODS_AMT   /* 판매금액 */
+                , T.GOODS_CNT   /* 판대수량 */
+                , T.SUPTOTAMT   /* 공급가액 */
+                , T.SURTAX          /* 부가세 */
+                , T.SUMAMT          /* 판매수수료 (공급가액 + 부가세) */
+                , T.EPOST_FEE		/* 우본수수료 */
+                , '1' AS INVTYPE2		/*과세 */
+                , '1' AS INVTYPE3		/* 수수료 1 */
+                , TO_CHAR(T.SEND_DATE,'YYYY-MM-DD HH24:MI:SS') SEND_DATE
+                , T.INVDATE
+                , T.INVSEQ
+                , T.SUM_GOODS_CNT		/*판매수량 */
+                , T.SUM_GOODS_AMT		/* 판매금액 */
+                , T.SUM_SUPTOTAMT		/* 공급가액 */
+                , T.SUM_SURTAX			/* 부가세 */
+                , T.SUM_SUAMT			/* 판매수수료 */
+                , T.SUM_EPOST_FEE		/* 우본수수료 */
+                , '1' AS IS_POSTNET		/*창구판매수수료 구분 */
+			FROM
+				(
+				<include refid="taxMgrListQry1"/> /* 수수료 리스트 쿼리 */
+			/* ORDER BY REG_DATE DESC, SEND_DATE ASC */
+				) T
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 창구판매 수수료 세금계산서 일괄발행 조회 -->
+	<select id="selectCounsellTaxInfo" parameterClass ="java.util.HashMap" resultClass="commMap">
+       SELECT T.ORDER_ID
+       			, SUBSTR(T.DAYS, 1,4)||'/'||SUBSTR(T.DAYS, 5,2) AS DAYS
+                , T.SUPREGNUM                  /* 사업자등록번호 */
+                , T.SUPCMPNAME           /* 사업장명 */
+                , T.SUPOWNER            /* 대표자명 */
+                , T.SUPBIZTYPE            /* 업태 */
+                , T.SUPBIZKIND          /* 종목 */
+                , T.SUPADDRESS            /* 주소 */
+                , T.SNDUSRNAME         /* 담당자명 */
+                , T.SNDEMAIL      /* 담당자 메일 */
+                , T.SNDTEL         /* 담당자 연락처 */
+                , T.BIZ_CODE
+                , T.BIZ_NAME AS DEMCMPNAME		/*공급업체명 */
+                , T.REGISTER_NO AS DEMREGNUM
+                , T.PRSDT_NM AS DEMOWNER     /* 대표자명 */
+                , T.ENTRPS AS DEMBIZKIND /*업태 */
+                , T.INDUTY AS DEMBIZTYPE  /* 업종 */
+                , T.ADDRESS AS DEMADDRESS /*주소 */
+                , T.PRSDT_NM AS RCVUSRNAME
+                , T.TELNO AS RCVTEL    /*전화번호 */
+                , T.EMAIL AS RCVEMAIL    /*이메일 */
+                , T.PROCFLAG
+                , (SELECT CM.COMN_CD_NM FROM CM_COMN_CD CM WHERE CM.CD_GRP_ID = 'TAX_STATE' AND T.PROCFLAG = CM.COMN_CD_ID) AS REQ_FLAG_NM
+                , DECODE(T.PROCDATE, NULL, TO_DATE(T.COM_DATE, 'YYYYMMDD'), TO_DATE(T.PROCDATE,'YYYYMMDDHH24MISS')) AS REG_DATE
+                , SUBSTR(T.ORDER_ID, 0,4)||'년'||SUBSTR(T.ORDER_ID,5,2)||'월' || '창구판매 진흥원 운영수수료(통합)' AS ITEM1
+                , '판매수량 : '||GOODS_CNT AS ITEM2
+                , '판매금액 : '||GOODS_AMT AS ITEM3
+                , '' AS ITEMSTD1        /*규격 */
+                , T.COM_DATE
+                , T.ACCESS_NAME
+                , T.GOODS_AMT   /* 판매금액 */
+                , T.GOODS_CNT   /* 판대수량 */
+                , T.SUPTOTAMT   /* 공급가액 */
+                , T.SURTAX          /* 부가세 */
+                , T.SUMAMT          /* 판매수수료 (공급가액 + 부가세) */
+                , T.EPOST_FEE		/* 우본수수료 */
+                , '1' AS INVTYPE2		/*과세 */
+                , '1' AS INVTYPE3		/* 수수료 1 */
+                , TO_CHAR(T.SEND_DATE,'YYYY-MM-DD HH24:MI:SS') SEND_DATE
+                , '매출/과세/일반발행:::'||SUBSTR(T.ORDER_ID, 0,4)||'년'||SUBSTR(T.ORDER_ID,5,2)||'월' AS ITEMMEMO1
+                /* , TO_CHAR(SYSDATE,'YYYYMMDD') AS INVDATE */
+                , T.COM_DATE AS INVDATE
+                , TRIM(TO_CHAR(INV_SEQ.NEXTVAL,'00000000')) AS INVSEQ 	/* 일괄발행시 사용 */
+                , T.SUM_GOODS_CNT		/*판매수량 */
+                , T.SUM_GOODS_AMT		/* 판매금액 */
+                , T.SUM_SUPTOTAMT		/* 공급가액 */
+                , T.SUM_SURTAX			/* 부가세 */
+                , T.SUM_SUAMT			/* 판매수수료 */
+                , T.SUM_EPOST_FEE		/* 우본수수료 */
+                , '매출/과세/일반발행:::'||SUBSTR(T.ORDER_ID, 0,4)||'년'||SUBSTR(T.ORDER_ID,5,2)||'월' AS REMARK
+                , T.REQ_FLAG
+			FROM
+				(
+				<include refid="taxMgrListQry1"/> /* 수수료 리스트 쿼리 */
+				) T
+	</select>
+</sqlMap>

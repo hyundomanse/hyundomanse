@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.colabBuy">
+	
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!-- 공동구매 리스트 카운트 -->
+	<select id="selectColabBuyListMgrListTotCnt" parameterClass ="java.util.HashMap" resultClass="int">
+			SELECT 
+	           COUNT(*) as TOTCNT
+           	FROM EV_COLABBUY_GOODS a
+               INNER JOIN  GD_MGT_GOODS_MAST b      
+                  ON a.goods_cd = b.goods_cd
+               INNER JOIN  (  SELECT 
+					              c.EVENT_STRT_DATE, 
+					              c.EVENT_END_DATE,
+					              c.EVENT_ID,
+					              c.DSPY_SEQ
+					          FROM EV_EVENT_MAST c
+					          WHERE 1=1 
+					          	AND C.EVENT_DIV_CD = '03'
+					          	AND DEL_YN = 'N'
+				            	<isNotEmpty property="cndDate">
+					            	<isEqual property="cndDate" compareValue="1">
+					            		AND c.REG_DATE BETWEEN to_date(#searchFromDt#,'yyyy-mm-dd') AND to_date(#searchToDt# || ' 23:59:59','yyyy-mm-dd HH24:MI:ss')
+									</isEqual>
+									<isEqual property="cndDate" compareValue="2">
+										AND c.EVENT_STRT_DATE BETWEEN to_date(#searchFromDt#,'yyyy-mm-dd') AND to_date(#searchToDt# || ' 23:59:59','yyyy-mm-dd HH24:MI:ss')
+									</isEqual>
+									<isEqual property="cndDate" compareValue="3">
+										AND c.EVENT_END_DATE BETWEEN to_date(#searchFromDt#,'yyyy-mm-dd') AND to_date(#searchToDt# || ' 23:59:59','yyyy-mm-dd HH24:MI:ss')
+									</isEqual>
+				            	</isNotEmpty>
+				            	<isNotEmpty property="stus_cd">
+               				  		<isEqual property="stus_cd" compareValue="40">
+								 		AND EVENT_END_DATE <![CDATA[<=]]> SYSDATE
+								 	</isEqual>
+               				  		<isEqual property="stus_cd" compareValue="20">
+                				  		AND EVENT_STRT_DATE <![CDATA[<=]]> SYSDATE 
+                				  		AND EVENT_END_DATE > SYSDATE
+								 	</isEqual>
+               				  		<isEqual property="stus_cd" compareValue="10">
+                				  		AND EVENT_STRT_DATE > SYSDATE
+								 	</isEqual>
+								</isNotEmpty>
+				           ) c  /** 이벤트 마스타 테이블 **/
+				  ON a.event_id = c.event_id 	              
+	           INNER JOIN ( SELECT 
+	               				f.dspy_stus_cd, 
+	               				f.dspy_seq 
+          				    FROM DP_DSPY_MAST f /** 전시 마스타 테이블 **/
+               				WHERE 1=1
+               					AND DEL_YN = 'N'
+               					<isNotEmpty property="stus_cd">
+            				  		<isEqual property="stus_cd" compareValue="30">
+								 		AND dspy_stus_cd = #stus_cd#
+								 	</isEqual>
+								</isNotEmpty> 
+             			   ) f 		
+				  ON c.dspy_seq = f.dspy_seq
+				INNER JOIN ( SELECT 
+		                 				e.BCNC_NM, 
+		                 				e.SUPP_COMP_ID
+		                 				FROM CO_SUPP_COMP_MAST e
+		                 			 ) e
+		                 	ON b.supp_comp_id = e.supp_comp_id		    
+	</select>
+	
+	<!-- 공동구매 리스트 -->
+	<select id="selectColabBuyListMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		   
+			SELECT
+			      a.*
+			FROM (
+				SELECT
+						a.*, ROWNUM  AS RNUM
+				FROM 
+				(
+					select 
+			            e.BCNC_NM 			/** 공급업체명 **/
+			            ,b.CNSMR_PRC 		/** 소비자가 **/
+			            ,b.STD_SELL_PRC 		/** 기준판매가 **/
+			            ,b.GOODS_NM 		/** 상품명 **/
+			            ,a.SELL_PRC1 		/** 1차할인가 **/
+			            ,a.SELL_PRC2 		/** 2차할인가 **/
+			            ,TO_CHAR(TO_DATE(a.REG_DATE), 'YYYY-MM-DD') AS REG_DATE 
+			            ,a.GOODS_CD 		/** 상품코드 **/
+			            ,a.APPR_YN 			/** 승인여부 **/
+			            ,a.event_id 		/** 이벤트 ID **/
+			            ,TO_CHAR(TO_DATE(c.EVENT_STRT_DATE), 'YYYY-MM-DD') AS EVENT_STRT_DATE 	 /** 이벤트시작일 **/
+			            ,TO_CHAR(TO_DATE(c.EVENT_END_DATE), 'YYYY-MM-DD') AS EVENT_END_DATE		 /** 이벤트종료일 **/
+			            ,f.DSPY_STUS_CD /** 상태코드 **/
+		                ,decode (sign(TO_CHAR (TO_DATE(c.EVENT_STRT_DATE), 'YYYYMMDDHH24MMSS') - to_char(sysdate,'yyyymmddhh24mmss')) , 1, 'Y', 'N') as modify_flag /** 수정가능여부 **/
+			            ,
+				            CASE 
+			                    WHEN f.dspy_stus_cd = '30' THEN '일시중지' 
+			                    WHEN c.EVENT_END_DATE <![CDATA[<=]]> SYSDATE THEN '종료'
+			                    WHEN c.EVENT_STRT_DATE <![CDATA[<=]]> SYSDATE AND c.EVENT_END_DATE > SYSDATE THEN '진행중'
+			                    WHEN c.EVENT_STRT_DATE > SYSDATE THEN '진행대기'
+			                    ELSE ''   
+			                  END STUS  
+		                   /** 상태 **/
+			          FROM EV_COLABBUY_GOODS a 			/** 공동구매 구매 상세 테이블 **/
+		                 INNER JOIN  GD_MGT_GOODS_MAST b  	/** 상품 마스타 테이블 **/    
+		                    ON a.goods_cd = b.goods_cd
+		                 INNER JOIN  (  SELECT 
+							              c.EVENT_STRT_DATE, 
+							              c.EVENT_END_DATE,
+							              c.EVENT_ID,
+							              c.DSPY_SEQ
+							            FROM EV_EVENT_MAST c
+							            WHERE 1=1 
+							            	AND C.EVENT_DIV_CD = '03'
+							            	AND C.DEL_YN = 'N'
+							            	<isNotEmpty property="cndDate">
+								            	<isEqual property="cndDate" compareValue="1">
+								            		AND c.REG_DATE BETWEEN to_date(#searchFromDt#,'yyyy-mm-dd') AND to_date(#searchToDt# || ' 23:59:59','yyyy-mm-dd HH24:MI:ss')
+												</isEqual>
+												<isEqual property="cndDate" compareValue="2">
+													AND c.EVENT_STRT_DATE BETWEEN to_date(#searchFromDt#,'yyyy-mm-dd') AND to_date(#searchToDt# || ' 23:59:59','yyyy-mm-dd HH24:MI:ss')
+												</isEqual>
+												<isEqual property="cndDate" compareValue="3">
+													AND c.EVENT_END_DATE BETWEEN to_date(#searchFromDt#,'yyyy-mm-dd') AND to_date(#searchToDt# || ' 23:59:59','yyyy-mm-dd HH24:MI:ss')
+												</isEqual>
+							            	</isNotEmpty>
+							            	<isNotEmpty property="stus_cd">
+		                 				  		<isEqual property="stus_cd" compareValue="40">
+											 	AND EVENT_END_DATE <![CDATA[<=]]> SYSDATE
+											 	</isEqual>
+		                 				  		<isEqual property="stus_cd" compareValue="20">
+		                 				  		AND EVENT_STRT_DATE <![CDATA[<=]]> SYSDATE 
+		                 				  		AND EVENT_END_DATE > SYSDATE
+											 	</isEqual>
+		                 				  		<isEqual property="stus_cd" compareValue="10">
+		                 				  		AND EVENT_STRT_DATE > SYSDATE
+											 	</isEqual>
+											</isNotEmpty> 
+							            ) c  			/** 이벤트 마스타 테이블 **/    
+		                    ON a.event_id = c.event_id 
+		                 INNER JOIN ( SELECT 
+		                 				f.dspy_stus_cd, 
+		                 				f.dspy_seq 
+	                 				  from DP_DSPY_MAST f /** 전시 마스타 테이블 **/
+	                 				  WHERE 
+	                 				  	DEL_YN = 'N'
+	                 				  	<isNotEmpty property="stus_cd">
+	                 				  		<isEqual property="stus_cd" compareValue="30">
+										 	AND dspy_stus_cd = #stus_cd#
+										 	</isEqual>
+										</isNotEmpty> 
+	                 				  ) f 		
+		                    ON c.dspy_seq = f.dspy_seq
+		                 INNER JOIN CO_SUPP_COMP_MAST e
+                        	ON b.supp_comp_id = e.supp_comp_id	    
+	                    WHERE 1=1
+	                    ORDER BY a.EVENT_ID DESC
+						) a WHERE 1=1 
+								AND ROWNUM <![CDATA[<=]]> #lastIndex#
+				) a 
+			WHERE 1=1
+      			AND RNUM >= #firstIndex#
+      				
+	</select>
+	
+	<!-- 공동구매 상품 등록 -->
+	<insert id="insertColabBuyGoods" parameterClass ="java.util.HashMap">
+			/** SQL_ID : insertColabBuyGoods **/
+			
+			MERGE INTO EV_COLABBUY_GOODS ECG
+			USING 
+				(
+					SELECT    #eventId#	AS EVENT_ID						/*이벤트아이디*/
+								,#goods_cd#	AS GOODS_CD					/*상품 코드*/
+								,#tot_sell_cnt# AS TOT_SELL_CNT				/*총 판매수량*/
+								,#dc_std_sell_cnt1# AS DC_STD_SELL_CNT1	/*할인 기준 판매 수량1*/
+								,#sell_prc1# AS SELL_PRC1						/*판매가겨1*/
+								,#dc_std_sell_cnt2# AS DC_STD_SELL_CNT2	/*할인 기준 판매 수량2*/
+								,#sell_prc2# AS SELL_PRC2						/*판매가겨2*/
+								,#buycnt_limit# AS BUYCNT_LIMIT			/*구매수량 제한*/
+								,#regerId# AS REGER_ID         				/*등록자 아이디   */
+                          		,#chgerId# AS CHGER_ID         				/*수정자 아이디   */
+					FROM DUAL
+				) DATA
+			ON (ECG.EVENT_ID = DATA.EVENT_ID)
+			WHEN MATCHED THEN
+				UPDATE SET
+					GOODS_CD = DATA.GOODS_CD
+					,TOT_SELL_CNT = DATA.TOT_SELL_CNT
+					,DC_STD_SELL_CNT1 = DATA.DC_STD_SELL_CNT1
+					,SELL_PRC1 = DATA.SELL_PRC1
+					,DC_STD_SELL_CNT2 = DATA.DC_STD_SELL_CNT2
+					,SELL_PRC2 = DATA.SELL_PRC2
+					,BUYCNT_LIMIT = DATA.BUYCNT_LIMIT
+					,CHG_DATE = SYSDATE
+					,CHGER_ID = DATA.CHGER_ID
+			WHEN NOT MATCHED THEN
+				INSERT(
+					EVENT_ID
+					,GOODS_CD
+					,TOT_SELL_CNT
+					,DC_STD_SELL_CNT1
+					,SELL_PRC1
+					,DC_STD_SELL_CNT2
+					,SELL_PRC2
+					,BUYCNT_LIMIT
+					,APPR_YN
+					,REG_DATE
+					,REGER_ID
+				)VALUES(
+					DATA.EVENT_ID
+					,DATA.GOODS_CD
+					,DATA.TOT_SELL_CNT
+					,DATA.DC_STD_SELL_CNT1
+					,DATA.SELL_PRC1
+					,DATA.DC_STD_SELL_CNT2
+					,DATA.SELL_PRC2
+					,DATA.BUYCNT_LIMIT
+					,'N'
+					,SYSDATE
+					,DATA.REGER_ID
+				)
+	</insert>
+	
+	<!-- 공동구매 구매내역 (상품당 주문내역)-->
+	<select id="selectColabBuyHistory" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectColabBuyHistory **/
+				 
+		 
+		 SELECT *
+		  FROM (SELECT TB.*, ROWNUM AS RNUM
+		          FROM (SELECT B.ORDER_ID /**주문 id **/
+		                      ,(SELECT NAME
+		                          FROM MEMINFO D
+		                         WHERE B.ACCESS_NAME = D.ACCESS_NAME) MEM_NAME /**사용자명  **/
+		                      ,TO_CHAR(B.ORDER_DATE, 'YYYY.MM.DD') ORDER_DATE  /**주문일자  **/
+		                      ,(SELECT F_GET_COMN_CD_NM('SETL_MEAN_CD'
+		                                               ,B.SETL_MEAN_CD)
+		                          FROM DUAL) SETL_MEAN_CD_NM                   /**결제 수단 **/
+		                      ,B.SETL_AMT                                      /**결제금액 **/
+		                      ,C.ORDER_ITM_ID                                  /**주문아이템ID **/
+		                      ,C.GOODS_CD                                      /**상품 코드  **/
+		                      ,C.GOODS_NM                                      /**상품 명  **/
+		                      ,C.SUPP_COMP_NM                                  /**공급 업체 명  **/
+		                      ,C.SUPP_PO_NM                                    /**공급 우체국 명  **/
+		                      ,C.REQ_CNT                                       /**신청 수량    **/
+		                      ,A.BUY_CNT                                       /**구매 수량  **/
+		                  FROM (SELECT /*+ INDEX_DESC( EV_COLABBUY_BUY_DTAIL XPK_EV_COLABBUY_BUY_DTAIL )*/
+		                               EVENT_ID, GOODS_CD, ORDER_ID, BUY_CNT
+		                          FROM EV_COLABBUY_BUY_DTAIL
+		                         WHERE EVENT_ID = #event_id#) A                /**공동구매 구매 상세 테이블**/
+		                 INNER JOIN OD_ORDER_ITM C                             /**주문 아이템 테이블**/
+		                    ON A.ORDER_ID = C.ORDER_ID
+		                 INNER JOIN OD_ORDER_MAST B                            /**주문 마스터 테이블**/
+		                    ON B.ORDER_ID = C.ORDER_ID
+		                 ) TB
+		         WHERE ROWNUM <![CDATA[<=]]> #lastIndex#)
+		 WHERE RNUM >= #firstIndex#
+		
+				
+	</select>
+	
+	<!-- 공동구매 구매내역 카운트 페이지 -->
+	<select id="selectColabBuyHistoryCnt" parameterClass ="java.util.HashMap" resultClass="commMap">
+		/** SQL_ID : selectColabBuyHistoryCnt **/
+	
+	
+			SELECT COUNT(*)TOTCNT, CEIL(COUNT(*) / #rows#) TOTPAGE
+			          FROM (SELECT EVENT_ID, GOODS_CD, ORDER_ID, BUY_CNT
+			                  FROM EV_COLABBUY_BUY_DTAIL
+			                 WHERE EVENT_ID = #event_id#) A /**공동구매 구매 상세 테이블**/
+			         INNER JOIN OD_ORDER_ITM C                 /**주문 아이템 테이블**/
+			            ON A.ORDER_ID = C.ORDER_ID
+			         INNER JOIN OD_ORDER_MAST B                	/**주문 마스터 테이블**/
+			            ON B.ORDER_ID = C.ORDER_ID
+	</select>
+	
+	
+	<!-- 공동구매 상품삭제 -->
+	<update id="deleteColabBuyMgrInfo" parameterClass="java.util.HashMap">
+		DELETE EV_COLABBUY_GOODS 
+		WHERE 1=1 
+			AND EVENT_ID = #event_id#
+			AND GOODS_CD = #goods_cd#
+	</update>	
+	
+	<!-- 공동구매 상품승인 -->
+	<update id="updateColabBuyMgrAppr" parameterClass="java.util.HashMap">
+			UPDATE EV_COLABBUY_GOODS
+				SET APPR_YN = #appr_yn#
+				WHERE 1=1
+					AND EVENT_ID = #event_id#
+					AND GOODS_CD = #goods_cd#
+	</update>	
+	
+	<!-- 공동구매 상세정보 -->
+	<select id="selectColabBuyMgrInfo"	parameterClass ="java.util.HashMap" resultClass="commMap">
+			/** SQL_ID : selectColabBuyMgrInfo **/
+			
+			SELECT 
+			       A.EVENT_NM                 /*이벤트 명 */
+			       ,A.EVENT_ID                /*이벤트 id */
+			       ,A.DSPY_SEQ                /*전시 일련번호*/
+			       ,TO_CHAR(A.EVENT_STRT_DATE,'YYYY-MM-DD') AS EVENT_STRT_YMD         /*이벤트 시작 시간  */
+			       ,TO_CHAR(A.EVENT_END_DATE,'YYYY-MM-DD') AS EVENT_END_YMD          /*이벤트 종료 시간 */
+			       ,A.EVENT_TTL               /*이벤트 제목 */
+			       ,C.GOODS_CD                /*상품 코드 */
+			       ,C.TOT_SELL_CNT            /*총 판매 수량 */
+			       ,C.DC_STD_SELL_CNT1        /*할인 기준 판매 수량1 */
+			       ,C.SELL_PRC1               /*판매 가격1 */
+			       ,C.DC_STD_SELL_CNT2        /*할인 기준 판매 수량2  */
+			       ,C.SELL_PRC2               /*판매 가격2 */
+			       ,C.BUYCNT_LIMIT            /*구매수량 제한 */
+			       ,GOODS.GOODS_NM            /*상품 명 */
+			       ,GOODS.SUPP_COMP_ID        /*공급 업체 id */
+			       ,GOODS.STD_SELL_PRC           /*판매가 */
+			       ,CASE WHEN A.EVENT_STRT_DATE > SYSDATE THEN 'Y' ELSE 'N' END AS UPDATE_YN 	/*수정가능여부 : 이벤트시작일시가 현재 일시보다 클 경우에만 수정 가능*/
+			FROM EV_EVENT_MAST A INNER JOIN DP_DSPY_MAST B ON A.DSPY_SEQ = B.DSPY_SEQ AND B.USE_YN = 'Y'
+			INNER JOIN EV_COLABBUY_GOODS C ON A.EVENT_ID = C.EVENT_ID
+			INNER JOIN GD_MGT_GOODS_MAST GOODS ON GOODS.GOODS_CD = C.GOODS_CD
+			WHERE A.PAVLN_DIV_CD = '99'		/*전시관 분류 코드*/
+			AND A.EVENT_DIV_CD = '03'			/*이벤트 구분 코드*/
+			AND B.DSPY_TYP_CD = '40'				/*전시 타입 코드*/
+			AND A.EVENT_ID = #eventId# 
+	</select>
+	
+	<!-- 공동구매 동기간 업체 체크 -->
+	<select id="selectColabBuyCompDateCnt" parameterClass ="java.util.HashMap" resultClass="int"> 
+			/** SQL_ID : selectColabBuyCompDateCnt **/
+			
+			SELECT COUNT(B.EVENT_ID) AS CNT
+	        FROM (SELECT A.GOODS_CD
+	                FROM GD_MGT_GOODS_MAST A 
+	               WHERE SUPP_COMP_ID = #supp_comp_id#) A
+		       INNER JOIN EV_COLABBUY_GOODS B ON A.GOODS_CD = B.GOODS_CD
+		       INNER JOIN EV_EVENT_MAST C ON B.EVENT_ID = C.EVENT_ID
+		       WHERE C.EVENT_END_DATE >= SYSDATE
+		       AND C.EVENT_END_DATE <![CDATA[<=]]> TO_DATE(#calEventEndDate#||'235959','YYYY-MM-DD HH24MISS')
+	</select>
+</sqlMap>

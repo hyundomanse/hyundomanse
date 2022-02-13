@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.PostRm">
+	<typeAlias alias="commMap" type="com.devwork.common.map.CommonMap"/>
+    <typeAlias alias="egovMap" type="egovframework.rte.psl.dataaccess.util.EgovMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+			SELECT *
+			  FROM (
+					SELECT A.*
+						 , ROWNUM  AS RNUM
+					  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+					   ) A	WHERE ROWNUM <= #lastIndex#
+			   ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 기부처 조회 -->
+	<select id="selectRmGiveCbizMastGetList" parameterClass="java.util.HashMap" resultClass="egovMap">
+		<![CDATA[
+			SELECT CNTRER_CD
+			  FROM CU_CNTRER_MAST
+			 WHERE CNTRER_TYP_CD = '01'
+			   AND CNTR_END_YMD = '99991231'
+			   AND CNTR_METH_CD IN ('02', '03')
+		]]>
+    </select>
+
+    <!-- FEE AMOUNT 배분 -->
+    <select id="selectRmGiveFeeAmountGetList" parameterClass="java.util.HashMap" resultClass="CommMap">
+		<![CDATA[
+			SELECT ROUND( #FeeAmount# / #iBizCnt# ) FEE_AMOUNT FROM DUAL
+		]]>
+    </select>
+
+   <!-- 현재포인트/사용포인트-->
+    <select id="selectRmGiveUsePointGetList" parameterClass="java.util.HashMap" resultClass="CommMap">
+		<![CDATA[
+			SELECT #FeeAmount# - FLOOR(#FeeAmount#/10)*10  cor_point , FLOOR(#FeeAmount#/10) use_point
+       		  FROM  dual
+		]]>
+    </select>
+
+   <!-- 사용자 포인트 연번 발변 -->
+    <select id="selectRmGiveRmHistorySeqList" parameterClass="java.util.HashMap" resultClass="CommMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 RM_SEQ
+			  FROM MB_MEM_ACCMLAMT_HISTOR
+			 WHERE ACCESS_NAME = #AccessName#
+		]]>
+    </select>
+
+    <!-- 기부처리 Action -->
+    <insert id="insertRmGiveRmHistory" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MB_MEM_ACCMLAMT_HISTOR(
+		                                   ACCESS_NAME
+		                                  ,SEQ
+		                                  ,RM_TYPE
+		                                  ,USE_POINT
+		                                  ,COR_POINT
+		                                  ,CUR_POINT
+		                                  ,CASE_CONT
+		                                  ,STATUS
+		                                  ,TYPE_CD
+		                                  ,REG_DATE
+		                                  ,CREATE_DATE
+		                                  ,CBIZ_CODE
+		                                  ,POST_GBN
+		                                  ,JUNG_DATE
+		                                  ,JOBGBN
+		                                  )
+		     VALUES (
+		             #AccessName#
+		            ,#iRmSeq#
+		            ,'U'
+		            ,NVL(#iUsePoint#, 0)
+		            ,NVL(#iCorPoint#, 0)
+		            ,0
+		            ,'기부'
+		            ,'2'
+		            ,'U1'
+		            ,TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		            ,TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		            ,#sCbizCode#
+		            ,'P'
+		            ,TO_CHAR( LAST_DAY(ADD_MONTHS( SYSDATE, -1)), 'yyyymmdd')
+		            ,'01'
+		            )
+		]]>
+    </insert>
+
+    <!-- 마일리지 보유 사용자 조회 및 포인트 입력 -->
+    <select id="selectPostRmAccessName" parameterClass="java.util.HashMap" resultClass="egovMap">
+		<![CDATA[
+			SELECT NVL(SUM(CUR_POINT), 0) CUR_POINT
+			      ,NVL(SUM(POST_POINT), 0) POST_POINT
+			  FROM MB_MEM_ACCMLAMT
+			 WHERE ACCESS_NAME = #sAccessName#
+			   AND NVL(CUR_POINT, 0) > 0
+		]]>
+    </select>
+
+
+	<!-- selectPostRmCurSeq -->
+    <select id="selectPostRmCurSeq" parameterClass="java.util.HashMap" resultClass="egovMap">
+		<![CDATA[
+			SELECT NVL(MAX(SEQ), 0) + 1 seq
+			  FROM MB_MEM_ACCMLAMT_HISTOR
+			 WHERE ACCESS_NAME = #sAccessName#
+		]]>
+    </select>
+
+	<!-- insertPostRmHist -->
+    <insert id="insertPostRmHist" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MB_MEM_ACCMLAMT_HISTOR(
+                                   ACCESS_NAME
+                                  ,SEQ
+                                  ,RM_TYPE
+                                  ,ORDER_ID
+                                  ,ORDER_ITM_ID
+                                  ,USE_POINT
+                                  ,CUR_POINT
+                                  ,CASE_CONT
+                                  ,STATUS
+                                  ,TYPE_CD
+                                  ,REG_DATE
+                                  ,CREATE_DATE
+                                  ,JOBGBN
+                                  )
+		     VALUES (
+		             NVL(#sAccessName#, ' ')
+		            ,#iCurSeq#
+		            ,'U'
+		            ,#sReqNo#
+		            ,#sReqNoSeq#
+		            ,NVL(#iRmPoint#, 0)
+		            ,NVL(#iCurPoint#, 0) - NVL(#iRmPoint#, 0)
+		            ,'주문사용'
+		            ,'2'
+		            ,'U1'
+		            ,TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		            ,TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		            ,#sRmGbn#
+		            )
+		]]>
+    </insert>
+
+    <!-- updatePostRm-->
+	<update id="updatePostRm" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE MB_MEM_ACCMLAMT
+		   SET CUR_POINT = CUR_POINT - NVL(#iRmPoint#, 0), TOT_USE_POINT = TOT_USE_POINT + NVL(#iRmPoint#, 0), LASTCHANGE = TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		 WHERE ACCESS_NAME = #sAccessName#
+		   AND ROWNUM < 2
+	]]>
+	</update>
+
+
+	    <!-- updatePostRm1-->
+	<update id="updatePostRm1" parameterClass="java.util.HashMap">
+	<![CDATA[
+		UPDATE MB_MEM_ACCMLAMT
+		   SET CUR_POINT = CUR_POINT + NVL(#iRmPoint#, 0), TOT_USE_POINT = TOT_USE_POINT - NVL(#iRmPoint#, 0), LASTCHANGE = TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		 WHERE ACCESS_NAME = #sAccessName#
+		   AND ROWNUM < 2
+	]]>
+	</update>
+
+
+	<!-- selectCancelPostRm -->
+    <select id="selectCancelPostRm" parameterClass="java.util.HashMap" resultClass="egovMap">
+	<![CDATA[
+		SELECT NVL(SUM(ACCU_POINT), 0) CANCEL_POINT
+		      ,NVL(SUM(USE_POINT), 0) USE_POINT
+		  FROM MB_MEM_ACCMLAMT_HISTOR
+		 WHERE ORDER_ID = #sReqNo#
+		   AND ACCESS_NAME = #sAccessName#
+   ]]>
+   </select>
+
+
+   	<!-- selectCurrPostRm -->
+    <select id="selectCurPostRm" parameterClass="java.util.HashMap" resultClass="egovMap">
+	<![CDATA[
+		SELECT NVL(SUM(ACCU_POINT), 0) cancel_point
+		      ,NVL(SUM(USE_POINT), 0) use_point
+		  FROM MB_MEM_ACCMLAMT_HISTOR
+		 WHERE ORDER_ID = #sReqNo#
+		   AND ACCESS_NAME = #sAccessName#
+   ]]>
+   </select>
+
+      	<!-- selectCurrPostRm1 -->
+    <select id="selectCurPostRm1" parameterClass="java.util.HashMap" resultClass="egovMap">
+	<![CDATA[
+	   SELECT NVL(CUR_POINT, 0) + NVL(#iRmPoint#, 0) I_TOT_CUR_POINT
+		      ,TOT_USE_POINT - NVL(#iRmPoint#T, 0) I_TOT_USE_POINT
+		  FROM MB_MEM_ACCMLAMT
+		 WHERE ACCESS_NAME = #sAccessName#
+   ]]>
+   </select>
+
+   <!-- insertPostRmHist1 -->
+    <insert id="insertPostRmHist1" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO MB_MEM_ACCMLAMT_HISTOR(
+                                   ACCESS_NAME
+                                  ,SEQ
+                                  ,RM_TYPE
+                                  ,ORDER_ID
+                                  ,ORDER_ITM_ID
+                                  ,USE_POINT
+                                  ,CUR_POINT
+                                  ,CASE_CONT
+                                  ,STATUS
+                                  ,TYPE_CD
+                                  ,REG_DATE
+                                  ,CREATE_DATE
+                                  ,JOBGBN
+                                  )
+		     VALUES (
+		             NVL(#sAccessName#, ' ')
+		            ,#iCurSeq#
+		            ,'A'
+		            ,#sReqNo#
+		            ,#sReqNoSeq#
+		            ,NVL(#iRmPoint#, 0)
+		            ,NVL(#iCurPoint#, 0) - NVL(#iRmPoint#, 0)
+		            ,'주문 취소 환불'
+		            ,'1'
+		            ,'A3'
+		            ,TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		            ,TO_CHAR( SYSDATE, 'YYYYMMDDHH24MISS')
+		            ,#sRmGbn#
+		            )
+		]]>
+    </insert>
+
+
+    <!-- selectLinkIdCnt -->
+    <select id="selectLinkIdCnt" parameterClass="java.util.HashMap" resultClass="egovMap">
+	<![CDATA[
+		SELECT A.LINK_ID LINK_ID
+	      ,NVL(B.ACCESS_CNT, 0) ACCESS_CNT
+		  FROM PT_PARTNER A
+		      ,PT_PARTNER_ACCESS B
+		 WHERE A.PARTNR_ID = #sP#
+		   AND A.DELETE_DATE IS NULL
+		   AND A.PARTNR_ID = B.PARTNR_ID(+)
+		   AND B.CON_YMD(+) = TO_CHAR( SYSDATE, 'yyyymmdd')
+   ]]>
+   </select>
+
+    <!-- insertPartnerAccessCnt -->
+    <insert id="insertPartnerAccessCnt" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO PT_PARTNER_ACCESS(
+	                          PARTNR_ID
+	                         ,CON_YMD
+	                         ,ACCESS_CNT
+	                         )
+		     VALUES (
+		             #sP#
+		            ,TO_CHAR( SYSDATE, 'yyyymmdd')
+		            ,1
+		            )
+		]]>
+    </insert>
+
+    <!-- updatePartnerAccessCnt-->
+	<update id="updatePartnerAccessCnt" parameterClass="java.util.HashMap">
+	<![CDATA[
+		    UPDATE PT_PARTNER_ACCESS
+	           SET ACCESS_CNT = ACCESS_CNT+1
+	         WHERE PARTNR_ID = #sP#
+	           AND CON_YMD =  TO_CHAR(sysdate, 'yyyymmdd')
+	]]>
+	</update>
+
+	<!-- selectGoodsCnt -->
+    <select id="selectGoodsCnt" parameterClass="java.util.HashMap" resultClass="egovMap">
+    <![CDATA[
+		SELECT COUNT(*) CNT
+		  FROM PT_PARTNER_GOODS_VIEW
+		        WHERE CON_YMD = TO_CHAR(sysdate, 'yyyymmdd')
+		          and PARTNR_ID = #sP#
+		          and GOODS_CD  = #sGoodsIdn#
+	]]>
+	</select>
+
+
+	    <!-- insertPartnerAccessCnt -->
+    <insert id="insertGoodsCnt" parameterClass="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO PT_PARTNER_ACCESS(
+	                          PARTNR_ID
+	                         ,CON_YMD
+	                         ,ACCESS_CNT
+	                         )
+		     VALUES (
+		             #sP#
+		            ,TO_CHAR( SYSDATE, 'yyyymmdd')
+		            ,1
+		            )
+		]]>
+    </insert>
+
+    <!-- updateGoodsCnt-->
+	<update id="updateGoodsCnt" parameterClass="java.util.HashMap">
+	<![CDATA[
+		    UPDATE PT_PARTNER_GOODS_VIEW
+			   SET ACCESS_CNT = NVL(ACCESS_CNT, 0) + 1
+			 WHERE CON_YMD = TO_CHAR( SYSDATE, 'yyyymmdd')
+			   AND PARTNR_ID = #sP#
+			   AND GOODS_CD = #sGoodsIdn#
+
+	]]>
+	</update>
+
+</sqlMap>

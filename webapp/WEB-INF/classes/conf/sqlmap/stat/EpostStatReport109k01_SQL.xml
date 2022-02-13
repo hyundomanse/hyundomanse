@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.EpostStatReport109k01">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<select id="selectCouponSrchRptList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT ROWNUM  RNUM
+					,T1.*
+			FROM(
+				SELECT	C.ORDER_ITM_ID
+						, C.ORDER_ID
+						,FNC_FMT_PURCHASE_ID(C.ORDER_ID) AS PURCHASE_ID
+						, A.ORDRR_NM AS NAME
+						, A.ACCESS_NAME
+						,NVL(F.DC_APPLY_PRC,0) + NVL(F.OPTN_GOODS_APPLY_PRC,0) + NVL(F.SEND_PRC,0) + NVL(F.B2B_COMMISSION_PRC,0)AS AMT11 /*상품대금*/
+						, DECODE(F.GOODS_CANCEL_YN,'N',NVL(F.DC_APPLY_PRC,0) + NVL(F.OPTN_GOODS_APPLY_PRC,0) + NVL(F.SEND_PRC,0) + NVL(F.B2B_COMMISSION_PRC,0)-(NVL(F.PNT_USE_AMT,0) + NVL(F.CPN_DC_AMT,0) + NVL(F.PREMI_CUST_PNT_SETL_AMT,0) + NVL(F.OKCASH_USE_AMT,0) + NVL(F.WALLET_SETL_AMT,0)),0)  AMT21/*실결재액*/
+						, DECODE(F.GOODS_CANCEL_YN,'Y',NVL(F.DC_APPLY_PRC,0) + NVL(F.OPTN_GOODS_APPLY_PRC,0) + NVL(F.SEND_PRC,0) + NVL(F.B2B_COMMISSION_PRC,0)-(NVL(F.PNT_USE_AMT,0) + NVL(F.CPN_DC_AMT,0) + NVL(F.PREMI_CUST_PNT_SETL_AMT,0) + NVL(F.OKCASH_USE_AMT,0) + NVL(F.WALLET_SETL_AMT,0)),0) AMT22 /*취소액 */
+						, NVL(F.PNT_USE_AMT,0) AMT31 /*마일리지사용*/
+						, NVL(F.PNT_REFUND_SETL_AMT,0)  AMT32 /*마일리지취소*/										
+						, DECODE(F.GOODS_CANCEL_YN,'N',NVL(F.CPN_DC_AMT,0),0) AMT41 /*할인쿠폰사용*/
+						, DECODE(F.GOODS_CANCEL_YN,'Y',NVL(F.CPN_DC_AMT,0),0) AMT42 /*할인쿠폰사용*/						
+						, NVL(F.PREMI_CUST_PNT_SETL_AMT,0) AMT51            /*우수고객포인트 사용*/
+						, NVL(F.PREMI_CUST_PNT_REFUND_APRV_AMT,0) AMT52        /*우수고객포인트 취소*/
+						, A.APPR_DATE AS APPR_DATE
+						, DECODE(E.CP_CMP_CD, NULL, '', '1', '지원단' || DECODE(E.PARTNER_ID,NULL,'','(' || G.NAME || ')'), '2', '공급업체','3','발행외부업체') CP_CMP /*발행주체*/
+						, E.TITLE        /*쿠폰명*/
+						, TO_CHAR(TO_DATE(E.APPLY_DATE, 'YYYYMMDDHH24MISS'), 'YYYY.MM.DD')AS  APPLY_DATE /*쿠폰 발행일*/
+				FROM	OD_ORDER_MAST A
+						, OD_ORDER_ITM F
+						, OD_ORDER_CPN C
+						, EV_CPN_USER_ISSUE_INFO D
+						, EV_CPN_MAST E
+						, PT_PARTNER G
+				WHERE	1=1
+				AND     C.ORDER_ID = A.ORDER_ID
+				AND 	C.ORDER_ITM_ID = F.ORDER_ITM_ID
+				AND 	C.PIN_NO = D.PIN_ISSUE_NO
+				AND 	D.CPN_MAST_NO = E.CPN_MAST_NO
+				AND 	D.ACCESS_NAME = A.ACCESS_NAME
+				AND 	A.ORDER_ID = F.ORDER_ID
+				/*AND     F.CPN_MAST_NO1(+) = E.CPN_MAST_NO 데이터 이관후 품*/
+				AND 	A.APPR_DATE <= TO_DATE('2016-10-28'||'235959','YYYY-MM-DDHH24MISS')		
+				AND 	E.PARTNER_ID = G.PARTNR_ID(+)				
+				AND 	F.ORDER_STUS_CD IN ('D02','D03','D04','O02','O04','O05','O06','O08' )
+			]]>
+			<isNotEmpty property="setlMeanCd" prepend="AND">
+				A.SETL_MEAN_CD = #setlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="chnlDivCd" prepend="AND">
+			</isNotEmpty>
+			<isNotEmpty property="searchWord">
+				<isEqual property="searchIndex" compareValue="00" prepend="AND">
+						(A.ACCESS_NAME LIKE '%'|| #searchWord# || '%'		/*주문자ID*/
+						OR	A.ORDRR_NM LIKE '%'|| #searchWord# || '%'			/*주문자명*/
+						OR	A.ORDER_ID LIKE '%'|| #searchWord# || '%')			/*주문번호*/
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="01" prepend="AND">
+						A.ACCESS_NAME LIKE '%'|| #searchWord# || '%'		/*주문자ID*/
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="02" prepend="AND">
+						A.ORDRR_NM LIKE '%'|| #searchWord# || '%'			/*주문자명*/
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="03" prepend="AND">
+						A.ORDER_ID LIKE '%'|| #searchWord# || '%'			/*주문번호*/
+				</isEqual>
+			</isNotEmpty>
+			<isNotEmpty property="cpCmpCd" prepend="AND">
+					E.CP_CMP_CD = #cpCmpCd#
+			</isNotEmpty>
+			<isNotEmpty property="cpnMastNo" prepend="AND">
+					D.CPN_MAST_NO = #cpnMastNo#
+			</isNotEmpty>
+			<isNotEmpty property="searchFromDt">
+				<isNotEmpty property="searchToDt">
+					<![CDATA[
+					AND 	A.APPR_DATE >= TO_DATE(#searchFromDt#||'000000','YYYY-MM-DDHH24MISS')
+					AND 	A.APPR_DATE <= TO_DATE(#searchToDt#||'235959','YYYY-MM-DDHH24MISS')
+					]]>
+				</isNotEmpty>
+			</isNotEmpty>
+			<![CDATA[
+			 UNION ALL			 
+			 SELECT	F.ORDER_ITM_ID
+						, A.ORDER_ID
+						, FNC_FMT_PURCHASE_ID(A.ORDER_ID) AS PURCHASE_ID
+						, A.ORDRR_NM AS NAME
+						, A.ACCESS_NAME
+						, NVL(F.DC_APPLY_PRC,0) + NVL(F.OPTN_GOODS_APPLY_PRC,0) + NVL(F.SEND_PRC,0) + NVL(F.B2B_COMMISSION_PRC,0)AS AMT11 /*상품대금*/
+						, DECODE(F.GOODS_CANCEL_YN,'N',NVL(F.DC_APPLY_PRC,0) + NVL(F.OPTN_GOODS_APPLY_PRC,0) + NVL(F.SEND_PRC,0) + NVL(F.B2B_COMMISSION_PRC,0)-(NVL(F.PNT_USE_AMT,0) + NVL(F.CPN_DC_AMT,0) + NVL(F.PREMI_CUST_PNT_SETL_AMT,0) + NVL(F.OKCASH_USE_AMT,0) + NVL(F.WALLET_SETL_AMT,0)),0)  AMT21/*실결재액*/
+						, DECODE(F.GOODS_CANCEL_YN,'Y',NVL(F.DC_APPLY_PRC,0) + NVL(F.OPTN_GOODS_APPLY_PRC,0) + NVL(F.SEND_PRC,0) + NVL(F.B2B_COMMISSION_PRC,0)-(NVL(F.PNT_USE_AMT,0) + NVL(F.CPN_DC_AMT,0) + NVL(F.PREMI_CUST_PNT_SETL_AMT,0) + NVL(F.OKCASH_USE_AMT,0) + NVL(F.WALLET_SETL_AMT,0)),0) AMT22 /*취소액 */
+						, NVL(F.PNT_USE_AMT,0) AMT31 /*마일리지사용*/
+						, NVL(F.PNT_REFUND_SETL_AMT,0)  AMT32 /*마일리지취소*/
+						, DECODE(F.GOODS_CANCEL_YN,'N',DECODE(#cpCmpCd#,'1',DECODE(CP_CMP_CD1,'1',CPN_DC_AMT1,0)+DECODE(CP_CMP_CD2,'1',CPN_DC_AMT2,0),'2',DECODE(CP_CMP_CD1,'2',CPN_DC_AMT1,0)+DECODE(CP_CMP_CD2,'2',CPN_DC_AMT2,0),NVL(F.CPN_DC_AMT,0)),0) AMT41 /*할인쿠폰사용*/
+						, DECODE(F.GOODS_CANCEL_YN,'Y',DECODE(#cpCmpCd#,'1',DECODE(CP_CMP_CD1,'1',CPN_DC_AMT1,0)+DECODE(CP_CMP_CD2,'1',CPN_DC_AMT2,0),'2',DECODE(CP_CMP_CD1,'2',CPN_DC_AMT1,0)+DECODE(CP_CMP_CD2,'2',CPN_DC_AMT2,0),NVL(F.CPN_DC_AMT,0)),0) AMT42 /*할인쿠폰사용*/
+						, NVL(F.PREMI_CUST_PNT_SETL_AMT,0) AMT51            /*우수고객포인트 사용*/
+						, NVL(F.PREMI_CUST_PNT_REFUND_APRV_AMT,0) AMT52        /*우수고객포인트 취소*/
+						, A.APPR_DATE AS APPR_DATE
+						, FN_GET_CP_CMP_NM(nvl(CPN_MAST_NO1,0),nvl(CPN_MAST_NO2,0),1) CP_CMP /*발행주체*/
+						, FN_GET_CP_CMP_NM(nvl(CPN_MAST_NO1,0),nvl(CPN_MAST_NO2,0),2) TITLE        /*쿠폰명*/
+						, FN_GET_CP_CMP_NM(nvl(CPN_MAST_NO1,0),nvl(CPN_MAST_NO2,0),3) APPLY_DATE /*쿠폰 발행일*/ 
+				FROM	OD_ORDER_MAST A
+						, OD_ORDER_ITM F						
+				WHERE	1=1
+				AND 	A.ORDER_ID = F.ORDER_ID
+				AND 	A.APPR_DATE >= TO_DATE('2016-10-29'||'000000','YYYY-MM-DDHH24MISS')					
+				AND 	F.ORDER_STUS_CD IN ('D02','D03','D04','O02','O04','O05','O06','O08' )
+				AND     F.CPN_DC_AMT > 0
+			]]>
+			<isNotEmpty property="setlMeanCd" prepend="AND">
+				A.SETL_MEAN_CD = #setlMeanCd#
+			</isNotEmpty>
+			<isNotEmpty property="chnlDivCd" prepend="AND">
+			</isNotEmpty>
+			<isNotEmpty property="searchWord">
+				<isEqual property="searchIndex" compareValue="00" prepend="AND">
+						(A.ACCESS_NAME LIKE '%'|| #searchWord# || '%'		/*주문자ID*/
+						OR	A.ORDRR_NM LIKE '%'|| #searchWord# || '%'			/*주문자명*/
+						OR	A.ORDER_ID LIKE '%'|| #searchWord# || '%')			/*주문번호*/
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="01" prepend="AND">
+						A.ACCESS_NAME LIKE '%'|| #searchWord# || '%'		/*주문자ID*/
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="02" prepend="AND">
+						A.ORDRR_NM LIKE '%'|| #searchWord# || '%'			/*주문자명*/
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="03" prepend="AND">
+						A.ORDER_ID LIKE '%'|| #searchWord# || '%'			/*주문번호*/
+				</isEqual>
+			</isNotEmpty>
+			<isNotEmpty property="cpCmpCd" prepend="AND">
+			          EXISTS (SELECT 1 FROM EV_CPN_MAST E WHERE E.CPN_MAST_NO =  F.CPN_MAST_NO1 AND E.CP_CMP_CD = #cpCmpCd# 
+			                  UNION ALL
+					          SELECT 1 FROM EV_CPN_MAST E WHERE E.CPN_MAST_NO =  F.CPN_MAST_NO2 AND E.CP_CMP_CD = #cpCmpCd# ) 
+			</isNotEmpty>
+			<isNotEmpty property="cpnMastNo" prepend="AND">	
+			       EXISTS    (SELECT 1 FROM EV_CPN_MAST E WHERE E.CPN_MAST_NO =  F.CPN_MAST_NO1 AND E.CPN_MAST_NO = #cpnMastNo# 
+			                  UNION ALL
+					          SELECT 1 FROM EV_CPN_MAST E WHERE E.CPN_MAST_NO =  F.CPN_MAST_NO2 AND E.CPN_MAST_NO = #cpnMastNo# ) 
+			</isNotEmpty>
+			<isNotEmpty property="searchFromDt">
+				<isNotEmpty property="searchToDt">
+					<![CDATA[
+					AND 	A.APPR_DATE >= TO_DATE(#searchFromDt#||'000000','YYYY-MM-DDHH24MISS')
+					AND 	A.APPR_DATE <= TO_DATE(#searchToDt#||'235959','YYYY-MM-DDHH24MISS')
+					]]>
+				</isNotEmpty>
+			</isNotEmpty>
+			 
+			) T1
+			ORDER BY ORDER_ID, ORDER_ITM_ID DESC
+	</select>
+	<select id="selectCouponStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+			SELECT ROW_NUMBER() OVER(ORDER BY A.CPN_MAST_NO) RNUM,
+					/*+ USE_NL (A B D)  INDEX(A IX_CP_MASTER_02)  */ A.CPN_MAST_NO,
+					--MAX(DECODE(D.BCNC_NM, NULL, '지원단' || DECODE(A.PARTNER_ID,NULL,'','(' || G.NAME || ')'), '2', D.BCNC_NM))  BIZ_NAME,
+					MAX(NVL(D.BCNC_NM,'지원단'|| DECODE(A.PARTNER_ID,NULL,'','(' || G.NAME || ')')))AS BCNC_NM,
+					MAX(D.SUPP_COMP_ID) AS SUPP_COMP_ID,
+					MAX(E.COMN_CD_NM) TYPE,
+					MAX(F.COMN_CD_NM) APPLY_TYPE,
+					MAX(DECODE(A.RATE_TYPE,'1',A.AMOUNT,A.RATE_TYPE)) AMT_GBN,
+					MAX(DECODE(A.RATE_TYPE,'1','원','%')) AMT_GBN1,
+					MAX(DECODE(A.CPN_APPLY_CNT_CD,'1','1개만','전체')) QTY_TYPE,
+					MAX(A.QTY) QTY,
+					MAX(A.LIMIT_AMT) LIMIT_AMT,
+					MAX(DECODE(A.USE_SEQ_APPN_CD,'1','1번만','여러번')) CNT_CHK,
+					MAX(DECODE(A.SALE_CHK,'Y','가능','불가')) SALE_CHK,
+					MAX(DECODE(A.RGR_CHK,'Y','가능','불가')) RGR_CHK,
+					MAX(DECODE(A.CPN_GOODS_APPN_CD,'G','지정상품','A','전체상품')) GOODS_CHK,
+					(
+					SELECT COUNT(DISTINCT CC.GOODS_CD)
+					FROM EV_CPN_GOODS_INFO CC
+					WHERE A.CPN_MAST_NO = CC.CPN_MAST_NO
+					) GOODS_CNT,
+					COUNT(B.PIN_ISSUE_NO) CP_CNT,
+					SUM(DECODE(NVL(B.USE_DATE,''),'',0,1)) USE_CNT,
+					MAX(TO_DATE(SUBSTR(A.USE_FROM,1,8),'YYYY-MM-DD')) USE_FROM,
+					MAX(TO_DATE(SUBSTR(A.USE_TO,1,8),'YYYY-MM-DD')) USE_TO,
+					MAX(TO_DATE(SUBSTR(A.APPLY_DATE,1,8),'YYYY-MM-DD')) APPLY_DATE,
+					MAX(A.TITLE) TITLE,
+					MAX(A.CP_TYPE_CD) CP_TYPE_CD
+			FROM	EV_CPN_MAST A, EV_CPN_USER_ISSUE_INFO B,CO_SUPP_COMP_MAST D,
+					( SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD
+					WHERE CD_GRP_ID LIKE 'CP_TYP_CD'
+					ORDER BY SORT_ORDER) E,
+					( SELECT COMN_CD_ID,COMN_CD_NM FROM CM_COMN_CD
+					WHERE CD_GRP_ID LIKE 'CPN_ISSUE_METH_CD'
+					ORDER BY SORT_ORDER ) F
+					, PT_PARTNER G
+			WHERE	A.CPN_MAST_NO     = B.CPN_MAST_NO(+)
+			AND 	A.SUPP_COMP_ID    = D.SUPP_COMP_ID(+)
+			AND 	A.PARTNER_ID      = G.PARTNR_ID(+)
+			AND 	A.CP_TYPE_CD      = E.COMN_CD_ID(+)
+			AND 	A.CPN_ISSUE_METH_CD  = F.COMN_CD_ID(+)
+			<isNotEmpty property="cpCmpCd" prepend="AND">
+				A.CP_CMP_CD = #cpCmpCd#						/* 발행처 */
+			</isNotEmpty>
+			<isNotEmpty property="rateType" prepend="AND">
+				<isNotEqual property="rateType" compareValue="00">
+				A.RATE_TYPE = #rateType#					/* 액면방법 */
+				</isNotEqual>
+			</isNotEmpty>
+			<isNotEmpty property="cpnIssueMethCd" prepend="AND">
+				A.CPN_ISSUE_METH_CD = #cpnIssueMethCd#		/* 발행방법 */
+			</isNotEmpty>
+			<isNotEmpty property="cpTypCd" prepend="AND">
+				<isNotEqual property="cpTypCd" compareValue="00">
+				A.CP_TYPE_CD = #cpTypCd#		/* 쿠폰유형 */
+				</isNotEqual>
+			</isNotEmpty>
+			<isNotEmpty property="cpnDueDay">
+				/* 진행 상태 */
+				<isEqual property="cpnDueDay" compareValue="00">
+				</isEqual>
+				<isEqual property="cpnDueDay" compareValue="01" prepend="AND">
+				<![CDATA[	TO_CHAR(SYSDATE,'YYYYMMDD') > A.USE_TO	]]> /*진행 완료*/
+				</isEqual>
+				<isEqual property="cpnDueDay" compareValue="02" prepend="AND">
+					<![CDATA[	TO_CHAR(SYSDATE,'YYYYMMDD') BETWEEN A.USE_FROM AND A.USE_TO	]]> /*진행중*/
+				</isEqual>
+				<isEqual property="cpnDueDay" compareValue="03" prepend="AND">
+					<![CDATA[	TO_CHAR(SYSDATE,'YYYYMMDD') < A.USE_FROM	]]> /*진행이전*/
+				</isEqual>
+			</isNotEmpty>
+			<isNotEmpty property="searchWord">
+				/* 검색 */
+				<isEqual property="searchIndex" compareValue="00" prepend="AND">
+					( D.BCNC_NM	LIKE '%'|| #searchWord# ||'%'
+					OR		D.SUPP_COMP_ID	LIKE '%'|| #searchWord# ||'%'
+					OR		A.TITLE 	LIKE '%'|| #searchWord# ||'%' )
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="01" prepend="AND">
+					D.BCNC_NM	LIKE '%'|| #searchWord# ||'%'
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="02" prepend="AND">
+					D.SUPP_COMP_ID	LIKE '%'|| #searchWord# ||'%'
+				</isEqual>
+				<isEqual property="searchIndex" compareValue="03" prepend="AND">
+					A.TITLE 	LIKE '%'|| #searchWord# ||'%'
+				</isEqual>
+			</isNotEmpty>
+			<isNotEmpty property="searchFromDt">
+				<isNotEmpty property="searchToDt">
+					<![CDATA[
+					AND 	A.APPLY_DATE >= TO_CHAR(TO_DATE(#searchFromDt#),'YYYYMMDDHH24MISS')
+					AND 	A.APPLY_DATE <= TO_CHAR(TO_DATE(#searchToDt#),'YYYYMMDDHH24MISS')
+					]]>
+				</isNotEmpty>
+			</isNotEmpty>
+			GROUP BY  A.CPN_MAST_NO
+			ORDER BY A.CPN_MAST_NO ASC
+	</select>
+	<!-- 매출보기 팝업 -->
+	<select id="selectCouponSaleAmountList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		SELECT /*+ LEADING(A2) USE_NL (A A2) */
+				ROW_NUMBER() OVER(ORDER BY MAX(SUBSTR(A.APPR_DATE,1,8))DESC) RNUM,
+				SUBSTR(A.APPR_DATE,1,8) DAY,
+				SUM(A.SETL_AMT) AMT,
+				COUNT(DISTINCT A.ORDER_ID) QTY,
+				SUM(DECODE(F.GOODS_CANCEL_YN,'N',A.SETL_AMT- (NVL(A.PNT_USE_AMT,0) + NVL(A.PNT_REFUND_SETL_AMT,0) + NVL(A.PREMI_CUST_PNT_SETL_AMT,0) + NVL(A.PREMI_CUST_PNT_REFUND_APRV_AMT,0) + NVL(A.TOT_CPN_DC_AMT,0) ),0))  AMT11,
+				SUM(DECODE(F.GOODS_CANCEL_YN,'Y',A.SETL_AMT- (NVL(A.PNT_USE_AMT,0) + NVL(A.PNT_REFUND_SETL_AMT,0) + NVL(A.PREMI_CUST_PNT_SETL_AMT,0) + NVL(A.PREMI_CUST_PNT_REFUND_APRV_AMT,0) + NVL(A.TOT_CPN_DC_AMT,0) ),0))  AMT12,
+				SUM(DECODE(F.GOODS_CANCEL_YN,'N',NVL(A.TOT_CPN_DC_AMT,0),0))  AMT21,
+				SUM(DECODE(F.GOODS_CANCEL_YN,'Y',NVL(A.TOT_CPN_DC_AMT,0),0))  AMT22,
+				SUM(NVL(A.PNT_USE_AMT,0))     AMT31,
+				SUM(NVL(A.PNT_REFUND_SETL_AMT,0)) AMT32,
+				SUM(NVL(A.PREMI_CUST_PNT_SETL_AMT,0))     AMT51,
+				SUM(NVL(A.PREMI_CUST_PNT_REFUND_APRV_AMT,0)) AMT52
+		FROM	OD_ORDER_MAST A ,OD_ORDER_ITM F,
+				(	SELECT DISTINCT BB.ORDER_ID
+					FROM EV_CPN_USER_ISSUE_INFO AA , OD_ORDER_CPN BB
+					WHERE AA.PIN_ISSUE_NO = BB.PIN_NO
+					AND AA.CPN_MAST_NO = #cpnMastNo#
+					AND AA.USE_DATE IS NOT NULL
+				) A2
+		WHERE	A.ORDER_ID = A2.ORDER_ID
+		AND 	A.ORDER_ID = F.ORDER_ID
+		AND 	A.ORDER_STUS_CD NOT IN ( 'O01', 'O09')
+		<isEqual property="termGbn" compareValue="A">
+			<isNotEmpty property="abc" prepend="AND">
+				A.APPR_DATE BETWEEN TO_CHAR(SYSDATE, 'yyyymmdd') AND TO_CHAR(SYSDATE, 'yyyymmdd')
+			</isNotEmpty>
+			<isEmpty property="testabc">
+				A.APPR_DATE BETWEEN TO_CHAR(SYSDATE, 'yyyymmdd') AND TO_CHAR(SYSDATE, 'yyyymmdd')
+			</isEmpty>
+		</isEqual>
+		GROUP BY SUBSTR(A.APPR_DATE,1,8)
+		ORDER BY SUBSTR(A.APPR_DATE,1,8) DESC
+
+	</select>
+</sqlMap>

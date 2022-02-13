@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Main">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<select id="selectTotalOrderState" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT NVL(MIN(DECODE(ORDER_STUS_CD, 'O01', CNT)), 0) AS O01
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'O02', CNT)), 0) AS O02
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'O03', CNT)), 0) AS O03
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'O04', CNT)), 0) AS O04
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'O05', CNT)), 0) AS O05
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'O06', CNT)), 0) AS O06
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'O08', CNT)), 0) AS O08
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'D02', CNT)), 0) AS D02
+			 , NVL(MIN(DECODE(ORDER_STUS_CD, 'D03', CNT)), 0) AS D03
+		  FROM ( SELECT ORDER_STUS_CD, TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+				   FROM OD_ORDER_MAST WHERE ORDER_STUS_CD IS NOT NULL GROUP BY ORDER_STUS_CD )
+	</select>
+
+	<select id="selectWeeklySaleState" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT YMD.YMD AS LABELS ,
+		  NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '01', SETL_APPR_AMT)), 0) AS EPOST_AMT ,
+		  NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '04', SETL_APPR_AMT)), 0) AS CST_AMT ,
+		  NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '05', SETL_APPR_AMT)), 0) AS PO_AMT ,
+		  NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '03', SETL_APPR_AMT)), 0) AS MO_AMT
+		FROM (
+		    SELECT TO_CHAR(SYSDATE-1 - (LEVEL -1), 'YYYY-MM-DD') AS YMD
+		    FROM DUAL CONNECT BY LEVEL &lt;= 7) YMD ,
+		  (
+		    SELECT TO_CHAR(OOS.SETL_APPR_DATE, 'YYYY-MM-DD') AS YMD ,
+		      OOM.ORDER_MDA_DIV_CD ,
+		      SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+		    FROM OD_ORDER_MAST OOM,
+		      OD_ORDER_SETL OOS
+		    WHERE OOM.ORDER_ID = OOS.ORDER_ID
+		      AND OOS.USE_YN = 'Y'
+		      AND OOS.SETL_SEQ = '1'
+		      AND OOM.ORDER_STUS_CD = 'O02'
+		      AND OOS.SETL_APPR_DATE BETWEEN TRUNC(SYSDATE-7) AND TRUNC(SYSDATE-1) + 0.99999
+		    GROUP BY OOM.ORDER_MDA_DIV_CD, TO_CHAR(OOS.SETL_APPR_DATE, 'YYYY-MM-DD')) AMT
+		WHERE YMD.YMD = AMT.YMD(+)
+		GROUP BY YMD.YMD
+		ORDER BY LABELS
+	</select>
+
+
+	<select id="selectDailySaleState" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+	     SELECT /* 파일명[파일설명] : MainMgr_SQL.xml[일간판매현황] SQL ID : selectDailySaleState */
+	             YMD.YMD AS LABELS
+			    , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '01', SETL_APPR_AMT)), 0) AS EPOST_AMT
+			    , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '04', SETL_APPR_AMT)), 0) AS CST_AMT
+			    , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '05', SETL_APPR_AMT)), 0) AS PO_AMT
+			    , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '03', SETL_APPR_AMT)), 0) AS MO_AMT
+		  FROM (SELECT TO_CHAR(SYSDATE-1 - (LEVEL -1), 'YYYY-MM-DD') AS YMD FROM DUAL CONNECT BY LEVEL <= 31) YMD
+		  	 , (SELECT TO_CHAR(OOS.SETL_APPR_DATE,'YYYY-MM-DD') AS YMD
+		         	 , OOM.ORDER_MDA_DIV_CD
+		         	 , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+		      	  FROM OD_ORDER_MAST OOM, OD_ORDER_SETL OOS
+		     	 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+		       	   AND OOS.SETL_APPR_DATE BETWEEN TRUNC(SYSDATE-31) AND trunc(SYSDATE-1) + 0.99999
+		       	   AND OOS.USE_YN = 'Y'
+		       	   AND OOS.SETL_SEQ = 1
+		       	   AND OOM.ORDER_STUS_CD = 'O02'
+		     	 GROUP BY OOM.ORDER_MDA_DIV_CD, TO_CHAR(OOS.SETL_APPR_DATE,'YYYY-MM-DD')) AMT
+		  WHERE YMD.YMD = AMT.YMD(+)
+		  GROUP BY YMD.YMD
+		  ORDER BY LABELS
+		]]>
+	</select>
+
+	<select id="selectMonthlySaleState" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		<![CDATA[
+	     SELECT  /*+ no_merge  push_pred */
+	     		 /* 파일명[파일설명] : MainMgr_SQL.xml[월간판매현황] SQL ID : selectMonthlySaleState */
+		       YMD.YMD AS LABELS
+			 , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '01', SETL_APPR_AMT)), 0) AS EPOST_AMT
+			 , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '04', SETL_APPR_AMT)), 0) AS CST_AMT
+			 , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '05', SETL_APPR_AMT)), 0) AS PO_AMT
+			 , NVL(MIN(DECODE(ORDER_MDA_DIV_CD, '03', SETL_APPR_AMT)), 0) AS MO_AMT
+		  FROM (SELECT TO_CHAR(SYSDATE-1 - (LEVEL -1), 'YYYY-MM') AS YMD FROM DUAL CONNECT BY LEVEL <= 365) YMD
+		  	 , (SELECT TO_CHAR(OOS.SETL_APPR_DATE,'YYYY-MM') AS YMD
+		         	 , OOM.ORDER_MDA_DIV_CD
+		         	 , SUM(OOS.SETL_APPR_AMT) SETL_APPR_AMT
+		      	  FROM OD_ORDER_MAST OOM, OD_ORDER_SETL OOS
+		     	 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+		       	   AND OOS.SETL_APPR_DATE BETWEEN trunc(SYSDATE-365) AND trunc(SYSDATE-1) + 0.99999
+		       	   AND OOS.USE_YN = 'Y'
+		       	   AND OOS.SETL_SEQ = 1
+		       	   AND OOM.ORDER_STUS_CD = 'O02'
+		     	 GROUP BY OOM.ORDER_MDA_DIV_CD, OOS.SETL_APPR_DATE) AMT
+		  WHERE YMD.YMD = AMT.YMD(+)
+		  GROUP BY YMD.YMD
+		  ORDER BY LABELS
+		]]>
+	</select>
+
+	<select id="selectAchieveRate" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT '55' AS A
+			 , '5' AS B
+			 , '40' AS C
+		  FROM DUAL
+	</select>
+
+	<select id="selectResultComparisonChart" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT B.LABELS
+			 , A.A
+			 , B.B
+		  FROM ( SELECT YM.LABELS, NVL(SUM(OOS.SETL_APPR_AMT),0) AS B
+				   FROM (SELECT OOS.ORDER_ID
+				   			  , TO_CHAR(SETL_APPR_DATE ,'YYYY-MM') AS SETL_APPR_DATE
+				   			  , SETL_APPR_AMT
+				      	   FROM OD_ORDER_MAST OOM, OD_ORDER_SETL OOS
+				     	  WHERE OOM.ORDER_ID = OOS.ORDER_ID
+				       	    AND OOS.USE_YN = 'Y'
+				       	    AND OOS.SETL_SEQ = 1
+				       	    AND OOM.ORDER_STUS_CD = 'O02') OOS
+					  , (SELECT TO_CHAR(ADD_MONTHS(SYSDATE, -2),'YYYY-MM')AS YYYYMM
+					  		  , TO_CHAR(ADD_MONTHS(SYSDATE, -2),'MM') || '월' AS LABELS
+					  	   FROM DUAL) YM
+				  WHERE YM.YYYYMM = SETL_APPR_DATE(+)
+				  GROUP BY YM.LABELS) B
+			  , ( SELECT NVL(SUM(OOS.SETL_APPR_AMT),0) AS A
+		      	  FROM OD_ORDER_MAST OOM, OD_ORDER_SETL OOS
+		     	 WHERE OOM.ORDER_ID = OOS.ORDER_ID
+		       	   AND OOS.USE_YN = 'Y'
+		       	   AND OOS.SETL_SEQ = 1
+		       	   AND OOM.ORDER_STUS_CD = 'O02'
+				   AND TO_CHAR(OOS.SETL_APPR_DATE ,'YYYY-MM') = TO_CHAR(ADD_MONTHS(SYSDATE, -14),'YYYY-MM')
+				) A
+		UNION
+		SELECT B.LABELS
+			 , A.A
+			 , B.B
+		  FROM ( SELECT YM.LABELS, NVL(SUM(OOS.SETL_APPR_AMT),0) AS B
+				   FROM (SELECT OOS.ORDER_ID
+				   			  , TO_CHAR(SETL_APPR_DATE ,'YYYY-MM') AS SETL_APPR_DATE
+				   			  , SETL_APPR_AMT
+				      	   FROM OD_ORDER_MAST OOM, OD_ORDER_SETL OOS
+				     	  WHERE OOM.ORDER_ID = OOS.ORDER_ID
+				       	    AND OOS.USE_YN = 'Y'
+				       	    AND OOS.SETL_SEQ = 1
+				       	    AND OOM.ORDER_STUS_CD = 'O02') OOS
+					  , (SELECT TO_CHAR(ADD_MONTHS(SYSDATE, -1),'YYYY-MM')AS YYYYMM
+					  		  , TO_CHAR(ADD_MONTHS(SYSDATE, -1),'MM') || '월' AS LABELS
+					  	   FROM DUAL) YM
+				  WHERE YM.YYYYMM = SETL_APPR_DATE(+)
+				  GROUP BY YM.LABELS) B
+			  , ( SELECT NVL(SUM(OOS.SETL_APPR_AMT),0) AS A
+				    FROM OD_ORDER_SETL OOS
+				   WHERE TO_CHAR(OOS.SETL_APPR_DATE ,'YYYY-MM') = TO_CHAR(ADD_MONTHS(SYSDATE, -13),'YYYY-MM')
+				) A
+		UNION
+		SELECT B.LABELS
+			 , A.A
+			 , B.B
+		  FROM ( SELECT YM.LABELS, NVL(SUM(OOS.SETL_APPR_AMT),0) AS B
+				   FROM (SELECT ORDER_ID
+				   			  , TO_CHAR(SETL_APPR_DATE ,'YYYY-MM') AS SETL_APPR_DATE
+				   			  , SETL_APPR_AMT
+				   		   FROM OD_ORDER_SETL ) OOS
+					  , (SELECT TO_CHAR(SYSDATE,'YYYY-MM') AS YYYYMM
+					  		  , TO_CHAR(SYSDATE,'MM') || '월' AS LABELS
+					  	   FROM DUAL) YM
+				  WHERE YM.YYYYMM = SETL_APPR_DATE(+)
+				  GROUP BY YM.LABELS) B
+			  , ( SELECT NVL(SUM(OOS.SETL_APPR_AMT),0) AS A
+				    FROM OD_ORDER_SETL OOS
+				   WHERE TO_CHAR(OOS.SETL_APPR_DATE ,'YYYY-MM') = TO_CHAR(ADD_MONTHS(SYSDATE, -12),'YYYY-MM')
+				) A
+	</select>
+
+	<select id="selectGoodsApprCnt" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+		  FROM GD_MGT_GOODS_MAST
+		 WHERE APPR_PROC_CD = '01'
+	</select>
+
+	<select id="selectRgrGoodsApprCnt" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+		  FROM GD_RGR_GOODS
+		 WHERE RGR_GOODS_STUS_CD = '01'
+	</select>
+
+	<select id="selectTodaySaleApprCnt" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+		  FROM EV_EVENT_MAST A, EV_EVENT_DC_GOODS B
+		 WHERE A.EVENT_ID = B.EVENT_ID
+		   AND B.TODAYSALE_STUS_CD = '01'
+		   AND A.EVENT_DIV_CD = '14'
+		   AND A.HOTDEAL_CD IS NOT NULL
+	</select>
+
+	<select id="selectMobileSaleApprCnt" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+		  FROM EV_EVENT_MAST A, EV_EVENT_DC_GOODS B
+		 WHERE A.EVENT_ID = B.EVENT_ID
+		   AND B.TODAYSALE_STUS_CD = '01'
+		   AND A.EVENT_DIV_CD = '17'
+		   AND A.HOTDEAL_CD IS NOT NULL
+	</select>
+
+	<select id="selectSuppCompApprCnt" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+		SELECT TO_CHAR(COUNT(DISTINCT(SUPP_COMP_ID)),'FM999,999,999,999') AS CNT
+		FROM CO_PAVLN_MGT
+		WHERE SUPP_COMP_STUS_CD = '02'
+	</select>
+
+	<select id="selectProgressEventCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) FROM DP_DSPY_MAST
+		 WHERE DSPY_TYP_CD = '20'
+		   AND DSPY_STUS_CD = '20'
+		   AND USE_YN = 'Y'
+		   AND DEL_YN = 'N'
+	</select>
+
+	<select id="selectProgressPlnbefCnt" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(*) FROM DP_DSPY_MAST
+		 WHERE DSPY_TYP_CD = '30'
+		   AND DSPY_STUS_CD = '20'
+		   AND USE_YN = 'Y'
+		   AND DEL_YN = 'N'
+	</select>
+
+	<select id="selectEventOrdInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+/*		SELECT TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+			 , NVL(TO_CHAR(SUM(B.SETL_REQ_AMT),'FM999,999,999,999'), 0) AS AMT
+		  FROM OD_ORDER_ITM A, OD_ORDER_SETL B
+		 WHERE A.ORDER_ID = B.ORDER_ID
+		   AND A.EVENT_DC_GOODS_YN = 'Y' */
+		   select 0 as cnt
+		        , 0 as amt
+		    from dual
+	</select>
+
+	<select id="selectPlnbefOrdInfo" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		/*SELECT TO_CHAR(COUNT(*),'FM999,999,999,999') AS CNT
+			 , NVL(TO_CHAR(SUM(B.SETL_REQ_AMT),'FM999,999,999,999'), 0) AS AMT
+		  FROM OD_ORDER_ITM A, OD_ORDER_SETL B
+		 WHERE A.ORDER_ID = B.ORDER_ID
+		   AND A.PLNBEF_GOODS_YN = 'Y' */
+			select 0 as cnt
+		        , 0 as amt
+		    from dual
+	</select>
+	<insert id="insertJoinAdminInfo" parameterClass="java.util.HashMap">
+		INSERT INTO CM_ADMIN_MAST
+		(
+			ADMIN_ID
+			,ADMIN_NM
+			,ADMIN_PASSWD
+			,ADMIN_DIV_CD
+			,BELONG_OR_CD
+			,PO_CD
+			,CALCNTR_GRP_CD
+			,TELNO
+			,MOBILENO
+			,EMAIL_ADDR
+			,ADMIN_STUS_CD
+			,ADMIN_STUS_CHG_REASN_CD
+			,LAST_LOGIN_DATE
+			,PASSWD_LOCK_YN
+			,POSTNET_ID
+			,JUMINNO
+			,DEPTNM
+			,REALNM_CONFIRMYN
+			,IPIN_USERDI
+			,REG_DATE
+			,CHG_DATE
+			,REGER_ID
+			,CHGER_ID
+		)
+		VALUES
+		(
+			#adminId#
+			,#adminNm#
+			,#adminPasswd#
+			,''  /*adminDivCd*/
+			,''  /*belongOrCd*/
+			,''  /*poCd*/
+			,''  /*calcntrGrpCd*/
+			, <isNotEmpty property="telno3">#telno1#||'-'||#telno2#||'-'||#telno3#</isNotEmpty>
+			  <isEmpty property="telno3">''</isEmpty>
+			,#mobileno1#||'-'||#mobileno2#||'-'||#mobileno3#
+			,#emailAddr1#||'@'||#emailAddr2#
+			,'10'
+			,'' /*admin_stus_chg_reasn_cd*/
+			,'' /*lastLoginDate*/
+			,'N' /*passwdLockYn*/
+			,'' /*postnetId*/
+			,#juminno#
+			,#deptnm#
+			,NVL(#realnmConfirmyn#,'N')
+			,#ipinUserdi#
+			,SYSDATE
+			,SYSDATE
+			,NVL(#loginId#,'ADMIN')
+			,NVL(#loginId#,'ADMIN')
+
+		)
+	</insert>
+	<select id="selectAdminIdValidCheck" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(1)
+		FROM CM_ADMIN_MAST
+		WHERE ADMIN_ID = #adminId#
+	</select>
+	<select id="selectAdminIdFind" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	ADMIN_ID
+				,ROWNUM AS RNUM
+		FROM	CM_ADMIN_MAST
+		WHERE	IPIN_USERDI = #ipinUserdi#
+	</select>
+	<select id="selectAdminIdExist" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(1)
+		FROM	CM_ADMIN_MAST
+		WHERE	ADMIN_NM = #adminNm#
+		AND 	ADMIN_ID = #adminId#
+		AND 	JUMINNO = #juminno#
+		AND 	IPIN_USERDI = #ipinUserdi#
+	</select>
+
+	<update id="updateAdminPassword" parameterClass="java.util.HashMap">
+		UPDATE CM_ADMIN_MAST
+		SET ADMIN_PASSWD =#adminPasswd#
+		WHERE ADMIN_ID = #adminId#
+	</update>
+	<update id="updateAdminDetailInfo" parameterClass="java.util.HashMap">
+		UPDATE CM_ADMIN_MAST
+		SET
+			TELNO= #telno#
+			,MOBILENO= #mobileno#
+			,EMAIL_ADDR= #emailAddr#
+			,DEPTNM = #deptnm#
+			<isNotEmpty property="adminPasswd">
+			,ADMIN_PASSWD =#adminPasswd#
+			</isNotEmpty>
+		WHERE ADMIN_ID = #adminId#
+	</update>
+
+</sqlMap>

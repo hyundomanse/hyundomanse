@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.PostageReport">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectPostageReportList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT CHUNGCODE,CHUNGNAME,
+	           SUM(nvl(MALLORDER,0)) CNT,
+	           SUM(nvl(MALLSALE,0))  AMT,
+	           SUM(nvl(POSTAGE,0))   POSTAGE,
+	           SUM(DECODE(SHOP_ID,'01',MALLORDER,0)) CNT1,                      /*특산품(프리미엄)*/
+	           SUM(DECODE(SHOP_ID,'01',MALLSALE,0))  AMT1,
+	           SUM(DECODE(SHOP_ID,'01',POSTAGE,0))   POSTAGE1,
+	           SUM(DECODE(SHOP_ID,'92',MALLORDER,0)) CNT2,                      /*대기업*/
+	           SUM(DECODE(SHOP_ID,'92',MALLSALE,0))  AMT2,
+	           SUM(DECODE(SHOP_ID,'92',POSTAGE,0))   POSTAGE2,
+	           SUM(DECODE(SHOP_ID,'07',MALLORDER,0)) CNT3,                      /*해외*/
+	           SUM(DECODE(SHOP_ID,'07',MALLSALE,0))  AMT3,
+	           SUM(DECODE(SHOP_ID,'07',POSTAGE,0))   POSTAGE3,                  
+	           SUM(DECODE(SHOP_ID,'02',MALLORDER,0)) CNT4,                      /*제철*/
+	           SUM(DECODE(SHOP_ID,'02',MALLSALE ,0)) AMT4,
+	           SUM(DECODE(SHOP_ID,'02',POSTAGE  ,0)) POSTAGE4,
+	           SUM(DECODE(SHOP_ID,'03',MALLORDER,'09',MALLORDER,0)) CNT5,       /*생활마트*/
+	           SUM(DECODE(SHOP_ID,'03',MALLSALE,'09',MALLSALE ,0)) AMT5,
+	           SUM(DECODE(SHOP_ID,'03',POSTAGE,'09',POSTAGE  ,0)) POSTAGE5,
+	           SUM(DECODE(SHOP_ID,'05',MALLORDER,0)) CNT6,                      /*전통시장*/
+	           SUM(DECODE(SHOP_ID,'05',MALLSALE ,0)) AMT6,
+	           SUM(DECODE(SHOP_ID,'05',POSTAGE  ,0)) POSTAGE6,
+	           SUM(DECODE(SHOP_ID,'08',MALLORDER,0)) CNT7,                      /*패션B2B*/
+	           SUM(DECODE(SHOP_ID,'08',MALLSALE ,0)) AMT7,
+	           SUM(DECODE(SHOP_ID,'08',POSTAGE  ,0)) POSTAGE7
+    	FROM   MP_POSTAGE_RESULTS_DAY
+    	WHERE  DAYS >= #search_strt_ymd#
+      	AND    DAYS <= #search_end_ymd#
+	]]>  	
+		<isNotEmpty property="mOffice">
+			<![CDATA[AND CHUNGCODE   like  '0' || #mOffice# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="serverEcode">
+			<![CDATA[AND SERVERCODE = #serverEcode# ]]>
+		</isNotEmpty>
+    	GROUP BY CHUNGCODE, CHUNGNAME
+    	ORDER BY CHUNGCODE,CHUNGNAME
+	</select>	
+	
+	<select id="selectPostageReportList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT CHUNGCODE,CHUNGNAME,
+	           SERVERCODE, SERVERNAME,
+	           SUM(nvl(MALLORDER,0)) CNT,
+	           SUM(nvl(MALLSALE,0))  AMT,
+	           SUM(nvl(POSTAGE,0))   POSTAGE,
+	           SUM(DECODE(SHOP_ID,'01',MALLORDER,0)) CNT1,                      /*특산품(프리미엄)*/
+	           SUM(DECODE(SHOP_ID,'01',MALLSALE,0))  AMT1,
+	           SUM(DECODE(SHOP_ID,'01',POSTAGE,0))   POSTAGE1,
+	           SUM(DECODE(SHOP_ID,'92',MALLORDER,0)) CNT2,                      /*대기업*/
+	           SUM(DECODE(SHOP_ID,'92',MALLSALE,0))  AMT2,
+	           SUM(DECODE(SHOP_ID,'92',POSTAGE,0))   POSTAGE2,
+	           SUM(DECODE(SHOP_ID,'07',MALLORDER,0)) CNT3,                      /*해외*/
+	           SUM(DECODE(SHOP_ID,'07',MALLSALE,0))  AMT3,
+	           SUM(DECODE(SHOP_ID,'07',POSTAGE,0))   POSTAGE3,                  
+	           SUM(DECODE(SHOP_ID,'02',MALLORDER,0)) CNT4,                      /*제철*/
+	           SUM(DECODE(SHOP_ID,'02',MALLSALE ,0)) AMT4,
+	           SUM(DECODE(SHOP_ID,'02',POSTAGE  ,0)) POSTAGE4,
+	           SUM(DECODE(SHOP_ID,'03',MALLORDER,'09',MALLORDER,0)) CNT5,       /*생활마트*/
+	           SUM(DECODE(SHOP_ID,'03',MALLSALE,'09',MALLSALE ,0)) AMT5,
+	           SUM(DECODE(SHOP_ID,'03',POSTAGE,'09',POSTAGE  ,0)) POSTAGE5,
+	           SUM(DECODE(SHOP_ID,'05',MALLORDER,0)) CNT6,                      /*전통시장*/
+	           SUM(DECODE(SHOP_ID,'05',MALLSALE ,0)) AMT6,
+	           SUM(DECODE(SHOP_ID,'05',POSTAGE  ,0)) POSTAGE6,
+	           SUM(DECODE(SHOP_ID,'08',MALLORDER,0)) CNT7,                      /*패션B2B*/
+	           SUM(DECODE(SHOP_ID,'08',MALLSALE ,0)) AMT7,
+	           SUM(DECODE(SHOP_ID,'08',POSTAGE  ,0)) POSTAGE7
+    	FROM   MP_POSTAGE_RESULTS_DAY
+    	WHERE  DAYS >= #search_strt_ymd#
+      	AND    DAYS <= #search_end_ymd#
+	]]>  	
+		<isNotEmpty property="mOffice">
+			<![CDATA[AND CHUNGCODE   like  '0' || #mOffice# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="serverEcode">
+			<![CDATA[AND SERVERCODE = #serverEcode# ]]>
+		</isNotEmpty>
+    	GROUP BY CHUNGCODE, CHUNGNAME
+    			,SERVERCODE, SERVERNAME
+    	ORDER BY CHUNGCODE,CHUNGNAME
+                ,SERVERCODE, SERVERNAME
+	</select>	
+	
+	<select id="selectPostageReportList3" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT CHUNGCODE,CHUNGNAME,
+	           SERVERCODE, SERVERNAME,
+               POSTCODE, POSTNAME,
+	           SUM(nvl(MALLORDER,0)) CNT,
+	           SUM(nvl(MALLSALE,0))  AMT,
+	           SUM(nvl(POSTAGE,0))   POSTAGE,
+	           SUM(DECODE(SHOP_ID,'01',MALLORDER,0)) CNT1,                      /*특산품(프리미엄)*/
+	           SUM(DECODE(SHOP_ID,'01',MALLSALE,0))  AMT1,
+	           SUM(DECODE(SHOP_ID,'01',POSTAGE,0))   POSTAGE1,
+	           SUM(DECODE(SHOP_ID,'92',MALLORDER,0)) CNT2,                      /*대기업*/
+	           SUM(DECODE(SHOP_ID,'92',MALLSALE,0))  AMT2,
+	           SUM(DECODE(SHOP_ID,'92',POSTAGE,0))   POSTAGE2,
+	           SUM(DECODE(SHOP_ID,'07',MALLORDER,0)) CNT3,                      /*해외*/
+	           SUM(DECODE(SHOP_ID,'07',MALLSALE,0))  AMT3,
+	           SUM(DECODE(SHOP_ID,'07',POSTAGE,0))   POSTAGE3,
+	           SUM(DECODE(SHOP_ID,'02',MALLORDER,0)) CNT4,                      /*제철*/
+	           SUM(DECODE(SHOP_ID,'02',MALLSALE ,0)) AMT4,
+	           SUM(DECODE(SHOP_ID,'02',POSTAGE  ,0)) POSTAGE4,
+	           SUM(DECODE(SHOP_ID,'03',MALLORDER,'09',MALLORDER,0)) CNT5,       /*생활마트*/
+	           SUM(DECODE(SHOP_ID,'03',MALLSALE,'09',MALLSALE ,0)) AMT5,
+	           SUM(DECODE(SHOP_ID,'03',POSTAGE,'09',POSTAGE  ,0)) POSTAGE5,
+	           SUM(DECODE(SHOP_ID,'05',MALLORDER,0)) CNT6,                      /*전통시장*/
+	           SUM(DECODE(SHOP_ID,'05',MALLSALE ,0)) AMT6,
+	           SUM(DECODE(SHOP_ID,'05',POSTAGE  ,0)) POSTAGE6,
+	           SUM(DECODE(SHOP_ID,'08',MALLORDER,0)) CNT7,                      /*패션B2B*/
+	           SUM(DECODE(SHOP_ID,'08',MALLSALE ,0)) AMT7,
+	           SUM(DECODE(SHOP_ID,'08',POSTAGE  ,0)) POSTAGE7
+    	FROM   MP_POSTAGE_RESULTS_DAY
+    	WHERE  DAYS >= #search_strt_ymd#
+      	AND    DAYS <= #search_end_ymd#
+	]]>  	
+		<isNotEmpty property="mOffice">
+			<![CDATA[AND CHUNGCODE   like  '0' || #mOffice# || '%' ]]>
+		</isNotEmpty>
+		<isNotEmpty property="serverEcode">
+			<![CDATA[AND SERVERCODE = #serverEcode# ]]>
+		</isNotEmpty>
+    	GROUP BY CHUNGCODE, CHUNGNAME
+    			,SERVERCODE, SERVERNAME
+                ,POSTCODE, POSTNAME
+    	ORDER BY CHUNGCODE,CHUNGNAME
+                ,SERVERCODE, SERVERNAME
+                ,POSTCODE, POSTNAME
+	</select>	
+	
+	<select id="selectSubCodeList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+	SELECT EDPSCD,
+	       PONM 
+	FROM   PICMT0060
+    WHERE  1=1
+    AND    USEYN = 'Y'
+    AND    PODIVCD = '06'
+    AND    RCOCD = #rcocd#
+    ORDER BY REGIPOCD
+	]]>
+	</select>
+	
+	<select id="selectItemList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT  MB.CODE||'('||NVL(MB.NAME,'기타')||')' PUMCODE,
+                MB.CODE PM_CODE,
+                NVL(MB.NAME,'기타') PM_NAME,
+                MA.GOODS_CD,
+                MA.GOODS_NAME,
+                (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD' AND COMN_CD_ID = MA.PAVLN_DIV_CD)  PAVLN_DIV_NM,
+                (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_MDA_DIV_CD' AND COMN_CD_ID = MA.ORDER_MDA_DIV_CD)  ORDER_MDA_DIV_NM,
+                MA.BIZ_NAME,
+                MA.BIZ_CODE,
+                MA.PUR_CNT,
+                MA.TX_CNT,
+                MA.PRICE,
+                MA.PRICE_SALE,
+                MA.AMOUNT,
+                FLOOR(MA.AMOUNT_FEE) AMOUNT_FEE,
+                MA.POSTNAME ,
+                MA.SUPPLY_FLAG,
+                RANK() OVER (PARTITION BY mb.code || ma.biz_code ORDER BY ma.amount DESC ) as rk
+        FROM (
+                SELECT /*+ INDEX(  A TXORDER_IX10  ) USE_NL(A B) */
+	                   SUBSTR(B.GOODS_CD,1,4) GOODS_CODE1,
+	                   B.GOODS_CD,
+	                   GC.CTGRY_CD CATEGORY_CODE,
+	                   B.PAVLN_DIV_CD,
+	                   A.ORDER_MDA_DIV_CD,
+	                   MAX(B.GOODS_NM) GOODS_NAME,
+	                   MAX(B.SUPP_COMP_NM) BIZ_NAME,
+	                   MAX(B.SUPP_COMP_ID) BIZ_CODE,
+	                   COUNT(DISTINCT A.ORDER_ID) PUR_CNT,
+	                   COUNT(A.ORDER_ID) TX_CNT,
+	                   MAX(C.DC_APPLY_PRC) PRICE,
+	                   MIN(DECODE(B.PAVLN_DIV_CD, '02', DECODE(NVL(C.DC_APPLY_PRC, 0), 0, NVL(C.CNSMR_PRC, 0), C.DC_APPLY_PRC),DECODE(NVL(D.BASE_AMOUNT, 0), 0 , NVL(C.DC_APPLY_PRC, 0), D.BASE_AMOUNT)) ) PRICE_SALE,
+	                   SUM((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))) AMOUNT,
+	                   SUM((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))) * (MAX(NVL(B.GOODS_BASIC_FEE,4)) * 0.01) AMOUNT_FEE,
+	                   MAX(B.SUPP_PO_NM) POSTNAME ,
+	                   MAX(DECODE(C.GOODS_STUS_CD, '01', '가능', '05', '가능', '중지')) SUPPLY_FLAG
+                FROM   OD_ORDER_MAST A,
+	                   OD_ORDER_ITM B,
+	                   GD_GOODS_MAST C,
+	                   (SELECT EG.GOODS_CD, MIN(DC_APPLY_PRC) BASE_AMOUNT
+	                    FROM   EV_EVENT_MAST EM, EV_EVENT_DC_GOODS EG
+	                    WHERE  EM.EVENT_ID = EG.EVENT_ID
+	                    AND    EG.USE_YN = 'Y'
+	                    AND    DC_APPLY_PRC > 0
+	                    AND    (TO_CHAR(EM.EVENT_STRT_DATE, 'YYYYMMDDHH24MI') <= TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+	                    AND    TO_CHAR(EM.EVENT_END_DATE, 'YYYYMMDDHH24MI') >=TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI'))
+	                    GROUP BY EG.GOODS_CD
+	                   ) D,
+                       GD_GOODS_CTGRY GC
+                WHERE  A.ORDER_ID = B.ORDER_ID
+              	AND    B.GOODS_CD  = C.GOODS_CD(+)
+              	AND    B.GOODS_CD  = D.GOODS_CD(+)
+              	AND    GC.GOODS_CD = B.GOODS_CD(+)
+                AND    GC.BASIC_CTGRY_YN = 'Y'
+             	AND    A.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd#, 'YYYYMMDD') AND TO_DATE(#search_end_ymd#, 'YYYYMMDD') + .99999
+              	]]>  	
+				<isNotEmpty property="searchPavlnDivCd">
+					<isEqual property="searchPavlnDivCd" compareValue="03">
+					<![CDATA[AND    B.PAVLN_DIV_CD IN ('03','09') ]]>  
+					</isEqual>
+					<isNotEqual property="searchPavlnDivCd" compareValue="03">
+					<![CDATA[AND    B.PAVLN_DIV_CD = #searchPavlnDivCd# ]]>  
+					</isNotEqual>
+				</isNotEmpty>
+				<isNotEmpty property="searchOrderMdaDivCd">
+				<![CDATA[AND    A.ORDER_MDA_DIV_CD = #searchOrderMdaDivCd# ]]>  
+				</isNotEmpty>
+				<![CDATA[
+                AND    B.ORDER_STUS_CD NOT IN ('O01')
+              	AND    B.GOODS_CANCEL_YN = 'N'
+              	AND    B.DC_APPLY_PRC > 0
+           		GROUP BY GC.CTGRY_CD, B.GOODS_CD, B.PAVLN_DIV_CD, A.ORDER_MDA_DIV_CD
+           		) MA,
+           	   (SELECT CTGRY_CD AS CODE,CTGRY_NM AS NAME
+                FROM   GD_CTGRY_MAST
+                WHERE  USE_YN = 'Y'
+                AND    LENGTH(CTGRY_CD) = 4
+                ) MB,
+                (
+                 SELECT  TM.CTGRY_LEVEL
+                       , DECODE(TM.CTGRY_LEVEL,'1',TM.L_CTGRY_CD,'2',TM.M_CTGRY_CD,'3',TM.S_CTGRY_CD) as LAST_CTGRY_CD
+                       , TM.L_CTGRY_CD
+                       , (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = TM.L_CTGRY_CD ) AS L_CTGRY_NM
+                       , TM.M_CTGRY_CD
+                       , (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = TM.M_CTGRY_CD ) AS M_CTGRY_NM
+                       , TM.S_CTGRY_CD
+                       , (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = TM.S_CTGRY_CD ) AS S_CTGRY_NM
+                       , TM.PATH AS CD_PATH
+                 FROM (
+                       SELECT T1.CTGRY_LEVEL
+                            , T1.PATH
+                            , SUBSTR(PATH,2,9) AS L_CTGRY_CD
+                            , CASE WHEN T1.CTGRY_LEVEL = 2
+                                   THEN T1.CTGRY_CD ELSE T1.HRNK_CTGRY_CD END AS M_CTGRY_CD
+                            , CASE WHEN T1.CTGRY_LEVEL = 3
+                                    THEN T1.CTGRY_CD ELSE ''  END AS S_CTGRY_CD
+                       FROM ( SELECT LEVEL
+                                   , CTGRY_CD
+                                   , CTGRY_NM
+                                   , HRNK_CTGRY_CD
+                                   , SYS_CONNECT_BY_PATH(A.CTGRY_CD, '/') AS PATH
+                                   , CTGRY_LEVEL
+                              FROM   GD_CTGRY_MAST A
+                              START WITH A.HRNK_CTGRY_CD IS NULL AND A.USE_YN = 'Y'
+                              CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD AND A.USE_YN = 'Y' 
+                            ) T1
+                      ) TM
+                ) MB2
+        WHERE MA.GOODS_CODE1 = MB.CODE(+)
+        AND   MA. CATEGORY_CODE = MB2.LAST_CTGRY_CD(+)
+        ]]>
+		<isNotEmpty property="searchCategory">
+		<![CDATA[AND    MB2.L_CTGRY_CD = #searchCategory# ]]>  
+		</isNotEmpty>
+		<isEqual property="searchItem" compareValue="1">
+		<![CDATA[AND     (SELECT COUNT(1) FROM GD_MGT_GOODS_CRTFC GC WHERE GC.GOODS_CD = MA.GOODS_CD AND USE_YN = 'Y' AND CRTFCT_ID =  'A001') = 0 ]]>  
+		</isEqual>
+		<isEqual property="searchItem" compareValue="2">
+		<![CDATA[AND     (SELECT COUNT(1) FROM GD_MGT_GOODS_CRTFC GC WHERE GC.GOODS_CD = MA.GOODS_CD AND USE_YN = 'Y' AND CRTFCT_ID =  'A001') > 0 ]]>  
+		</isEqual>
+		<![CDATA[
+        ORDER BY CODE,AMOUNT DESC
+	]]>  	
+	</select>	
+	
+	<select id="selectCategoryList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+    	SELECT  MA.CATEGORY_CODE, L_CTGRY_NM, M_CTGRY_NM, S_CTGRY_NM,
+                MA.GOODS_CD,
+                MA.GOODS_NAME,
+                (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'PAVLN_DIV_CD' AND COMN_CD_ID = MA.PAVLN_DIV_CD)  PAVLN_DIV_NM,
+                (SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID = 'ORDER_MDA_DIV_CD' AND COMN_CD_ID = MA.ORDER_MDA_DIV_CD)  ORDER_MDA_DIV_NM,
+                MA.BIZ_NAME,
+                MA.PUR_CNT,
+                MA.TX_CNT,
+                MA.PRICE,
+                MA.PRICE_SALE,
+                MA.AMOUNT,
+                FLOOR(MA.AMOUNT_FEE) AMOUNT_FEE,
+                MA.POSTNAME ,
+                MA.SUPPLY_FLAG
+        FROM   (
+            	SELECT /*+ INDEX(  A TXORDER_IX10  ) USE_NL(A B) */
+	                   GC.CTGRY_CD CATEGORY_CODE,
+	                   B.GOODS_CD,
+	                   B.PAVLN_DIV_CD,
+	                   A.ORDER_MDA_DIV_CD,
+	                   MAX(B.GOODS_NM) GOODS_NAME,
+	                   MAX(B.SUPP_COMP_NM) BIZ_NAME,
+	                   COUNT(DISTINCT A.ORDER_ID) PUR_CNT,
+	                   COUNT(A.ORDER_ID) TX_CNT,
+	                   MAX(C.DC_APPLY_PRC) PRICE,
+	                   MIN(DECODE(B.PAVLN_DIV_CD, '02', DECODE(NVL(C.DC_APPLY_PRC, 0), 0, NVL(C.CNSMR_PRC, 0), C.DC_APPLY_PRC),DECODE(NVL(D.BASE_AMOUNT, 0), 0 , NVL(C.DC_APPLY_PRC, 0), D.BASE_AMOUNT)) ) PRICE_SALE,
+	                   SUM((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))) AMOUNT,
+	                   SUM((B.DC_APPLY_PRC + NVL(B.OPTN_GOODS_APPLY_PRC,0) + NVL(B.SEND_PRC,0))) * (MAX(NVL(B.GOODS_BASIC_FEE,4)) * 0.01) AMOUNT_FEE,
+	                   MAX(B.SUPP_PO_NM) POSTNAME ,
+	                   MAX(DECODE(C.GOODS_STUS_CD, '01', '가능', '05', '가능', '중지')) SUPPLY_FLAG
+                FROM   OD_ORDER_MAST A,
+                       OD_ORDER_ITM B,
+                       GD_GOODS_MAST C,
+                       (SELECT EG.GOODS_CD, MIN(DC_APPLY_PRC) BASE_AMOUNT
+                        FROM   EV_EVENT_MAST EM, EV_EVENT_DC_GOODS EG
+                        WHERE  EM.EVENT_ID = EG.EVENT_ID
+                        AND    EG.USE_YN = 'Y'
+                        AND    DC_APPLY_PRC > 0
+                        AND    (TO_CHAR(EM.EVENT_STRT_DATE, 'YYYYMMDDHH24MI') <= TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+                        AND    TO_CHAR(EM.EVENT_END_DATE, 'YYYYMMDDHH24MI') >=TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI'))
+                        GROUP BY EG.GOODS_CD
+                       ) D,
+                       GD_GOODS_CTGRY GC
+                WHERE  A.ORDER_ID = B.ORDER_ID
+                AND    B.GOODS_CD  = C.GOODS_CD(+)
+                AND    B.GOODS_CD  = D.GOODS_CD(+)
+                AND    GC.GOODS_CD = B.GOODS_CD(+)
+                AND    GC.BASIC_CTGRY_YN = 'Y'
+                AND    A.APPR_DATE BETWEEN TO_DATE(#search_strt_ymd#, 'YYYYMMDD') AND TO_DATE(#search_end_ymd#, 'YYYYMMDD') + .99999
+                ]]>  	
+				<isNotEmpty property="searchPavlnDivCd">
+					<isEqual property="searchPavlnDivCd" compareValue="03">
+					<![CDATA[AND    B.PAVLN_DIV_CD IN ('03','09') ]]>  
+					</isEqual>
+					<isNotEqual property="searchPavlnDivCd" compareValue="03">
+					<![CDATA[AND    B.PAVLN_DIV_CD = #searchPavlnDivCd# ]]>  
+					</isNotEqual>
+				</isNotEmpty>
+				<isNotEmpty property="searchOrderMdaDivCd">
+				<![CDATA[AND    A.ORDER_MDA_DIV_CD = #searchOrderMdaDivCd# ]]>  
+				</isNotEmpty>
+				<![CDATA[
+                AND    B.ORDER_STUS_CD NOT IN ('O01')
+                AND    B.GOODS_CANCEL_YN = 'N'
+                AND    B.DC_APPLY_PRC > 0
+                GROUP BY GC.CTGRY_CD, B.GOODS_CD, B.PAVLN_DIV_CD, A.ORDER_MDA_DIV_CD
+                ) MA,
+                (
+                 SELECT  TM.CTGRY_LEVEL
+		               , DECODE(TM.CTGRY_LEVEL,'1',TM.L_CTGRY_CD,'2',TM.M_CTGRY_CD,'3',TM.S_CTGRY_CD) as LAST_CTGRY_CD
+				       , TM.L_CTGRY_CD
+				       , (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = TM.L_CTGRY_CD ) AS L_CTGRY_NM
+				       , TM.M_CTGRY_CD
+				       , (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = TM.M_CTGRY_CD ) AS M_CTGRY_NM
+				       , TM.S_CTGRY_CD
+				       , (SELECT CTGRY_NM FROM GD_CTGRY_MAST WHERE CTGRY_CD = TM.S_CTGRY_CD ) AS S_CTGRY_NM
+				       , TM.PATH AS CD_PATH
+                 FROM (
+			           SELECT T1.CTGRY_LEVEL
+			                , T1.PATH
+			                , SUBSTR(PATH,2,9) AS L_CTGRY_CD
+			                , CASE WHEN T1.CTGRY_LEVEL = 2
+			                       THEN T1.CTGRY_CD ELSE T1.HRNK_CTGRY_CD END AS M_CTGRY_CD
+			                , CASE WHEN T1.CTGRY_LEVEL = 3
+			                        THEN T1.CTGRY_CD ELSE ''  END AS S_CTGRY_CD
+			           FROM ( SELECT LEVEL
+				                   , CTGRY_CD
+					               , CTGRY_NM
+					               , HRNK_CTGRY_CD
+					               , SYS_CONNECT_BY_PATH(A.CTGRY_CD, '/') AS PATH
+					               , CTGRY_LEVEL
+			                  FROM   GD_CTGRY_MAST A
+			                  START WITH A.HRNK_CTGRY_CD IS NULL AND A.USE_YN = 'Y'
+			                  CONNECT BY PRIOR A.CTGRY_CD = A.HRNK_CTGRY_CD AND A.USE_YN = 'Y' 
+			                ) T1
+                      ) TM
+                ) MB
+    	WHERE  1 = 1
+        AND    MA.CATEGORY_CODE = MB.LAST_CTGRY_CD(+)
+        ]]>
+		<isNotEmpty property="searchCategory">
+		<![CDATA[AND    MB.L_CTGRY_CD = #searchCategory# ]]>  
+		</isNotEmpty>		
+		<isEqual property="searchItem" compareValue="1">
+		<![CDATA[AND     (SELECT COUNT(1) FROM GD_MGT_GOODS_CRTFC GC WHERE GC.GOODS_CD = MA.GOODS_CD AND USE_YN = 'Y' AND CRTFCT_ID =  'A001') = 0 ]]>  
+		</isEqual>
+		<isEqual property="searchItem" compareValue="2">
+		<![CDATA[AND     (SELECT COUNT(1) FROM GD_MGT_GOODS_CRTFC GC WHERE GC.GOODS_CD = MA.GOODS_CD AND USE_YN = 'Y' AND CRTFCT_ID =  'A001') > 0 ]]>  
+		</isEqual>
+		<![CDATA[
+        ORDER BY CATEGORY_CODE,AMOUNT DESC 
+	]]>  	
+	</select>
+	
+	<select id="selectCategoryCdList" parameterClass ="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+		SELECT CTGRY_CD 
+	         , CTGRY_NM 
+	    FROM   GD_CTGRY_MAST 
+	    WHERE  USE_YN = 'Y'
+	    AND    POSTNET_CTGRY_YN <> 'Y'
+	    AND    CTGRY_LEVEL =1
+	]]>
+	</select>
+</sqlMap>

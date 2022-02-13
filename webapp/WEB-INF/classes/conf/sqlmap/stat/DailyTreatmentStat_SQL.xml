@@ -1,0 +1,946 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.Stat.DailyTreatmentStat">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<!--접수총괄 -->
+	<select id="retrieveDayReportStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+				TITLE,
+				DATA_DAY,
+				DATA_MONTH,
+				DATA_YEAR,
+				CASE WHEN TITLE = '판매액' AND #goalAmt# > 0 
+				     THEN TO_CHAR(ROUND(((DATA_YEAR/(REPLACE(#goalAmt#, ',', '') * 1000000)) * 100), 1))
+				     ELSE ''
+				END ACHIEVE_RATE     
+			FROM
+			(SELECT
+			    '판매건수'  TITLE,
+			    (SELECT 
+			        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0)
+			    FROM
+			    (SELECT  RCOCD, REGIPOCD
+			    FROM    PICMT0060
+			    WHERE   USEYN='Y'
+			    ) B, MP_POST_SHOP_SUPP_DAY A
+			    WHERE 1 = 1
+			    AND A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+			    AND A.RECEV_STUS_CD = 'O02'
+			    AND A.SELL_CLOSE_YMD >= #search_now_ymd#
+			    AND A.SELL_CLOSE_YMD <= #search_now_ymd#) DATA_DAY,
+			    (SELECT 
+			        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0)
+			    FROM (SELECT  RCOCD, REGIPOCD
+					  FROM    PICMT0060
+					  WHERE   USEYN='Y'
+					 ) B, MP_POST_SHOP_SUPP_DAY A
+			    WHERE 1 = 1
+			    AND A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+			    AND A.RECEV_STUS_CD = 'O02'
+			    AND A.SELL_CLOSE_YMD >= #search_now_mm#
+			    AND A.SELL_CLOSE_YMD <= #search_now_ymd#) DATA_MONTH,
+			    (SELECT 
+			        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0)
+			    FROM
+			    (SELECT  RCOCD, REGIPOCD
+			    FROM    PICMT0060
+			    WHERE   USEYN='Y'
+			    ) B, MP_POST_SHOP_SUPP_DAY A
+			    WHERE 1 = 1
+			    AND A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+			    AND A.RECEV_STUS_CD = 'O02'
+			    AND A.SELL_CLOSE_YMD >= #search_now_yyyy#
+			    AND A.SELL_CLOSE_YMD <= #search_now_ymd#) DATA_YEAR
+			FROM DUAL
+			UNION 
+			SELECT
+			    '판매액'  TITLE,
+			    (SELECT 
+			        ROUND(NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0))
+			    FROM
+			    (SELECT  RCOCD, REGIPOCD
+			    FROM    PICMT0060
+			    WHERE   USEYN='Y'
+			    ) B, MP_POST_SHOP_SUPP_DAY A
+			    WHERE 1 = 1
+			    AND A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+			    AND A.RECEV_STUS_CD = 'O02'
+			    AND A.SELL_CLOSE_YMD >= #search_now_ymd#
+			    AND A.SELL_CLOSE_YMD <= #search_now_ymd#) DATA_DAY,
+			    (SELECT 
+			        ROUND(NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0))
+			    FROM
+			    (SELECT  RCOCD, REGIPOCD
+			    FROM    PICMT0060
+			    WHERE   USEYN='Y'
+			    ) B, MP_POST_SHOP_SUPP_DAY A
+			    WHERE 1 = 1
+			    AND A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+			    AND A.RECEV_STUS_CD = 'O02'
+			    AND A.SELL_CLOSE_YMD >= #search_now_mm#
+			    AND A.SELL_CLOSE_YMD <= #search_now_ymd#) DATA_MONTH,
+			    (SELECT 
+			        ROUND(NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0))
+			    FROM
+			    (SELECT  RCOCD, REGIPOCD
+			    FROM    PICMT0060
+			    WHERE   USEYN='Y'
+			    ) B, MP_POST_SHOP_SUPP_DAY A
+			    WHERE 1 = 1
+			    AND A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+			    AND A.RECEV_STUS_CD = 'O02'
+			    AND A.SELL_CLOSE_YMD >= #search_now_yyyy#
+			    AND A.SELL_CLOSE_YMD <= #search_now_ymd#) DATA_YEAR
+			FROM DUAL)
+	    ]]>
+	</select>
+	
+	<!-- 채널별 접수현황 -->
+	<select id="retrieveSysDivDayReportStatList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT 
+		        TITLE,
+		        NVL(SUM(SUMSPCLTYSUPPGOODSCNT),0) SUMSPCLTYSUPPGOODSCNT,
+		        NVL(SUM(SUMSPCLTYSUPPAMT),0) SUMSPCLTYSUPPAMT,
+		        NVL(SUM(ONSUMSPCLTYSUPPGOODSCNT),0) ONSUMSPCLTYSUPPGOODSCNT,
+		        NVL(SUM(ONSUMSPCLTYSUPPAMT),0) ONSUMSPCLTYSUPPAMT,
+		        NVL(SUM(CALLSUMSPCLTYSUPPGOODSCNT),0) CALLSUMSPCLTYSUPPGOODSCNT,
+		        NVL(SUM(CALLSUMSPCLTYSUPPAMT),0) CALLSUMSPCLTYSUPPAMT,
+		        NVL(SUM(MOSUMSPCLTYSUPPGOODSCNT1 + MOSUMSPCLTYSUPPGOODSCNT2),0) MOSUMSPCLTYSUPPGOODSCNT,
+		        NVL(SUM(MOSUMSPCLTYSUPPAMT1 + MOSUMSPCLTYSUPPAMT2),0) MOSUMSPCLTYSUPPAMT,
+		        NVL(SUM(TELSUMSPCLTYSUPPGOODSCNT),0) TELSUMSPCLTYSUPPGOODSCNT,
+		        NVL(SUM(TELSUMSPCLTYSUPPAMT),0) TELSUMSPCLTYSUPPAMT,
+		        (NVL(SUM(ONSUMSPCLTYSUPPGOODSCNT),0) + NVL(SUM(CALLSUMSPCLTYSUPPGOODSCNT),0) + NVL(SUM(MOSUMSPCLTYSUPPGOODSCNT1),0) + NVL(SUM(MOSUMSPCLTYSUPPGOODSCNT2),0) + NVL(SUM(TELSUMSPCLTYSUPPGOODSCNT),0)) EPOSTSPCLTYSUPPGOODSCNT,
+		        (NVL(SUM(ONSUMSPCLTYSUPPAMT),0) + NVL(SUM(CALLSUMSPCLTYSUPPAMT),0) + NVL(SUM(MOSUMSPCLTYSUPPAMT1),0) + NVL(SUM(MOSUMSPCLTYSUPPAMT2),0) + NVL(SUM(TELSUMSPCLTYSUPPAMT),0)) EPOSTSPCLTYSUPPAMT
+		    FROM (
+		        SELECT 
+		            '당일' TITLE,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'05',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS SUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'05',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS SUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS ONSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS ONSUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS CALLSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'04',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS CALLSUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS MOSUMSPCLTYSUPPGOODSCNT1,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'03',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS MOSUMSPCLTYSUPPAMT1,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS MOSUMSPCLTYSUPPGOODSCNT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'06',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS MOSUMSPCLTYSUPPAMT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS TELSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS TELSUMSPCLTYSUPPAMT
+		        FROM (SELECT  RCOCD, REGIPOCD
+		                FROM    PICMT0060
+		                WHERE   USEYN='Y'
+		             ) B, MP_POST_SHOP_SUPP_DAY A
+		        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+		        AND A.RECEV_STUS_CD = 'O02'
+		        AND A.SELL_CLOSE_YMD >= #search_now_ymd#
+		        AND A.SELL_CLOSE_YMD <= #search_now_ymd#
+		        AND RECEV_DIV_CD <> '003'
+		        
+		        UNION ALL
+		        
+		        SELECT 
+		            '월누계' TITLE,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'05',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS SUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'05',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS SUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS ONSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS ONSUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS CALLSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'04',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS CALLSUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS MOSUMSPCLTYSUPPGOODSCNT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'03',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS MOSUMSPCLTYSUPPAMT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS MOSUMSPCLTYSUPPGOODSCNT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'06',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS MOSUMSPCLTYSUPPAMT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS TELSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS TELSUMSPCLTYSUPPAMT
+		        FROM
+		        (SELECT  RCOCD, REGIPOCD
+		        FROM    PICMT0060
+		        WHERE   USEYN='Y'
+		        ) B, MP_POST_SHOP_SUPP_DAY A
+		        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+		        AND    A.RECEV_STUS_CD = 'O02'
+		        AND A.SELL_CLOSE_YMD >= #search_now_mm#
+		        AND A.SELL_CLOSE_YMD <= #search_now_ymd#
+		        AND RECEV_DIV_CD <> '003'
+		        
+		        UNION ALL
+		        
+		        SELECT 
+		            '연누계' TITLE,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'05',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS SUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'05',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS SUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS ONSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'01',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS ONSUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'04',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS CALLSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'04',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS CALLSUMSPCLTYSUPPAMT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'03',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS MOSUMSPCLTYSUPPGOODSCNT1,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'03',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS MOSUMSPCLTYSUPPAMT1,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'06',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS MOSUMSPCLTYSUPPGOODSCNT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'06',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS MOSUMSPCLTYSUPPAMT2,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',A.SUPP_GOODS_CNT-A.RETURN_GD_CNT,0)) AS TELSUMSPCLTYSUPPGOODSCNT,
+		            SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',A.SETL_AMT-A.RETURN_GD_AMT,0)) AS TELSUMSPCLTYSUPPAMT
+		        FROM
+		        (SELECT  RCOCD, REGIPOCD
+		        FROM    PICMT0060
+		        WHERE   USEYN='Y'
+		        ) B, MP_POST_SHOP_SUPP_DAY A
+		        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+		        AND    A.RECEV_STUS_CD = 'O02'
+		        AND A.SELL_CLOSE_YMD >= #search_now_yyyy#
+		        AND A.SELL_CLOSE_YMD <= #search_now_ymd#
+		        AND RECEV_DIV_CD <> '003')
+		        GROUP BY TITLE
+		        ORDER BY DECODE(TITLE, '당일', 1, '월누계', 2, '연누계', 3)						
+	    ]]>
+	</select>
+	
+	<!-- 전년동기대비실적비교(월누계) -->
+	<select id="retrieveDayReportStatByMonthList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			SELECT
+				RECEV_DIV_NM,
+	    		SUM(DSUPPGOODSCNT)		DSUPPGOODSCNT,     
+  	  			SUM(DSPCLTYSUPPAMT)     DSPCLTYSUPPAMT,    
+    			SUM(PMSUPPGOODSCNT)     PMSUPPGOODSCNT,    
+    			SUM(PMSPCLTYSUPPAMT)    PMSPCLTYSUPPAMT,   
+    			SUM(NMSUPPGOODSCNT)     NMSUPPGOODSCNT,    
+    			SUM(NMSPCLTYSUPPAMT)    NMSPCLTYSUPPAMT,   
+    			SUM(SUPPGOODSRATE)      SUPPGOODSRATE,     
+    			SUM(SPCLTYSUPPRATE)     SPCLTYSUPPRATE,    
+    			SUM(DSUPPGOODSCNTSUM)   DSUPPGOODSCNTSUM,  
+    			SUM(DSPCLTYSUPPAMTSUM)  DSPCLTYSUPPAMTSUM, 
+   			    SUM(PMSUPPGOODSCNTSUM)  PMSUPPGOODSCNTSUM, 
+   			    SUM(PMSPCLTYSUPPAMTSUM) PMSPCLTYSUPPAMTSUM,
+   			    SUM(NMSUPPGOODSCNTSUM)  NMSUPPGOODSCNTSUM, 
+   			    SUM(NMSPCLTYSUPPAMTSUM) NMSPCLTYSUPPAMTSUM,
+   			    SUM(NMSUPPGOODSCNTSUM)  NMSUPPGOODSCNTSUM,
+   			    SUM(SUPPGOODSRATESUM)   SUPPGOODSRATESUM,
+   		        SUM(SPCLTYSUPPRATESUM)  SPCLTYSUPPRATESUM  
+		      FROM
+		      (SELECT
+			 		RECEV_DIV_NM,
+				    DSUPPGOODSCNT,
+				    DSPCLTYSUPPAMT,
+				    PMSUPPGOODSCNT,
+				    PMSPCLTYSUPPAMT,
+				    NMSUPPGOODSCNT,
+				    NMSPCLTYSUPPAMT,
+				    SUPPGOODSRATE,
+				    SPCLTYSUPPRATE,
+				    DSUPPGOODSCNTSUM,
+				    DSPCLTYSUPPAMTSUM,
+				    PMSUPPGOODSCNTSUM,
+				    PMSPCLTYSUPPAMTSUM,
+				    NMSUPPGOODSCNTSUM,
+				    NMSPCLTYSUPPAMTSUM,
+				    CASE WHEN PMSUPPGOODSCNTSUM > 0
+			             THEN ROUND((((NMSUPPGOODSCNTSUM - PMSUPPGOODSCNTSUM) / PMSUPPGOODSCNTSUM) * 100), 1)
+			             ELSE NMSUPPGOODSCNTSUM
+			        END     SUPPGOODSRATESUM,			        
+			        CASE WHEN PMSPCLTYSUPPAMTSUM > 0
+			             THEN ROUND((((NMSPCLTYSUPPAMTSUM - PMSPCLTYSUPPAMTSUM) / PMSPCLTYSUPPAMTSUM) * 100), 1)
+			             ELSE NMSPCLTYSUPPAMTSUM
+			        END SPCLTYSUPPRATESUM
+			 	FROM
+					(SELECT
+					    RECEV_DIV_NM,
+					    DSUPPGOODSCNT,
+					    DSPCLTYSUPPAMT,
+					    PMSUPPGOODSCNT,
+					    PMSPCLTYSUPPAMT,
+					    NMSUPPGOODSCNT,
+					    NMSPCLTYSUPPAMT,
+					    SUPPGOODSRATE,
+					    SPCLTYSUPPRATE,
+					    SUM(DSUPPGOODSCNT) OVER(ORDER BY 1)    DSUPPGOODSCNTSUM,
+					    SUM(DSPCLTYSUPPAMT) OVER(ORDER BY 1)    DSPCLTYSUPPAMTSUM,
+					    SUM(PMSUPPGOODSCNT) OVER(ORDER BY 1)    PMSUPPGOODSCNTSUM,
+					    SUM(PMSPCLTYSUPPAMT) OVER(ORDER BY 1)    PMSPCLTYSUPPAMTSUM,
+					    SUM(NMSUPPGOODSCNT) OVER(ORDER BY 1)    NMSUPPGOODSCNTSUM,
+					    SUM(NMSPCLTYSUPPAMT) OVER(ORDER BY 1)    NMSPCLTYSUPPAMTSUM
+					FROM
+					(SELECT RECEV_DIV_NM,
+								        SUM(DSUPPGOODSCNT) DSUPPGOODSCNT,
+								        SUM(DSPCLTYSUPPAMT) DSPCLTYSUPPAMT,
+								        SUM(PMSUPPGOODSCNT) PMSUPPGOODSCNT,
+								        SUM(PMSPCLTYSUPPAMT) PMSPCLTYSUPPAMT,
+								        SUM(NMSUPPGOODSCNT) NMSUPPGOODSCNT,
+								        SUM(NMSPCLTYSUPPAMT) NMSPCLTYSUPPAMT,
+								        CASE WHEN SUM(PMSUPPGOODSCNT) > 0
+								             THEN ROUND((((SUM(NMSUPPGOODSCNT) - SUM(PMSUPPGOODSCNT)) / SUM(PMSUPPGOODSCNT)) * 100), 1)
+								             ELSE SUM(NMSUPPGOODSCNT)
+								        END     SUPPGOODSRATE,			        
+								        CASE WHEN SUM(PMSPCLTYSUPPAMT) > 0
+								             THEN ROUND((((SUM(NMSPCLTYSUPPAMT) - SUM(PMSPCLTYSUPPAMT)) / SUM(PMSPCLTYSUPPAMT)) * 100), 1)
+								             ELSE SUM(NMSPCLTYSUPPAMT)
+								        END SPCLTYSUPPRATE
+								FROM   
+										(SELECT 
+											E.RECEV_DIV_NM,
+									        NVL(C.DSUPPGOODSCNT,0) DSUPPGOODSCNT,
+									        NVL(C.DSPCLTYSUPPAMT,0) DSPCLTYSUPPAMT,
+									        NVL(D.PMSUPPGOODSCNT,0) PMSUPPGOODSCNT,
+									        NVL(D.PMSPCLTYSUPPAMT,0) PMSPCLTYSUPPAMT,
+									        NVL(E.NMSUPPGOODSCNT,0) NMSUPPGOODSCNT,
+									        NVL(E.NMSPCLTYSUPPAMT,0) NMSPCLTYSUPPAMT
+								        FROM 
+								        (SELECT
+									        RECEV_DIV_CD,
+									        CASE WHEN RECEV_DIV_CD IN('001', '011', '015')
+									        	 THEN '프리미엄관'
+									        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+									        	 THEN '꽃배달'
+									        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+									        	 THEN '생활마트'
+									        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+								        	 	 THEN '전통시장'
+									        	 WHEN RECEV_DIV_CD IN('006')
+									        	 THEN 'B2B'
+									        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+									        	 THEN '기타'
+									        	 WHEN RECEV_DIV_CD IN('008', '019', '020')
+									        	 THEN '해외서비스'
+									        END RECEV_DIV_NM,
+									        NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0) AS DSPCLTYSUPPAMT,
+									        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) AS DSUPPGOODSCNT
+								        FROM
+								                (SELECT  RCOCD, REGIPOCD
+								                 FROM    PICMT0060
+								                 WHERE   USEYN='Y'
+								                ) B, MP_POST_SHOP_SUPP_DAY A
+								        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+								        AND    A.RECEV_STUS_CD = 'O02'
+								        AND A.SELL_CLOSE_YMD >= #search_now_ymd#
+								        AND A.SELL_CLOSE_YMD <= #search_now_ymd#
+								        AND RECEV_DIV_CD <> '003'
+								        GROUP BY RECEV_DIV_CD ) C,
+								        (SELECT
+									        RECEV_DIV_CD,
+									        CASE WHEN RECEV_DIV_CD IN('001', '011', '015')
+									        	 THEN '프리미엄관'
+									        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+									        	 THEN '꽃배달'
+									        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+									        	 THEN '생활마트'
+									        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+								        	 	 THEN '전통시장'
+									        	 WHEN RECEV_DIV_CD IN('006')
+									        	 THEN 'B2B'
+									        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+									        	 THEN '기타'
+									        	 WHEN RECEV_DIV_CD IN('008', '019', '020')
+									        	 THEN '해외서비스'
+									        END RECEV_DIV_NM,
+									        NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0) AS PMSPCLTYSUPPAMT,
+									        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) AS PMSUPPGOODSCNT
+								        FROM
+								                (SELECT  RCOCD, REGIPOCD
+								                 FROM    PICMT0060
+								                 WHERE   USEYN='Y'
+								                ) B, MP_POST_SHOP_SUPP_DAY A
+								        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+								        AND    A.RECEV_STUS_CD = 'O02'
+								        AND A.SELL_CLOSE_YMD >= #search_pre_mm#
+								        AND A.SELL_CLOSE_YMD <= #search_pre_ymd#
+								        AND RECEV_DIV_CD <> '003'
+								        GROUP BY RECEV_DIV_CD ) D,
+								        (SELECT
+									        RECEV_DIV_CD,
+									        CASE WHEN RECEV_DIV_CD IN('001', '011', '015')
+									        	 THEN '프리미엄관'
+									        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+									        	 THEN '꽃배달'
+									        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+									        	 THEN '생활마트'
+									        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+								        	 	 THEN '전통시장'
+									        	 WHEN RECEV_DIV_CD IN('006')
+									        	 THEN 'B2B'
+									        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+									        	 THEN '기타'
+									        	 WHEN RECEV_DIV_CD IN('008', '019', '020')
+									        	 THEN '해외서비스'
+									        END RECEV_DIV_NM,
+									        NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0) AS NMSPCLTYSUPPAMT,
+									        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) AS NMSUPPGOODSCNT
+								        FROM
+								                (SELECT  RCOCD, REGIPOCD
+								                 FROM    PICMT0060
+								                 WHERE   USEYN='Y'
+								                ) B, MP_POST_SHOP_SUPP_DAY A
+								        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+								        AND    A.RECEV_STUS_CD = 'O02'
+								        AND A.SELL_CLOSE_YMD >= #search_now_mm#
+								        AND A.SELL_CLOSE_YMD <= #search_now_ymd#
+								        AND RECEV_DIV_CD <> '003'
+								        GROUP BY RECEV_DIV_CD) E
+										WHERE 1 = 1
+		        						AND E.RECEV_DIV_CD = C.RECEV_DIV_CD(+)
+		        						AND E.RECEV_DIV_CD = D.RECEV_DIV_CD(+)
+								) GROUP BY RECEV_DIV_NM))
+					UNION 
+					SELECT
+			 			'프리미엄관' RECEV_DIV_NM,
+					    0	DSUPPGOODSCNT,
+					    0	DSPCLTYSUPPAMT,
+					    0	PMSUPPGOODSCNT,
+					    0	PMSPCLTYSUPPAMT,
+					    0	NMSUPPGOODSCNT,
+					    0	NMSPCLTYSUPPAMT,
+					    0	SUPPGOODSRATE,
+					    0	SPCLTYSUPPRATE,
+					    0	DSUPPGOODSCNTSUM,
+					    0	DSPCLTYSUPPAMTSUM,
+					    0	PMSUPPGOODSCNTSUM,
+					    0	PMSPCLTYSUPPAMTSUM,
+					    0	NMSUPPGOODSCNTSUM,
+					    0	NMSPCLTYSUPPAMTSUM,
+					    0 	SUPPGOODSRATESUM,			        
+			      		0 	SPCLTYSUPPRATESUM
+			    	FROM DUAL
+					UNION 
+					SELECT
+			 			'꽃배달' RECEV_DIV_NM,
+					    0	DSUPPGOODSCNT,
+					    0	DSPCLTYSUPPAMT,
+					    0	PMSUPPGOODSCNT,
+					    0	PMSPCLTYSUPPAMT,
+					    0	NMSUPPGOODSCNT,
+					    0	NMSPCLTYSUPPAMT,
+					    0	SUPPGOODSRATE,
+					    0	SPCLTYSUPPRATE,
+					    0	DSUPPGOODSCNTSUM,
+					    0	DSPCLTYSUPPAMTSUM,
+					    0	PMSUPPGOODSCNTSUM,
+					    0	PMSPCLTYSUPPAMTSUM,
+					    0	NMSUPPGOODSCNTSUM,
+					    0	NMSPCLTYSUPPAMTSUM,
+					    0 	SUPPGOODSRATESUM,			        
+			      		0 	SPCLTYSUPPRATESUM
+			    	FROM DUAL
+					UNION 
+					SELECT
+			 			'생활마트' RECEV_DIV_NM,
+					    0	DSUPPGOODSCNT,
+					    0	DSPCLTYSUPPAMT,
+					    0	PMSUPPGOODSCNT,
+					    0	PMSPCLTYSUPPAMT,
+					    0	NMSUPPGOODSCNT,
+					    0	NMSPCLTYSUPPAMT,
+					    0	SUPPGOODSRATE,
+					    0	SPCLTYSUPPRATE,
+					    0	DSUPPGOODSCNTSUM,
+					    0	DSPCLTYSUPPAMTSUM,
+					    0	PMSUPPGOODSCNTSUM,
+					    0	PMSPCLTYSUPPAMTSUM,
+					    0	NMSUPPGOODSCNTSUM,
+					    0	NMSPCLTYSUPPAMTSUM,
+					    0 	SUPPGOODSRATESUM,			        
+			      		0 	SPCLTYSUPPRATESUM
+			    	FROM DUAL
+					UNION 
+					SELECT
+			 			'전통시장' RECEV_DIV_NM,
+					    0	DSUPPGOODSCNT,
+					    0	DSPCLTYSUPPAMT,
+					    0	PMSUPPGOODSCNT,
+					    0	PMSPCLTYSUPPAMT,
+					    0	NMSUPPGOODSCNT,
+					    0	NMSPCLTYSUPPAMT,
+					    0	SUPPGOODSRATE,
+					    0	SPCLTYSUPPRATE,
+					    0	DSUPPGOODSCNTSUM,
+					    0	DSPCLTYSUPPAMTSUM,
+					    0	PMSUPPGOODSCNTSUM,
+					    0	PMSPCLTYSUPPAMTSUM,
+					    0	NMSUPPGOODSCNTSUM,
+					    0	NMSPCLTYSUPPAMTSUM,
+					    0 	SUPPGOODSRATESUM,			        
+			      		0 	SPCLTYSUPPRATESUM
+			    	FROM DUAL
+					UNION 
+					SELECT
+			 			'B2B' RECEV_DIV_NM,
+					    0	DSUPPGOODSCNT,
+					    0	DSPCLTYSUPPAMT,
+					    0	PMSUPPGOODSCNT,
+					    0	PMSPCLTYSUPPAMT,
+					    0	NMSUPPGOODSCNT,
+					    0	NMSPCLTYSUPPAMT,
+					    0	SUPPGOODSRATE,
+					    0	SPCLTYSUPPRATE,
+					    0	DSUPPGOODSCNTSUM,
+					    0	DSPCLTYSUPPAMTSUM,
+					    0	PMSUPPGOODSCNTSUM,
+					    0	PMSPCLTYSUPPAMTSUM,
+					    0	NMSUPPGOODSCNTSUM,
+					    0	NMSPCLTYSUPPAMTSUM,
+					    0 	SUPPGOODSRATESUM,			        
+			      		0 	SPCLTYSUPPRATESUM
+			    	FROM DUAL
+					UNION 
+					SELECT
+			 			'해외서비스' RECEV_DIV_NM,
+					    0	DSUPPGOODSCNT,
+					    0	DSPCLTYSUPPAMT,
+					    0	PMSUPPGOODSCNT,
+					    0	PMSPCLTYSUPPAMT,
+					    0	NMSUPPGOODSCNT,
+					    0	NMSPCLTYSUPPAMT,
+					    0	SUPPGOODSRATE,
+					    0	SPCLTYSUPPRATE,
+					    0	DSUPPGOODSCNTSUM,
+					    0	DSPCLTYSUPPAMTSUM,
+					    0	PMSUPPGOODSCNTSUM,
+					    0	PMSPCLTYSUPPAMTSUM,
+					    0	NMSUPPGOODSCNTSUM,
+					    0	NMSPCLTYSUPPAMTSUM,
+					    0 	SUPPGOODSRATESUM,			        
+			      		0 	SPCLTYSUPPRATESUM
+			    	FROM DUAL
+					UNION 
+					SELECT
+			 			'기타' RECEV_DIV_NM,
+					    0	DSUPPGOODSCNT,
+					    0	DSPCLTYSUPPAMT,
+					    0	PMSUPPGOODSCNT,
+					    0	PMSPCLTYSUPPAMT,
+					    0	NMSUPPGOODSCNT,
+					    0	NMSPCLTYSUPPAMT,
+					    0	SUPPGOODSRATE,
+					    0	SPCLTYSUPPRATE,
+					    0	DSUPPGOODSCNTSUM,
+					    0	DSPCLTYSUPPAMTSUM,
+					    0	PMSUPPGOODSCNTSUM,
+					    0	PMSPCLTYSUPPAMTSUM,
+					    0	NMSUPPGOODSCNTSUM,
+					    0	NMSPCLTYSUPPAMTSUM,
+					    0 	SUPPGOODSRATESUM,			        
+			      		0 	SPCLTYSUPPRATESUM
+			    	FROM DUAL
+			    	)
+		    GROUP BY RECEV_DIV_NM
+		    ORDER BY DECODE(RECEV_DIV_NM, '프리미엄관', 1, '꽃배달', 2, '생활마트', 3, '전통시장', 4, 'B2B', 5, '해외서비스', 6, '기타', 7)
+	    ]]>
+	</select>
+	
+	<!-- 전년동기대비실적비교(연누계) -->
+	<select id="retrieveDayReportStatByYearList" parameterClass ="java.util.HashMap" resultClass="commMap">
+		 <![CDATA[
+			 SELECT
+			 	RECEV_DIV_NM,
+			 	SUM(PYSUPPGOODSCNT)								PYSUPPGOODSCNT,                       
+				SUM(PYSPCLTYSUPPAMT)              				PYSPCLTYSUPPAMT,              
+				SUM(PYSPCLTYCSFFEE)               				PYSPCLTYCSFFEE,               
+				SUM(NYSUPPGOODSCNT)               				NYSUPPGOODSCNT,               
+				SUM(NYSPCLTYSUPPAMT)              				NYSPCLTYSUPPAMT,              
+				SUM(NYSPCLTYCSFFEE)               				NYSPCLTYCSFFEE,               
+				SUM(SUPPGOODSRATE)                				SUPPGOODSRATE,                
+				SUM(SPCLTYSUPPRATE)               				SPCLTYSUPPRATE,               
+				SUM(SPCLTYCSFFEERATE)             				SPCLTYCSFFEERATE,             
+				SUM(PYSUPPGOODSCNTSUM)            				PYSUPPGOODSCNTSUM,            
+				SUM(PYSPCLTYSUPPAMTSUM)           				PYSPCLTYSUPPAMTSUM,           
+				SUM(PYSPCLTYCSFFEESUM)            				PYSPCLTYCSFFEESUM,            
+				SUM(NYSUPPGOODSCNTSUM)            				NYSUPPGOODSCNTSUM,            
+				SUM(NYSPCLTYSUPPAMTSUM)           				NYSPCLTYSUPPAMTSUM,           
+				SUM(NYSPCLTYCSFFEESUM)            				NYSPCLTYCSFFEESUM,            
+				SUM(SUPPGOODSRATESUM)			        		SUPPGOODSRATESUM,			        
+				SUM(SPCLTYSUPPRATESUM)            				SPCLTYSUPPRATESUM,            
+				SUM(SPCLTYCSFFEERATESUM)          				SPCLTYCSFFEERATESUM,          
+				SUM(SPCLTYCSFFEERATESUMPARTITION) 				SPCLTYCSFFEERATESUMPARTITION, 
+				SUM(PYSPCLTYCSFFEESUMPARTITION)   				PYSPCLTYCSFFEESUMPARTITION,   
+				SUM(NYSPCLTYCSFFEESUMPARTITION)   				NYSPCLTYCSFFEESUMPARTITION    
+			FROM	
+				(SELECT
+	                RECEV_DIV_NM,
+				    PYSUPPGOODSCNT,
+				    PYSPCLTYSUPPAMT,
+				    PYSPCLTYCSFFEE,
+				    NYSUPPGOODSCNT,
+				    NYSPCLTYSUPPAMT,
+				    NYSPCLTYCSFFEE,
+				    SUPPGOODSRATE,
+				    SPCLTYSUPPRATE,
+				    SPCLTYCSFFEERATE,
+				    PYSUPPGOODSCNTSUM,
+				    PYSPCLTYSUPPAMTSUM,
+				    PYSPCLTYCSFFEESUM,
+				    NYSUPPGOODSCNTSUM,
+				    NYSPCLTYSUPPAMTSUM,
+				    NYSPCLTYCSFFEESUM,
+				    CASE WHEN PYSUPPGOODSCNTSUM > 0
+			             THEN ROUND((((NYSUPPGOODSCNTSUM - PYSUPPGOODSCNTSUM) / PYSUPPGOODSCNTSUM) * 100), 1)
+			             ELSE NYSUPPGOODSCNTSUM
+			        END     SUPPGOODSRATESUM,			        
+			        CASE WHEN PYSPCLTYSUPPAMTSUM > 0
+			             THEN ROUND((((NYSPCLTYSUPPAMTSUM - PYSPCLTYSUPPAMTSUM) / PYSPCLTYSUPPAMTSUM) * 100), 1)
+			             ELSE NYSPCLTYSUPPAMTSUM
+			        END SPCLTYSUPPRATESUM,
+			        CASE WHEN PYSPCLTYCSFFEESUM > 0
+			             THEN ROUND((((NYSPCLTYCSFFEESUM - PYSPCLTYCSFFEESUM) / PYSPCLTYCSFFEESUM) * 100), 1)
+			             ELSE NYSPCLTYCSFFEESUM
+			        END SPCLTYCSFFEERATESUM,
+			        CASE WHEN PYSPCLTYCSFFEESUMPARTITION > 0
+			             THEN ROUND((((NYSPCLTYCSFFEESUMPARTITION - PYSPCLTYCSFFEESUMPARTITION) / PYSPCLTYCSFFEESUMPARTITION) * 100), 1)
+			             ELSE NYSPCLTYCSFFEESUMPARTITION
+			        END SPCLTYCSFFEERATESUMPARTITION,
+			        PYSPCLTYCSFFEESUMPARTITION,
+			        NYSPCLTYCSFFEESUMPARTITION
+	            FROM
+	            (SELECT
+				    RECEV_DIV_NM,
+				    ETCFLAG,
+				    PYSUPPGOODSCNT,
+				    PYSPCLTYSUPPAMT,
+				    PYSPCLTYCSFFEE,
+				    NYSUPPGOODSCNT,
+				    NYSPCLTYSUPPAMT,
+				    NYSPCLTYCSFFEE,
+				    SUPPGOODSRATE,
+				    SPCLTYSUPPRATE,
+				    SPCLTYCSFFEERATE,			    
+				    SUM(PYSUPPGOODSCNT) OVER(ORDER BY 1)    PYSUPPGOODSCNTSUM,
+	                SUM(PYSPCLTYSUPPAMT) OVER(ORDER BY 1)   PYSPCLTYSUPPAMTSUM,
+	                SUM(PYSPCLTYCSFFEE) OVER(ORDER BY 1)    PYSPCLTYCSFFEESUM,
+	                SUM(PYSPCLTYCSFFEE) OVER(PARTITION BY ETCFLAG ORDER BY ETCFLAG)  PYSPCLTYCSFFEESUMPARTITION,
+	                SUM(NYSUPPGOODSCNT) OVER(ORDER BY 1)    NYSUPPGOODSCNTSUM,
+	                SUM(NYSPCLTYSUPPAMT) OVER(ORDER BY 1)   NYSPCLTYSUPPAMTSUM,
+	                SUM(NYSPCLTYCSFFEE) OVER(ORDER BY 1)    NYSPCLTYCSFFEESUM,
+	                SUM(NYSPCLTYCSFFEE) OVER(PARTITION BY ETCFLAG ORDER BY ETCFLAG)  NYSPCLTYCSFFEESUMPARTITION
+				FROM
+				(SELECT RECEV_DIV_NM,
+				         ETCFLAG,
+							        SUM(PYSUPPGOODSCNT) PYSUPPGOODSCNT,
+							        SUM(PYSPCLTYSUPPAMT) PYSPCLTYSUPPAMT,
+							        SUM(PYSPCLTYCSFFEE) PYSPCLTYCSFFEE,
+							        SUM(NYSUPPGOODSCNT) NYSUPPGOODSCNT,
+							        SUM(NYSPCLTYSUPPAMT) NYSPCLTYSUPPAMT,
+							        SUM(NYSPCLTYCSFFEE) NYSPCLTYCSFFEE,
+							        CASE WHEN SUM(PYSUPPGOODSCNT) > 0
+							             THEN ROUND((((SUM(NYSUPPGOODSCNT) - SUM(PYSUPPGOODSCNT)) / SUM(PYSUPPGOODSCNT)) * 100), 1)
+							             ELSE SUM(NYSUPPGOODSCNT)
+							        END     SUPPGOODSRATE,			        
+							        CASE WHEN SUM(PYSPCLTYSUPPAMT) > 0
+							             THEN ROUND((((SUM(NYSPCLTYSUPPAMT) - SUM(PYSPCLTYSUPPAMT)) / SUM(PYSPCLTYSUPPAMT)) * 100), 1)
+							             ELSE SUM(NYSPCLTYSUPPAMT)
+							        END SPCLTYSUPPRATE,
+							        CASE WHEN SUM(PYSPCLTYCSFFEE) > 0
+							             THEN ROUND((((SUM(NYSPCLTYCSFFEE) - SUM(PYSPCLTYCSFFEE)) / SUM(PYSPCLTYCSFFEE)) * 100), 1)
+							             ELSE SUM(NYSPCLTYCSFFEE)
+							        END SPCLTYCSFFEERATE
+							FROM (
+							        SELECT 
+								        E.RECEV_DIV_NM,
+								        DECODE(E.RECEV_DIV_NM, '꽃배달', '1', '해외서비스', '1', '2') ETCFLAG,
+					                    NVL(D.PYSUPPGOODSCNT,0) PYSUPPGOODSCNT,
+					                    NVL(D.PYSPCLTYSUPPAMT,0) PYSPCLTYSUPPAMT,
+					                    NVL(D.PYSPCLTYCSFFEE,0) PYSPCLTYCSFFEE,
+					                    NVL(E.NYSUPPGOODSCNT,0) NYSUPPGOODSCNT,
+					                    NVL(E.NYSPCLTYSUPPAMT,0) NYSPCLTYSUPPAMT,
+					                    NVL(E.NYSPCLTYCSFFEE,0) NYSPCLTYCSFFEE
+							        FROM 
+							        (SELECT
+								        RECEV_DIV_CD,
+								        CASE WHEN RECEV_DIV_CD IN('001', '011', '015')
+								        	 THEN '프리미엄관'
+								        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+								        	 THEN '꽃배달'
+								        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+								        	 THEN '생활마트'
+								        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+								        	 THEN '전통시장'
+								        	 WHEN RECEV_DIV_CD IN('006')
+								        	 THEN 'B2B'
+								        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+								        	 THEN '기타'
+								        	 WHEN RECEV_DIV_CD IN('008', '019', '020')
+								        	 THEN '해외서비스'
+								        END RECEV_DIV_NM,
+								        NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0) AS PYSPCLTYSUPPAMT,
+								        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) AS PYSUPPGOODSCNT,
+								        NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(A.RECEV_DIV_CD, '005', A.CSF_FEE - A.RETURN_GD_CSF_FEE , A.CSF_FEE-A.RETURN_GD_CSF_FEE),'03',DECODE(A.RECEV_DIV_CD, '005',
+					                                                 DECODE((
+					                                                 SELECT COUNT(*) FROM MP_POST_SHOP_SUPP_DAY
+					                                                 WHERE SELL_CLOSE_YMD = A.SELL_CLOSE_YMD
+					                                                 AND RECEV_DIV_CD = '005'
+					                                                 AND GOODS_CD = A.GOODS_CD
+					                                                 AND SETL_TYPE_CD = A.SETL_TYPE_CD), 1,A.CSF_FEE, '0')
+					                                                 -
+					                                                 DECODE((
+					                                                 SELECT COUNT(*) FROM MP_POST_SHOP_SUPP_DAY
+					                                                 WHERE SELL_CLOSE_YMD = A.SELL_CLOSE_YMD
+					                                                 AND RECEV_DIV_CD = '005'
+					                                                 AND GOODS_CD = A.GOODS_CD
+					                                                 AND SETL_TYPE_CD = A.SETL_TYPE_CD), 1,A.RETURN_GD_CSF_FEE, '0')
+					                                                 ,A.CSF_FEE-A.RETURN_GD_CSF_FEE),A.CSF_FEE-A.RETURN_GD_CSF_FEE)),0) AS PYSPCLTYCSFFEE
+							        FROM
+							                (SELECT  RCOCD, REGIPOCD
+							                 FROM    PICMT0060
+							                 WHERE   USEYN='Y'
+							                ) B, MP_POST_SHOP_SUPP_DAY A
+							        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+							        AND    A.RECEV_STUS_CD = 'O02'
+							        AND A.SELL_CLOSE_YMD >= #search_pre_yyyy#
+							        AND A.SELL_CLOSE_YMD <= #search_pre_ymd#
+							        AND RECEV_DIV_CD <> '003'
+							        GROUP BY RECEV_DIV_CD ) D,
+							        (SELECT
+								        RECEV_DIV_CD,
+								        CASE WHEN RECEV_DIV_CD IN('001', '011', '015')
+								        	 THEN '프리미엄관'
+								        	 WHEN RECEV_DIV_CD IN('002', '012', '016')
+								        	 THEN '꽃배달'
+								        	 WHEN RECEV_DIV_CD IN('004', '021', '022', '050', '051', '052')
+								        	 THEN '생활마트'
+								        	 WHEN RECEV_DIV_CD IN('014', '031', '032')
+								        	 THEN '전통시장'
+								        	 WHEN RECEV_DIV_CD IN('006')
+								        	 THEN 'B2B'
+								        	 WHEN RECEV_DIV_CD IN('005', '017', '018')
+								        	 THEN '기타'
+								        	 WHEN RECEV_DIV_CD IN('008', '019', '020')
+								        	 THEN '해외서비스'
+								        END RECEV_DIV_NM,
+								        NVL(SUM(A.SETL_AMT-A.RETURN_GD_AMT),0) AS NYSPCLTYSUPPAMT,
+								        NVL(SUM(A.SUPP_GOODS_CNT-A.RETURN_GD_CNT),0) AS NYSUPPGOODSCNT,
+								        NVL(SUM(DECODE(A.RECEV_SYS_DIV_CD,'02',DECODE(A.RECEV_DIV_CD, '005', A.CSF_FEE -    A.RETURN_GD_CSF_FEE
+					                                                 ,A.CSF_FEE-A.RETURN_GD_CSF_FEE),'03',DECODE(A.RECEV_DIV_CD, '005',
+					                                                 DECODE((
+					                                                 SELECT COUNT(*) FROM MP_POST_SHOP_SUPP_DAY
+					                                                 WHERE SELL_CLOSE_YMD = A.SELL_CLOSE_YMD
+					                                                 AND RECEV_DIV_CD = '005'
+					                                                 AND GOODS_CD = A.GOODS_CD
+					                                                 AND SETL_TYPE_CD = A.SETL_TYPE_CD), 1,A.CSF_FEE, '0')
+					                                                 -
+					                                                 DECODE((
+					                                                 SELECT COUNT(*) FROM MP_POST_SHOP_SUPP_DAY
+					                                                 WHERE SELL_CLOSE_YMD = A.SELL_CLOSE_YMD
+					                                                 AND RECEV_DIV_CD = '005'
+					                                                 AND GOODS_CD = A.GOODS_CD
+					                                                 AND SETL_TYPE_CD = A.SETL_TYPE_CD), 1,A.RETURN_GD_CSF_FEE, '0')
+					                                                 ,A.CSF_FEE-A.RETURN_GD_CSF_FEE),A.CSF_FEE-A.RETURN_GD_CSF_FEE)),0) AS NYSPCLTYCSFFEE
+							        FROM
+							                (SELECT  RCOCD, REGIPOCD
+							                 FROM    PICMT0060
+							                 WHERE   USEYN='Y'
+							                ) B, MP_POST_SHOP_SUPP_DAY A
+							        WHERE  A.SUPP_PO_REGI_PO_CD = B.REGIPOCD(+)
+							        AND    A.RECEV_STUS_CD = 'O02'
+							        AND A.SELL_CLOSE_YMD >= #search_now_yyyy#
+							        AND A.SELL_CLOSE_YMD <= #search_now_ymd#
+							        AND RECEV_DIV_CD <> '003'
+							        GROUP BY RECEV_DIV_CD ) E
+									WHERE 1 = 1
+	        						AND E.RECEV_DIV_CD = D.RECEV_DIV_CD(+)
+							) GROUP BY RECEV_DIV_NM, ETCFLAG))
+							UNION 
+						SELECT
+				 			'프리미엄관' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+						UNION 
+						SELECT
+				 			'꽃배달' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+						UNION 
+						SELECT
+				 			'생활마트' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+						UNION 
+						SELECT
+				 			'전통시장' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+						UNION 
+						SELECT
+				 			'전통시장' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+						UNION 
+						SELECT
+				 			'B2B' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+						UNION 
+						SELECT
+				 			'해외서비스' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+						UNION 
+						SELECT
+				 			'기타' RECEV_DIV_NM,
+						    0 PYSUPPGOODSCNT,
+							0 PYSPCLTYSUPPAMT,
+							0 PYSPCLTYCSFFEE,
+							0 NYSUPPGOODSCNT,
+							0 NYSPCLTYSUPPAMT,
+							0 NYSPCLTYCSFFEE,
+							0 SUPPGOODSRATE,
+							0 SPCLTYSUPPRATE,
+							0 SPCLTYCSFFEERATE,
+							0 PYSUPPGOODSCNTSUM,
+							0 PYSPCLTYSUPPAMTSUM,
+							0 PYSPCLTYCSFFEESUM,
+							0 NYSUPPGOODSCNTSUM,
+							0 NYSPCLTYSUPPAMTSUM,
+							0 NYSPCLTYCSFFEESUM,
+							0 SUPPGOODSRATESUM,			        
+							0 SPCLTYSUPPRATESUM,
+							0 SPCLTYCSFFEERATESUM,
+							0 SPCLTYCSFFEERATESUMPARTITION,
+							0 PYSPCLTYCSFFEESUMPARTITION,
+							0 NYSPCLTYCSFFEESUMPARTITION
+				    	FROM DUAL
+				    	)
+		    GROUP BY RECEV_DIV_NM
+		    ORDER BY DECODE(RECEV_DIV_NM, '프리미엄관', 1, '꽃배달', 2, '생활마트', 3, '전통시장', 4, 'B2B', 5, '해외서비스', 6, '기타', 7)
+						
+	    ]]>
+	</select>
+</sqlMap>

@@ -1,0 +1,649 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboQltyCertMgr">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+		SELECT *
+		  FROM (
+				SELECT A.*
+				     , ROWNUM  AS RNUM
+				  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+	<!-- 품질인증관리 목록 건수 -->
+	<select id="selectQltyCertTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+				SELECT COUNT(*) AS CNT
+				  FROM (
+					SELECT T2.GOODS_CD              /*상품코드*/
+		                 , T3.BCNC_NM               /*협력업체*/
+		                 , T3.SUPP_COMP_ID          /*협력업체 ID*/
+		                 , T3.COMPREG_NO            /*사업자번호*/
+		                 , T2.MAKR                  /*제조사*/
+		                 , T1.CRTFCT_ID             /*인증번호*/
+		                 , T4.CRTFCT_NM             /*인증서명*/
+		                 , T4.CRTFC_PRDLST_CD       /*인증품목*/
+		                 , F_GET_COMN_CD_NM('CRTFC_PRDLST_CD', CRTFC_PRDLST_CD) AS CRTFC_PRDLST_NM
+		                 , TO_CHAR(TO_DATE(T1.VLD_TERM_STRT_YMD,'YYYYMMDD'),'YYYY-MM-DD')  || ' ~ ' || TO_CHAR( TO_DATE(T1. VLD_TERM_END_YMD,'YYYYMMDD'), 'YYYY-MM-DD') AS VLD_TERM  /* 인증유효기간 */
+		                 , T1.CRTFC_OR_NM           /*인증기관*/
+		                 , T1.VLD_TERM_END_YMD
+		                 , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS  REG_DATE             /*등록일자*/
+		                   , CASE WHEN T1. VLD_TERM_END_YMD < TO_CHAR(SYSDATE,'YYYYMMDD')
+		                        THEN '만료' ELSE '유효' END AS CERT_STAT /*상태*/
+		                 , CASE WHEN T1. VLD_TERM_END_YMD < TO_CHAR(SYSDATE,'YYYYMMDD')
+		                        THEN '0' ELSE '1' END AS CERT_STAT_CD /*상태*/
+		              FROM GD_MGT_GOODS_CRTFC T1, GD_MGT_GOODS_MAST T2, CO_SUPP_COMP_MAST T3, SC_GOODS_CRTFC_MAST T4
+		             WHERE T1.GOODS_CD     = T2.GOODS_CD
+		               AND T2.SUPP_COMP_ID = T3.SUPP_COMP_ID
+		               AND T1.CRTFCT_ID    = T4.CRTFCT_ID
+		             ) WHERE VLD_TERM_END_YMD BETWEEN REPLACE( #calStrtFinishPerMonth# , '-', '') AND REPLACE( #calEndFinishPerMonth# , '-', '')
+				]]>
+
+					<!-- 협력업체정보 -->
+					<isNotEmpty property="schSuppCond">
+						<isEqual property="schSuppCond" compareValue="SUPP_NM"><!-- 협력업체명 -->
+							AND BCNC_NM LIKE '%' || #schSuppTxt# || '%'
+						</isEqual>
+						<isEqual property="schSuppCond" compareValue="SUPP_ID"><!-- 협력업체코드 -->
+							AND SUPP_COMP_ID LIKE '%' || #schSuppTxt# || '%'
+						</isEqual>
+						<isEqual property="schSuppCond" compareValue="BIZ_NO"><!-- 사업자번호 -->
+							AND COMPREG_NO LIKE '%' || #schSuppTxt# || '%'
+						</isEqual>
+					</isNotEmpty>
+					<!-- 인증서코드 -->
+					<isNotEmpty property="schCrtfctId">
+						AND CRTFCT_ID = #schCrtfctId#
+					</isNotEmpty>
+					<isEmpty property="schCrtfctId">
+						<!-- 인증서명 -->
+						<isNotEmpty property="schCrtfctNm">
+							AND CRTFCT_NM LIKE '%' || #schCrtfctNm# || '%'
+						</isNotEmpty>
+					</isEmpty>
+					<!-- 품목명 -->
+					<isNotEmpty property="schCrtfcPrdlst">
+						/*	AND CRTFC_PRDLST LIKE '%' || schCrtfcPrdlst || '%' */
+					</isNotEmpty>
+					<!-- 등록일 -->
+					<isNotEmpty property="schRegDate">
+						AND REG_DATE = #schRegDate#
+					</isNotEmpty>
+					<!-- 인증상태 -->
+					<isNotEmpty property="">
+						AND CERT_STAT_CD = #schCertStatCd#
+					</isNotEmpty>
+
+				ORDER BY REG_DATE DESC
+	</select>
+
+	<!-- 품질인증관리 목록 조회 -->
+	<select id="selectQltyCertList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+		SELECT *
+		  FROM (
+			SELECT T2.GOODS_CD              /*상품코드*/
+                 , T3.BCNC_NM               /*협력업체*/
+                 , T3.SUPP_COMP_ID          /*협력업체 ID*/
+                 , T3.COMPREG_NO            /*사업자번호*/
+                 , T2.MAKR                  /*제조사*/
+                 , T1.CRTFCT_ID             /*인증번호*/
+                 , T4.CRTFCT_NM             /*인증서명*/
+                 , T4.CRTFC_PRDLST_CD       /*인증품목*/
+                 , F_GET_COMN_CD_NM('CRTFC_PRDLST_CD', CRTFC_PRDLST_CD) AS CRTFC_PRDLST_NM
+                 , TO_CHAR(TO_DATE(VLD_TERM_STRT_YMD,'YYYYMMDD'),'YYYY-MM-DD') || ' ~' || TO_CHAR(TO_DATE(VLD_TERM_END_YMD,'YYYYMMDD'),'YYYY-MM-DD') AS VLD_TERM  /*인증유효기*/
+                 , T4.CRTFC_OR_NM           /*인증기관*/
+                 , T1.VLD_TERM_END_YMD
+                 , TO_CHAR(T1.REG_DATE,'YYYY-MM-DD') AS  REG_DATE             /*등록일자*/
+                   , CASE WHEN T1. VLD_TERM_END_YMD < TO_CHAR(SYSDATE,'YYYYMMDD')
+                        THEN '만료' ELSE '유효' END AS CERT_STAT /*상태*/
+                 , CASE WHEN T1. VLD_TERM_END_YMD < TO_CHAR(SYSDATE,'YYYYMMDD')
+                        THEN '0' ELSE '1' END AS CERT_STAT_CD /*상태*/
+              FROM GD_MGT_GOODS_CRTFC T1, GD_MGT_GOODS_MAST T2, CO_SUPP_COMP_MAST T3, SC_GOODS_CRTFC_MAST T4
+             WHERE T1.GOODS_CD     = T2.GOODS_CD
+               AND T2.SUPP_COMP_ID = T3.SUPP_COMP_ID
+               AND T1.CRTFCT_ID    = T4.CRTFCT_ID
+             ) WHERE VLD_TERM_END_YMD BETWEEN REPLACE( #calStrtFinishPerMonth# , '-', '') AND REPLACE( #calEndFinishPerMonth# , '-', '')
+		]]>
+
+			<!-- 협력업체정보 -->
+			<isNotEmpty property="schSuppCond">
+				<isEqual property="schSuppCond" compareValue="SUPP_NM"><!-- 협력업체명 -->
+					AND BCNC_NM LIKE '%' || #schSuppTxt# || '%'
+				</isEqual>
+				<isEqual property="schSuppCond" compareValue="SUPP_ID"><!-- 협력업체코드 -->
+					AND SUPP_COMP_ID LIKE '%' || #schSuppTxt# || '%'
+				</isEqual>
+				<isEqual property="schSuppCond" compareValue="BIZ_NO"><!-- 사업자번호 -->
+					AND COMPREG_NO LIKE '%' || #schSuppTxt# || '%'
+				</isEqual>
+			</isNotEmpty>
+			<!-- 인증서코드 -->
+			<isNotEmpty property="schCrtfctId">
+				AND CRTFCT_ID = #schCrtfctId#
+			</isNotEmpty>
+			<isEmpty property="schCrtfctId">
+				<!-- 인증서명 -->
+				<isNotEmpty property="schCrtfctNm">
+					AND CRTFCT_NM LIKE '%' || #schCrtfctNm# || '%'
+				</isNotEmpty>
+			</isEmpty>
+			<!-- 품목명 -->
+			<isNotEmpty property="schCrtfcPrdlst">
+			/*	AND CRTFC_PRDLST LIKE '%' || schCrtfcPrdlst || '%' */
+			</isNotEmpty>
+			<!-- 등록일 -->
+			<isNotEmpty property="calRegDate">
+				AND REG_DATE = #calRegDate#
+			</isNotEmpty>
+			<!-- 인증상태 -->
+			<isNotEmpty property="schCertStatCd">
+				AND CERT_STAT_CD = #schCertStatCd#
+			</isNotEmpty>
+
+		ORDER BY REG_DATE DESC
+		<include refid="pagingFooter"/>
+
+	</select>
+
+	<!-- 인증서명 목록 건수 -->
+	<select id="selectQltyCertNmTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(*) AS CNT
+			  FROM SC_GOODS_CRTFC_MAST
+		]]>
+	</select>
+
+	<!-- 인증서명 목록 조회 -->
+	<select id="selectQltyCertNmList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		<![CDATA[
+			SELECT CRTFCT_ID
+			     , CRTFCT_NM
+			  FROM SC_GOODS_CRTFC_MAST
+			 WHERE 1=1
+			 ]]>
+			   <isNotEmpty property="schCrtfctNm">
+			   	AND CRTFCT_NM like '%'|| #schCrtfctNm# ||'%'
+			   </isNotEmpty>
+			 ORDER BY REG_DATE DESC, CRTFCT_NM ASC
+
+		<include refid="pagingFooter"/>
+	</select>
+
+	<!-- 업체정보 상세 조회 -->
+	<select id="selectQltySuppInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT A.BCNC_NM                          /*거래처명*/
+			     , A.SUPP_COMP_ID                     /*공급업체코드*/
+			     , A.SUPP_COMP_DIV_CD                 /*공급업체분류명*/
+			     , A.COMPREG_NO                       /*사업자등록번호*/
+			     , A.SUPP_PO_ID                       /*공급국ID*/
+			     , (SELECT PAVLN_NM FROM CO_PAVLN_MAST M,CO_PAVLN_MGT G WHERE M.PAVLN_DIV_CD = G.PAVLN_DIV_CD AND G.SUPP_COMP_ID = A.SUPP_COMP_ID) AS PAVLN_NM
+			     , A.PRSDT_NM                         /*대표자명*/
+			     , A.CUST_NO                          /*고객번호*/
+			     , A.TELNO                            /*전화번호*/
+			     , A.FAXNO                            /*팩스번호*/
+			     , A.ZIPCD || ' ' || A.ADDR1 || ' ' || A.ADDR2  AS ADDR /*소재지*/
+			     , A.CNTRAC_DSUSE_YMD                 /*계약해지일자*/
+			     , A.CNTRAC_DSUSE_REASN               /*계약해지사유*/
+			     , SUBSTR(A.CNTRAC_STRT_YM ,1,4) || '-' || SUBSTR(A.CNTRAC_STRT_YM ,5,2) AS CNTRAC_DSUSE_YMD /*계약시작년월(가입년월)*/
+			  FROM CO_SUPP_COMP_MAST A
+			 WHERE A.SUPP_COMP_ID = #suppCompId#
+		]]>
+	</select>
+
+	<!-- 공급업체 건수 -->
+	<select id="selectQltySupplyTotCnt"  parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM CO_SUPP_COMP_MAST
+		 WHERE 1=1
+		 <isNotEmpty property="schSuppCond" >
+		 	<isEqual property="schSuppCond" compareValue="SUPP_NM">
+		 		AND BCNC_NM LIKE '%' || #searchSuppTxt# || '%'
+		 	</isEqual>
+		 	<isEqual property="schSuppCond" compareValue="SUPP_ID">
+		 		AND SUPP_COMP_ID = #searchSuppTxt#
+		 	</isEqual>
+		 	<isEqual property="schSuppCond" compareValue="BIZ_NO">
+		 		AND COMPREG_NO LIKE '%' || #searchSuppTxt# || '%'
+		 	</isEqual>
+		 </isNotEmpty>
+	</select>
+	<!-- 공급업체 조회 -->
+	<select id="selectQltySupplyList"  parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT SUPP_COMP_ID
+		     , BCNC_NM AS SUPP_COMP_NM
+		     , COMPREG_NO
+		  FROM CO_SUPP_COMP_MAST
+		 WHERE 1=1
+		 <isNotEmpty property="schSuppCond" >
+		 	<isEqual property="schSuppCond" compareValue="SUPP_NM">
+		 		AND BCNC_NM LIKE '%' || #searchSuppTxt# || '%'
+		 	</isEqual>
+		 	<isEqual property="schSuppCond" compareValue="SUPP_ID">
+		 		AND SUPP_COMP_ID = #searchSuppTxt#
+		 	</isEqual>
+		 	<isEqual property="schSuppCond" compareValue="BIZ_NO">
+		 		AND COMPREG_NO LIKE '%' || #searchSuppTxt# || '%'
+		 	</isEqual>
+		 </isNotEmpty>
+		 ORDER BY SUPP_COMP_ID
+		 <include refid="pagingFooter"/>
+	</select>
+
+	<!-- 상품목록 건수 -->
+	<select id="selectQltyGoodsTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+
+		SELECT COUNT(*) AS CNT
+		  FROM GD_MGT_GOODS_MAST
+		 WHERE SUPP_COMP_ID = #schSuppCompId#
+		 <isNotEmpty property="schGoodsCond" >
+		 	<isEqual property="schGoodsCond" compareValue="GOODS_NM">
+		 		AND GOODS_NM LIKE '%' || #searchGoodsTxt# || '%'
+		 	</isEqual>
+		 	<isEqual property="schGoodsCond" compareValue="GOODS_CD">
+		 		AND GOODS_CD = #searchGoodsTxt#
+		 	</isEqual>
+		 </isNotEmpty>
+
+	</select>
+	<!-- 상품목록 조회 -->
+	<select id="selectQltyGoodsList"  parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT GOODS_CD
+		     , GOODS_NM
+		  FROM GD_MGT_GOODS_MAST
+		 WHERE SUPP_COMP_ID = #suppCompId#
+		 <isNotEmpty property="schGoodsCond" >
+		 	<isEqual property="schGoodsCond" compareValue="GOODS_NM">
+		 		AND GOODS_NM LIKE '%' || #searchGoodsTxt# || '%'
+		 	</isEqual>
+		 	<isEqual property="schGoodsCond" compareValue="GOODS_CD">
+		 		AND GOODS_CD = #searchGoodsTxt#
+		 	</isEqual>
+		 </isNotEmpty>
+		 ORDER BY GOODS_CD
+		 <include refid="pagingFooter"/>
+	</select>
+
+	<!-- 인증서 건수 -->
+	<select id="selectQltyCertInfoTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+
+		SELECT COUNT(*) AS CNT
+		  FROM SC_GOODS_CRTFC_MAST
+		 WHERE 1=1
+		 <isNotEmpty property="schCertCond" >
+		 	<isEqual property="schCertCond" compareValue="CRTFCT_NM">
+		 		AND CRTFCT_NM LIKE '%' || #searchTxt# || '%'
+		 	</isEqual>
+		 	<isEqual property="schCertCond" compareValue="CRTFCT_ID">
+		 		AND CRTFCT_ID = #searchTxt#
+		 	</isEqual>
+		 </isNotEmpty>
+
+	</select>
+	<!-- 인증서목록 조회 -->
+	<select id="selectQltyCertInfoList"  parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+		SELECT CRTFCT_ID
+		     , CRTFCT_NM
+		     , CRTFC_OR_NM
+		     , CRTFC_PRDLST_CD
+		     , F_GET_COMN_CD_NM('CRTFC_PRDLST_CD', CRTFC_PRDLST_CD) AS CRTFC_PRDLST_NM
+		  FROM SC_GOODS_CRTFC_MAST
+		 WHERE 1=1
+		 <isNotEmpty property="schCertCond" >
+		 	<isEqual property="schCertCond" compareValue="CRTFCT_NM">
+		 		AND CRTFCT_NM LIKE '%' || #searchTxt# || '%'
+		 	</isEqual>
+		 	<isEqual property="schCertCond" compareValue="CRTFCT_ID">
+		 		AND CRTFCT_ID = #searchTxt#
+		 	</isEqual>
+		 </isNotEmpty>
+		 ORDER BY CRTFCT_ID
+		 <include refid="pagingFooter"/>
+	</select>
+
+	<select id="checkForinsertqltyCert" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) CNT
+		  FROM GD_MGT_GOODS_CRTFC
+		 WHERE GOODS_CD     = #goodsCd#
+		   AND CRTFCT_ID    = #crtfctId#
+	</select>
+
+	<!-- 인증서 저장 20160422_로그인Id 저장이 아닌 공급업체 ID 로 저장해야해서 수정 함_남복현-->
+	<insert id="insertQltyCert" parameterClass="java.util.HashMap" >
+		<![CDATA[
+			INSERT INTO GD_MGT_GOODS_CRTFC
+			(
+				  GOODS_CD
+				, CRTFCT_ID
+				, CRTFCT_SEQ
+				, VLD_TERM_STRT_YMD
+				, VLD_TERM_END_YMD
+				, CRTFC_OR_NM
+				, REG_DATE
+				, CHG_DATE
+				, REGER_ID
+				, CHGER_ID
+			)
+			VALUES
+			(
+				  #goodsCd#
+				, #crtfctId#
+				, ( SELECT NVL(MAX(CRTFCT_SEQ)+1,1)  FROM GD_MGT_GOODS_CRTFC WHERE GOODS_CD = #goodsCd# AND CRTFCT_ID = #crtfctId# )
+				, REPLACE( #vldTermStrtYmd#, '-', '')
+				, REPLACE( #vldTermEndYmd# , '-', '')
+				, #crtfcOrNm#
+				, SYSDATE
+				, SYSDATE
+				, #loginId#
+				, #loginId#
+			)
+		]]>
+	</insert>
+
+	<select id="selectCertGoodsSampleFile" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  T1.SUPP_COMP_ID, T2.GOODS_CD, T1.BCNC_NM, T2.GOODS_NM
+              FROM CO_SUPP_COMP_MAST T1
+                 , GD_MGT_GOODS_MAST T2
+             WHERE T1.SUPP_COMP_ID = T2.SUPP_COMP_ID
+               AND T1.SUPP_COMP_ID = #sampleSuppCompId#
+             ORDER BY T1.SUPP_COMP_ID, T2.GOODS_NM
+		]]>
+	</select>
+	<select id="selectCertMast" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT CRTFCT_ID
+			     , CRTFCT_NM
+			     , CRTFC_OR_NM
+			     , ISSUE_OR_NM
+			     , F_GET_COMN_CD_NM('CRTFC_PRDLST_CD', CRTFC_PRDLST_CD) AS CRTFC_PRDLST_NM
+                 , CRTFC_PRDLST_CD
+              FROM SC_GOODS_CRTFC_MAST
+             ORDER BY CRTFCT_ID, CRTFC_PRDLST_CD
+		]]>
+	</select>
+
+	<select id="checkExistSuppCompId" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(SUPP_COMP_ID) AS CNT
+              FROM CO_SUPP_COMP_MAST
+             WHERE SUPP_COMP_ID = #suppCompId#
+		]]>
+	</select>
+
+	<select id="checkExistCrtfctId" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[
+			SELECT COUNT(CRTFCT_ID) AS CNT
+              FROM SC_GOODS_CRTFC_MAST
+             WHERE CRTFCT_ID = #crtfctId#
+		]]>
+	</select>
+
+	<select id="selectPostName1" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	ECODE ecode, POSTNAME postname
+		FROM 	CF_POSTOFFICE
+		WHERE 	UPECODE= '-1'
+		ORDER BY POSTNAME
+	</select>
+
+	<select id="selectPostName2" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT ECODE, POSTNAME FROM CF_POSTOFFICE WHERE UPECODE = #ecode1# ORDER BY POSTNAME
+	</select>
+
+	<select id="selectPostName3" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT 	ECODE, POSTNAME
+		FROM 	CF_POSTOFFICE
+		WHERE 	UPECODE = #ecode2#
+		UNION
+		SELECT 	ECODE, POSTNAME
+		FROM 	CF_POSTOFFICE
+		WHERE 	ECODE = #ecode2#
+		ORDER BY POSTNAME
+	</select>
+
+
+	<sql id="selectAcInspSql_List">
+		SELECT	E.BCNC_NM
+					, C.CHECK_CODE
+					, SUBSTR(C.CHECK_YMD,0,4)||'-'|| SUBSTR(C.CHECK_YMD,5,2)||'-'||SUBSTR(C.CHECK_YMD,7,2) AS CHECK_YMD_DT
+					, C.CHECK_YMD
+					, C.SUPP_COMP_ID
+					, B.CHECK_ITEM
+					, C.HAB
+					, B.SUPPLIER_RANK
+					, B.CHECK_USER
+			FROM	(	SELECT SUPP_COMP_ID, CHECK_CODE, CHECK_YMD, SUM(CHECK_NUM) AS HAB
+						FROM SC_SUPPLIER_CHECK_ITEM
+						GROUP BY SUPP_COMP_ID, CHECK_CODE,CHECK_YMD
+					)C
+					, SC_SUPPLIER_CHECK B
+					, CO_SUPP_COMP_MAST E
+			WHERE	C.SUPP_COMP_ID=B.SUPP_COMP_ID
+			AND 	C.SUPP_COMP_ID= E.SUPP_COMP_ID
+			AND 	C.CHECK_CODE = B.CHECK_CODE
+			AND 	C.CHECK_YMD = B.CHECK_YMD
+			<isNotEmpty property="search_suppCompId" prepend="AND">
+				C.SUPP_COMP_ID = #search_suppCompId#
+			</isNotEmpty>
+			<isNotEmpty property="supplierRank" prepend="AND">
+				B.SUPPLIER_RANK = #supplierRank#
+			</isNotEmpty>
+			<isNotEmpty property="checkUser" prepend="AND">
+				B.CHECK_USER LIKE '%'||#checkUser#||'%'
+			</isNotEmpty>
+			<isNotEmpty property="suppoRgistPocd" prepend="AND">
+				E.SUPPO_RGIST_POCD = #suppoRgistPocd#	/*공급국*/
+			</isNotEmpty>
+			<isEmpty property="suppoRgistPocd">
+				<isNotEmpty property="postoffice" prepend="AND">
+					(SELECT HRNKORREGIPOCD FROM PICMT0060 WHERE REGIPOCD =  E.SUPPO_RGIST_POCD AND USEYN='Y' AND DSCDPOYN = 'N') = #postoffice#  /*총괄국*/
+				</isNotEmpty>
+				<isEmpty property="postoffice">
+					<isNotEmpty property="postname" prepend="AND">
+						(SELECT RCOCD FROM PICMT0060 WHERE REGIPOCD =  E.SUPPO_RGIST_POCD AND USEYN='Y' AND DSCDPOYN = 'N') = #postname# /*우정국*/
+					</isNotEmpty>
+				</isEmpty>
+			</isEmpty>
+	</sql>
+
+	<!-- 현지실사점검 LIST -->
+	<select id="selectAcInspList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT *
+				FROM ( SELECT
+							ROW_NUMBER () OVER (ORDER BY CHECK_YMD DESC) RNUM
+							, A.*
+					FROM (
+						SELECT A.*
+							FROM(
+							<include refid="selectAcInspSql_List" />
+							)A
+						) A
+					) A
+		<isNotEmpty property="firstIndex">
+			WHERE RNUM BETWEEN  #firstIndex# AND #lastIndex#
+		</isNotEmpty>
+	</select>
+	<!-- 현지실사점검 COUNT -->
+	<select id="selectAcInspListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT COUNT(*) AS CNT
+		  FROM (
+			<include refid="selectAcInspSql_List" />
+		  )
+	</select>
+
+	<!-- 현지실사 상세 1 -->
+	<select id="selectDetailList1" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	C.COU
+				, B.CHECK_CD1
+				, B.CHECK_CD2
+				, B.CHECK_NM1
+				, B.CHECK_NM2
+				, A.CHECK_NUM
+		FROM	SC_SUPPLIER_CHECK_CODE_M B , SC_SUPPLIER_CHECK_ITEM A
+				,( SELECT DISTINCT(COUNT(CHECK_NM1))AS COU
+				,CHECK_NM1
+				,CHECK_CD1
+		FROM	SC_SUPPLIER_CHECK_CODE_M
+		GROUP BY CHECK_NM1, CHECK_CD1)C
+		WHERE	A.CHECK_CD1 =B.CHECK_CD1
+		AND 	A.CHECK_CD2 =B.CHECK_CD2
+		AND 	C.CHECK_NM1 =B.CHECK_NM1
+		AND 	A.SUPP_COMP_ID = #suppCompId#
+		AND 	A.CHECK_YMD = REPLACE(#checkYmd#,'-','')
+		AND 	A.CHECK_CODE = #checkCode#
+	</select>
+
+	<!-- 현지실사 상세 1 등록시 -->
+	<select id="selectSuppCheckList1" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	B.CHECK_CD1
+				, B.CHECK_CD2
+				, B.CHECK_NM1
+				, B.CHECK_NM2
+		FROM	SC_SUPPLIER_CHECK_CODE_M B
+	</select>
+
+
+	<!-- 현지실사 상세 2 -->
+	<select id="selectDetailList2" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+		SELECT	B.BCNC_NM
+				, B.SUPP_COMP_ID
+				, C.CHECK_YMD
+				, SUBSTR(C.CHECK_YMD,0,4)||'-'|| SUBSTR(C.CHECK_YMD,5,2)||'-'||SUBSTR(C.CHECK_YMD,7,2) AS CHECK_YMD_DT
+				, C.CHECK_USER
+				, D.HAB
+				, C.INCONGRUITY_NUM
+				, C.SUPPLIER_RANK
+				, C.E_POST_YN
+				, C.CHECK_CODE
+				, C.CHECK_ITEM
+				,(SELECT COMN_CD_NM FROM CM_COMN_CD WHERE CD_GRP_ID='RCO_CD' AND COMN_CD_ID= (   SELECT  RCOCD  FROM PICMT0060 where  REGIPOCD = B.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' and rownum = 1)) AS RCONM
+				,(SELECT PONM FROM PICMT0060 WHERE  REGIPOCD = (SELECT HRNKORREGIPOCD FROM PICMT0060 WHERE REGIPOCD = B.SUPPO_RGIST_POCD AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1)  AND USEYN = 'Y' AND DSCDPOYN = 'N' AND ROWNUM = 1  ) AS HRNKPOSTOFFICE
+				,(SELECT PONM FROM PICMT0060 WHERE REGIPOCD = B.SUPPO_RGIST_POCD AND USEYN='Y' and DSCDPOYN = 'N'  and rownum = 1   )  AS POSTNAME
+		FROM	CO_SUPP_COMP_MAST B
+				, SC_SUPPLIER_CHECK C
+				, (	SELECT A.SUPP_COMP_ID, A.CHECK_CODE, A.CHECK_YMD, SUM(A.CHECK_NUM) AS HAB
+					FROM SC_SUPPLIER_CHECK_ITEM A
+					GROUP BY A.SUPP_COMP_ID
+							, A.CHECK_CODE
+							, A.CHECK_YMD )D
+		WHERE	B.SUPP_COMP_ID =  C.SUPP_COMP_ID
+		AND 	B.SUPP_COMP_ID = D.SUPP_COMP_ID
+		AND 	C.CHECK_CODE = D.CHECK_CODE
+		AND 	C.CHECK_YMD = D.CHECK_YMD
+		AND 	B.SUPP_COMP_ID = #suppCompId#
+		AND 	C.CHECK_CODE = #checkCode#
+		AND 	C.CHECK_YMD = REPLACE(#checkYmd#,'-','')
+	</select>
+	<!-- 현지실사 상세 3 -->
+	<select id="selectDetailList3" parameterClass="java.util.HashMap" resultClass="commMap">
+		SELECT	FILE_GB,
+		      	SEQ,
+		      	FILE_PATH,
+		      	FILE_NAME,
+		      	TO_CHAR(INS_DATE, 'YYYYMMDD') INS_DATE
+		FROM 	CF_SUPPLIER_CHECK_FILE
+		WHERE 	BIZ_CODE	= #bizCode#
+		AND 	CHECK_YMD	= REPLACE(#checkYmd#,'-','')
+		AND 	CHECK_CODE 	= #checkCode#
+		ORDER BY FILE_GB, SEQ
+	</select>
+
+	<!-- 현지실사 입력 1-->
+	<insert id="insertSuppCheckDtl" parameterClass="java.util.HashMap">
+		MERGE INTO SC_SUPPLIER_CHECK_ITEM
+					 USING DUAL
+						ON ( SUPP_COMP_ID = #suppCompId#
+							AND CHECK_YMD = REPLACE(#checkYmd#,'-','')
+							AND CHECK_CD1 = #checkCd1#
+							AND CHECK_CD2 = #checkCd2# )
+				WHEN MATCHED THEN
+					UPDATE SET
+						CHECK_NUM = NVL(#checkNum#,0)
+						,UDT_DATE = SYSDATE
+						,UDT_USER_ID = #loginId#
+				WHEN NOT MATCHED THEN
+				INSERT
+				(
+						SUPP_COMP_ID
+						,CHECK_CODE
+						,CHECK_YMD
+						,CHECK_CD1
+						,CHECK_CD2
+						,CHECK_NUM
+						,DEL_FLAG
+						,INS_DATE
+						,INS_USER_ID
+				)VALUES (
+						#suppCompId#
+						,'1'
+						,REPLACE(#checkYmd#,'-','')
+						,#checkCd1#
+						,#checkCd2#
+						,NVL(#checkNum#,0)
+						,'N'
+						,SYSDATE
+						,#loginId#
+				)
+	</insert>
+	<!-- 현지실사 입력 2-->
+	<insert id="insertSuppCheckDtl2" parameterClass="java.util.HashMap">
+		MERGE INTO SC_SUPPLIER_CHECK
+					 USING DUAL
+						ON ( SUPP_COMP_ID = #suppCompId#
+							AND CHECK_YMD = REPLACE(#checkYmd#,'-','') )
+				WHEN MATCHED THEN
+					UPDATE SET
+						SUPPLIER_RANK = #supplierRank#
+						,UDT_DATE = SYSDATE
+						,UDT_USER_ID = #loginId#
+				WHEN NOT MATCHED THEN
+				INSERT
+				(
+					SUPP_COMP_ID
+					,CHECK_CODE
+					,CHECK_YMD
+					,CHECK_ITEM
+					,CHECK_USER
+					,INCONGRUITY_NUM
+					,SUPPLIER_RANK
+					,BIGO
+					,DEL_FLAG
+					,INS_DATE
+					,INS_USER_ID
+					,E_POST_YN
+				)VALUES (
+					#suppCompId#
+					,'1'
+					,REPLACE(#checkYmd#,'-','')
+					,#checkItem#
+					,#checkUser#
+					,'0'
+					,#supplierRank#
+					,'--'
+					,'N'
+					,SYSDATE
+					,#loginId#
+					,#ePostYn#
+				)
+	</insert>
+
+</sqlMap>

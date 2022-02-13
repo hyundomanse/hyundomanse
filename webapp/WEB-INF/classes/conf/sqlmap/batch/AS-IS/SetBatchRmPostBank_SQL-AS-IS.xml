@@ -1,0 +1,1077 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.SetBatchRmPostBank">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="f_Select_Bank_Post15_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT DISTINCT  PURCHASE_ID as sPurchaseId
+                FROM TXORDER
+                WHERE COMPLETE_DATE >=  to_char(sysdate - 8,'yyyymmdd') and COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '999999'
+                  AND PAYMETHOD = 'B' 
+                  AND POST_GBN = 'P' 
+                  AND ACCESS_NAME <> ' '
+                  AND SHOP_ID = 1 and STATUS = '5' 
+                  AND CANCEL_STATE = 'N'
+                  AND POST_REG_DATE  is null
+               union all
+                SELECT DISTINCT  PURCHASE_ID 
+                FROM TXORDER
+                WHERE COMPLETE_DATE >=  to_char(sysdate - 8,'yyyymmdd') and COMPLETE_DATE <= to_char(sysdate,'yyyymmdd') || '999999'
+                  AND PAYMETHOD = 'B' 
+                  AND POST_GBN = 'P' 
+                  AND ACCESS_NAME <> ' '
+                  AND SHOP_ID  <> '1' 
+                  and STATUS in ('4','5')
+                  AND CANCEL_STATE = 'N'
+                  AND POST_REG_DATE  is null
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post15_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT SUM(CNT) as order_cnt , SUM(CNT2) as order_cnt2 
+            FROM (   
+              SELECT '1',count(*) cnt ,0 cnt2
+              FROM TXORDER
+              WHERE PURCHASE_ID = #sPurchaseId#
+                AND ((SHOP_ID = 1 and STATUS = '5' ) or ( SHOP_ID  <> '1' and STATUS in ('4','5')))
+                AND CANCEL_STATE = 'N'
+              UNION ALL
+              SELECT '2',0, count(*) cnt2
+              FROM TXORDER
+              WHERE PURCHASE_ID = #sPurchaseId#
+                AND CANCEL_STATE = 'N'
+           )
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post20" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			  SELECT DISTINCT  PURCHASE_ID 
+                FROM TXORDER
+                WHERE COMPLETE_DATE >= to_char(sysdate - 12,'yyyymmdd')  and COMPLETE_DATE <= to_char(sysdate - 9,'yyyymmdd') || '999999'
+                  AND PAYMETHOD = 'B' 
+                  AND POST_GBN = 'P' 
+                  AND ACCESS_NAME <> ' '
+                  AND CANCEL_STATE = 'N'
+                  AND POST_REG_DATE  is null
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			  SELECT MAX(SUBSTR(COMPLETE_DATE,1,8)) as sRegDate,
+					MAX(ACCESS_NAME) as sAccess_Name,
+					NVL(SUM(FLOOR(FEE_AMOUNT/10)),0) as iFeeAmount
+				FROM TXORDER
+				WHERE PURCHASE_ID = #sPurchaseId#
+				      AND PAYMETHOD = 'B' 
+				      AND POST_GBN = 'P' 
+				      AND ACCESS_NAME <> ' '
+				      AND CANCEL_STATE = 'N'
+				      AND POST_REG_DATE  is null
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			   SELECT NVL(CUR_POINT,0) as iCurPoint
+	          FROM RM_MASTER
+	          WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			   SELECT count(*) as iCnt 
+	        	      FROM RM_MASTER
+	        	      WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<insert id="insertRmMaster" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			   INSERT INTO RM_MASTER(ACCESS_NAME, CUR_POINT, POST_POINT,TOT_ACCU_POINT, TOT_USE_POINT, LASTCHANGE)
+        		    VALUES(#sAccessName#, #iFeeAmount# , #iFeeAmount#, #iFeeAmount#, 0, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'))
+		]]>	 
+	</insert>
+	
+	<update id="updateRmMaster" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			   UPDATE RM_MASTER
+	           	SET CUR_POINT             = NVL(CUR_POINT,0) +  #iFeeAmount#,
+	           	        TOT_ACCU_POINT = NVL(TOT_ACCU_POINT,0) + #iFeeAmount#,
+	           	        POST_POINT           = NVL(POST_POINT,0) + #iFeeAmount#,
+	           	        LASTCHANGE         = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+	           	WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</update>
+	
+	<select id="f_rm_master_insert4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			   SELECT  TXORDER_ID as sTxOrderId
+	                       ,NVL(FEE_AMOUNT - FLOOR(FEE_AMOUNT/10) * 10 ,0) as iCorPoint
+	                       ,NVL(FLOOR(FEE_AMOUNT/10),0)  as iRmPoint
+		       FROM TXORDER
+		       WHERE PURCHASE_ID =   #sPurchaseId#
+		             AND PAYMETHOD = 'B' 
+		             AND POST_GBN = 'P' 
+		             AND ACCESS_NAME <> ' '
+		             AND CANCEL_STATE = 'N'
+		             AND AMOUNT > 0
+		             AND POST_REG_DATE  is null
+		       ORDER BY  TXORDER_ID
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			   SELECT NVL(MAX(SEQ), 0) + 1 as iRmSeq
+               FROM RM_HISTORY
+               WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<insert id="insertRmHistory" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			   INSERT INTO RM_HISTORY ( ACCESS_NAME, 
+										SEQ,
+										RM_TYPE,
+										PURCHASE_ID,
+										TXORDER_ID, 
+										PRE_ACCU_POINT,
+										ACCU_POINT,
+										CUR_POINT,
+										COR_POINT,
+										CASE_CONT,
+										STATUS,
+										TYPE_CD,
+										REG_DATE,
+										CREATE_DATE ,
+										VALID_DATE,
+										JUNG_DATE,
+										POST_GBN
+										)
+				VALUES( nvl(#sAccessName#, ' '), 
+						#iRmSeq#, 
+						'A', 
+						#sPurchaseId#, 
+						#sTxOrderId#,
+						0,
+						#iRmPoint#,
+						#iCurPoint#,
+						#iCorPoint#,
+						'우체국계좌 적립포인트',
+						'1',
+						'A1', 
+						TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+						TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+						TO_CHAR(ADD_MONTHS(SYSDATE, 24), 'YYYYMMDD'),
+						#sRegDate#,
+						'P'
+						)
+		]]>	 
+	</insert>
+	
+	<update id="updateTxOrder" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			   UPDATE TXORDER
+               SET POST_REG_DATE = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+               WHERE PURCHASE_ID = #sPurchaseId#
+                     AND  TXORDER_ID = #sTxOrderId#
+		]]>	 
+	</update>
+	
+	<select id="f_Select_Bank_Post_NonMem1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			   SELECT to_number(to_char(sysdate,'dd'))   as iDay  from dual
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_NonMem2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			   SELECT  count(*) cnt as iJungCnt
+                 FROM    history_adjust
+                 WHERE   END_DAY = to_char(last_day(add_months(sysdate,-1)),'yyyy/mm/dd')
+                       AND    TRANS_DAY IS NOT NULL
+                       AND    ROWNUM = 1 
+		]]>	 
+	</select>
+	
+	<delete id="deleteRmHistory" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			   DELETE  FROM RM_HISTORY 
+               WHERE JUNG_DATE  LIKE to_char(add_months(sysdate, - 1),'yyyymm') || '%' 
+               AND CASE_CONT = '기부임시'
+               AND ACCESS_NAME = #sAccessName#
+		]]>	 
+	</delete>
+	
+	<select id="f_Select_Bank_Post_NonMem3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(SUM(FEE_AMOUNT_POINT_COR + FEE_AMOUNT_NOMEM + FEE_AMOUNT_CANCEL) ,0) as iTotFeeAmount
+				FROM (
+						SELECT '1',NVL(SUM(A.FEE_AMOUNT - FLOOR(A.FEE_AMOUNT/10) * 10 ),0)  FEE_AMOUNT_POINT_COR , 0 FEE_AMOUNT_NOMEM ,0 FEE_AMOUNT_CANCEL
+						FROM TXORDER A,BANKTOWN C
+						WHERE A.PURCHASE_ID = C.PURCHASE_ID
+						AND  C.RESULT   = 1
+						AND  A.POST_GBN = 'P'
+						AND  A.AMOUNT > 0
+						AND  A.ORDER_DATE  like to_char(add_months(sysdate, - 1),'yyyymm') || '%'
+						GROUP BY A.PURCHASE_ID
+						UNION ALL
+						SELECT '2',0,NVL(SUM(FLOOR(FEE_AMOUNT/10) * 10),0),0  
+						FROM TXORDER A,BANKTOWN C
+						WHERE A.PURCHASE_ID = C.PURCHASE_ID
+						AND  C.RESULT   = 1
+						AND  A.POST_GBN = 'P'
+						AND  A.AMOUNT > 0
+						AND  A.ACCESS_NAME = ' '
+						AND  A.ORDER_DATE  like to_char(add_months(sysdate, - 1),'yyyymm') || '%'
+						GROUP BY A.PURCHASE_ID
+						UNION ALL
+						SELECT '3',0,0,NVL(SUM(FLOOR(FEE_AMOUNT/10) * 10),0)    
+						FROM TXORDER A,BANKTOWN C
+						WHERE A.PURCHASE_ID = C.PURCHASE_ID
+						AND  C.RESULT   = 1
+						AND  A.POST_GBN = 'P'
+						AND  A.AMOUNT > 0
+						AND  A.CANCEL_STATE = 'Y'
+						AND  A.ACCESS_NAME <>  ' '
+						AND  A.ORDER_DATE  like to_char(add_months(sysdate, - 1),'yyyymm') || '%'
+						GROUP BY A.PURCHASE_ID
+				)
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_NonMem4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT  NVL(SUM(NVL(GIVE_USE_SHOP_POINT,0)),0) as iGiveUseShopPoint, 
+                        NVL(SUM(DECODE(JOBGBN,'02',0,NVL(REF_POINT,0))),0) as iRefPoint
+                FROM RM_HISTORY
+                WHERE JUNG_DATE  LIKE to_char(add_months(sysdate, - 1),'yyyymm') || '%'
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_NonMem5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			    SELECT NVL(SUM(DECODE(TYPE_CD,'U1',NVL(POST_USE_POINT,0) * 10 ,0)),0) as iGiveUsePoint1
+                FROM RM_HISTORY A, MEMINFO B
+                WHERE A.ACCESS_NAME = B.ACCESS_NAME
+                AND A.JUNG_DATE  like  to_char(add_months(sysdate, - 1),'yyyymm') || '%'  
+                AND A.POST_GBN = 'P'
+                AND NVL(A.JOBGBN,'03') <> '01'
+                AND  A.CASE_CONT ='기부' AND NVL(A.POST_USE_POINT,0) > 0
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_NonMem6" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT count(*) as iBizCnt
+                FROM CBIZ_MASTER
+                WHERE CBIZ_TYPE = '01'
+                AND STOP_DATE IS NULL
+                AND CBIZ_GBN in('2','3')
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_NonMem7" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT count(*) as iGiveCnt
+                FROM RM_HISTORY
+                WHERE JUNG_DATE  LIKE to_char(add_months(sysdate, - 1),'yyyymm') || '%' 
+                AND CASE_CONT = '기부임시'
+                AND ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<update id="updateRmHistory" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				UPDATE RM_HISTORY 
+                SET CASE_CONT = '기부' 
+                WHERE JUNG_DATE  LIKE to_char(add_months(sysdate, - 1),'yyyymm') || '%' 
+                AND CASE_CONT = '기부임시'
+                AND ACCESS_NAME = #sAccessName#
+		]]>	 
+	</update>
+	
+	<select id="f_Select_Bank_Give" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT CBIZ_CODE as sBizCode
+                FROM CBIZ_MASTER
+                WHERE CBIZ_TYPE = '01'
+                AND STOP_DATE IS NULL
+                AND CBIZ_GBN in('2','3')
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_give_insert" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(MAX(SEQ), 0) + 1 as iRmSeq
+	        	FROM RM_HISTORY
+	        	WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<insert id="insertRmHistoryGiv" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO RM_HISTORY
+				(
+					ACCESS_NAME,
+					SEQ,
+					RM_TYPE,
+					USE_POINT,
+					COR_POINT,
+					CUR_POINT,
+					CASE_CONT,
+					STATUS,
+					TYPE_CD,
+					REG_DATE,
+					CREATE_DATE,
+					CBIZ_CODE,
+					POST_GBN,
+					JUNG_DATE,
+					JOBGBN
+				)
+				VALUES
+				(
+					nvl(#sAccessName#, ' '),
+					#iRmSeq#,
+					'U',
+					nvl(#iUsePoint#, 0),
+					nvl(#iCorPoint#, 0),
+					0,
+					'기부임시',
+					'2',
+					'U1',
+					TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+					TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+					#sBizCode#,
+					'P',
+					to_char(last_day(add_months(sysdate,-1)),'yyyymmdd'),
+					decode(#sJobGbn#,'02','02','03')
+				)
+		]]>	 
+	</insert>
+	
+	<select id="f_Select_Bank_Post_Jung1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT TO_CHAR(TO_DATE(START_DAY, 'YYYY/MM/DD'), 'YYYYMMDD') as sStart_Day
+	                 , TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD'), 'YYYYMMDD') as sEnd_Day
+	                 , TO_NUMBER(TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD')+1, 'DD'))   as iStartNextDD
+	                 , TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD')+1, 'YYYYMMDD')   as sStartNextDay
+	                 , TO_CHAR(TO_DATE(END_DAY, 'YYYY/MM/DD')+10, 'YYYYMMDD')  as sEndNextDay
+	                 , TO_CHAR(last_day(TO_DATE(END_DAY, 'YYYY/MM/DD')+1), 'YYYYMMDD')  as sEndNextLastDay
+	            FROM (
+					  SELECT MAX(START_DAY) START_DAY, MAX(END_DAY) END_DAY  
+					  FROM HISTORY_ADJUST
+					  WHERE SUPP_ADJ_YN = 'Y'
+				     )
+		]]>	 
+	</select>
+	
+	<delete id="deleteBANK_POST_STAT" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				DELETE
+		         FROM   BANK_POST_STAT
+		         WHERE  FROM_DATE >= #sStartNextDay#
+		              AND   FROM_DATE <= #sEndNextDay#
+		              AND  GBN = '03'
+		]]>	 
+	</delete>
+	
+	<select id="f_Select_Bank_Post_Jung2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT 
+						NVL(SUM(DECODE(TYPE_CD,'A1',NVL(ACCU_POINT,0) * 10 ,0)),0) as iAccuPoint,
+						NVL(SUM(DECODE(TYPE_CD,'U1',NVL(POST_USE_POINT,0) * 10 ,0)),0) as iPostAmount,
+						NVL(SUM(DECODE(CBIZ_CODE , null,0,DECODE(TYPE_CD,'U1',   DECODE(NVL(POST_USE_POINT,0) , 0,  NVL(USE_POINT,0)  * 10  + NVL(COR_POINT,0) ,0)   ,0))),0) as iGivePoint,
+						NVL(SUM(GIVE_USE_SHOP_POINT),0) as iGiveUsePoint,
+						NVL(SUM(REF_POINT),0) as iRefPoint 
+				FROM 
+						RM_HISTORY A
+				WHERE 
+						A.JUNG_DATE like  #sStartNextDay# || '%'
+					AND A.POST_GBN = 'P'
+					AND NVL(JOBGBN,'03') = '03'
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_Jung3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT 
+						NVL(SUM(DECODE(TYPE_CD,'U1',NVL(POST_USE_POINT,0) * 10 ,0)),0) as iGiveUsePoint1
+                FROM 
+                		RM_HISTORY A, MEMINFO B
+                WHERE 
+                		A.ACCESS_NAME = B.ACCESS_NAME
+					AND A.JUNG_DATE  like  #sStartNextDay# || '%'
+					AND A.POST_GBN = 'P'
+					AND NVL(A.JOBGBN,'03') <> '01'
+					AND A.CASE_CONT ='기부' AND NVL(A.POST_USE_POINT,0) > 0
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_Jung4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT 
+						nvl(sum(nvl(POST_AMOUNT,0)),0) as iPostAmount
+		        FROM 
+		        		TXORDER
+		        WHERE 
+		        		COMPLETE_DATE like  #sStartNextDay# || '%' 
+		        	AND CANCEL_STATE = 'N'
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_Jung5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT 
+						NVL(SUM(FEE_AMOUNT),0) as iFeeAmount
+	            FROM ( 
+						SELECT /*+ LEADING(A) INDEX( A TXORDER_IX11) */
+								A.PURCHASE_ID,  SUM(A.FEE_AMOUNT) FEE_AMOUNT
+						FROM TXORDER A,BANKTOWN C 
+						WHERE 
+								 A.PURCHASE_ID = C.PURCHASE_ID
+							AND  C.RESULT   = 1
+							AND  A.AMOUNT > 0
+							AND  A.POST_GBN = 'P'
+							AND  A.ORDER_DATE  like #sStartNextDay# || '%'
+						GROUP BY A.PURCHASE_ID
+	           )
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Post_Jung6" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				select nvl(sum(fee_amount_point),0) as iAccuPoint
+			  from (
+			     SELECT /*+ LEADING(A) INDEX( A TXORDER_IX11) */
+			             A.PURCHASE_ID PURCHASE_ID,
+			             NVL(SUM(FLOOR(A.FEE_AMOUNT /10) * 10 ),0) FEE_AMOUNT_POINT
+			     FROM TXORDER A,BANKTOWN C
+			     WHERE A.PURCHASE_ID = C.PURCHASE_ID
+			       AND  C.RESULT   = 1
+			       AND  A.POST_GBN = 'P'
+			       AND  A.AMOUNT > 0
+			       and a.ACCESS_NAME <> ' '
+			       AND  A.ORDER_DATE  like #sStartNextDay# || '%'
+			     GROUP BY A.PURCHASE_ID
+			  )
+		]]>	 
+	</select>
+	
+	<insert id="insertBANK_POST_STAT" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO BANK_POST_STAT(
+											FROM_DATE,
+											TO_DATE,
+											GBN,
+											TOT_ACCU_POINT,
+											ACCU_POINT,
+											FEE_AMOUNT,
+											TOT_USE_POINT,
+											USE_POINT,
+											GIVE_POINT,
+											REF_POINT,
+											STAT_POINT,
+											STATUS,
+											TRANS_DATE,
+											CREATE_DATE,
+											REG_ID,
+											TOT_FEE_AMOUNT,
+											TOT_GIVE_POINT,
+											GIVE_USE_POINT
+											)
+					SELECT 
+							#sStartNextDay#,
+							#sStartNextDay#,
+							'03',
+							0,
+							#iAccuPoint#,
+							#iFeeAmount#,
+							0,
+							#iPostAmount#,
+							#iGivePoint#,
+							#iRefPoint#,
+							#iPostAmount# + #iGivePoint#,
+							'01',
+							TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+							TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+							'batch',
+							0,
+							0,
+							#iGiveUsePoint#
+					FROM DUAL
+		]]>	 
+	</insert>
+	
+	<select id="f_Select_Bank_Post_Jung_Date1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				select 
+						b.purchase_id as sPurchaseId,
+						max(substr(b.complete_date,1,8)) as sJungDay 
+				from 
+						rm_history a , txorder b
+				where 
+						1=1
+					and a.purchase_id = b.purchase_id 
+					and a.REG_DATE >= to_char(sysdate-2,'yyyymmdd')
+					and substr(a.jung_date,1,8) <> substr(b.complete_date,1,8)
+				group by  b.purchase_id
+		]]>	 
+	</select>
+	
+	<update id="updateRmHistoryDate" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				UPDATE rm_history
+				SET jung_date = #sJungDay#
+				WHERE purchase_id = #sPurchaseId#
+		]]>	 
+	</update>
+	
+	<select id="f_Select_Bank_Escrow15_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT  
+						DISTINCT A.ORD_NO as sOrdNo
+				FROM 
+						ESC_ORDER M, ESC_ORDER_DET A, ESC_ADJ_LDG C
+				WHERE 
+						M.ORD_NO = A.ORD_NO
+					AND A.TRN_NO = C.TRN_NO
+					AND C.ADJ_TGT_TP = 'AA'
+					AND M.TRN_DATE BETWEEN TO_CHAR(SYSDATE - 40,'YYYYMMDD') || '000000' AND TO_CHAR(SYSDATE,'YYYYMMDD') || '235959'
+					AND C.ADJ_FG IN ('M','R','B','T','S','F')
+					AND M.STL_TP_CODE = 'SAC1'    /*계좌이체*/
+					AND M.POST_YN = 'Y'           /*우체국금융*/
+					AND A.POST_ACCU_DATE IS NULL  /*미적립*/
+					AND NOT EXISTS  (             /*환불(C) 제외*/
+										SELECT 1 
+										FROM ESC_TRN_AD_LDG G 
+										WHERE G.TRN_NO = A.TRN_NO 
+									)
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Escrow15_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT 
+						SUM(CNT) as order_cnt , SUM(CNT2) as order_cnt2
+				FROM (   
+						SELECT  
+								'1',count(*) cnt ,0 cnt2
+						FROM 
+								ESC_ORDER M, ESC_ORDER_DET A, ESC_ADJ_LDG C
+						WHERE 
+								M.ORD_NO = A.ORD_NO
+							AND M.ORD_NO = :sOrdNo
+							AND A.TRN_NO = C.TRN_NO
+							AND C.ADJ_TGT_TP = 'AA'
+							AND C.ADJ_FG IN ('M','R','B','T','S','F')
+							AND NOT EXISTS  (     
+												SELECT 1 FROM ESC_TRN_AD_LDG G 
+												WHERE G.TRN_NO = A.TRN_NO   
+											)
+						UNION ALL     
+						SELECT  
+								'2',0, count(*) cnt2
+						FROM 
+								ESC_ORDER M, ESC_ORDER_DET A
+						WHERE 
+								M.ORD_NO = A.ORD_NO
+							AND M.ORD_NO = #sOrdNo#
+							AND NOT EXISTS  (     
+												SELECT 1 FROM ESC_TRN_AD_LDG G 
+												WHERE G.TRN_NO = A.TRN_NO  
+											)
+					)
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert_escrow1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT  MAX(STL_DATE) as sRegDate, 
+						MAX(BUY_ID) as sAccess_Name, 
+						NVL(SUM(FLOOR(TRUNC(ST/10)*10)/10),0) as iFeeAmount      /*적립포인트*/
+				FROM (
+						SELECT  SUBSTR(M.STL_DATE,1,8) STL_DATE, 
+								M.BUY_ID, 
+								TRUNC(A.PAY_AMT * 0.0128)  AS ST    
+						FROM ESC_ORDER M, ESC_ORDER_DET A, ESC_ADJ_LDG C
+						WHERE   M.ORD_NO = A.ORD_NO
+							AND M.ORD_NO = #sOrdNo#
+							AND A.TRN_NO = C.TRN_NO
+							AND M.ORD_NO = C.ORD_NO
+							AND C.ADJ_TGT_TP = 'AA'
+							AND C.ADJ_FG IN ('M','R','B','T','S','F')
+							AND M.STL_TP_CODE = 'SAC1'    /*계좌이체*/
+							AND M.POST_YN = 'Y'           /*우체국금융*/
+							AND A.POST_ACCU_DATE IS NULL  /*미적립*/
+							AND NOT EXISTS  (             /*환불(C) 제외*/
+												SELECT 1 
+												FROM ESC_TRN_AD_LDG G 
+												WHERE G.TRN_NO = A.TRN_NO 
+											)
+					)
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert_escrow2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(CUR_POINT,0) as iCurPoint
+				FROM RM_MASTER
+				WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert_escrow3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				 SELECT count(*)  as iCnt 
+        	      FROM RM_MASTER
+        	      WHERE ACCESS_NAME = #sAccess_Name#
+		]]>	 
+	</select>
+	
+	<insert id="insertRmMasterEscrow" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				 INSERT INTO RM_MASTER	(
+											ACCESS_NAME, 
+											CUR_POINT, 
+											POST_POINT,
+											TOT_ACCU_POINT, 
+											TOT_USE_POINT, 
+											LASTCHANGE
+										)
+				VALUES	(
+							#sAccess_Name#, 
+							#iFeeAmount#, 
+							#iFeeAmount#, 
+							#iFeeAmount#, 
+							0, 
+							TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+						)
+		]]>	 
+	</insert>
+	
+	<update id="updateRmMasterEscrow" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				UPDATE  RM_MASTER
+				SET 
+						CUR_POINT     = NVL(CUR_POINT,0) +  #iFeeAmount#,
+						TOT_ACCU_POINT    = NVL(TOT_ACCU_POINT,0) + #iFeeAmount#,
+						POST_POINT        = NVL(POST_POINT,0) + #iFeeAmount#,
+						LASTCHANGE        = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+				WHERE 
+						ACCESS_NAME = #sAccessName#
+		]]>	 
+	</update>
+	
+	<select id="f_rm_master_insert_escrow4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT   
+						TRN_NO as sTrnNo
+						,NVL((ST - (TRUNC(ST/10)*10)),0) as iCorPoint            /*보정포인트*/
+						,NVL(FLOOR((TRUNC(ST/10)*10)/10),0) as iRmPoint        /*적립포인트*/
+				FROM
+				(
+					SELECT /*+ LEADING(M) INDEX(M) */
+							A.TRN_NO
+							, A.ORD_NO
+							, A.PAY_AMT
+							, M.BUY_ID
+							, C.ADJ_PAY_TP
+							, TRUNC(A.PAY_AMT * 0.0128) AS ST    /*결제수수료*/
+					FROM 
+							ESC_ORDER M, ESC_ORDER_DET A, ESC_ADJ_LDG C
+					WHERE 
+							M.ORD_NO =  #sOrdNo#
+						AND M.ORD_NO = A.ORD_NO
+						AND A.TRN_NO = C.TRN_NO
+						AND M.ORD_NO = C.ORD_NO
+						AND C.ADJ_TGT_TP = 'AA'
+						AND C.ADJ_FG IN ('M','R','B','T','S','F')
+						AND M.STL_TP_CODE = 'SAC1'
+						AND M.POST_YN = 'Y'         /*우체국금융*/
+						AND A.POST_ACCU_DATE IS NULL  /*미적립*/
+						AND NOT EXISTS  (             /*환불(C) 제외*/
+											SELECT 1 
+											FROM ESC_TRN_AD_LDG G 
+											WHERE G.TRN_NO = A.TRN_NO 
+										)
+				) ORDER BY TRN_NO
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert_escrow5" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(MAX(SEQ), 0) + 1 as iRmSeq
+                FROM RM_HISTORY
+                WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<select id="f_rm_master_insert_escrow6" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(MBR_CATGR_TP,'GC') as goodsCatgrTp
+				FROM ESC_ORDER_DET A, ESC_MBR_ESC_LDG_TBL B
+				WHERE 	A.SELL_ID = B.MBR_ID
+					AND A.TRN_NO = #sTrnNo#
+		]]>	 
+	</select>
+	
+	<insert id="insertRmHistoryEscrow" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO RM_HISTORY (
+											ACCESS_NAME, 
+											SEQ, 
+											RM_TYPE, 
+											PURCHASE_ID, 
+											TXORDER_ID, 
+											PRE_ACCU_POINT, 
+											ACCU_POINT, 
+											CUR_POINT, 
+											COR_POINT,
+											CASE_CONT, 
+											STATUS, 
+											TYPE_CD,
+											REG_DATE, 
+											CREATE_DATE , 
+											VALID_DATE,
+											JUNG_DATE,
+											POST_GBN,
+											JOBGBN,
+											ESCROW_GBN
+										)
+				VALUES(
+							nvl(#sAccess_Name#, ' '), 
+							#iRmSeq#, 
+							'A', 
+							#sOrdNo#, 
+							#sTrnNo#,
+							0,
+							#iRmPoint#,
+							#iCurPoint#, 
+							#iCorPoint#,
+							'우체국계좌 적립포인트', 
+							'1', 
+							'A1', 
+							TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'), 
+							TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') ,
+							TO_CHAR(ADD_MONTHS(SYSDATE, 24), 'YYYYMMDD'), 
+							TO_CHAR(SYSDATE, 'YYYYMMDD'),
+							'P',
+							'02', 
+							#goodsCatgrTp#
+					  )
+		]]>	 
+	</insert>
+	
+	<update id="updateRmHistoryEscrow" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				UPDATE ESC_ORDER_DET
+                SET POST_ACCU_DATE = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+                WHERE ORD_NO = #sOrdNo#
+                 AND  TRN_NO = #sTrnNo#
+		]]>	 
+	</update>
+	
+	<select id="f_Select_Bank_Escrow_NonMem1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(SUM(FEE_AMOUNT_POINT_COR + FEE_AMOUNT_NOMEM + FEE_AMOUNT_CANCEL) ,0) as iTotFeeAmount
+                   FROM (
+                          SELECT   '1' 
+                                  , SUM(ST - (TRUNC(ST/10)*10)) FEE_AMOUNT_POINT_COR  /*금일 적립에 대한 보정포인트(취소에 대한 부분은 처리전이므로 추출안됨)*/
+                                  , 0 FEE_AMOUNT_NOMEM  
+                                  , 0 FEE_AMOUNT_CANCEL
+                                  , ORD_NO
+                          FROM
+                          (
+                                SELECT /*+ LEADING(M) INDEX(M) */
+                                           A.TRN_NO
+                                         , A.ORD_NO
+                                         , A.PAY_AMT
+                                         , C.ADJ_PAY_TP
+                                         , TRUNC(A.PAY_AMT * 0.0128) AS ST    /*결제수수료*/
+                                FROM ESC_ORDER M, ESC_ORDER_DET A, ESC_ADJ_LDG C
+                                WHERE M.ORD_NO = A.ORD_NO
+                                  AND A.TRN_NO = C.TRN_NO
+                                  AND M.ORD_NO = C.ORD_NO
+                                  AND A.POST_ACCU_DATE LIKE TO_CHAR(SYSDATE,'YYYYMMDD')||'%'
+                                  AND C.ADJ_TGT_TP = 'AA'
+                                  AND C.ADJ_FG IN ('M','R','B','T','S','F')
+                                  AND M.STL_TP_CODE = 'SAC1'
+                                  AND M.POST_YN = 'Y'                 /*우체국금융*/
+                                  AND A.POST_ACCU_DATE IS NOT NULL    /*적립완료*/
+                          )     
+                          GROUP BY ORD_NO
+                          UNION ALL
+                          SELECT   '2' 
+                                  , SUM(ST - (TRUNC(ST/10)*10)) FEE_AMOUNT_POINT_COR        /*금일 취소건에 대한 보정포인트 */
+                                  , 0  
+                                  , SUM(FLOOR(CASE WHEN ADJ_PAY_TP = 'SA' THEN 0            /*(정상거래)*/
+                                             WHEN ADJ_PAY_TP IN ('RC','RR') THEN (TRUNC(ST/10)*10)   /*(취소+반폼)*/
+                                        END)) CAN_PNT                                  /*부분취소포인트*/
+                                  , ORD_NO
+                          FROM
+                          (
+                                SELECT /*+ LEADING(M) INDEX(M) */
+                                           A.TRN_NO
+                                         , A.ORD_NO
+                                         , A.PAY_AMT
+                                         , C.ADJ_PAY_TP
+                                         , TRUNC(A.PAY_AMT * 0.0128) AS ST    /*결제수수료*/
+                                FROM ESC_ORDER M, ESC_ORDER_DET A, ESC_ADJ_LDG C
+                                WHERE M.ORD_NO = A.ORD_NO
+                                  AND A.TRN_NO = C.TRN_NO
+                                  AND M.ORD_NO = C.ORD_NO
+                                  AND M.TRN_DATE BETWEEN TO_CHAR(SYSDATE - 40,'YYYYMMDD') || '000000' AND TO_CHAR(SYSDATE,'YYYYMMDD') || '235959'
+                                  AND C.ADJ_TGT_TP = 'AA'
+                                  AND C.ADJ_FG IN ('M','R','B','T','S','F')
+                                  AND M.STL_TP_CODE = 'SAC1'
+                                  AND A.POST_ACCU_DATE IS NULL
+                                  AND M.POST_YN = 'Y'               /*우체국금융*/
+                                  AND EXISTS  (                     /*환불(C) */
+                                                SELECT 1 FROM ESC_TRN_AD_LDG G 
+                                                WHERE G.TRN_NO = A.TRN_NO 
+                                                )
+                          )     
+                          GROUP BY ORD_NO
+                 )
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Escrow_NonMem2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT  NVL(SUM(NVL(GIVE_USE_POINT,0)),0) as iGiveUseShopPoint, 
+                        NVL(SUM(DECODE(JOBGBN,'02',NVL(REF_POINT,0),0)),0) as iRefPoint
+                FROM RM_HISTORY
+                WHERE JUNG_DATE  LIKE TO_CHAR(SYSDATE,'YYYYMMDD')
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Escrow_NonMem3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT count(*) as iBizCnt
+				FROM CBIZ_MASTER
+				WHERE 	CBIZ_TYPE = '01'
+					AND STOP_DATE IS NULL
+					AND CBIZ_GBN in('2','3')
+		]]>	 
+	</select>
+	
+	<select id="f_Update_Escrow_Det" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT  TRN_NO as sTrnNo
+	        	FROM
+	        	(
+	        	      SELECT /*+ LEADING(M) INDEX(M) */
+	        	                 A.TRN_NO
+	        	               , A.ORD_NO
+	        	               , A.PAY_AMT
+	        	               , C.ADJ_PAY_TP
+	        	               , TRUNC(A.PAY_AMT * 0.0128) AS ST    /*결제수수료*/
+	        	      FROM ESC_ORDER M, ESC_ORDER_DET A, ESC_ADJ_LDG C
+	        	      WHERE M.ORD_NO = A.ORD_NO
+	        	        AND A.TRN_NO = C.TRN_NO
+	        	        AND M.ORD_NO = C.ORD_NO
+	        	        AND M.TRN_DATE BETWEEN TO_CHAR(SYSDATE - 40,'YYYYMMDD') || '000000' AND TO_CHAR(SYSDATE,'YYYYMMDD') || '235959'
+	        	        AND C.ADJ_TGT_TP = 'AA'
+	        	        AND C.ADJ_FG IN ('M','R','B','T','S','F')
+	        	        AND M.STL_TP_CODE = 'SAC1'
+	        	        AND A.POST_ACCU_DATE IS NULL
+	        	        AND M.POST_YN = 'Y'               /*우체국금융*/
+	        	        AND EXISTS  (                     /*환불(C) */
+	        	                      SELECT 1 FROM ESC_TRN_AD_LDG G 
+	        	                      WHERE G.TRN_NO = A.TRN_NO 
+	        	                      )
+	        	)     
+	        	GROUP BY TRN_NO
+		]]>	 
+	</select>
+	
+	<update id="updateESC_ORDER_DET" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				UPDATE ESC_ORDER_DET
+		        SET POST_ACCU_DATE = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+		        WHERE TRN_NO = #sTrnNo#
+		]]>	 
+	</update>
+	
+	<select id="f_rm_master_give_insert_Escrow" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(MAX(SEQ), 0) + 1 as iRmSeq
+	        	FROM RM_HISTORY
+	        	WHERE ACCESS_NAME = #sAccessName#
+		]]>	 
+	</select>
+	
+	<insert id="insertRmHistoryGiveEscrow" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO RM_HISTORY
+            		(
+            			ACCESS_NAME,
+            			SEQ,
+            			RM_TYPE,
+            			USE_POINT,
+            			COR_POINT,
+            			CUR_POINT,
+            			CASE_CONT,
+            			STATUS,
+            			TYPE_CD,
+            			REG_DATE,
+            			CREATE_DATE,
+            			CBIZ_CODE,
+            			POST_GBN,
+            			JUNG_DATE,
+            			JOBGBN,
+            			ESCROW_GBN
+            		)
+            	VALUES
+            		(
+            			nvl(#sAccessName#, ' '),
+            			#iRmSeq#,
+            			'U',
+            			nvl(#iUsePoint#, 0),
+            			nvl(#iCorPoint#, 0),
+            			0,
+            			'기부',
+            			'2',
+            			'U1',
+            			TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+            			TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+            			#sBizCode#,
+            			'P',
+            			TO_CHAR(SYSDATE, 'YYYYMMDD'),
+            			'02',
+            			'GC'
+            		)
+		]]>	 
+	</insert>
+	
+	<select id="f_Select_Bank_Escrow_Jung1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT TO_CHAR(sysdate-5,'YYYYMMDD') as sStartNextDay
+				FROM DUAL
+				UNION ALL
+				SELECT TO_CHAR(sysdate-4,'YYYYMMDD') as sStartNextDay
+				FROM DUAL
+				UNION ALL
+				SELECT TO_CHAR(sysdate-3,'YYYYMMDD') as sStartNextDay
+				FROM DUAL
+				UNION ALL
+				SELECT TO_CHAR(sysdate-2,'YYYYMMDD') as sStartNextDay
+				FROM DUAL
+				UNION ALL
+				SELECT TO_CHAR(sysdate-1,'YYYYMMDD') as sStartNextDay
+				FROM DUAL
+				UNION ALL
+				SELECT TO_CHAR(sysdate,'YYYYMMDD') as sStartNextDay
+				FROM DUAL
+		]]>	 
+	</select>
+	
+	<delete id="deleteBANK_POST_STAT_Escrow" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				DELETE
+                  FROM  BANK_POST_STAT
+                 WHERE  FROM_DATE like :sStartNextDay || '%'
+                   AND  GBN = '02'
+		]]>	 
+	</delete>
+	
+	<select id="f_Select_Bank_Escrow_Jung2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT 
+						NVL(SUM(DECODE(TYPE_CD,'A1',NVL(ACCU_POINT,0) * 10 ,0)),0) as iAccuPoint,
+						NVL(SUM(DECODE(TYPE_CD,'U1',NVL(POST_USE_POINT,0) * 10 ,0)),0) as iPostAmount,
+						NVL(SUM(DECODE(CBIZ_CODE , null,0,DECODE(TYPE_CD,'U1', NVL(USE_POINT,0) * 10  + NVL(COR_POINT,0),0))),0)  as iGivePoint,
+						NVL(SUM(GIVE_USE_SHOP_POINT),0) as iGiveUsePoint,
+						NVL(SUM(REF_POINT),0) as iRefPoint 
+				FROM 
+						RM_HISTORY A
+				WHERE 
+						A.JUNG_DATE like #sStartNextDay# || '%'
+					AND A.POST_GBN = 'P'
+					AND NVL(JOBGBN,'03') = '02'
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Escrow_Jung3" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT nvl(sum(nvl(B.POST_USE_PNT,0)),0) as iPostCancelAmount
+                  FROM ESC_ORDER A, ESC_ORDER_DET B
+        		 WHERE A.ORD_NO = B.ORD_NO
+        		   AND B.STS_CODE IN ('SSB8','SFB8','SAB8','SFB2','SAB1','SAB2','SFB1')
+        		   AND B.POST_USE_PNT > 0
+                   AND B.POST_ACCU_DATE like #sStartNextDay# || '%'
+		]]>	 
+	</select>
+	
+	<select id="f_Select_Bank_Escrow_Jung4" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+				SELECT NVL(SUM(FEE_AMOUNT),0) as iFeeAmount
+                  FROM ( 
+	      				SELECT A.ORD_NO,  SUM(TRUNC(B.PAY_AMT * 0.0128)) FEE_AMOUNT
+	      				  FROM ESC_ORDER A, ESC_ORDER_DET B, ESC_ADJ_LDG C 
+	      				 WHERE A.ORD_NO = B.ORD_NO
+	          			   AND B.TRN_NO = C.TRN_NO
+	          			   AND C.ADJ_TGT_TP = 'AA'
+	          			   AND C.ADJ_FG IN ('M','R','B','T','S','F')
+	          			   AND A.STL_TP_CODE = 'SAC1'
+	          			   AND A.POST_YN = 'Y'
+	          			   AND B.POST_ACCU_DATE like #sStartNextDay# || '%'
+	      				 GROUP BY A.ORD_NO
+	                   )
+		]]>	 
+	</select>
+	
+	<insert id="insertBANK_POST_STAT_Escrow" parameterClass ="java.util.HashMap">
+		<![CDATA[
+				INSERT INTO BANK_POST_STAT(
+				                            FROM_DATE,
+				                            TO_DATE,
+				                            GBN,
+				                            TOT_ACCU_POINT,
+				                            ACCU_POINT,
+				                            FEE_AMOUNT,
+				                            TOT_USE_POINT,
+				                            USE_POINT,
+				                            GIVE_POINT,
+				                            REF_POINT,
+				                            STAT_POINT,
+				                            STATUS,
+				                            TRANS_DATE,
+				                            CREATE_DATE,
+				                            REG_ID,
+				                            TOT_FEE_AMOUNT,
+				                            TOT_GIVE_POINT,
+				                            GIVE_USE_POINT
+					                       )
+				SELECT 
+								#sStartNextDay#,
+								#sStartNextDay#,
+								'02',
+								0,
+								#iAccuPoint#,
+								#iFeeAmount#,
+								0,
+								#iPostAmount# -#iPostCancelAmount#,
+								#iGivePoint#,
+								#iRefPoint#,
+								#iPostAmount# -#iPostCancelAmount# + #iGivePoint#,
+								'01',
+								TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+								TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+								'batch',
+								0,
+								0,
+								#iGiveUsePoint#
+				FROM DUAL
+		]]>	 
+	</insert>
+	
+</sqlMap>

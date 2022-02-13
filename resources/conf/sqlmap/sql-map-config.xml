@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMapConfig PUBLIC "-//iBATIS.com//DTD SQL Map Config 2.0//EN"
+    "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMapConfig>
+	<settings useStatementNamespaces="true" />
+
+	<sqlMap resource="conf/sqlmap/commoncode/CommonCodeMgr_SQL.xml"/>
+	<sqlMap resource="conf/sqlmap/login/AdminLoginMgr_SQL.xml"/>
+	<sqlMap resource="conf/sqlmap/adminAuth/AdminAuthMgr_SQL.xml"/>
+	<sqlMap resource="conf/sqlmap/file/FileMgr_SQL.xml"/>
+	<sqlMap resource="conf/sqlmap/board/BoardMgr_SQL.xml"/>
+	
+</sqlMapConfig>

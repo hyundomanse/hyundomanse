@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.BatchRGRReg">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectTodayDate" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT TO_CHAR(sysdate, 'YYYY-MM-DD HH24:MI') as startdt
+			FROM DUAL
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT term as nTerm,
+			rule as nRule, 
+			keep as nKeep,
+			to_char(TRUNC(ADD_MONTHS(SYSDATE,-term)+1)-TO_CHAR(SYSDATE,'DD'), 'yyyymmdd') as sStartTerm, 
+			to_char(TRUNC(LAST_DAY(ADD_MONTHS(SYSDATE, -1)))+0.99999421, 'yyyymmdd') || '999999' as sEndTerm,
+			gubun as sGubun,
+			seq as nRuleSeq
+			FROM rgr_service_rule
+			WHERE seq = (SELECT MAX(seq) FROM rgr_service_rule)
+		]]>	 
+	</select>
+	
+	<delete id="delete_rgr_meminfo_mailing_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			delete from rgr_meminfo_mailing where gubun='N'
+		]]>	 
+	</delete>
+	
+	<insert id="insert_rgr_meminfo_mailing_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			insert into rgr_meminfo_mailing
+				select b.access_name, 
+				b.name, 
+				b.email,
+				substr(b.create_date, 1, 4) || '년' ||
+				substr(b.create_date, 5, 2) || '월' ||
+				substr(b.create_date, 7, 2) || '일' create_date_meminfo,	
+				a.start_term, 
+				a.end_term, 
+				null, 
+				null,
+				to_char(sysdate, 'yyyymmddhh24miss'),
+				'N'	
+				from rgr_meminfo a, meminfo b
+				where a.access_name = b.access_name
+				and b.member_type <> '7'
+				and b.status = '1'
+				and b.email_yn = 'Y'
+				and to_char(sysdate, 'YYYYMMDD') > a.end_term
+		]]>	 
+	</insert>
+	
+	<insert id="insert_rgr_interface_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO eai.rgr_interface(epost_id, 
+						  goods_code, 
+						  price, 
+						  sale_price, 
+						  buy_want_date, 
+						  buy_period, 
+						  create_date, 
+						  delete_date, 
+						  regist_id, 
+						  cust_type, 
+						  adb_sequence, 
+						  adb_timestamp, 
+						  adb_opcode, 
+						  adb_l_delivery_status)
+			SELECT access_name,
+				   '1',
+				   1,
+				   1,
+				   '1',
+				   '1',
+				   create_date,
+				   to_char(SYSDATE, 'YYYYMMDDHH24MISS'),
+				   'system',
+				   3,
+				   EAI.RGR_INTERFACE_SQ01.NEXTVAL, 
+				   SYSDATE,
+				   '4',
+				   'N'
+			FROM rgr_meminfo
+			WHERE access_name not in (
+				select access_name from rgr_meminfo
+				where to_char(sysdate, 'YYYYMMDD') between start_term and end_term 
+			)
+		]]>	 
+	</insert>
+	
+	<select id="select_ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select nvl(max(seq), 0) as nMaxHisSeq
+			from rgr_meminfo_history
+		]]>	 
+	</select>
+	
+	<insert id="insert_rgr_meminfo_history_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			insert into rgr_meminfo_history(SEQ, RULE_SEQ, ACCESS_NAME, LAST_CHANGE_NAME, CREATE_DATE, START_TERM, END_TERM)
+				select #nMaxHisSeq# + rownum,
+				RULE_SEQ,
+				ACCESS_NAME,
+				'system',
+				TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS'),
+				START_TERM,
+				to_char(TRUNC(LAST_DAY(ADD_MONTHS(SYSDATE, -1)))+0.99999421, 'yyyymmdd')
+				from rgr_meminfo
+				where access_name not in (
+					select access_name from rgr_meminfo
+					where to_char(sysdate, 'YYYYMMDD') between start_term and end_term 
+				)
+		]]>	 
+	</insert>
+	
+	<delete id="delete_rgr_meminfo_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM rgr_meminfo
+			where access_name not in (
+				select access_name from rgr_meminfo
+				where to_char(sysdate, 'YYYYMMDD') between start_term and end_term 
+			)
+		]]>	 
+	</delete>
+	
+	<select id="select_ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			select NVL(MAX(seq), 0) as nMaxSeq
+			from rgr_meminfo
+		]]>	 
+	</select>
+	
+	<insert id="insert_rgr_meminfo_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			insert into rgr_meminfo	
+				select 
+					#nMaxSeq# + rownum, access_name, goods_idn, 
+					buy_period, buy_want_date, memo, 
+					last_change_name, last_change_date, 
+					create_date, tm_yn, rule_seq, start_term, end_term
+				from (		 	
+					select
+						access_name, 
+						0 goods_idn, 
+						null buy_period, 
+						null buy_want_date, 
+						null memo, 
+						'system' last_change_name, 
+						to_char(sysdate, 'YYYYMMDDHH24MISS') last_change_date, 
+						to_char(sysdate, 'YYYYMMDDHH24MISS') create_date, 
+						null tm_yn, 
+						#nRuleSeq# rule_seq, 
+						to_char(sysdate, 'YYYYMM') || '01' start_term, 
+						to_char(TRUNC(LAST_DAY(ADD_MONTHS(SYSDATE, #nKeep# - 1)))+0.99999421, 'yyyymmdd') end_term
+					from (	
+						select a.purchase_id, a.access_name, sum(b.quantity) quantity, sum(b.price) price, a.order_date
+						from txorder a, txorder_item b
+						where a.order_date between #sStartTerm# and #sEndTerm#
+							and a.status in ('2','3','4','5')
+							and a.cancel_state = 'N'
+							and a.txorder_id = b.txorder_id
+							and b.goods_idn > 0		
+							and a.access_name <> ' '
+						group by a.purchase_id, a.access_name, a.order_date		
+					) tmp
+					group by access_name
+					having count(*) >= #nRule#
+					and access_name not in (
+						select access_name from rgr_meminfo
+						where to_char(sysdate, 'YYYYMMDD') between start_term and end_term 
+					)
+				)
+		]]>	 
+	</insert>
+	
+	<insert id="insert_rgr_meminfo_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			insert into rgr_meminfo	
+				select 
+					#nMaxSeq# + rownum, access_name, goods_idn, 
+					buy_period, buy_want_date, memo, 
+					last_change_name, last_change_date, 
+					create_date, tm_yn, rule_seq, start_term, end_term
+				from (		 	
+					select
+						access_name, 
+						0 goods_idn, 
+						null buy_period, 
+						null buy_want_date, 
+						null memo, 
+						'system' last_change_name, 
+						to_char(sysdate, 'YYYYMMDDHH24MISS') last_change_date, 
+						to_char(sysdate, 'YYYYMMDDHH24MISS') create_date, 
+						null tm_yn, 
+						#nRuleSeq# rule_seq, 
+						to_char(sysdate, 'YYYYMM') || '01' start_term, 
+						to_char(TRUNC(LAST_DAY(ADD_MONTHS(SYSDATE, #nKeep# - 1)))+0.99999421, 'yyyymmdd') end_term
+					from (	
+						select a.purchase_id, a.access_name, sum(b.quantity) quantity, sum(b.price) price, a.order_date
+						from txorder a, txorder_item b
+						where a.order_date between #sStartTerm# and #sEndTerm#
+							and a.status in ('2','3','4','5')
+							and a.cancel_state = 'N'
+							and a.txorder_id = b.txorder_id
+							and b.goods_idn > 0		
+							and a.access_name <> ' '
+						group by a.purchase_id, a.access_name, a.order_date		
+					) tmp
+					group by access_name
+					having count(*) >= #nRule#
+					and access_name not in (
+						select access_name from rgr_meminfo
+						where to_char(sysdate, 'YYYYMMDD') between start_term and end_term 
+					)
+				)
+		]]>	 
+	</insert>
+	
+	<insert id="insert_rgr_interface_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO eai.rgr_interface(epost_id, 
+							  goods_code, 
+							  price, 
+							  sale_price, 
+							  buy_want_date, 
+							  buy_period, 
+							  create_date, 
+							  delete_date, 
+							  regist_id, 
+							  cust_type, 
+							  adb_sequence, 
+							  adb_timestamp, 
+							  adb_opcode, 
+							  adb_l_delivery_status)
+				SELECT access_name,
+					   '1',
+					   1,
+					   1,
+					   '1',
+					   '1',
+					   create_date,
+					   null,
+					   'system',
+					   '2',
+					   EAI.RGR_INTERFACE_SQ01.NEXTVAL, 
+					   SYSDATE,
+					   4,
+					   'N'
+				FROM rgr_meminfo
+				WHERE seq > #nMaxSeq#
+		]]>	 
+	</insert>
+	
+	<delete id="delete_rgr_meminfo_mailing_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			delete from rgr_meminfo_mailing 
+			where gubun='N' and access_name in 
+			(select access_name from rgr_meminfo)
+		]]>	 
+	</delete>
+	
+	<delete id="delete_rgr_meminfo_mailing_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			delete from rgr_meminfo_mailing where gubun='R'
+		]]>	 
+	</delete>
+	
+	<insert id="insert_rgr_interface_03" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			insert into rgr_meminfo_mailing
+				select b.access_name, 
+				b.name, 
+				b.email,
+				substr(b.create_date, 1, 4) || '년' ||
+				substr(b.create_date, 5, 2) || '월' ||
+				substr(b.create_date, 7, 2) || '일' create_date_meminfo,	
+				a.start_term, 
+				a.end_term, 
+				null, 
+				null,
+				to_char(sysdate, 'yyyymmddhh24miss'),
+				'R'	
+				from rgr_meminfo a, meminfo b
+				WHERE a.access_name = b.access_name
+				AND b.member_type <> '7'
+				AND b.status = '1'
+				AND to_char(sysdate, 'YYYYMMDD') between a.start_term and a.end_term
+				AND b.email_yn = 'Y' AND a.seq > #nMaxSeq#
+		]]>	 
+	</insert>
+		
+</sqlMap>

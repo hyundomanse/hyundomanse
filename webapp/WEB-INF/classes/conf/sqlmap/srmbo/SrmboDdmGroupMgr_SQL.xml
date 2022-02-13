@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.SrmboDdm">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+	<!-- 동대문기관관리 리스트 조회 -->
+	<select id="selectDdmGroupMgrList" parameterClass ="java.util.HashMap" resultClass="commMap">
+    SELECT 	  T2.ONUM
+			, T2.DDM_PAVLN_ID																/* 동대문기관코드 */
+			, T2.DDM_PAVLN_INTRCN AS DDM_PLVLN_NM											/* 동대문기관명 */
+			, T2.PRSDT_NM																	/* 대표자 */
+			, T2.BIZER_REGNO 																/* 사업자등록번호 */
+			, T2.SUPP_COMP_DIV_CD															/* 기관유형코드 */
+			, F_GET_COMN_CD_NM('SUPP_COMP_DIV_CD', T2.SUPP_COMP_DIV_CD) AS SUPP_COMP_DIV_NM	/* 기관유형명 */
+			, T2.CORP_REEGE_NO																/* 법인등록번호 */
+			, T2.SSN																		/* 대표주민번호 */
+			, T2.CHRGER_NAME																/* 담당자명 */
+			, T2.CHRGER_TELNO																/* 담당자전화번호 */
+			, T2.CHRGER_MOBILE																/* 담당자휴대전화 */
+			, T2.CHRGER_EMAIL																/* 담당자이메일 */
+			, T2.CHRGER_FAXNO																/* 담당자팩스 */
+			, T2.ENTRPS																		/* 업태 */
+			, T2.INDUTY																		/* 업종 */
+			, '('||T2.ZIPCD||')' || T2.ADDR1 ||' ' || T2.ADDR2 AS ADDR						/* 주소 */
+			, T2.CUST_NO																	/* 고객번호 */
+			, T2.PO_HDRY_CNTRAC_NO															/* 우체국택배계약번호 */
+			, T2.DPSTR																		/* 정산계좌예금주 */
+			, T2.BANK_CD																	/* 정산계좌_은행코드 */
+			, T2.ACCNO																		/* 정산계좌_계좌번호 */
+			, T2.USE_YN																		/* 사용여부 */
+			/*, T2.REG_DATE */																/* 등록일시 */
+			, TO_CHAR(T2.REG_DATE,'yyyymmdd') AS REG_DATE							/* 등록일시 */
+			/*, T2.CHG_DATE */																/* 변경일시 */
+			, TO_CHAR(T2.CHG_DATE,'yyyymmdd') AS REG_DATE							/* 변경일시 */
+			, T2.REGER_ID																	/* 등록아이디 */
+			, T2.CHGER_ID																	/* 변경아이디 */
+       FROM(
+			SELECT 	  ROW_NUMBER() OVER(ORDER BY T1.DDM_PAVLN_ID DESC) AS ONUM	
+					, ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM
+					, T1.DDM_PAVLN_ID			
+					, T1.DDM_PAVLN_INTRCN		
+					, T1.PRSDT_NM				
+					, T1.BIZER_REGNO 			
+					, T1.SUPP_COMP_DIV_CD		
+					, T1.CORP_REEGE_NO			
+					, T1.SSN					
+					, T1.CHRGER_NAME			
+					, T1.CHRGER_TELNO			
+					, T1.CHRGER_MOBILE			
+					, T1.CHRGER_EMAIL			
+					, T1.CHRGER_FAXNO			
+					, T1.ENTRPS				
+					, T1.INDUTY				
+					, T1.ZIPCD					
+					, T1.ADDR1					
+					, T1.ADDR2					
+					, T1.CUST_NO		
+					, T1.PO_HDRY_CNTRAC_NO		
+					, T1.DPSTR					
+					, T1.BANK_CD				
+					, T1.ACCNO					
+					, T1.USE_YN				
+					, T1.REG_DATE				
+					, T1.CHG_DATE				
+					, T1.REGER_ID				
+					, T1.CHGER_ID				
+
+			FROM(
+				SELECT	ROW_NUMBER() OVER(ORDER BY DDM_PAVLN_ID DESC) AS TNUM	
+			          , DDM_PAVLN_ID				
+			          , DDM_PAVLN_INTRCN 			
+			          , PRSDT_NM					
+			          , BIZER_REGNO 				
+			          , SUPP_COMP_DIV_CD			
+			          , CORP_REEGE_NO				
+			          , SSN							
+			          , CHRGER_NAME					
+			          , CHRGER_TELNO				
+			          , CHRGER_MOBILE				
+			          , CHRGER_EMAIL				
+			          , CHRGER_FAXNO				
+			          , ENTRPS						
+			          , INDUTY						
+			          , ZIPCD						
+			          , ADDR1						
+			          , ADDR2						
+			          , CUST_NO				
+			          , PO_HDRY_CNTRAC_NO			
+			          , DPSTR						
+			          , BANK_CD						
+			          , ACCNO						
+			          , USE_YN						
+			          , REG_DATE					
+			          , CHG_DATE					
+			          , REGER_ID					
+			          , CHGER_ID					
+
+               FROM CO_DDM_OR_MGT
+               WHERE 1=1
+			AND USE_YN = 'Y'
+
+			<!-- 조회기간 -->			            
+			<isNotEmpty property="searchFromDt">
+				<isNotEmpty property="searchToDt">
+			         AND REG_DATE <![CDATA[>=]]> TO_DATE(#searchFromDt#||'000000','YYYYMMDDHH24MISS') 
+			         AND REG_DATE <![CDATA[<=]]> TO_DATE(#searchToDt#||'235959','YYYYMMDDHH24MISS') 	     
+			    </isNotEmpty>
+			</isNotEmpty>
+		                
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="00">	<!-- 전체 -->
+					AND (DDM_PAVLN_INTRCN LIKE '%'||#searchTxt#||'%' OR PRSDT_NM LIKE '%'||#searchTxt#||'%' OR BIZER_REGNO LIKE '%'||#searchSeedTxt#||'%')
+				</isEqual>
+			
+				<isEqual property="searchType" compareValue="01">	<!-- 동대문기관명 -->	
+					AND DDM_PAVLN_INTRCN LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="02">	<!-- 대표자 -->
+					AND PRSDT_NM LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="03">	<!-- 사업자등록번호 -->
+					AND BIZER_REGNO LIKE '%'||#searchSeedTxt#||'%'
+				</isEqual>
+			</isNotEmpty>                
+		                
+           )T1
+           WHERE 1=1
+       )T2
+       WHERE 1=1
+  		AND T2.ONUM BETWEEN #firstIndex# AND #lastIndex#
+	ORDER BY T2.ONUM ASC
+	</select>
+	
+	<!-- 동대문기관관리 리스트 카운트 -->
+	<select id="selectDdmGroupMgrListTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+	SELECT NVL(COUNT(*), 0) AS TOTCNT
+       FROM(
+           SELECT ROW_NUMBER() OVER(ORDER BY T1.DDM_PAVLN_ID DESC) AS ONUM	
+                , ROW_NUMBER() OVER(ORDER BY TNUM DESC) AS RNUM
+	         , T1.DDM_PAVLN_ID						/* 동대문기관코드 */
+
+           FROM(
+               SELECT	ROW_NUMBER() OVER(ORDER BY DDM_PAVLN_ID DESC) AS TNUM	
+		          , DDM_PAVLN_ID				
+		          , DDM_PAVLN_INTRCN 			
+		          , PRSDT_NM					
+		          , BIZER_REGNO 				
+		          , SUPP_COMP_DIV_CD			
+		          , CORP_REEGE_NO				
+		          , SSN							
+		          , CHRGER_NAME					
+		          , CHRGER_TELNO				
+		          , CHRGER_MOBILE				
+		          , CHRGER_EMAIL				
+		          , CHRGER_FAXNO				
+		          , ENTRPS						
+		          , INDUTY						
+		          , ZIPCD						
+		          , ADDR1						
+		          , ADDR2						
+		          , CUST_NO				
+		          , PO_HDRY_CNTRAC_NO			
+		          , DPSTR						
+		          , BANK_CD						
+		          , ACCNO						
+		          , USE_YN						
+		          , REG_DATE					
+		          , CHG_DATE					
+		          , REGER_ID					
+		          , CHGER_ID					
+
+               FROM CO_DDM_OR_MGT
+               WHERE 1=1
+			AND USE_YN = 'Y'
+
+			<!-- 조회기간 -->			            
+			<isNotEmpty property="searchFromDt">
+				<isNotEmpty property="searchToDt">
+			         AND REG_DATE <![CDATA[>=]]> TO_DATE(#searchFromDt#||'000000','YYYYMMDDHH24MISS') 
+			         AND REG_DATE <![CDATA[<=]]> TO_DATE(#searchToDt#||'235959','YYYYMMDDHH24MISS') 	     
+			    </isNotEmpty>
+			</isNotEmpty>
+		                
+			<!-- 검색구분 -->
+			<isNotEmpty property="searchTxt">
+				<isEqual property="searchType" compareValue="00">	<!-- 전체 -->
+					AND (DDM_PAVLN_INTRCN LIKE '%'||#searchTxt#||'%' OR PRSDT_NM LIKE '%'||#searchTxt#||'%' OR BIZER_REGNO LIKE '%'||#searchSeedTxt#||'%')
+				</isEqual>
+			
+				<isEqual property="searchType" compareValue="01">	<!-- 동대문기관명 -->	
+					AND DDM_PAVLN_INTRCN LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="02">	<!-- 대표자 -->
+					AND PRSDT_NM LIKE '%'||#searchTxt#||'%'
+				</isEqual>
+				<isEqual property="searchType" compareValue="03">	<!-- 사업자등록번호 -->
+					AND BIZER_REGNO LIKE '%'||#searchSeedTxt#||'%'
+				</isEqual>
+			</isNotEmpty>                
+		                
+           )T1
+           WHERE 1=1
+		            
+       )T2
+       WHERE 1=1
+	ORDER BY T2.ONUM ASC
+	</select>
+	
+	<!-- 동대문기관관리 keySelect -->
+	<select id="selectDdmPavlnid" parameterClass="java.util.HashMap" resultClass="commMap">
+	<![CDATA[
+	SELECT 'DPI' || NVL(LPAD(TO_CHAR(MAX(TO_NUMBER(SUBSTR(DDM_PAVLN_ID,4,LENGTH(DDM_PAVLN_ID))))+1),4,'0'), '0001') AS DDM_PAVLN_ID 
+	FROM CO_DDM_OR_MGT
+	]]>
+	</select>	
+	
+	<!-- 동대문기관관리 등록 -->
+	<insert id="registDdmGroupMgr" parameterClass="java.util.HashMap">
+	   
+	INSERT INTO CO_DDM_OR_MGT (
+		  DDM_PAVLN_ID
+		, DDM_PAVLN_INTRCN
+		, PRSDT_NM
+		, BIZER_REGNO
+		<isNotEmpty property="corpReegeNo">
+		, CORP_REEGE_NO
+		</isNotEmpty>
+		<isNotEmpty property="ssn">
+		, SSN
+		</isNotEmpty>
+		, SUPP_COMP_DIV_CD
+		, CHRGER_NAME
+		, CHRGER_TELNO
+		, CHRGER_MOBILE
+		, CHRGER_EMAIL
+		, CHRGER_FAXNO
+		, ENTRPS
+		, INDUTY
+		, ZIPCD
+		, ADDR1
+		, ADDR2
+		<isNotEmpty property="custNo">
+		, CUST_NO
+		</isNotEmpty>
+		<isNotEmpty property="poHdryCntracNo">
+		, PO_HDRY_CNTRAC_NO
+		</isNotEmpty>
+		, DPSTR
+		, BANK_CD
+		, ACCNO
+		, USE_YN
+		, REG_DATE
+		, REGER_ID
+		, PASSWD
+		, PASSWD_LOCK_YN		
+		)
+	VALUES ( 
+		  #ddmPavlnId#	
+		, #ddmPavlnIntrcn#
+		, #prsdtNm#
+		, #bizerRegno#
+		<isNotEmpty property="corpReegeNo">
+		, #corpReegeNo#
+		</isNotEmpty>
+		<isNotEmpty property="ssn">
+		, #ssn#
+		</isNotEmpty>
+		, #suppCompDivCd#
+		, #chrgerName#
+		, #chrgerTelno#
+		, #chrgerMobile#
+		, <![CDATA[#chrgerEmail#]]>
+		, #chrgerFaxno#
+		, #entrps#
+		, #induty#
+		, #zipcd#
+		, #addr1#
+		, #addr2#
+		<isNotEmpty property="custNo">
+		, #custNo#
+		</isNotEmpty>
+		<isNotEmpty property="poHdryCntracNo">
+		, #poHdryCntracNo#
+		</isNotEmpty>
+		, #dpstr#
+		, #rfd_bnk_code#
+		, #accno#
+		, 'Y'
+		, SYSDATE
+		, #userId# 
+		, #password#
+		, 'N'
+	 )
+	
+	</insert>
+	
+	<!-- 동대문기관관리 정보 조회 -->
+	<select id="selectDdmGroupDtlInfo" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		SELECT	  DDM_PAVLN_ID
+				, DDM_PAVLN_INTRCN
+				, PRSDT_NM
+				, BIZER_REGNO
+				, CORP_REEGE_NO
+				, SSN
+				, SUPP_COMP_DIV_CD
+				, CHRGER_NAME
+				, CHRGER_TELNO
+				, CHRGER_MOBILE
+				, CHRGER_EMAIL
+				, CHRGER_FAXNO
+				, ENTRPS
+				, INDUTY
+				, ZIPCD
+				, ADDR1
+				, ADDR2
+				, CORP_DTD_CSM_NO
+				, PO_HDRY_CNTRAC_NO
+				, DPSTR
+				, BANK_CD
+				, ACCNO
+				, USE_YN
+				, REG_DATE
+				, CHG_DATE
+				, REGER_ID
+				, CHGER_ID
+				, CUST_NO
+		FROM    CO_DDM_OR_MGT
+		WHERE   DDM_PAVLN_ID = #ddmPavlnId#
+		]]>
+	</select>
+		
+	
+	<!-- 동대문기관관리 수정 -->
+	<update id="modifyDdmGroupMgr" parameterClass="java.util.HashMap">
+	
+	UPDATE CO_DDM_OR_MGT
+	SET    DDM_PAVLN_ID      = #ddmPavlnId#
+	     , DDM_PAVLN_INTRCN  = #ddmPavlnIntrcn#
+	     , PRSDT_NM          = #prsdtNm#
+	     , BIZER_REGNO       = #bizerRegno#
+	     , CORP_REEGE_NO     = #corpReegeNo#
+	     , SSN               = #ssn#
+	     , SUPP_COMP_DIV_CD  = #suppCompDivCd#
+	     , CHRGER_NAME       = #chrgerName#
+	     , CHRGER_TELNO      = #chrgerTelno#
+	     , CHRGER_MOBILE     = #chrgerMobile#
+	     , CHRGER_EMAIL      = <![CDATA[#chrgerEmail#]]>
+	     , CHRGER_FAXNO      = #chrgerFaxno#
+	     , ENTRPS            = #entrps#
+	     , INDUTY            = #induty#
+	     , ZIPCD             = #zipcd#
+	     , ADDR1             = #addr1#
+	     , ADDR2             = #addr2#
+	     <isNotEmpty property="custNo">
+	     , CUST_NO   = #custNo#
+	     </isNotEmpty>
+	     <isNotEmpty property="poHdryCntracNo">
+	     , PO_HDRY_CNTRAC_NO = #poHdryCntracNo#
+	     </isNotEmpty>
+	     , DPSTR             = #dpstr#
+	     , BANK_CD           = #rfd_bnk_code#
+	     , ACCNO             = #accno#
+	     , USE_YN            = 'Y'
+	     , CHG_DATE          = sysdate
+	     , CHGER_ID          = #userId#
+	WHERE  DDM_PAVLN_ID      = #ddmPavlnId#		
+	
+	</update>	
+		
+	<!-- 동대문기관관리 코드 조회 -->
+	<select id="selectDdmGroupMgrCodeList" parameterClass ="java.util.HashMap" resultClass="commMap">
+        SELECT DDM_PAVLN_ID			/* 동대문기관코드 */
+             , DDM_PAVLN_INTRCN		/* 동대문기관명 */
+        FROM CO_DDM_OR_MGT
+        WHERE USE_YN = 'Y'
+        ORDER BY DDM_PAVLN_ID
+	</select>		
+		
+	<!-- 동대문기관 비밀번호 초기화 -->
+	<update id="modifyDdmPasswordReset" parameterClass="java.util.HashMap">
+		UPDATE	CO_DDM_OR_MGT
+		SET 	PASSWD = #password#
+				,PASSWD_LOCK_YN = 'N'
+				,PASSWD_CTNU_FAIL_CNT = 0
+				,LAST_PASSWD_CHG_DATE = SYSDATE
+				,CHG_DATE = SYSDATE
+				,CHGER_ID = #loginId#
+		WHERE 	DDM_PAVLN_ID = #ddmPavlnId#
+	</update>		
+</sqlMap>

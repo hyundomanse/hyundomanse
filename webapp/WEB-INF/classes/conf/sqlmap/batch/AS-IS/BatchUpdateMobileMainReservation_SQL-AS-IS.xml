@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 배치시작로그 -->
+<sqlMap namespace="BATCH.BatchUpdateMobileMainReservation">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="selectHybridMainDispMngList1" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     select main_idx, img_idx			
+			    , main_disptype					
+			    , main_disporder				
+			    , img_slidingorder				
+			    , main_dispyn					
+			    , img_regdate, img_modifydate	
+			from hybrid_main_disp_mng			
+			, hybrid_main_disp_img				
+			where main_disptype='N'				
+			and main_dispyn = 'R'    			
+			and main_idx = img_modifyip			
+			and sysdate between img_regdate and img_modifydate		
+			order by main_disporder, img_regdate                                                                                   
+		]]>	 
+	</select>
+	
+	<select id="selectHybridMainDispMngList2" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+		     select M.main_idx, I.img_idx				
+				   , M.main_disptype						
+				   , M.main_disporder						
+				   , I.img_slidingorder					
+				   , M.main_dispyn						
+				   , I.img_regdate, I.img_modifydate		
+				   , RV.main_dispyn , RV.img_slidingorder	
+				   , RV.img_regdate, RV.img_modifydate	
+				from (										
+				select main_idx, img_idx					
+				   , main_disptype						
+				   , main_disporder						
+				   , img_slidingorder						
+				   , main_dispyn							
+				   , img_regdate, img_modifydate			
+				from hybrid_main_disp_mng					
+				, hybrid_main_disp_img						
+				where main_disptype='N'					
+				and main_dispyn = 'R'    					
+				and main_idx = img_modifyip				
+				and sysdate between img_regdate and img_modifydate	
+				) RV										
+				, hybrid_main_disp_mng M					
+				, hybrid_main_disp_img I					
+				where M.main_idx = I.img_modifyip			
+				and M.main_dispyn = 'Y'					
+				and M.main_disptype = RV.main_disptype		
+				and M.main_disporder = RV.main_disporder 	
+				and I.img_slidingorder = RV.img_slidingorder                                                               
+		]]>	 
+	</select>
+	
+	<update id="updateHybridMainDispMng" parameterClass="java.util.HashMap">
+		<![CDATA[
+			UPDATE HYBRID_MAIN_DISP_MNG	
+			   SET MAIN_DISPYN = ?	  	
+			 WHERE MAIN_IDX = ?			                      	                                                                                                                                                                                                       
+		]]>
+	</update>	
+	 	
+</sqlMap>

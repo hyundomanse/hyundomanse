@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BATCH.SetBatchCpGoodsMaster">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+	
+	<select id="select_ORDER_SUBMIT_01" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT GOODS_IDN as iGoodsIdn
+			FROM  GOODS_MASTER
+			WHERE GOODS_IMAGE_SUB1 is not null
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			SET GOODS_IMAGE_SUB1 = null
+			WHERE GOODS_IDN  = #iGoodsIdn#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			SET GOODS_IMAGE_SUB1 = null
+			WHERE GOODS_IDN  = #iGoodsIdn#
+		]]>	 
+	</update>
+	
+	<select id="select_ORDER_SUBMIT_02" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT 
+					B.GOODS_IDN as iGoodsIdn,
+					MAX(A.CP_EVENT_ID) as iCpEventId
+			FROM CP_MASTER A, CP_GOODS B
+			WHERE A.CP_EVENT_ID = B.CP_EVENT_ID
+			  AND to_char(sysdate,'yyyymmdd') ||'000000' BETWEEN use_from AND use_to
+			  AND A.STOP_DATE IS NULL
+			  AND B.STOP_DATE IS NULL
+			  AND A.TYPE IN ('A', 'F')
+			  AND A.APPLY_TYPE = 'A'
+			  AND A.GOODS_ALL_CHK = 'N'
+			  AND A.MEM_GBN = '1'
+			GROUP BY B.GOODS_IDN
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_03" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT decode(sale_chk,'Y',0,1) as iSale_Chk
+		FROM CP_MASTER
+		WHERE cp_event_id = #iCpEventId#
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_04" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT  count(e.event_id) as iSale_Event_Cnt
+            FROM EVENT_MASTER E , EVENT_GOODS E_G
+            where E.EVENT_ID = E_G.EVENT_ID
+			  and E_G.GOODS_IDN   = #iGoodsIdn#
+              and E_G.IS_DELETE   = 'N'
+              and E_G.BASE_AMOUNT > 0
+              and E.START_DATE <= to_char(sysdate, 'yyyymmddhh24mi')
+              AND E.END_DATE >= to_char(sysdate, 'yyyymmddhh24mi')
+		]]>	 
+	</select>
+	
+	<select id="select_ORDER_SUBMIT_05" parameterClass ="java.util.HashMap" resultClass="commMap">
+		<![CDATA[
+			SELECT DECODE(AMT_GBN,'1','￦ '|| REPLACE(TO_CHAR(AMOUNT,'999,999'),' ','') ,'2' ,TO_CHAR(rate_Type) || ' %' ,'') as sCouponData
+			FROM CP_MASTER
+			WHERE CP_EVENT_ID = #iCpEventId#
+		]]>	 
+	</select>
+	
+	<update id="update_ST_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE ST_GOODS_MASTER
+			SET GOODS_IMAGE_SUB1 = #sCouponData#
+			WHERE GOODS_IDN  = #iGoodsIdn#
+		]]>	 
+	</update>
+	
+	<update id="update_GOODS_MASTER_02" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			UPDATE GOODS_MASTER
+			SET GOODS_IMAGE_SUB1 = #sCouponData#
+			WHERE GOODS_IDN  = #iGoodsIdn#
+		]]>	 
+	</update>
+	
+	<delete id="delete_TEMPLATE_GOODS_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			DELETE FROM TEMPLATE_GOODS
+			WHERE template_id = 2
+			AND PRD_NAME = '0705_1_shop_s_coupon_4e'
+		]]>	 
+	</delete>
+	
+	<insert id="insert_TEMPLATE_GOODS_01" parameterClass ="java.util.HashMap">
+		<![CDATA[
+			INSERT INTO TEMPLATE_GOODS(TEMPLATE_ID,SEQ,GOODS_IDN_KO,GOODS_CODE,PRD_NAME,IS_DELETE,MOD_GOODS_NAME)
+			SELECT 2,rownum,goods_idn,goods_code, '0705_1_shop_s_coupon_4e','N','epost321'
+			FROM (
+					SELECT goods_idn,goods_code
+					FROM goods_master
+					where GOODS_IMAGE_SUB1 is not null
+					  and language = 'KO'
+					  ORDER BY  nvl(GOODS_AMT_RANK,9999) ,CATEGORY_CODE ,GOODS_NAME
+					)
+		]]>	 
+	</insert>
+	
+</sqlMap>

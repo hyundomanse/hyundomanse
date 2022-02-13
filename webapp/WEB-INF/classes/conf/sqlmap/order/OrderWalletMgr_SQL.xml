@@ -1,0 +1,537 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="BO.OrderWallet">
+	<typeAlias  alias="commMap" type="com.devwork.common.map.CommonMap"/>
+
+
+
+
+	<!-- 페이징 Header -->
+	<sql id="pagingHeader">
+		<![CDATA[
+			SELECT *
+			  FROM (
+					SELECT A.*
+					     , ROWNUM  AS RNUM
+					  FROM (
+		]]>
+	</sql>
+
+	<!-- 페이징 Footer -->
+	<sql id="pagingFooter">
+		<![CDATA[
+                       ) A	WHERE ROWNUM <= #lastIndex#
+		       ) WHERE RNUM >= #firstIndex#
+		]]>
+	</sql>
+
+
+	<select id="selectWalletSumStus" parameterClass="java.util.HashMap" resultClass="commMap">
+		<![CDATA[ /* QueryId : selectWalletSumStus */
+			SELECT  SUM( DECODE( A.WALLET_STUS_CD, 10, 1, 0) ) AS STUS_WAIT           /* 전화대기 */
+		          , SUM( DECODE( A.WALLET_STUS_CD, 20, 1, 0) ) AS STUS_COMPLETE       /* 전화완료 */
+		          , SUM( DECODE( A.WALLET_STUS_CD, 30, 1, 0) ) AS STUS_CANCEL         /* 전화취소 */
+		      FROM OD_MEM_RESRCE_MGT_WALLET A
+		         , MEMINFO B
+		     WHERE A.ACCESS_NAME = B.ACCESS_NAME
+		     ]]>
+		       <isNotEmpty property="accessName">
+		       AND A.ACCESS_NAME = #accessName#
+		     </isNotEmpty>
+		     <isNotEmpty property="walletNo">
+		       AND A.WALLET_NO = #walletNo#
+		     </isNotEmpty>
+		     <isNotEmpty property="startDate">
+	          <![CDATA[  AND A.RESRCE_ISSUE_DATE >= TO_DATE( #startDate# , 'YYYY-MM-DD') ]]>
+	        </isNotEmpty>
+	        <isNotEmpty property="endDate">
+	         <![CDATA[   AND A.RESRCE_ISSUE_DATE <= TO_DATE( #endDate# ||'235959' , 'YYYY-MM-DD HH24MISS') ]]>
+	        </isNotEmpty>
+	        <isNotEmpty property="searchCondition"> /* 회원 */
+	            <isEqual property='searchCondition' compareValue="NAME">
+	                 AND  B.NAME LIKE '%'|| #searchKeyword# ||'%'
+	            </isEqual>
+	             <isEqual property='searchCondition' compareValue="ACCESS_NAME">
+	                 AND UPPER(A.ACCESS_NAME) LIKE UPPER('%'|| #searchKeyword# ||'%')
+	             </isEqual>
+	         </isNotEmpty>
+	         <isNotEmpty property='walletStusCd'>
+                AND A.WALLET_STUS_CD  = #walletStusCd#
+             </isNotEmpty>
+	</select>
+
+
+	<select id="selectWalletTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		<![CDATA[/* QueryId : selectWalletTotCnt  */
+		/*  전자지갑관리   건수 조회 */
+		SELECT    COUNT(*) AS CNT
+          FROM OD_MEM_RESRCE_MGT_WALLET WALT
+             , MEMINFO MEM
+        WHERE WALT.ACCESS_NAME = MEM.ACCESS_NAME
+        ]]>
+         <isNotEmpty property="startDate">
+          <![CDATA[  AND WALT.RESRCE_ISSUE_DATE >= TO_DATE( #startDate# , 'YYYY-MM-DD') ]]>
+        </isNotEmpty>
+        <isNotEmpty property="endDate">
+         <![CDATA[   AND WALT.RESRCE_ISSUE_DATE <= TO_DATE( #endDate# ||'235959' , 'YYYY-MM-DD HH24MISS') ]]>
+        </isNotEmpty>
+        <isNotEmpty property="searchCondition"> /* 회원 */
+            <isEqual property='searchCondition' compareValue="NAME">
+                 AND  MEM.NAME LIKE '%'|| #searchKeyword# ||'%'
+            </isEqual>
+             <isEqual property='searchCondition' compareValue="ACCESS_NAME">
+                 AND UPPER(WALT.ACCESS_NAME) LIKE UPPER('%'|| #searchKeyword# ||'%')
+             </isEqual>
+         </isNotEmpty>
+          <isNotEmpty property='walletStusCd'>
+                AND WALT.WALLET_STUS_CD  = #walletStusCd#
+          </isNotEmpty>
+
+     </select>
+
+     <!-- 전자지갑관리   목록조회 -->
+	 <select id="selectWalletList" parameterClass="java.util.HashMap" resultClass="commMap">
+
+		<include refid="pagingHeader"/>
+
+		<![CDATA[ /* QueryId : selectWalletList  */
+			SELECT WALT.ACCESS_NAME
+	             , SUBSTR(WALT.ACCESS_NAME,1,LENGTH(WALT.ACCESS_NAME)-4) || RPAD('*',4,'*') AS MASKING_ID
+	             , SUBSTR(MEM.NAME,1,1) || RPAD('*',LENGTH(MEM.NAME)-1,'*') AS MEM_NAME
+	             , WALT.ACCML_USE_DIV_CD
+	             , WALT.AMT
+	             , F_GET_COMN_CD_NM( 'WALLET_STUS_CD', WALT.WALLET_STUS_CD) AS WALLET_STUS_NM  /* 전환상태명 : 10 전환대기, 20 전환완료 */
+	             , WALT.WALLET_STUS_CD
+	             , DECODE(WALT.WALLET_STUS_CD, '10', '-', '20', TO_CHAR(WALT.RESRCE_ISSUE_DATE, 'YYYY-MM-DD'), '30', TO_CHAR(WALT.RESRCE_ISSUE_DATE, 'YYYY-MM-DD')) AS RESRCE_ISSUE_DATE
+	             , NVL(TO_CHAR(WALT.VLD_STRT_DATE, 'YYYY-MM-DD'), '-') AS VLD_STRT_DATE
+	             , NVL(TO_CHAR(WALT.VLD_END_DATE, 'YYYY-MM-DD'), '-') AS VLD_END_DATE
+	             , (TO_DATE(TO_CHAR(WALT.VLD_END_DATE, 'YYYYMMDD'))+1 - TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'))) AS D_DAY
+	             , WALT.WALLET_NO
+	             , WALT.REGER_ID
+	             , (SELECT NAME FROM MEMINFO WHERE ACCESS_NAME = WALT.REGER_ID) REGER_NM
+	             , WALT.CHGER_ID
+	             , (SELECT NAME FROM MEMINFO WHERE ACCESS_NAME = WALT.CHGER_ID) CHGER_NM
+	             , TO_CHAR(WALT.CHG_DATE, 'YYYY-MM-DD') AS CHG_DATE
+	             , TO_CHAR(WALT.REG_DATE, 'YYYY-MM-DD') AS REG_DATE
+	          FROM OD_MEM_RESRCE_MGT_WALLET WALT
+	             , MEMINFO MEM
+	        WHERE WALT.ACCESS_NAME = MEM.ACCESS_NAME
+      ]]>
+        <isNotEmpty property="startDate">
+          <![CDATA[  AND WALT.RESRCE_ISSUE_DATE >= TO_DATE( #startDate# , 'YYYY-MM-DD') ]]>
+        </isNotEmpty>
+        <isNotEmpty property="endDate">
+         <![CDATA[   AND WALT.RESRCE_ISSUE_DATE <= TO_DATE( #endDate# ||'235959' , 'YYYY-MM-DD HH24MISS') ]]>
+        </isNotEmpty>
+        <isNotEmpty property="searchCondition"> /* 회원 */
+            <isEqual property='searchCondition' compareValue="NAME">
+                 AND  MEM.NAME LIKE '%'|| #searchKeyword# ||'%'
+            </isEqual>
+             <isEqual property='searchCondition' compareValue="ACCESS_NAME">
+                 AND UPPER(WALT.ACCESS_NAME) LIKE UPPER('%'|| #searchKeyword# ||'%')
+             </isEqual>
+         </isNotEmpty>
+          <isNotEmpty property='walletStusCd'>
+                AND WALT.WALLET_STUS_CD  = #walletStusCd#
+          </isNotEmpty>
+        ORDER BY WALT.REG_DATE DESC
+
+        <include refid="pagingFooter"/>
+        </select>
+
+        <!-- 전자지갑상세조회 -->
+        <select id="selectWalletDetail" parameterClass="java.util.HashMap" resultClass="commMap">
+	        <![CDATA[
+		        SELECT /* QUERYID(selectWalletDetail) */
+		               WALT.ACCESS_NAME
+		             , WALT.ACCML_USE_DIV_CD
+		             , WALT.WALLET_STUS_CD
+		             , WALT.WALLET_NO
+		             , TRIM(TO_CHAR(WALT.AMT, '999,999,999')) AS AMT
+		             , TO_CHAR(WALT.VLD_STRT_DATE, 'YYYY-MM-DD') AS VLD_STRT_DATE
+		             , TO_CHAR(WALT.VLD_END_DATE, 'YYYY-MM-DD')  AS VLD_END_DATE
+		             , CASE
+		                   WHEN WALT.VLD_END_DATE >= SYSDATE
+		                   THEN TO_CHAR(WALT.VLD_END_DATE, 'YYYY-MM-DD') || '(D-' || (TO_DATE(WALT.VLD_END_DATE) + 1 - TO_DATE(SYSDATE)) || ')'
+		                   ELSE TO_CHAR(WALT.VLD_END_DATE, 'YYYY-MM-DD')
+		               END AS TERMINATE_DATE
+		             , (TO_DATE(WALT.VLD_END_DATE) + 1 - TO_DATE(SYSDATE)) AS D_DAY
+		             ,
+		               (SELECT RESRCE_MGT_MEMO_CONT
+		                 FROM OD_MEM_RESRCE_MGT_HISTOR
+		                WHERE ACCESS_NAME = WALT.ACCESS_NAME
+		                  AND PROMTN_NO = WALT.WALLET_NO
+		                  AND ACCML_USE_DIV_CD = '10'
+		                  AND RESRCE_DIV_CD = '03'
+		               ) AS RESRCE_MGT_MEMO_CONT
+		               /* 적립사용구분코드 : 10 적립, 자원구분코드 : 03 전자지갑 */
+		             ,
+		               (SELECT RESRCE_MGT_MEMO_CONT
+		                 FROM OD_MEM_RESRCE_MGT_HISTOR
+		                WHERE ACCESS_NAME = WALT.ACCESS_NAME
+		                  AND PROMTN_NO = WALT.WALLET_NO
+		                  AND ACCML_USE_DIV_CD = '30'
+		                  AND RESRCE_DIV_CD = '03'
+		               ) AS RESRCE_MGT_MEMO_CANCEL
+		               /* 적립사용구분코드 : 30 전환취소, 자원구분코드 : 03 전자지갑 */
+		             , MEM.NAME
+		             , MEM.EMAIL
+		             , MEM.MOBILE
+		          FROM OD_MEM_RESRCE_MGT_WALLET WALT
+		             , MEMINFO MEM
+		         WHERE WALT.ACCESS_NAME = MEM.ACCESS_NAME
+		            AND WALT.ACCESS_NAME = #accessName#
+		            AND WALT.WALLET_NO = #walletNo#
+	           ]]>
+        </select>
+
+        <!--  전자지감 상세 이력 건수 -->
+        <select id="selectWalletDetailHistoryTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+       		<![CDATA[
+		        SELECT  /* QueryId : selectWalletDetailHistoryTotCnt */
+		               COUNT(*) AS CNT
+	              FROM OD_MEM_RESRCE_MGT_WALLET A
+	                 , OD_MEM_RESRCE_MGT_HISTOR B
+	             WHERE A.WALLET_NO = B.PROMTN_NO
+	               AND B.RESRCE_DIV_CD = '03'
+	        ]]>
+	               <isNotEmpty property="walletNo">
+	               AND A.WALLET_NO = #walletNo#
+	               </isNotEmpty>
+	               AND A.ACCESS_NAME = #accessName#
+	               AND b.ACCESS_NAME = #accessName#
+        </select>
+
+        <!-- 전자지갑 상세 이력  -->
+        <select id="selectWalletDetailHistoryList" parameterClass="java.util.HashMap" resultClass="commMap">
+       		<include refid="pagingHeader"/>
+       		<![CDATA[ /* QueryId : selectWalletDetailHistoryList */
+		 	  SELECT
+		            B.*
+		        FROM (
+		          SELECT A.*
+		                ,DECODE(DW_IN, 0, '0', DW_IN) AS IN_MONEY
+		                ,DECODE(DW_OUT, 0, '0', DW_OUT) AS OUT_MONEY
+		                ,(SUM(DW_IN) OVER(ORDER BY RESRCE_ISSUE_DATE ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) - SUM(DW_OUT) OVER(ORDER BY RESRCE_ISSUE_DATE ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)) AS REAMIN_MONEY
+		                , F_GET_COMN_CD_NM( 'ACCML_USE_DIV_CD', A.ACCML_USE_DIV_CD) AS DESC_MONEY /*  적립사용구분코드 [ 10:적립, 20:상품구매, 30:전환취소, 40:주문취소,  50:소멸,  60:탈퇴 ]  */
+		          FROM (
+		            SELECT B.RESRCE_ISSUE_DATE
+		                 , TO_CHAR(B.RESRCE_ISSUE_DATE, 'YYYY-MM-DD') AS HIST_DATE
+		                 , B.RESRCE_MGT_SEQ
+		                 , B.ACCESS_NAME
+		                 , B.AMT
+		                 , B.RESRCE_DIV_CD
+		                 , CASE
+		                      WHEN (B.ACCML_USE_DIV_CD = '10') OR B.ACCML_USE_DIV_CD = '40' AND B.RESRCE_ACCML_USE_REASN_CD = '06' /* 사용 */
+		                      THEN B.AMT
+		                      ELSE 0
+		                   END AS DW_IN
+		                 , CASE
+		                      WHEN (B.ACCML_USE_DIV_CD = '20' AND B.RESRCE_ACCML_USE_REASN_CD = '06') OR B.ACCML_USE_DIV_CD = '50' OR B.ACCML_USE_DIV_CD = '60' /* 사용 */
+		                      THEN B.AMT
+		                      ELSE 0
+		                   END AS DW_OUT
+		                 , B.ACCML_USE_DIV_CD
+		                 , F_GET_COMN_CD_NM( 'ACCML_USE_DIV_CD', B.ACCML_USE_DIV_CD) AS ACCML_USE_DIV_NM /* 적립사용구분코드 : 00 접수, 10 적립, 20 사용, 30 전환취소, 40 주문취소, 50 소멸 60 탈퇴 */
+		                 , B.WALLET_STUS_CD
+		                  , F_GET_COMN_CD_NM( 'WALLET_STUS_CD',B.WALLET_STUS_CD) AS WALLET_STUS_NM
+		                 , TO_CHAR(A.VLD_END_DATE, 'YYYY-MM-DD') AS VLD_END_DATE
+		                 , (TO_DATE(A.VLD_END_DATE) + 1 - TO_DATE(SYSDATE)) AS D_DAY
+		                 , A.WALLET_NO
+		                 , B.ORDER_ID
+		                 , B.RESRCE_MGT_MEMO_CONT
+		              FROM OD_MEM_RESRCE_MGT_WALLET A
+		                 , OD_MEM_RESRCE_MGT_HISTOR B
+		             WHERE A.WALLET_NO = B.PROMTN_NO
+		               AND B.RESRCE_DIV_CD = '03'
+		               ]]>
+		               <isNotEmpty property="walletNo">
+		               AND A.WALLET_NO = #walletNo#
+		               </isNotEmpty>
+		               AND A.ACCESS_NAME = #accessName#
+		               AND b.ACCESS_NAME = #accessName#
+		          ) A
+		        ) B
+		        ORDER BY RESRCE_ISSUE_DATE DESC
+       		<include refid="pagingFooter"/>
+        </select>
+
+        <!-- 총 등록 금액, 총 사용 금액, 총 잔책, 총 소명 금액-->
+        <select id="selectWalletSum" parameterClass="java.util.HashMap" resultClass="commMap">
+        	<![CDATA[
+        		SELECT TRIM(TO_CHAR(SUM(TOTAL_REG_AMT), '999,999,999')) AS IN_SUM
+		             , TRIM(TO_CHAR(SUM(TOTAL_USE_AMT - TOTAL_PLUS_AMT - TOTAL_DEL_AMT), '999,999,999')) AS OUT_SUM
+		             , TRIM(TO_CHAR(SUM(TOTAL_REG_AMT - (TOTAL_USE_AMT - TOTAL_PLUS_AMT)), '999,999,999')) AS REMAIN_SUM
+		             , TRIM(TO_CHAR(SUM(TOTAL_DEL_AMT), '999,999,999'))                 AS EXPIRE_SUM
+		          FROM
+		               (SELECT
+		                      CASE
+		                          WHEN B.ACCML_USE_DIV_CD = '10' /* 적립 */
+		                          THEN B.AMT
+		                          ELSE 0
+		                      END AS TOTAL_REG_AMT
+		                    , CASE
+		                          WHEN B.ACCML_USE_DIV_CD = '20' AND B.RESRCE_ACCML_USE_REASN_CD = '06' /* 사용 */
+		                          THEN B.AMT
+		                          ELSE 0
+		                      END AS TOTAL_USE_AMT
+		                    , CASE
+		                          WHEN B.ACCML_USE_DIV_CD = '40' AND B.RESRCE_ACCML_USE_REASN_CD = '06' /* 취소 */
+		                          THEN B.AMT
+		                          ELSE 0
+		                      END AS TOTAL_PLUS_AMT
+		                    , CASE
+		                          WHEN B.ACCML_USE_DIV_CD = '50' OR B.ACCML_USE_DIV_CD = '60' /* 소멸 */
+		                          THEN B.AMT
+		                          ELSE 0
+		                      END AS TOTAL_DEL_AMT
+		                 FROM OD_MEM_RESRCE_MGT_WALLET A
+		                    , OD_MEM_RESRCE_MGT_HISTOR B
+		                WHERE A.WALLET_NO = B.PROMTN_NO
+		                  AND A.WALLET_STUS_CD = '20' /* 전환완료 */
+		                  AND A.ACCML_USE_DIV_CD IN ('10', '50', '60') /*(10:적립, 50:소멸, 60:탈퇴)*/
+		                  AND B.RESRCE_DIV_CD = '03'
+		         ]]>
+		                  <isNotEmpty property="accessName">
+		                  	  AND A.ACCESS_NAME = #accessName#
+		                  </isNotEmpty>
+		                  <isNotNull property="startDate">
+		                  <isNotEmpty property="startDate">
+		                  <![CDATA[
+			                  AND B.RESRCE_ISSUE_DATE >= TO_DATE( #startDate#, 'YYYY-MM-DD')
+			                  AND B.RESRCE_ISSUE_DATE <= TO_DATE( #endDate# ||'235959' , 'YYYY-MM-DD HH24MISS')
+		                  ]]>
+		                  </isNotEmpty>
+		                  </isNotNull>
+		               ) A
+
+        </select>
+
+        <!-- 전자지값 체크 -->
+        <select id="checkDuplicate" parameterClass="java.util.HashMap" resultClass="int">
+        	<![CDATA[
+        		SELECT /* QUERYID( checkDuplicate ) */
+					COUNT(*)
+				  FROM OD_MEM_RESRCE_MGT_WALLET
+				 WHERE WALLET_NO   = #walletNo#
+				   AND ACCESS_NAME = #accessName#
+        	]]>
+        </select>
+
+        <!-- 전자지갑 등록 -->
+        <insert id="insertWallet" parameterClass="java.util.HashMap">
+        	<![CDATA[
+        		/* QUERYID( insertWallet ) */
+				INSERT INTO OD_MEM_RESRCE_MGT_WALLET (
+					  ACCESS_NAME
+					, WALLET_NO
+					, ACCML_USE_DIV_CD
+					, WALLET_STUS_CD
+					, AMT
+					, RESRCE_ISSUE_DATE
+					, VLD_STRT_DATE
+					, VLD_END_DATE
+					, REGER_ID
+					, REG_DATE
+					, CHGER_ID
+					, CHG_DATE
+				) VALUES (
+					  #accessName#
+					, #walletNo#
+					, #accmlUseDivCd# /* 적립사용구분코드 : 00 접수 */
+					, #walletStusCd#     /* 상태코드 : 10 전환대기 */
+					, REPLACE(#amt#, ',', '')
+					, SYSDATE            /* 자원발급일시 */
+					, #vldStrtDate#
+					, TO_DATE(TO_CHAR(REPLACE( #vldEndDate#  , '-', '') || '235959'), 'YYYYMMDD HH24:MI:SS')
+					, #registId#
+					, SYSDATE
+					, #registId#
+					, SYSDATE
+				)
+        	]]>
+        </insert>
+
+        <!-- 전자지갑수정 -->
+        <update id="updateWallet" parameterClass="java.util.HashMap" >
+			<![CDATA[
+				UPDATE /* QUERYID( updateWallet ) */
+						OD_MEM_RESRCE_MGT_WALLET
+				SET 	AMT = REPLACE( #amt# , ',', '')
+						, VLD_STRT_DATE = TO_DATE(TO_CHAR(REPLACE( #vldStrtDate#, '-', '') || '000000'), 'YYYYMMDD HH24:MI:SS')
+						, VLD_END_DATE = TO_DATE(TO_CHAR(REPLACE(  #vldEndDate#, '-', '') || '235959'), 'YYYYMMDD HH24:MI:SS')
+						, CHGER_ID = #registId#
+						, CHG_DATE = SYSDATE
+				WHERE WALLET_NO = #walletNo#
+				AND ACCESS_NAME = #accessName#
+			]]>
+		</update>
+
+		<!-- 전자지갑 전환 -->
+		<update id="storeWallet" parameterClass="java.util.HashMap">
+			<![CDATA[
+				UPDATE /* QUERYID( storeWallet ) */
+				       OD_MEM_RESRCE_MGT_WALLET
+				   SET ACCML_USE_DIV_CD = #accmlUseDivCd# /* 적립사용구분코드 : 30 전환취소 */
+			         , WALLET_STUS_CD = #walletStusCd#    /* 상태코드 : 30 전환취소 */
+			         , RESRCE_ISSUE_DATE = SYSDATE        /* 자원발급일시 */
+		         WHERE ACCESS_NAME = #accessName#
+		           AND WALLET_NO = #walletNo#
+			]]>
+		</update>
+
+		<!-- 전자지갑 전환취소-->
+		<update id="cancelWallet" parameterClass="java.util.HashMap">
+			<![CDATA[
+				UPDATE /* QUERYID( cancelWallet ) */
+				        OD_MEM_RESRCE_MGT_WALLET
+				   SET ACCML_USE_DIV_CD = #accmlUseDivCd# /* 적립사용구분코드 : 30 전환취소 */
+					 , WALLET_STUS_CD = #walletStusCd#  /* 상태코드 : 30 전환취소 */
+					 , RESRCE_ISSUE_DATE = SYSDATE    /* 자원발급일시 */
+					 , CHGER_ID = #registId#
+					 , CHG_DATE = SYSDATE
+				WHERE WALLET_NO = #walletNo#
+				  AND ACCESS_NAME = #accessName#
+			]]>
+	</update>
+
+	<!-- 전환시 이력남기기 -->
+	<insert id="insertWalletHistory" parameterClass="java.util.HashMap">
+		<![CDATA[
+			/* QueryId : insertWalletHistory */
+			INSERT INTO OD_MEM_RESRCE_MGT_HISTOR
+				 ( ORDER_ID
+				 , SETL_SEQ
+				 , RESRCE_MGT_SEQ
+				 , ACCESS_NAME
+				 , RESRCE_DIV_CD
+				 , ACCML_USE_DIV_CD
+				 , AMT
+				 , WALLET_STUS_CD
+				 , RESRCE_ISSUE_DATE
+				 , RESRCE_ACCML_USE_REASN_CD
+				 , RESRCE_MGT_MEMO_CONT
+				 , VLD_STRT_DATE
+				 , VLD_END_DATE
+				 , CLAIM_NO
+				 , PROMTN_NO
+				 , BNEF_APPLY_SEQ
+				 , RESRCE_USE_DATE
+				 , ORDER_CONT_SEQ
+				 , CLAIM_CONT_SEQ
+				 , ORIG_RESRCE_MGT_SEQ
+				 , REG_DATE
+				 , CHG_DATE
+				 , REGER_ID
+				 , CHGER_ID
+				 )
+			SELECT 'W' || TO_CHAR(SYSDATE, 'YYYYMMDD') || SEQ_OD_MEM_RESRCE_MGT_HISTOR.NEXTVAL
+				 , 'W' || SEQ_OD_MEM_RESRCE_MGT_HISTOR.NEXTVAL
+				 ,	SEQ_OD_MEM_RESRCE_MGT_HISTOR.NEXTVAL
+				 ,	ACCESS_NAME
+				 ,	#resrceDivCd#
+				 ,	#accmlUseDivCd# /* 적립사용구분코드 : 10 적립 */
+				 ,	AMT
+				 ,	#walletStusCd# /* 상태코드 : 20 전환완료 */
+				 ,	SYSDATE
+				 ,	#resrceAccmlUseReasnCd#
+				 ,	NVL(#resrceMgtMemoCont#, '전환완료') AS RESRCE_MGT_MEMO_CONT
+				 ,	VLD_STRT_DATE
+				 ,	VLD_END_DATE
+				 ,	NULL
+				 ,	WALLET_NO
+				 ,	NULL
+				 ,	NULL
+				 ,	NULL
+				 ,	NULL
+				 ,	NULL
+				 ,	SYSDATE
+				 ,	SYSDATE
+				 ,	NVL(#registId#, 'ADMIN')
+				 ,	NVL(#registId#, 'ADMIN')
+			 FROM OD_MEM_RESRCE_MGT_WALLET
+			WHERE ACCESS_NAME = #accessName#
+			  AND WALLET_NO = #walletNo#
+		]]>
+	</insert>
+
+	<!-- 전자지갑 현황 건수 -->
+	<select id="selectWalletStateTotCnt" parameterClass="java.util.HashMap" resultClass="int">
+		SELECT /* QueryId :  */
+			COUNT(*)
+			FROM OD_MEM_RESRCE_MGT_HISTOR HIST
+		WHERE RESRCE_DIV_CD = #resrceDivCd# /* 자원구분코드 : 03 전자지갑 */
+		<isNotEmpty property="accmlUseDivCd">
+			<isEqual property="accmlUseDivCd" compareValue="10">
+		    	AND  ACCML_USE_DIV_CD = '10'
+		    </isEqual>
+		     <isEqual property="accmlUseDivCd" compareValue="20">
+		    	AND ACCML_USE_DIV_CD IN ('20','40','50','60')
+		    	AND RESRCE_ACCML_USE_REASN_CD = '06'
+		    </isEqual>
+		    <isEqual property="accmlUseDivCd" compareValue="50">
+		    	AND (ACCML_USE_DIV_CD = '50' OR ACCML_USE_DIV_CD = '60')
+		    </isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="startDate"> /* 기간 */
+				<![CDATA[ AND RESRCE_ISSUE_DATE >= TO_DATE(#startDate#, 'YYYY-MM-DD') ]]>
+			</isNotEmpty>
+			<isNotEmpty property="endDate">
+				<![CDATA[ AND RESRCE_ISSUE_DATE <= TO_DATE(#endDate# ||'235959' , 'YYYY-MM-DD HH24MISS') ]]>
+			</isNotEmpty>
+		ORDER BY RESRCE_ISSUE_DATE DESC
+	</select>
+
+	<!-- 전자지갑 현황 목록 -->
+	<select id="selectWalletStateList" parameterClass="java.util.HashMap" resultClass="commMap">
+		<include refid="pagingHeader"/>
+
+		SELECT /* QueryId : selectWalletState */
+		      RESRCE_MGT_SEQ
+		    , ACCESS_NAME
+		    , TO_CHAR(RESRCE_ISSUE_DATE, 'YYYY-MM-DD') AS RESRCE_ISSUE_DATE
+		    , RESRCE_ISSUE_DATE AS RESRCE_ISSUE_DATE_DESC
+		    , SUBSTR(ACCESS_NAME,1,LENGTH(ACCESS_NAME)-4) || RPAD('*',4,'*') AS MASKING_ID
+		    , PROMTN_NO
+		    , NVL(AMT, 0) AS AMT
+		    , CASE
+		           WHEN ACCML_USE_DIV_CD = '20' AND RESRCE_ACCML_USE_REASN_CD = '06' OR ACCML_USE_DIV_CD = '50' OR ACCML_USE_DIV_CD = '60' /* 사용 */
+		           THEN AMT
+		           ELSE 0
+		      END AS USE_AMT
+		    , CASE
+		           WHEN ACCML_USE_DIV_CD = '40' AND RESRCE_ACCML_USE_REASN_CD = '06'/* 취소 */
+		           THEN AMT
+		           ELSE 0
+		      END AS REFUND_AMT
+		    , TO_CHAR(VLD_END_DATE, 'YYYY-MM-DD') AS VLD_END_DATE
+		    , (TO_DATE(VLD_END_DATE)+1 - TO_DATE(SYSDATE)) AS DDAY
+		    , F_GET_COMN_CD_NM( #grpCd#, HIST.ACCML_USE_DIV_CD) AS DESC_MONEY
+		    , COUNT(*)OVER(PARTITION BY '') AS TOTAL_CNT
+            , TO_CHAR(SUM(AMT)OVER(PARTITION BY ''),'9,999,999,999') AS TOTAL_AMT
+		    FROM OD_MEM_RESRCE_MGT_HISTOR HIST
+		WHERE RESRCE_DIV_CD = #resrceDivCd# /* 자원구분코드 : 03 전자지갑 */
+		<isNotEmpty property="accmlUseDivCd">
+			<isEqual property="accmlUseDivCd" compareValue="10">
+		    	AND ACCML_USE_DIV_CD = '10'
+		    </isEqual>
+		    <isEqual property="accmlUseDivCd" compareValue="20">
+		    	AND ACCML_USE_DIV_CD = '20'
+		    	AND RESRCE_ACCML_USE_REASN_CD = '06'
+		    </isEqual>
+		    <isEqual property="accmlUseDivCd" compareValue="50">
+		    	AND (ACCML_USE_DIV_CD = '50' OR ACCML_USE_DIV_CD = '60')
+		    </isEqual>
+		</isNotEmpty>
+		<isNotEmpty property="startDate"> /* 기간 */
+				<![CDATA[ AND RESRCE_ISSUE_DATE >= TO_DATE(#startDate#, 'YYYY-MM-DD') ]]>
+			</isNotEmpty>
+			<isNotEmpty property="endDate">
+				<![CDATA[ AND RESRCE_ISSUE_DATE <= TO_DATE( #endDate# ||'235959' , 'YYYY-MM-DD HH24MISS')   ]]>
+			</isNotEmpty>
+		ORDER BY RESRCE_ISSUE_DATE_DESC DESC
+
+		<include refid="pagingFooter"/>
+	</select>
+</sqlMap>
